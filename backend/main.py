@@ -369,35 +369,114 @@ def is_nse_market_open() -> bool:
     return start_minutes <= minutes_since_midnight <= end_minutes
 
 
-@app.websocket("/ws/prices")
-async def websocket_prices(websocket: WebSocket, symbols: str = "AAPL,MSFT,GOOGL,TSLA"):
-    """
-    Streams simulated price ticks for the requested symbols.
-    Send a JSON message to change the watched symbols:
-        { "action": "subscribe", "symbols": ["AAPL", "NVDA"] }
+# Fallback seed prices for Indian stocks if yfinance fails
+SEED_PRICES = {
+    'RELIANCE.NS': 2920.0,
+    'TCS.NS': 4100.0,
+    'HDFCBANK.NS': 1780.0,
+    'INFY.NS': 1650.0,
+    'ICICIBANK.NS': 1290.0,
+    'SBIN.NS': 845.0,
+    'BAJFINANCE.NS': 7200.0,
+    'TMPV.NS': 385.0,
+    'WIPRO.NS': 490.0,
+    'AXISBANK.NS': 1190.0,
+}
 
-    To replace with real data: swap the _simulate_tick() call with
-    a Polygon.io / Alpaca WebSocket feed push.
+# Live prices cache seeded initially with baseline seed prices
+LIVE_PRICES_CACHE = {
+    sym: {
+        "price": price,
+        "prev_close": price,
+        "timestamp": int(time.time() * 1000)
+    } for sym, price in SEED_PRICES.items()
+}
+
+_crawl_executor = ThreadPoolExecutor(max_workers=5)
+
+
+async def fetch_live_quotes_loop():
+    """
+    Background crawler task that runs every 10 seconds to fetch the latest
+    quotes for all watchlisted NSE stocks in a thread pool and updates LIVE_PRICES_CACHE.
+    """
+    import functools
+    import pandas as pd
+    watchlist_symbols = [w["symbol"] for w in sig_engine.NSE_WATCHLIST]
+    
+    while True:
+        try:
+            loop = asyncio.get_event_loop()
+            
+            # Fetch all symbols at once (bulk download is extremely fast)
+            df = await loop.run_in_executor(
+                _crawl_executor,
+                functools.partial(
+                    yf.download, 
+                    tickers=" ".join(watchlist_symbols), 
+                    period="1d", 
+                    interval="1m", 
+                    auto_adjust=True, 
+                    progress=False
+                )
+            )
+            
+            if df is not None and not df.empty:
+                is_multi = isinstance(df.columns, pd.MultiIndex)
+                for sym in watchlist_symbols:
+                    try:
+                        if is_multi:
+                            close_col = ('Close', sym)
+                            open_col  = ('Open', sym)
+                        else:
+                            close_col = 'Close'
+                            open_col  = 'Open'
+                            
+                        if (is_multi and close_col in df.columns) or (not is_multi and close_col in df.columns):
+                            prices_series = df[close_col].dropna()
+                            if not prices_series.empty:
+                                last_price = float(prices_series.iloc[-1])
+                                # Fallback prev_close is the first price (open of the day)
+                                first_price = float(df[open_col].dropna().iloc[0]) if open_col in df.columns else last_price
+                                LIVE_PRICES_CACHE[sym] = {
+                                    "price": last_price,
+                                    "prev_close": first_price,
+                                    "timestamp": int(time.time() * 1000)
+                                }
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+            
+        await asyncio.sleep(10)
+
+
+@app.on_event("startup")
+async def startup_event():
+    # Run the crawler loop in the background on startup
+    asyncio.create_task(fetch_live_quotes_loop())
+
+
+@app.websocket("/ws/prices")
+async def websocket_prices(websocket: WebSocket, symbols: str = "RELIANCE.NS,TCS.NS,HDFCBANK.NS,INFY.NS,ICICIBANK.NS,SBIN.NS,BAJFINANCE.NS,TMPV.NS,WIPRO.NS,AXISBANK.NS"):
+    """
+    Streams price ticks for the requested symbols.
+    Simulates micro-ticks around live yfinance baseline prices when market is open.
+    Sends static, non-fluctuating closing prices when market is closed.
     """
     await websocket.accept()
     active_connections.append(websocket)
 
-    # Bootstrap: fetch real current prices for initial seed values
     watch = [s.strip().upper() for s in symbols.split(",") if s.strip()]
-    seed_prices: dict[str, float] = {}
-    prev_closes: dict[str, float] = {}
+    
+    # Store local tracking price states to simulate smooth tick transitions
+    local_prices: dict[str, float] = {}
+    local_prev_closes: dict[str, float] = {}
 
     for sym in watch:
-        try:
-            t = yf.Ticker(sym)
-            info = t.fast_info
-            p = getattr(info, "last_price", None) or getattr(info, "regular_market_price", 100.0)
-            seed_prices[sym] = float(p)
-            pc = getattr(info, "previous_close", None) or p
-            prev_closes[sym] = float(pc)
-        except Exception:
-            seed_prices[sym] = 100.0
-            prev_closes[sym] = 100.0
+        cached = LIVE_PRICES_CACHE.get(sym, {"price": SEED_PRICES.get(sym, 150.0), "prev_close": SEED_PRICES.get(sym, 150.0)})
+        local_prices[sym] = cached["price"]
+        local_prev_closes[sym] = cached["prev_close"]
 
     try:
         while True:
@@ -408,34 +487,37 @@ async def websocket_prices(websocket: WebSocket, symbols: str = "AAPL,MSFT,GOOGL
                 if msg.get("action") == "subscribe" and "symbols" in msg:
                     new_syms = [s.strip().upper() for s in msg["symbols"] if s.strip()]
                     for sym in new_syms:
-                        if sym not in seed_prices:
-                            try:
-                                t = yf.Ticker(sym)
-                                info = t.fast_info
-                                p = getattr(info, "last_price", None) or 100.0
-                                seed_prices[sym] = float(p)
-                                pc = getattr(info, "previous_close", None) or p
-                                prev_closes[sym] = float(pc)
-                            except Exception:
-                                seed_prices[sym] = 100.0
-                                prev_closes[sym] = 100.0
+                        if sym not in local_prices:
+                            cached = LIVE_PRICES_CACHE.get(sym, {"price": SEED_PRICES.get(sym, 150.0), "prev_close": SEED_PRICES.get(sym, 150.0)})
+                            local_prices[sym] = cached["price"]
+                            local_prev_closes[sym] = cached["prev_close"]
                     watch = new_syms
             except asyncio.TimeoutError:
                 pass
 
-            # Emit one tick per symbol
             market_open = is_nse_market_open()
             ticks = []
             for sym in watch:
-                if market_open:
-                    price = _simulate_tick(seed_prices[sym])
-                    seed_prices[sym] = price
+                cached = LIVE_PRICES_CACHE.get(sym)
+                if cached:
+                    baseline_price = cached["price"]
+                    local_prev_closes[sym] = cached["prev_close"]
                 else:
-                    price = seed_prices[sym]
+                    baseline_price = local_prices.get(sym, SEED_PRICES.get(sym, 150.0))
+
+                if market_open:
+                    # Stream simulated tick fluctuations around the live baseline price
+                    price = _simulate_tick(baseline_price)
+                    local_prices[sym] = price
+                else:
+                    # Gating: Closed market, stream static closing price without visual walk
+                    price = baseline_price
+                    local_prices[sym] = price
+
                 ticks.append({
                     "symbol": sym,
                     "price": round(price, 4),
-                    "prev_close": round(prev_closes.get(sym, price), 4),
+                    "prev_close": round(local_prev_closes.get(sym, price), 4),
                     "timestamp": int(time.time() * 1000),
                 })
 
@@ -444,7 +526,7 @@ async def websocket_prices(websocket: WebSocket, symbols: str = "AAPL,MSFT,GOOGL
                 "data": ticks,
                 "market_status": "OPEN" if market_open else "CLOSED"
             })
-            await asyncio.sleep(1)  # 1-second cadence; reduce for higher frequency
+            await asyncio.sleep(1)
 
     except WebSocketDisconnect:
         pass

@@ -1,23 +1,33 @@
 """
-signals.py — NSE Intraday Signal Engine
+signals.py — NSE Intraday & Overnight Signal Engine
 ────────────────────────────────────────────────────────────────────────────────
-Real quantitative analysis using:
-  • VWAP          — intraday anchor (most important for NSE intraday)
-  • RSI(14)       — momentum overbought/oversold
+Advanced quantitative analysis using pandas-ta:
+  • VWAP          — intraday volume weighted average price anchor
+  • RSI(14)       — momentum oscillator
   • MACD(12,26,9) — trend + momentum crossover
-  • EMA 9 / 21   — intraday fast/slow moving averages
-  • Bollinger Bands(20,2) — volatility squeeze / expansion
+  • EMA 9 / 21    — moving average crossover
+  • Bollinger Bands(20,2) — volatility bands
+  • Supertrend(7,3) — trend direction and value
+  • ADX(14)       — trend strength indicator
+  • Stochastic(14,3,3) — momentum crossover
+  • OBV           — volume accumulation/distribution
   • Volume ratio  — current volume vs 20-bar average
 
-Signal scoring: each condition adds/subtracts from a score.
-Score →  BUY/SELL/HOLD + Confidence %
+Scoring system maps scores to BUY/SELL/HOLD signal types + Confidence %.
+Supports Market Hours Gating:
+  • Market Open: Intraday scanning using 5-minute interval bars.
+  • Market Closed: Overnight scanning using daily (1d) interval bars.
 """
 
 import math
-from datetime import datetime, date
+from datetime import datetime, date, timezone, timedelta
 from typing import Optional
 import yfinance as yf
 import pandas as pd
+
+# Load mock numba before importing pandas_ta
+import numba
+import pandas_ta as ta
 
 
 # ── NSE Intraday Watchlist ────────────────────────────────────────────────────
@@ -45,211 +55,240 @@ NSE_WATCHLIST = [
 ]
 
 
-# ── Technical Indicator Functions ─────────────────────────────────────────────
-
-def _ema(series: pd.Series, period: int) -> pd.Series:
-    return series.ewm(span=period, adjust=False).mean()
-
-
-def _rsi(series: pd.Series, period: int = 14) -> pd.Series:
-    delta = series.diff()
-    gain  = delta.clip(lower=0)
-    loss  = (-delta).clip(lower=0)
-    avg_gain = gain.ewm(com=period - 1, adjust=False).mean()
-    avg_loss = loss.ewm(com=period - 1, adjust=False).mean()
-    rs = avg_gain / avg_loss.replace(0, 1e-10)
-    return 100 - (100 / (1 + rs))
-
-
-def _macd(series: pd.Series, fast=12, slow=26, signal=9):
-    ema_fast   = _ema(series, fast)
-    ema_slow   = _ema(series, slow)
-    macd_line  = ema_fast - ema_slow
-    signal_line = _ema(macd_line, signal)
-    histogram  = macd_line - signal_line
-    return macd_line, signal_line, histogram
-
-
-def _bollinger(series: pd.Series, period=20, std_dev=2):
-    sma    = series.rolling(period).mean()
-    std    = series.rolling(period).std()
-    upper  = sma + std_dev * std
-    lower  = sma - std_dev * std
-    return upper, sma, lower
-
-
-def _vwap(df: pd.DataFrame) -> pd.Series:
-    """VWAP = cumulative(typical_price * volume) / cumulative(volume)"""
-    typical = (df["High"] + df["Low"] + df["Close"]) / 3
-    cum_vol  = df["Volume"].cumsum()
-    cum_tp_vol = (typical * df["Volume"]).cumsum()
-    return cum_tp_vol / cum_vol.replace(0, 1)
-
-
-def _atr(df: pd.DataFrame, period=14) -> pd.Series:
-    """Average True Range for stop-loss calculation."""
-    high, low, prev_close = df["High"], df["Low"], df["Close"].shift(1)
-    tr = pd.concat([
-        high - low,
-        (high - prev_close).abs(),
-        (low  - prev_close).abs(),
-    ], axis=1).max(axis=1)
-    return tr.ewm(span=period, adjust=False).mean()
+def is_nse_market_open() -> bool:
+    """
+    Checks if the NSE market is currently open.
+    NSE market is open Monday-Friday, 9:15 AM to 3:30 PM IST.
+    IST is UTC + 5:30.
+    """
+    now_utc = datetime.now(timezone.utc)
+    now_ist = now_utc + timedelta(hours=5, minutes=30)
+    
+    if now_ist.weekday() >= 5:
+        return False
+        
+    minutes_since_midnight = now_ist.hour * 60 + now_ist.minute
+    start_minutes = 9 * 60 + 15
+    end_minutes = 15 * 60 + 30
+    
+    return start_minutes <= minutes_since_midnight <= end_minutes
 
 
 # ── Core Signal Calculation ───────────────────────────────────────────────────
 
 def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
     """
-    Fetch 5-minute intraday data for today and compute a full signal.
-    Returns a dict or None if data unavailable.
+    Download market data for a symbol and calculate advanced signals using pandas-ta.
+    If market is open, runs intraday 5m scan.
+    If market is closed, runs daily 1d overnight scan.
     """
     try:
-        # Fetch 5-min data for the past 5 days (ensures data is always available, e.g. on weekends)
-        df = yf.download(symbol, period="5d", interval="5m",
+        market_open = is_nse_market_open()
+
+        if market_open:
+            period = "5d"
+            interval = "5m"
+            scan_type = "INTRADAY"
+        else:
+            period = "3mo"
+            interval = "1d"
+            scan_type = "OVERNIGHT"
+
+        # Fetch yfinance data
+        df = yf.download(symbol, period=period, interval=interval,
                          auto_adjust=True, progress=False)
         if df is None or len(df) < 20:
             return None
 
-        # Flatten multi-level columns (yfinance sometimes returns them)
+        # Flatten multi-level columns if returned by yfinance
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
 
-        df = df.dropna()
+        df = df.dropna(subset=["Close", "High", "Low", "Open", "Volume"])
         if len(df) < 20:
             return None
 
-        # ── Indicators ───────────────────────────────────────────────────────
+        # ── Indicators via pandas-ta ──────────────────────────────────────────
+        df.ta.ema(length=9, append=True)
+        df.ta.ema(length=21, append=True)
+        df.ta.rsi(length=14, append=True)
+        df.ta.macd(append=True)
+        df.ta.bbands(length=20, append=True)
+        df.ta.vwap(append=True)
+        df.ta.atr(length=14, append=True)
+        df.ta.supertrend(append=True)
+        df.ta.adx(append=True)
+        df.ta.stoch(append=True)
+        df.ta.obv(append=True)
+
+        # Subset dropna so we don't wipe out the df due to Supertrend Long/Short splits
+        required_cols = [
+            "Close", "EMA_9", "EMA_21", "RSI_14", "MACD_12_26_9", 
+            "BBU_20_2.0_2.0", "VWAP_D", "ATRr_14", "SUPERT_7_3.0", 
+            "ADX_14", "STOCHk_14_3_3", "OBV"
+        ]
+        df = df.dropna(subset=required_cols)
+        if len(df) < 5:
+            return None
+
         close  = df["Close"]
         volume = df["Volume"]
 
-        ema9  = _ema(close, 9)
-        ema21 = _ema(close, 21)
-        rsi   = _rsi(close, 14)
-        macd_line, signal_line, macd_hist = _macd(close)
-        bb_upper, bb_mid, bb_lower = _bollinger(close, 20, 2)
-        vwap  = _vwap(df)
-        atr   = _atr(df, 14)
+        # Extract latest indicator values
+        price      = float(close.iloc[-1])
+        rsi_val    = float(df["RSI_14"].iloc[-1])
+        macd_val   = float(df["MACD_12_26_9"].iloc[-1])
+        sig_val    = float(df["MACDs_12_26_9"].iloc[-1])
+        hist_val   = float(df["MACDh_12_26_9"].iloc[-1])
+        hist_prev  = float(df["MACDh_12_26_9"].iloc[-2])
+        ema9_val   = float(df["EMA_9"].iloc[-1])
+        ema21_val  = float(df["EMA_21"].iloc[-1])
+        vwap_val   = float(df["VWAP_D"].iloc[-1])
+        bb_up      = float(df["BBU_20_2.0_2.0"].iloc[-1])
+        bb_lo      = float(df["BBL_20_2.0_2.0"].iloc[-1])
+        bb_mid_v   = float(df["BBM_20_2.0_2.0"].iloc[-1])
+        atr_val    = float(df["ATRr_14"].iloc[-1])
+        
+        # New indicators
+        supert_val = float(df["SUPERT_7_3.0"].iloc[-1])
+        supert_dir = float(df["SUPERTd_7_3.0"].iloc[-1])  # 1 = Bullish trend, -1 = Bearish trend
+        adx_val    = float(df["ADX_14"].iloc[-1])
+        stoch_k    = float(df["STOCHk_14_3_3"].iloc[-1])
+        stoch_d    = float(df["STOCHd_14_3_3"].iloc[-1])
+        obv_val    = float(df["OBV"].iloc[-1])
+        obv_prev   = float(df["OBV"].iloc[-5])
 
-        # Volume: current bar vs 20-bar rolling average
+        # Volume ratio vs 20-bar average
         vol_avg  = volume.rolling(20).mean()
         vol_ratio = (volume / vol_avg.replace(0, 1)).iloc[-1]
-
-        # ── Latest values ─────────────────────────────────────────────────────
-        price     = float(close.iloc[-1])
-        rsi_val   = float(rsi.iloc[-1])
-        macd_val  = float(macd_line.iloc[-1])
-        sig_val   = float(signal_line.iloc[-1])
-        hist_val  = float(macd_hist.iloc[-1])
-        hist_prev = float(macd_hist.iloc[-2]) if len(macd_hist) > 1 else 0
-        ema9_val  = float(ema9.iloc[-1])
-        ema21_val = float(ema21.iloc[-1])
-        vwap_val  = float(vwap.iloc[-1])
-        bb_up     = float(bb_upper.iloc[-1])
-        bb_lo     = float(bb_lower.iloc[-1])
-        bb_mid_v  = float(bb_mid.iloc[-1])
-        atr_val   = float(atr.iloc[-1])
         vol_r     = float(vol_ratio)
 
-        # ── Scoring system (bullish = positive, bearish = negative) ───────────
+        # ── Scoring system (Bullish: positive, Bearish: negative) ─────────────
         score = 0
         reasons_bull = []
         reasons_bear = []
 
-        # 1. VWAP: price vs VWAP (strong intraday signal)
+        # 1. VWAP position (strong weight for intraday)
         vwap_diff_pct = (price - vwap_val) / vwap_val * 100
         if price > vwap_val * 1.002:
             score += 2
-            reasons_bull.append(f"Price {abs(vwap_diff_pct):.1f}% above VWAP ₹{vwap_val:.1f} — bullish bias")
+            reasons_bull.append(f"Price {abs(vwap_diff_pct):.1f}% above VWAP ₹{vwap_val:.1f}")
         elif price < vwap_val * 0.998:
             score -= 2
-            reasons_bear.append(f"Price {abs(vwap_diff_pct):.1f}% below VWAP ₹{vwap_val:.1f} — bearish bias")
+            reasons_bear.append(f"Price {abs(vwap_diff_pct):.1f}% below VWAP ₹{vwap_val:.1f}")
 
-        # 2. RSI momentum
+        # 2. RSI Overbought/Oversold
         if 45 <= rsi_val <= 65:
             score += 1
-            reasons_bull.append(f"RSI {rsi_val:.0f} — healthy bullish momentum (not overbought)")
+            reasons_bull.append(f"RSI {rsi_val:.0f} — stable bullish momentum")
         elif rsi_val > 70:
             score -= 2
-            reasons_bear.append(f"RSI {rsi_val:.0f} — overbought, risk of reversal")
+            reasons_bear.append(f"RSI {rsi_val:.0f} — overbought risk")
         elif rsi_val < 35:
-            score += 1   # oversold bounce potential
-            reasons_bull.append(f"RSI {rsi_val:.0f} — oversold, watch for bounce")
+            score += 2
+            reasons_bull.append(f"RSI {rsi_val:.0f} — oversold bounce candidate")
         elif rsi_val < 45:
             score -= 1
-            reasons_bear.append(f"RSI {rsi_val:.0f} — weak momentum")
+            reasons_bear.append(f"RSI {rsi_val:.0f} — weak price momentum")
 
-        # 3. MACD — histogram expanding bullish/bearish
+        # 3. MACD Histogram and Signal Line Crossover
         if hist_val > 0 and hist_val > hist_prev:
             score += 2
-            reasons_bull.append(f"MACD histogram expanding bullishly ({hist_val:.3f})")
-        elif hist_val > 0 and hist_val < hist_prev:
-            score += 0  # losing steam
+            reasons_bull.append("MACD histogram expanding bullishly")
         elif hist_val < 0 and hist_val < hist_prev:
             score -= 2
-            reasons_bear.append(f"MACD histogram expanding bearishly ({hist_val:.3f})")
-        elif hist_val < 0 and hist_val > hist_prev:
-            score -= 0  # bear losing steam
+            reasons_bear.append("MACD histogram expanding bearishly")
 
-        # MACD crossover (recent: current bar crosses signal)
-        if macd_val > sig_val and macd_line.iloc[-2] <= signal_line.iloc[-2]:
+        if macd_val > sig_val and df["MACD_12_26_9"].iloc[-2] <= df["MACDs_12_26_9"].iloc[-2]:
             score += 2
-            reasons_bull.append("MACD bullish crossover just occurred — momentum shift")
-        elif macd_val < sig_val and macd_line.iloc[-2] >= signal_line.iloc[-2]:
+            reasons_bull.append("MACD bullish crossover")
+        elif macd_val < sig_val and df["MACD_12_26_9"].iloc[-2] >= df["MACDs_12_26_9"].iloc[-2]:
             score -= 2
-            reasons_bear.append("MACD bearish crossover just occurred — momentum shift")
+            reasons_bear.append("MACD bearish crossover")
 
-        # 4. EMA 9 vs EMA 21 alignment
+        # 4. EMA 9/21 Trend Structure
         if ema9_val > ema21_val:
             score += 1
-            reasons_bull.append(f"EMA9 ({ema9_val:.1f}) > EMA21 ({ema21_val:.1f}) — uptrend structure")
+            reasons_bull.append("Uptrend (EMA 9 > EMA 21)")
         else:
             score -= 1
-            reasons_bear.append(f"EMA9 ({ema9_val:.1f}) < EMA21 ({ema21_val:.1f}) — downtrend structure")
+            reasons_bear.append("Downtrend (EMA 9 < EMA 21)")
 
-        # 5. Bollinger Band position
-        bb_width = (bb_up - bb_lo) / bb_mid_v * 100  # %
-        pct_b    = (price - bb_lo) / (bb_up - bb_lo) if (bb_up - bb_lo) > 0 else 0.5
-        if pct_b > 0.8:
+        # 5. Bollinger Bands
+        pct_b = (price - bb_lo) / (bb_up - bb_lo) if (bb_up - bb_lo) > 0 else 0.5
+        if pct_b > 0.85:
             score -= 1
-            reasons_bear.append(f"Near upper Bollinger Band (B% {pct_b:.0%}) — stretched")
-        elif pct_b < 0.2:
+            reasons_bear.append(f"Price near upper BBand (B% {pct_b:.0%})")
+        elif pct_b < 0.15:
             score += 1
-            reasons_bull.append(f"Near lower Bollinger Band (B% {pct_b:.0%}) — potential bounce")
+            reasons_bull.append(f"Price near lower BBand (B% {pct_b:.0%})")
 
-        # 6. Volume confirmation
+        # 6. Supertrend (Strong Weight)
+        if supert_dir == 1:
+            score += 2
+            reasons_bull.append("Supertrend Bullish")
+        else:
+            score -= 2
+            reasons_bear.append("Supertrend Bearish")
+
+        # 7. ADX Trend Strength Modifier
+        if adx_val > 25:
+            if score > 0:
+                score += 1
+                reasons_bull.append(f"Strong Trend (ADX {adx_val:.1f})")
+            elif score < 0:
+                score -= 1
+                reasons_bear.append(f"Strong Trend (ADX {adx_val:.1f})")
+        elif adx_val < 20:
+            score = int(score * 0.7)  # penalize signals in choppy markets
+            reasons_bear.append(f"Sideways range (ADX {adx_val:.1f})")
+
+        # 8. Stochastic Crossovers
+        if stoch_k < 20 and stoch_k > stoch_d and df["STOCHk_14_3_3"].iloc[-2] <= df["STOCHd_14_3_3"].iloc[-2]:
+            score += 1
+            reasons_bull.append("Stochastic oversold golden cross")
+        elif stoch_k > 80 and stoch_k < stoch_d and df["STOCHk_14_3_3"].iloc[-2] >= df["STOCHd_14_3_3"].iloc[-2]:
+            score -= 1
+            reasons_bear.append("Stochastic overbought death cross")
+
+        # 9. OBV Volume Flow
+        if obv_val > obv_prev:
+            score += 1
+            reasons_bull.append("OBV volume accumulation")
+        elif obv_val < obv_prev:
+            score -= 1
+            reasons_bear.append("OBV volume distribution")
+
+        # 10. Volume Confirmation
         if vol_r >= 1.5:
-            score += 1 if score > 0 else -1   # amplifies the existing direction
+            score += 1 if score > 0 else -1
             label = "bull" if score > 0 else "bear"
-            reasons_bull.append(f"Volume {vol_r:.1f}x average — strong {label} confirmation") if score > 0 else \
-            reasons_bear.append(f"Volume {vol_r:.1f}x average — strong {label} confirmation")
+            reasons_bull.append(f"Vol surge {vol_r:.1f}x — {label} force") if score > 0 else \
+            reasons_bear.append(f"Vol surge {vol_r:.1f}x — {label} force")
         elif vol_r < 0.7:
-            score = int(score * 0.7)  # low volume = lower conviction
-            reasons_bear.append(f"Volume {vol_r:.1f}x average — low conviction, avoid")
+            score = int(score * 0.7)
+            reasons_bear.append("Low volume conviction")
 
-        # ── Determine signal ──────────────────────────────────────────────────
-        max_score = 11  # theoretical maximum
-        norm      = score / max_score  # -1 to +1
-
-        if score >= 4:
+        # ── Define Signal Output ──────────────────────────────────────────────
+        if score >= 5:
             signal    = "BUY"
-            confidence = min(95, 60 + score * 4)
-        elif score <= -4:
+            confidence = min(95, 60 + score * 3)
+        elif score <= -5:
             signal    = "SELL"
-            confidence = min(95, 60 + abs(score) * 4)
+            confidence = min(95, 60 + abs(score) * 3)
         elif score >= 2:
             signal    = "WEAK BUY"
-            confidence = 40 + score * 5
+            confidence = 40 + score * 4
         elif score <= -2:
             signal    = "WEAK SELL"
-            confidence = 40 + abs(score) * 5
+            confidence = 40 + abs(score) * 4
         else:
             signal    = "HOLD"
             confidence = 50
 
-        # ── Price targets using ATR ───────────────────────────────────────────
-        atr2 = atr_val * 2   # 2×ATR for target
-        atr1 = atr_val * 1.2  # 1.2×ATR for stop
+        # ── Set Target & Stop Levels via ATR ──────────────────────────────────
+        atr2 = atr_val * 2
+        atr1 = atr_val * 1.2
 
         if signal in ("BUY", "WEAK BUY"):
             entry  = round(price, 2)
@@ -273,9 +312,9 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
         rr_ratio = round(reward / risk, 2) if risk > 0 else 1.0
         target_pct = round((target - price) / price * 100, 2)
 
-        # Build reasoning string
+        # reasoning output (join top 4 signals)
         all_reasons = reasons_bull + reasons_bear
-        reasoning = " | ".join(all_reasons[:4])  # top 4 reasons
+        reasoning = " | ".join(all_reasons[:4])
 
         return {
             "symbol":       symbol,
@@ -301,18 +340,23 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
             "bb_lower":     round(bb_lo, 2),
             "vol_ratio":    round(vol_r, 2),
             "atr":          round(atr_val, 2),
+            "supertrend":   round(supert_val, 2),
+            "supertrend_dir": int(supert_dir),
+            "adx":          round(adx_val, 2),
+            "stoch_k":      round(stoch_k, 2),
+            "obv":          round(obv_val, 2),
+            "scan_type":    scan_type,
             "reasoning":    reasoning,
             "scanned_at":   datetime.utcnow().isoformat() + "Z",
         }
 
-    except Exception as e:
+    except Exception:
         return None
 
 
 def run_scan(symbols: Optional[list] = None) -> list:
     """
-    Scan all NSE symbols (or a subset) and return signals sorted by confidence.
-    Uses ThreadPoolExecutor to download and analyze symbols concurrently.
+    Scan watchlist and return signals sorted by conviction/confidence.
     """
     from concurrent.futures import ThreadPoolExecutor
     watchlist = symbols or NSE_WATCHLIST
@@ -331,7 +375,6 @@ def run_scan(symbols: Optional[list] = None) -> list:
             except Exception:
                 pass
 
-    # Sort: BUY first by confidence, then SELL by confidence, then HOLD
     order = {"BUY": 0, "WEAK BUY": 1, "HOLD": 2, "WEAK SELL": 3, "SELL": 4}
     results.sort(key=lambda x: (order.get(x["signal"], 5), -x["confidence"]))
     return results
