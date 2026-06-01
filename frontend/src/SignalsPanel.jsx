@@ -13,7 +13,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
-const BASE = `http://${window.location.hostname}:8000`;
+const BASE = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
 
 const T = {
   bg:         '#080a0f',
