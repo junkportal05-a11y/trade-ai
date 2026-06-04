@@ -373,7 +373,7 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices })
 
       {/* ── Header ── */}
       <div style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}`, background: T.surface, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 10 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: T.text, ...mono, letterSpacing: '0.08em' }}>

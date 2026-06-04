@@ -851,7 +851,7 @@ function ChatPanel({ symbol, price, changePct }) {
 }
 
 // ── Header ─────────────────────────────────────────────────────────────────────────────
-function Header({ symbol, connected, view, onViewChange }) {
+function Header({ symbol, connected, view, onViewChange, isMobile }) {
   const { data: quote } = useQuote(symbol);
   const price     = quote?.price ?? SEED_PRICES[symbol] ?? 0;
   const change    = quote?.change ?? 0;
@@ -871,19 +871,21 @@ function Header({ symbol, connected, view, onViewChange }) {
         ◈ APEXTRADE
       </div>
 
-      {/* View switcher — CHART | SIGNALS | PERFORMANCE */}
-      <div style={{ display: 'flex', background: T.bg, borderRadius: 6, padding: 2, border: `1px solid ${T.border}`, flexShrink: 0 }}>
-        {[['CHART', '📈'], ['SIGNALS', '📡'], ['PERFORMANCE', '📊'], ['ALLOCATE', '💰']].map(([v, icon]) => (
-          <button key={v} onClick={() => onViewChange(v)} style={{
-            padding: '4px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
-            background: view === v ? (v === 'SIGNALS' ? T.accentDim : v === 'PERFORMANCE' ? T.greenDim : v === 'ALLOCATE' ? T.goldDim : T.blueDim) : 'transparent',
-            color: view === v ? (v === 'SIGNALS' ? T.accentAlt : v === 'PERFORMANCE' ? T.green : v === 'ALLOCATE' ? T.gold : T.accent) : T.textDim,
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
-            fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
-            boxShadow: view === v && v === 'SIGNALS' ? `0 0 10px ${T.accentGlow}` : view === v && v === 'PERFORMANCE' ? `0 0 10px ${T.greenGlow}` : view === v && v === 'ALLOCATE' ? `0 0 10px rgba(245,200,66,0.3)` : 'none',
-          }}>{icon} {v}</button>
-        ))}
-      </div>
+      {/* View switcher — CHART | SIGNALS | PERFORMANCE (Hidden on Mobile) */}
+      {!isMobile && (
+        <div style={{ display: 'flex', background: T.bg, borderRadius: 6, padding: 2, border: `1px solid ${T.border}`, flexShrink: 0 }}>
+          {[['CHART', '📈'], ['SIGNALS', '📡'], ['PERFORMANCE', '📊'], ['ALLOCATE', '💰']].map(([v, icon]) => (
+            <button key={v} onClick={() => onViewChange(v)} style={{
+              padding: '4px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
+              background: view === v ? (v === 'SIGNALS' ? T.accentDim : v === 'PERFORMANCE' ? T.greenDim : v === 'ALLOCATE' ? T.goldDim : T.blueDim) : 'transparent',
+              color: view === v ? (v === 'SIGNALS' ? T.accentAlt : v === 'PERFORMANCE' ? T.green : v === 'ALLOCATE' ? T.gold : T.accent) : T.textDim,
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+              fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
+              boxShadow: view === v && v === 'SIGNALS' ? `0 0 10px ${T.accentGlow}` : view === v && v === 'PERFORMANCE' ? `0 0 10px ${T.greenGlow}` : view === v && v === 'ALLOCATE' ? `0 0 10px rgba(245,200,66,0.3)` : 'none',
+            }}>{icon} {v}</button>
+          ))}
+        </div>
+      )}
 
       <div style={{ width: 1, height: 22, background: T.border, flexShrink: 0 }} />
 
@@ -898,8 +900,8 @@ function Header({ symbol, connected, view, onViewChange }) {
         </span>
       </div>
 
-      {/* Quote metadata */}
-      {quote && (
+      {/* Quote metadata (Hidden on Mobile) */}
+      {quote && !isMobile && (
         <div style={{ display: 'flex', gap: 14 }}>
           {[
             ['H', quote.day_high], ['L', quote.day_low],
@@ -914,7 +916,7 @@ function Header({ symbol, connected, view, onViewChange }) {
       )}
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
-        <span style={{ fontSize: 10, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em' }}>{clock} UTC+5:30</span>
+        {!isMobile && <span style={{ fontSize: 10, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em' }}>{clock} UTC+5:30</span>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{
             width: 6,
@@ -947,6 +949,17 @@ export default function App() {
   const [selected, setSelected] = useState('RELIANCE.NS');
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
   const [rightTab, setRightTab] = useState('ORDER');
+  
+  // Mobile Responsiveness State
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 800);
+  const [mobileTab, setMobileTab] = useState('CHART'); // 'WATCHLIST' | 'CHART' | 'ORDER' | 'PORTFOLIO' | 'AI'
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 800);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   
   // Interactive Overlays/Oscillators Toggles
   const [indicators, setIndicators] = useState({
@@ -1183,7 +1196,7 @@ export default function App() {
         )}
 
         {/* Header */}
-        <Header symbol={selected} connected={connected} view={view} onViewChange={setView} />
+        <Header symbol={selected} connected={connected} view={view} onViewChange={setView} isMobile={isMobile} />
 
         {/* Main layout */}
         <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
@@ -1200,93 +1213,187 @@ export default function App() {
               <CapitalAllocator />
             </div>
           ) : (
-            /* CHART VIEW — left + center + right */
-            <>
-              {/* LEFT — Watchlist */}
-              <div style={{ width: 190, flexShrink: 0, borderRight: `1px solid ${T.border}`, background: T.surface, overflow: 'hidden' }}>
-                <WatchlistPanel prices={prices} selected={selected} onSelect={setSelected} />
-              </div>
+              {isMobile ? (
+                /* MOBILE VIEW — Single column with bottom tabs */
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.bg }}>
+                  {/* Content Area */}
+                  <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+                    {mobileTab === 'WATCHLIST' && (
+                      <div style={{ flex: 1, background: T.surface }}>
+                        <WatchlistPanel prices={prices} selected={selected} onSelect={(s) => { setSelected(s); setMobileTab('CHART'); }} />
+                      </div>
+                    )}
 
-              {/* CENTER — Chart */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.bg }}>
-                {/* Interval picker & Indicator Toggles */}
-                <div style={{ padding: '8px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6, background: T.surface, flexWrap: 'wrap' }}>
-                  {INTERVALS.map((intv, i) => (
-                    <button key={intv.label} onClick={() => setIvIdx(i)} style={{
-                      padding: '4px 11px', border: `1px solid ${ivIdx === i ? T.accent : T.border}`,
-                      borderRadius: 5, cursor: 'pointer', fontSize: 10, fontWeight: 700,
-                      background: ivIdx === i ? T.blueDim : 'transparent',
-                      color: ivIdx === i ? T.accent : T.textMid,
-                      fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em',
-                      transition: 'all 0.15s',
-                    }}>{intv.label}</button>
-                  ))}
+                    {mobileTab === 'CHART' && (
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                        {/* Interval picker & Indicator Toggles (Scrollable on mobile) */}
+                        <div style={{ padding: '8px 12px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6, background: T.surface, overflowX: 'auto', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                          {INTERVALS.map((intv, i) => (
+                            <button key={intv.label} onClick={() => setIvIdx(i)} style={{
+                              padding: '4px 8px', border: `1px solid ${ivIdx === i ? T.accent : T.border}`,
+                              borderRadius: 5, cursor: 'pointer', fontSize: 10, fontWeight: 700,
+                              background: ivIdx === i ? T.blueDim : 'transparent',
+                              color: ivIdx === i ? T.accent : T.textMid,
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              transition: 'all 0.15s', flexShrink: 0
+                            }}>{intv.label}</button>
+                          ))}
+                          <div style={{ width: 1, height: 16, background: T.border, margin: '0 4px', flexShrink: 0 }} />
+                          {/* Indicator Toggles */}
+                          {[
+                            ['ema9', 'EMA9'], ['ema21', 'EMA21'], ['bb', 'BB'], ['rsi', 'RSI'], ['macd', 'MACD'],
+                          ].map(([key, label]) => {
+                            const active = indicators[key];
+                            return (
+                              <button key={key} onClick={() => setIndicators(prev => ({ ...prev, [key]: !prev[key] }))} style={{
+                                padding: '4px 8px', border: `1px solid ${active ? T.accent : T.border}`,
+                                borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
+                                background: active ? T.accentDim : 'transparent',
+                                color: active ? T.accentAlt : T.textDim,
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                transition: 'all 0.15s', flexShrink: 0
+                              }}>{label}</button>
+                            );
+                          })}
+                        </div>
+                        {/* Chart */}
+                        <CandleChart 
+                          key={`${selected}-${INTERVALS[ivIdx].interval}-${INTERVALS[ivIdx].range}-${indicators.rsi}-${indicators.macd}`} 
+                          symbol={selected} 
+                          interval={INTERVALS[ivIdx].interval} 
+                          range={INTERVALS[ivIdx].range} 
+                          indicators={indicators} 
+                          livePrice={prices[selected]}
+                        />
+                      </div>
+                    )}
 
-                  <div style={{ width: 1, height: 16, background: T.border, margin: '0 8px' }} />
+                    {mobileTab === 'ORDER' && (
+                      <div style={{ flex: 1, background: T.surface }}>
+                        <OrderPanel symbol={selected} price={currentPrice} cash={cash} openOrders={openOrders} onExecuteOrder={handleExecuteOrder} onCancelOrder={handleCancelOrder} />
+                      </div>
+                    )}
 
-                  {/* Indicator Toggles */}
-                  {[
-                    ['ema9', 'EMA 9'],
-                    ['ema21', 'EMA 21'],
-                    ['bb', 'BB Bands'],
-                    ['rsi', 'RSI'],
-                    ['macd', 'MACD'],
-                  ].map(([key, label]) => {
-                    const active = indicators[key];
-                    return (
-                      <button key={key} onClick={() => setIndicators(prev => ({ ...prev, [key]: !prev[key] }))} style={{
-                        padding: '4px 9px', border: `1px solid ${active ? T.accent : T.border}`,
-                        borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
-                        background: active ? T.accentDim : 'transparent',
-                        color: active ? T.accentAlt : T.textDim,
-                        fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.04em',
-                        transition: 'all 0.15s',
-                      }}>{label}</button>
-                    );
-                  })}
+                    {mobileTab === 'PORTFOLIO' && (
+                      <div style={{ flex: 1, background: T.surface }}>
+                        <PortfolioPanel prices={prices} portfolio={portfolio} cash={cash} />
+                      </div>
+                    )}
 
-                  <div style={{ marginLeft: 'auto', fontSize: 10, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>
-                    {INTERVALS[ivIdx].interval} · {INTERVALS[ivIdx].range}
+                    {mobileTab === 'AI' && (
+                      <div style={{ flex: 1, background: T.surface }}>
+                        <ChatPanel symbol={selected} price={currentPrice} changePct={currentChangePct} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bottom Navigation Bar */}
+                  <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                    {TABS.map(tab => (
+                      <button key={tab} onClick={() => setMobileTab(tab)} style={{
+                        flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
+                        background: 'transparent',
+                        color: mobileTab === tab ? (tab === 'AI' ? T.accentAlt : T.accent) : T.textDim,
+                        fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        transition: 'all 0.2s',
+                        borderTop: `2px solid ${mobileTab === tab ? (tab === 'AI' ? T.accentAlt : T.accent) : 'transparent'}`,
+                        marginTop: -1
+                      }}>
+                        {tab === 'AI' ? '✦ AI' : tab}
+                      </button>
+                    ))}
                   </div>
                 </div>
+              ) : (
+                /* DESKTOP VIEW — 3 Columns */
+                <>
+                  {/* LEFT — Watchlist */}
+                  <div style={{ width: 190, flexShrink: 0, borderRight: `1px solid ${T.border}`, background: T.surface, overflow: 'hidden' }}>
+                    <WatchlistPanel prices={prices} selected={selected} onSelect={setSelected} />
+                  </div>
 
-                {/* Chart */}
-                <CandleChart 
-                  key={`${selected}-${INTERVALS[ivIdx].interval}-${INTERVALS[ivIdx].range}-${indicators.rsi}-${indicators.macd}`} 
-                  symbol={selected} 
-                  interval={INTERVALS[ivIdx].interval} 
-                  range={INTERVALS[ivIdx].range} 
-                  indicators={indicators} 
-                  livePrice={prices[selected]}
-                />
-              </div>
+                  {/* CENTER — Chart */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.bg }}>
+                    {/* Interval picker & Indicator Toggles */}
+                    <div style={{ padding: '8px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6, background: T.surface, flexWrap: 'wrap' }}>
+                      {INTERVALS.map((intv, i) => (
+                        <button key={intv.label} onClick={() => setIvIdx(i)} style={{
+                          padding: '4px 11px', border: `1px solid ${ivIdx === i ? T.accent : T.border}`,
+                          borderRadius: 5, cursor: 'pointer', fontSize: 10, fontWeight: 700,
+                          background: ivIdx === i ? T.blueDim : 'transparent',
+                          color: ivIdx === i ? T.accent : T.textMid,
+                          fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em',
+                          transition: 'all 0.15s',
+                        }}>{intv.label}</button>
+                      ))}
 
-              {/* RIGHT — Tabbed panel */}
-              <div style={{ width: 280, flexShrink: 0, borderLeft: `1px solid ${T.border}`, background: T.surface, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                {/* Tab header */}
-                <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}`, flexShrink: 0, background: T.panelAlt }}>
-                  {['ORDER', 'PORTFOLIO', 'AI'].map(tab => (
-                    <button key={tab} onClick={() => setRightTab(tab)} style={{
-                      flex: 1, padding: '11px 4px', border: 'none', cursor: 'pointer',
-                      background: 'transparent',
-                      borderBottom: `2px solid ${rightTab === tab ? (tab === 'AI' ? T.accentAlt : T.accent) : 'transparent'}`,
-                      color: rightTab === tab ? T.text : T.textDim,
-                      fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
-                      fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
-                      boxShadow: rightTab === tab && tab === 'AI' ? `0 2px 12px ${T.accentGlow}` : 'none',
-                    }}>
-                      {tab === 'AI' ? '✦ AI' : tab}
-                    </button>
-                  ))}
-                </div>
-                {/* Tab content */}
-                <div style={{ flex: 1, overflow: 'hidden' }}>
-                  {rightTab === 'ORDER'     && <OrderPanel symbol={selected} price={currentPrice} cash={cash} openOrders={openOrders} onExecuteOrder={handleExecuteOrder} onCancelOrder={handleCancelOrder} />}
-                  {rightTab === 'PORTFOLIO' && <PortfolioPanel prices={prices} portfolio={portfolio} cash={cash} />}
-                  {rightTab === 'AI'        && <ChatPanel symbol={selected} price={currentPrice} changePct={currentChangePct} />}
-                </div>
-              </div>
-            </>
+                      <div style={{ width: 1, height: 16, background: T.border, margin: '0 8px' }} />
+
+                      {/* Indicator Toggles */}
+                      {[
+                        ['ema9', 'EMA 9'],
+                        ['ema21', 'EMA 21'],
+                        ['bb', 'BB Bands'],
+                        ['rsi', 'RSI'],
+                        ['macd', 'MACD'],
+                      ].map(([key, label]) => {
+                        const active = indicators[key];
+                        return (
+                          <button key={key} onClick={() => setIndicators(prev => ({ ...prev, [key]: !prev[key] }))} style={{
+                            padding: '4px 9px', border: `1px solid ${active ? T.accent : T.border}`,
+                            borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
+                            background: active ? T.accentDim : 'transparent',
+                            color: active ? T.accentAlt : T.textDim,
+                            fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.04em',
+                            transition: 'all 0.15s',
+                          }}>{label}</button>
+                        );
+                      })}
+
+                      <div style={{ marginLeft: 'auto', fontSize: 10, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>
+                        {INTERVALS[ivIdx].interval} · {INTERVALS[ivIdx].range}
+                      </div>
+                    </div>
+
+                    {/* Chart */}
+                    <CandleChart 
+                      key={`${selected}-${INTERVALS[ivIdx].interval}-${INTERVALS[ivIdx].range}-${indicators.rsi}-${indicators.macd}`} 
+                      symbol={selected} 
+                      interval={INTERVALS[ivIdx].interval} 
+                      range={INTERVALS[ivIdx].range} 
+                      indicators={indicators} 
+                      livePrice={prices[selected]}
+                    />
+                  </div>
+
+                  {/* RIGHT — Tabbed panel */}
+                  <div style={{ width: 280, flexShrink: 0, borderLeft: `1px solid ${T.border}`, background: T.surface, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    {/* Tab header */}
+                    <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}`, flexShrink: 0, background: T.panelAlt }}>
+                      {['ORDER', 'PORTFOLIO', 'AI'].map(tab => (
+                        <button key={tab} onClick={() => setRightTab(tab)} style={{
+                          flex: 1, padding: '11px 4px', border: 'none', cursor: 'pointer',
+                          background: 'transparent',
+                          borderBottom: `2px solid ${rightTab === tab ? (tab === 'AI' ? T.accentAlt : T.accent) : 'transparent'}`,
+                          color: rightTab === tab ? T.text : T.textDim,
+                          fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+                          fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
+                          boxShadow: rightTab === tab && tab === 'AI' ? `0 2px 12px ${T.accentGlow}` : 'none',
+                        }}>
+                          {tab === 'AI' ? '✦ AI' : tab}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Tab content */}
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      {rightTab === 'ORDER'     && <OrderPanel symbol={selected} price={currentPrice} cash={cash} openOrders={openOrders} onExecuteOrder={handleExecuteOrder} onCancelOrder={handleCancelOrder} />}
+                      {rightTab === 'PORTFOLIO' && <PortfolioPanel prices={prices} portfolio={portfolio} cash={cash} />}
+                      {rightTab === 'AI'        && <ChatPanel symbol={selected} price={currentPrice} changePct={currentChangePct} />}
+                    </div>
+                  </div>
+                </>
+              )}
           )}
         </div>
       </div>
