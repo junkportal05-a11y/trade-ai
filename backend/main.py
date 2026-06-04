@@ -18,6 +18,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 import signals as sig_engine
+import db
+import capital_allocator
+from backtest_routes import backtest_router
 
 # Optional Gemini AI integration (google-genai SDK)
 try:
@@ -32,19 +35,16 @@ except ImportError:
 
 app = FastAPI(title="Trading Platform API", version="1.0.0")
 
-# ── CORS: allow your React dev server (Vite default: 5173, CRA: 3000) ──────────
+# ── CORS: allow any origin for easy hosting ──────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:4173",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(backtest_router)
 
 # ── Active WebSocket connections ───────────────────────────────────────────────
 active_connections: list[WebSocket] = []
@@ -130,6 +130,11 @@ def get_history(
 
         if df.empty:
             raise HTTPException(status_code=404, detail=f"No history data found for {symbol}")
+
+        # Drop NaN values in OHLC columns to prevent JSON serialization crash
+        df = df.dropna(subset=["Open", "High", "Low", "Close"])
+        if df.empty:
+            raise HTTPException(status_code=404, detail=f"No history data found for {symbol} after filtering NaNs")
 
         # For intraday intervals, use Unix timestamps; for daily+, use date strings
         use_unix = interval not in {"1d", "5d", "1wk", "1mo", "3mo"}
@@ -448,13 +453,177 @@ async def fetch_live_quotes_loop():
         except Exception:
             pass
             
+        # Reconcile pending signals after prices update
+        try:
+            reconcile_pending_signals()
+        except Exception:
+            pass
+            
         await asyncio.sleep(10)
+
+
+def reconcile_pending_signals():
+    """
+    Checks all PENDING signals in the database against the latest prices in LIVE_PRICES_CACHE.
+    Marks targets/stops as hit, and expires old intraday trades.
+    """
+    pending = db.get_pending_signals()
+    if not pending:
+        return
+        
+    now_utc = datetime.utcnow()
+    now_ist = now_utc + timedelta(hours=5, minutes=30)
+    
+    for sig in pending:
+        symbol = sig["symbol"]
+        cached = LIVE_PRICES_CACHE.get(symbol)
+        if not cached:
+            continue
+            
+        current_price = cached["price"]
+        entry_price = sig["entry_price"]
+        target = sig["target"]
+        stop_loss = sig["stop_loss"]
+        signal_type = sig["signal_type"]
+        scan_type = sig["scan_type"]
+        scanned_at_str = sig["scanned_at"]
+        
+        hit = False
+        status = "PENDING"
+        exit_price = current_price
+        pnl = 0.0
+        
+        if "BUY" in signal_type:
+            if current_price >= target:
+                hit = True
+                status = "HIT_TARGET"
+                exit_price = target
+                pnl = (exit_price - entry_price) / entry_price * 100
+            elif current_price <= stop_loss:
+                hit = True
+                status = "HIT_STOP"
+                exit_price = stop_loss
+                pnl = (exit_price - entry_price) / entry_price * 100
+        elif "SELL" in signal_type:
+            if current_price <= target:
+                hit = True
+                status = "HIT_TARGET"
+                exit_price = target
+                pnl = (entry_price - exit_price) / entry_price * 100
+            elif current_price >= stop_loss:
+                hit = True
+                status = "HIT_STOP"
+                exit_price = stop_loss
+                pnl = (entry_price - exit_price) / entry_price * 100
+                
+        if hit:
+            db.update_signal_status(sig["id"], status, exit_price, pnl)
+            continue
+            
+        # Check Expiry
+        try:
+            clean_ts = scanned_at_str.replace("Z", "")
+            if "+" in clean_ts:
+                clean_ts = clean_ts.split("+")[0]
+            scanned_dt_utc = datetime.fromisoformat(clean_ts)
+            scanned_dt_ist = scanned_dt_utc + timedelta(hours=5, minutes=30)
+            
+            if scan_type == "INTRADAY":
+                is_future_day = now_ist.date() > scanned_dt_ist.date()
+                is_past_market_close = now_ist.hour > 15 or (now_ist.hour == 15 and now_ist.minute >= 30)
+                
+                if is_future_day or (now_ist.date() == scanned_dt_ist.date() and is_past_market_close):
+                    pnl_calc = 0.0
+                    if "BUY" in signal_type:
+                        pnl_calc = (current_price - entry_price) / entry_price * 100
+                    else:
+                        pnl_calc = (entry_price - current_price) / entry_price * 100
+                        
+                    db.update_signal_status(sig["id"], "EXPIRED", current_price, pnl_calc)
+            else:
+                # OVERNIGHT: 5 days limit
+                days_diff = (now_utc - scanned_dt_utc).days
+                if days_diff >= 5:
+                    pnl_calc = 0.0
+                    if "BUY" in signal_type:
+                        pnl_calc = (current_price - entry_price) / entry_price * 100
+                    else:
+                        pnl_calc = (entry_price - current_price) / entry_price * 100
+                        
+                    db.update_signal_status(sig["id"], "EXPIRED", current_price, pnl_calc)
+        except Exception:
+            pass
+
+
+AUTO_SCAN_INTERVAL_OPEN   = 60
+AUTO_SCAN_INTERVAL_CLOSED = 3600
+
+async def auto_scan_loop():
+    """
+    Background task:
+      - Market OPEN  → scan every 60 s, log signals to DB
+      - Market CLOSED → scan every 60 min for overnight signals
+    Also reconciles pending signals against LIVE_PRICES_CACHE every cycle.
+    """
+    import functools
+    loop = asyncio.get_event_loop()
+
+    while True:
+        try:
+            market_open = is_nse_market_open()
+            scan_type   = "INTRADAY" if market_open else "OVERNIGHT"
+
+            # ── 1. Run signal scan ───────────────────────────────────────────
+            results = await loop.run_in_executor(
+                _executor,
+                functools.partial(sig_engine.run_scan, sig_engine.NSE_WATCHLIST),
+            )
+
+            # Log BUY / SELL signals with confidence >= 60
+            for sig in results:
+                if sig.get("signal") in ("BUY", "SELL") and sig.get("confidence", 0) >= 60:
+                    sig["direction"]  = sig["signal"]
+                    sig["entry"]      = sig.get("price",      sig.get("entry", 0))
+                    sig["scan_type"]  = scan_type
+                    db.add_signal(sig)
+
+            # ── 2. Reconcile pending signals vs live prices ──────────────────
+            pending = db.get_pending_signals()
+            for trade in pending:
+                live = LIVE_PRICES_CACHE.get(trade["symbol"])
+                if live is None:
+                    continue
+
+                price  = live["price"]
+                is_buy = "BUY" in trade["signal_type"]
+
+                hit_target = (is_buy  and price >= trade["target"]) or \
+                             (not is_buy and price <= trade["target"])
+                hit_stop   = (is_buy  and price <= trade["stop_loss"]) or \
+                             (not is_buy and price >= trade["stop_loss"])
+
+                if hit_target:
+                    pnl = db._calc_pnl(trade["signal_type"], trade["entry_price"], price)
+                    db.update_signal(trade["id"], "HIT_TARGET", price, pnl)
+                elif hit_stop:
+                    pnl = db._calc_pnl(trade["signal_type"], trade["entry_price"], price)
+                    db.update_signal(trade["id"], "HIT_STOP", price, pnl)
+
+            # ── 3. Expire stale intraday signals ─────────────────────────────
+            db.expire_old_intraday()
+
+        except Exception as e:
+            print(f"[auto_scan_loop] error: {e}")
+
+        sleep_dur = AUTO_SCAN_INTERVAL_OPEN if is_nse_market_open() else AUTO_SCAN_INTERVAL_CLOSED
+        await asyncio.sleep(sleep_dur)
 
 
 @app.on_event("startup")
 async def startup_event():
-    # Run the crawler loop in the background on startup
+    db.init_db()
     asyncio.create_task(fetch_live_quotes_loop())
+    asyncio.create_task(auto_scan_loop())
 
 
 @app.websocket("/ws/prices")
@@ -545,3 +714,95 @@ def _simulate_tick(last_price: float) -> float:
     """
     change_pct = random.gauss(0, 0.0008)  # ~0.08% std dev per tick
     return max(0.01, last_price * (1 + change_pct))
+
+
+# Backtest endpoints are now served via backtest_routes.py (app.include_router)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  CAPITAL ALLOCATION ENDPOINT
+# ══════════════════════════════════════════════════════════════════════════════
+
+class CapitalRequest(BaseModel):
+    capital: float
+    interval: str = "5m"
+
+
+@app.post("/api/allocate")
+async def allocate_capital(req: CapitalRequest):
+    """
+    Scan HIGH_VOLATILITY_UNIVERSE matched to capital size.
+    Small capital → cheap volatile stocks (YESBANK, SUZLON, RVNL…)
+    Large capital → full universe including mid/large caps.
+    """
+    if req.capital < 500:
+        raise HTTPException(status_code=400, detail="Minimum capital is ₹500")
+
+    import functools
+    loop = asyncio.get_event_loop()
+
+    # Pick the right universe based on capital size
+    target_symbols = capital_allocator.get_target_universe(req.capital)
+
+    # Convert symbol strings to the dict format sig_engine.run_scan expects
+    # (run_scan accepts both plain symbol strings and dicts with 'symbol' key)
+    signals = await loop.run_in_executor(
+        _executor,
+        functools.partial(sig_engine.run_scan, target_symbols),
+    )
+
+    # Normalise signal fields so allocator can read them
+    normalised = []
+    for s in signals:
+        normalised.append({
+            **s,
+            "direction":   s.get("signal", s.get("direction", "")),
+            "entry":       s.get("price", s.get("entry", s.get("entry_price", 0))),
+            "entry_price": s.get("price", s.get("entry", s.get("entry_price", 0))),
+        })
+
+    plan = capital_allocator.allocate(req.capital, normalised)
+    return plan
+
+
+@app.post("/api/allocate/quick")
+async def allocate_capital_quick(req: CapitalRequest):
+    """
+    Fast allocation using already-cached live prices (no fresh yfinance scan).
+    Returns instantly if LIVE_PRICES_CACHE is warm; falls back to full scan otherwise.
+    """
+    if req.capital < 500:
+        raise HTTPException(
+            status_code=400,
+            detail="Minimum capital is ₹500"
+        )
+
+    # Build lightweight signals from the live price cache
+    quick_signals = []
+    for entry in sig_engine.NSE_WATCHLIST:
+        sym   = entry["symbol"]
+        cached = LIVE_PRICES_CACHE.get(sym)
+        if not cached:
+            continue
+        price = cached["price"]
+        quick_signals.append({
+            "symbol":     sym,
+            "name":       entry["name"],
+            "sector":     entry["sector"],
+            "direction":  "BUY",   # optimistic placeholder
+            "entry":      price,
+            "entry_price": price,
+            "target":     round(price * 1.025, 2),
+            "stop_loss":  round(price * 0.985, 2),
+            "confidence": 60,
+            "atr":        round(price * 0.012, 2),
+            "rr_ratio":   1.67,
+        })
+
+    if not quick_signals:
+        # Cache not warm yet — fall back to full scan
+        return await allocate_capital(req)
+
+    plan = capital_allocator.allocate(req.capital, quick_signals)
+    plan["note"] = "Quick allocation using cached prices — run /api/allocate for a full fresh scan."
+    return plan

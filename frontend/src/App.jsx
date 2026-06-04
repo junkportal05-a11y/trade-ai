@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createChart, CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { useHistory, useQuote, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
 import SignalsPanel from './SignalsPanel';
+import PerformancePanel from './PerformancePanel';
+import CapitalAllocator from './CapitalAllocator';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -869,16 +871,16 @@ function Header({ symbol, connected, view, onViewChange }) {
         ◈ APEXTRADE
       </div>
 
-      {/* View switcher — CHART | SIGNALS */}
+      {/* View switcher — CHART | SIGNALS | PERFORMANCE */}
       <div style={{ display: 'flex', background: T.bg, borderRadius: 6, padding: 2, border: `1px solid ${T.border}`, flexShrink: 0 }}>
-        {[['CHART', '📈'], ['SIGNALS', '📡']].map(([v, icon]) => (
+        {[['CHART', '📈'], ['SIGNALS', '📡'], ['PERFORMANCE', '📊'], ['ALLOCATE', '💰']].map(([v, icon]) => (
           <button key={v} onClick={() => onViewChange(v)} style={{
             padding: '4px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
-            background: view === v ? (v === 'SIGNALS' ? T.accentDim : T.blueDim) : 'transparent',
-            color: view === v ? (v === 'SIGNALS' ? T.accentAlt : T.accent) : T.textDim,
+            background: view === v ? (v === 'SIGNALS' ? T.accentDim : v === 'PERFORMANCE' ? T.greenDim : v === 'ALLOCATE' ? T.goldDim : T.blueDim) : 'transparent',
+            color: view === v ? (v === 'SIGNALS' ? T.accentAlt : v === 'PERFORMANCE' ? T.green : v === 'ALLOCATE' ? T.gold : T.accent) : T.textDim,
             fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
             fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
-            boxShadow: view === v && v === 'SIGNALS' ? `0 0 10px ${T.accentGlow}` : 'none',
+            boxShadow: view === v && v === 'SIGNALS' ? `0 0 10px ${T.accentGlow}` : view === v && v === 'PERFORMANCE' ? `0 0 10px ${T.greenGlow}` : view === v && v === 'ALLOCATE' ? `0 0 10px rgba(245,200,66,0.3)` : 'none',
           }}>{icon} {v}</button>
         ))}
       </div>
@@ -1189,6 +1191,14 @@ export default function App() {
           {view === 'SIGNALS' ? (
             /* SIGNALS VIEW — full width */
             <SignalsPanel onSelectSymbol={handleSignalSelect} selectedSymbol={selected} prices={prices} />
+          ) : view === 'PERFORMANCE' ? (
+            /* PERFORMANCE VIEW — full width */
+            <PerformancePanel />
+          ) : view === 'ALLOCATE' ? (
+            /* ALLOCATE VIEW — full width with scroll */
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', background: T.bg }}>
+              <CapitalAllocator />
+            </div>
           ) : (
             /* CHART VIEW — left + center + right */
             <>
