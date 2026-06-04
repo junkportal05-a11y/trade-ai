@@ -25,9 +25,7 @@ from typing import Optional
 import yfinance as yf
 import pandas as pd
 
-# Load mock numba before importing pandas_ta
-import numba
-import pandas_ta as ta
+import numpy as np
 
 
 # ── NSE Intraday Watchlist ────────────────────────────────────────────────────
@@ -108,31 +106,111 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
         if len(df) < 20:
             return None
 
-        # ── Indicators via pandas-ta ──────────────────────────────────────────
-        df.ta.ema(length=9, append=True)
-        df.ta.ema(length=21, append=True)
-        df.ta.rsi(length=14, append=True)
-        df.ta.macd(append=True)
-        df.ta.bbands(length=20, append=True)
-        df.ta.vwap(append=True)
-        df.ta.atr(length=14, append=True)
-        df.ta.supertrend(append=True)
-        df.ta.adx(append=True)
-        df.ta.stoch(append=True)
-        df.ta.obv(append=True)
+        # ── Pure pandas/numpy indicators (no pandas-ta dependency) ────────
+        close  = df["Close"]
+        high   = df["High"]
+        low    = df["Low"]
+        volume = df["Volume"]
 
-        # Subset dropna so we don't wipe out the df due to Supertrend Long/Short splits
+        # EMA
+        df["EMA_9"]  = close.ewm(span=9,  adjust=False).mean()
+        df["EMA_21"] = close.ewm(span=21, adjust=False).mean()
+
+        # RSI(14)
+        delta = close.diff()
+        gain  = delta.clip(lower=0).rolling(14).mean()
+        loss  = (-delta.clip(upper=0)).rolling(14).mean()
+        rs    = gain / loss.replace(0, np.nan)
+        df["RSI_14"] = 100 - (100 / (1 + rs))
+
+        # MACD(12,26,9)
+        ema12 = close.ewm(span=12, adjust=False).mean()
+        ema26 = close.ewm(span=26, adjust=False).mean()
+        df["MACD_12_26_9"]  = ema12 - ema26
+        df["MACDs_12_26_9"] = df["MACD_12_26_9"].ewm(span=9, adjust=False).mean()
+        df["MACDh_12_26_9"] = df["MACD_12_26_9"] - df["MACDs_12_26_9"]
+
+        # Bollinger Bands(20,2)
+        bb_mid = close.rolling(20).mean()
+        bb_std = close.rolling(20).std()
+        df["BBM_20_2.0"] = bb_mid
+        df["BBU_20_2.0"] = bb_mid + 2 * bb_std
+        df["BBL_20_2.0"] = bb_mid - 2 * bb_std
+
+        # VWAP (cumulative intraday)
+        tp = (high + low + close) / 3
+        df["VWAP_D"] = (tp * volume).cumsum() / volume.cumsum().replace(0, np.nan)
+
+        # ATR(14)
+        tr = pd.concat([
+            high - low,
+            (high - close.shift()).abs(),
+            (low  - close.shift()).abs(),
+        ], axis=1).max(axis=1)
+        df["ATRr_14"] = tr.rolling(14).mean()
+
+        # Supertrend(7, 3.0)
+        atr7 = tr.rolling(7).mean()
+        basic_upper = (high + low) / 2 + 3.0 * atr7
+        basic_lower = (high + low) / 2 - 3.0 * atr7
+        supert = pd.Series(np.nan, index=df.index)
+        supert_dir_s = pd.Series(1.0, index=df.index)
+        for i in range(1, len(df)):
+            prev_close = close.iloc[i - 1]
+            bu = basic_upper.iloc[i]
+            bl = basic_lower.iloc[i]
+            prev_supert = supert.iloc[i - 1] if not np.isnan(supert.iloc[i - 1]) else bl
+            prev_dir    = supert_dir_s.iloc[i - 1]
+            if prev_dir == 1:
+                bl = max(bl, prev_supert)
+            else:
+                bu = min(bu, prev_supert)
+            if prev_close <= prev_supert:
+                supert.iloc[i] = bu
+                supert_dir_s.iloc[i] = -1
+            else:
+                supert.iloc[i] = bl
+                supert_dir_s.iloc[i] = 1
+        df["SUPERT_7_3.0"]  = supert
+        df["SUPERTd_7_3.0"] = supert_dir_s
+
+        # ADX(14)
+        up_move   = high.diff()
+        down_move = -low.diff()
+        plus_dm   = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
+        minus_dm  = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
+        atr14     = df["ATRr_14"]
+        plus_di   = 100 * pd.Series(plus_dm,  index=df.index).rolling(14).mean() / atr14.replace(0, np.nan)
+        minus_di  = 100 * pd.Series(minus_dm, index=df.index).rolling(14).mean() / atr14.replace(0, np.nan)
+        dx        = (100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan))
+        df["ADX_14"] = dx.rolling(14).mean()
+
+        # Stochastic(14,3,3)
+        low14  = low.rolling(14).min()
+        high14 = high.rolling(14).max()
+        df["STOCHk_14_3_3"] = 100 * (close - low14) / (high14 - low14).replace(0, np.nan)
+        df["STOCHd_14_3_3"] = df["STOCHk_14_3_3"].rolling(3).mean()
+
+        # OBV
+        obv = [0]
+        for i in range(1, len(df)):
+            if close.iloc[i] > close.iloc[i - 1]:
+                obv.append(obv[-1] + volume.iloc[i])
+            elif close.iloc[i] < close.iloc[i - 1]:
+                obv.append(obv[-1] - volume.iloc[i])
+            else:
+                obv.append(obv[-1])
+        df["OBV"] = obv
+
+        # Drop rows with NaN in key columns
         required_cols = [
-            "Close", "EMA_9", "EMA_21", "RSI_14", "MACD_12_26_9", 
-            "BBU_20_2.0_2.0", "VWAP_D", "ATRr_14", "SUPERT_7_3.0", 
+            "Close", "EMA_9", "EMA_21", "RSI_14", "MACD_12_26_9",
+            "BBU_20_2.0", "VWAP_D", "ATRr_14", "SUPERT_7_3.0",
             "ADX_14", "STOCHk_14_3_3", "OBV"
         ]
         df = df.dropna(subset=required_cols)
         if len(df) < 5:
             return None
-
-        close  = df["Close"]
-        volume = df["Volume"]
 
         # Extract latest indicator values
         price      = float(close.iloc[-1])
@@ -144,14 +222,14 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
         ema9_val   = float(df["EMA_9"].iloc[-1])
         ema21_val  = float(df["EMA_21"].iloc[-1])
         vwap_val   = float(df["VWAP_D"].iloc[-1])
-        bb_up      = float(df["BBU_20_2.0_2.0"].iloc[-1])
-        bb_lo      = float(df["BBL_20_2.0_2.0"].iloc[-1])
-        bb_mid_v   = float(df["BBM_20_2.0_2.0"].iloc[-1])
+        bb_up      = float(df["BBU_20_2.0"].iloc[-1])
+        bb_lo      = float(df["BBL_20_2.0"].iloc[-1])
+        bb_mid_v   = float(df["BBM_20_2.0"].iloc[-1])
         atr_val    = float(df["ATRr_14"].iloc[-1])
         
         # New indicators
         supert_val = float(df["SUPERT_7_3.0"].iloc[-1])
-        supert_dir = float(df["SUPERTd_7_3.0"].iloc[-1])  # 1 = Bullish trend, -1 = Bearish trend
+        supert_dir = float(df["SUPERTd_7_3.0"].iloc[-1])
         adx_val    = float(df["ADX_14"].iloc[-1])
         stoch_k    = float(df["STOCHk_14_3_3"].iloc[-1])
         stoch_d    = float(df["STOCHd_14_3_3"].iloc[-1])
