@@ -28,6 +28,88 @@ import pandas as pd
 import numpy as np
 
 
+# ── Pure pandas/numpy indicator helpers ───────────────────────────────────────
+
+def _ema(series: pd.Series, span: int) -> pd.Series:
+    return series.ewm(span=span, adjust=False).mean()
+
+def _rsi(close: pd.Series, period: int = 14) -> pd.Series:
+    delta = close.diff()
+    gain  = delta.clip(lower=0).rolling(period).mean()
+    loss  = (-delta.clip(upper=0)).rolling(period).mean()
+    rs    = gain / loss.replace(0, np.nan)
+    return 100 - (100 / (1 + rs))
+
+def _macd(close: pd.Series, fast=12, slow=26, signal=9):
+    line  = _ema(close, fast) - _ema(close, slow)
+    sig   = _ema(line, signal)
+    hist  = line - sig
+    return line, sig, hist
+
+def _bbands(close: pd.Series, period=20, std_dev=2):
+    mid = close.rolling(period).mean()
+    std = close.rolling(period).std()
+    return mid + std_dev * std, mid, mid - std_dev * std  # upper, mid, lower
+
+def _atr(high: pd.Series, low: pd.Series, close: pd.Series, period=14) -> pd.Series:
+    tr = pd.concat([
+        high - low,
+        (high - close.shift()).abs(),
+        (low  - close.shift()).abs(),
+    ], axis=1).max(axis=1)
+    return tr.rolling(period).mean(), tr   # returns (atr, tr)
+
+def _adx(high: pd.Series, low: pd.Series, close: pd.Series, period=14) -> pd.Series:
+    _, tr  = _atr(high, low, close, period)
+    up     = high.diff()
+    down   = -low.diff()
+    plus_dm  = up.where((up > down) & (up > 0), 0.0)
+    minus_dm = down.where((down > up) & (down > 0), 0.0)
+    atr_s    = tr.rolling(period).mean().replace(0, np.nan)
+    plus_di  = 100 * plus_dm.rolling(period).mean()  / atr_s
+    minus_di = 100 * minus_dm.rolling(period).mean() / atr_s
+    dx = (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan) * 100
+    return dx.rolling(period).mean()
+
+def _stochastic(high: pd.Series, low: pd.Series, close: pd.Series, k=14, d=3):
+    lo    = low.rolling(k).min()
+    hi    = high.rolling(k).max()
+    k_pct = 100 * (close - lo) / (hi - lo).replace(0, np.nan)
+    return k_pct, k_pct.rolling(d).mean()
+
+def _obv(close: pd.Series, volume: pd.Series) -> pd.Series:
+    direction = np.sign(close.diff()).fillna(0)
+    return (direction * volume).cumsum()
+
+def _vwap(high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Series) -> pd.Series:
+    tp = (high + low + close) / 3
+    return (tp * volume).cumsum() / volume.cumsum().replace(0, np.nan)
+
+def _supertrend(high: pd.Series, low: pd.Series, close: pd.Series, period=7, multiplier=3.0):
+    _, tr = _atr(high, low, close, period)
+    atr_s = tr.rolling(period).mean()
+    basic_upper = (high + low) / 2 + multiplier * atr_s
+    basic_lower = (high + low) / 2 - multiplier * atr_s
+    supert     = pd.Series(np.nan, index=close.index)
+    supert_dir = pd.Series(1.0,    index=close.index)
+    for i in range(1, len(close)):
+        bu = basic_upper.iloc[i]
+        bl = basic_lower.iloc[i]
+        prev = supert.iloc[i - 1] if not np.isnan(supert.iloc[i - 1]) else bl
+        pd_  = supert_dir.iloc[i - 1]
+        bl   = max(bl, prev) if pd_ == 1 else bl
+        bu   = min(bu, prev) if pd_ == -1 else bu
+        if close.iloc[i - 1] <= prev:
+            supert.iloc[i]     = bu
+            supert_dir.iloc[i] = -1
+        else:
+            supert.iloc[i]     = bl
+            supert_dir.iloc[i] = 1
+    return supert, supert_dir
+
+
+
+
 # ── NSE Intraday Watchlist ────────────────────────────────────────────────────
 NSE_WATCHLIST = [
     {"symbol": "RELIANCE.NS",    "name": "Reliance Industries",  "sector": "Energy"},
