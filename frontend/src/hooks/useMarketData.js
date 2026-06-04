@@ -14,7 +14,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
-const WS_URL   = import.meta.env.VITE_WS_URL  || `ws://${window.location.hostname}:8000`;
+const WS_URL   = import.meta.env.VITE_WS_URL || BASE_URL.replace(/^http/, 'ws');
 
 const SEED_PRICES = {
   'RELIANCE.NS': 2920, 'TCS.NS': 4100, 'HDFCBANK.NS': 1780,
