@@ -26,6 +26,22 @@ import yfinance as yf
 import pandas as pd
 
 import numpy as np
+import requests
+
+# Browser-like session so Yahoo Finance doesn't block cloud server IPs
+_YF_SESSION = requests.Session()
+_YF_SESSION.headers.update({
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+})
+
 
 
 # ── Pure pandas/numpy indicator helpers ───────────────────────────────────────
@@ -174,9 +190,12 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
             interval = "1d"
             scan_type = "OVERNIGHT"
 
-        # Fetch yfinance data
-        df = yf.download(symbol, period=period, interval=interval,
-                         auto_adjust=True, progress=False)
+        # Fetch yfinance data with browser-like session to avoid cloud IP blocks
+        df = yf.download(
+            symbol, period=period, interval=interval,
+            auto_adjust=True, progress=False,
+            session=_YF_SESSION,
+        )
         if df is None or len(df) < 20:
             return None
 
