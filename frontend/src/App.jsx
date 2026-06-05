@@ -4,6 +4,8 @@ import { useHistory, useQuote, useLivePrices, isNSEMarketOpen } from './hooks/us
 import SignalsPanel from './SignalsPanel';
 import PerformancePanel from './PerformancePanel';
 import IntroSplash from './IntroSplash';
+import LoginScreen from './LoginScreen';
+
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -850,7 +852,7 @@ function ChatPanel({ symbol, price, changePct }) {
 }
 
 // ── Header ─────────────────────────────────────────────────────────────────────────────
-function Header({ symbol, connected, view, onViewChange, isMobile }) {
+function Header({ symbol, connected, view, onViewChange, isMobile, onLogout }) {
   const { data: quote } = useQuote(symbol);
   const price     = quote?.price ?? SEED_PRICES[symbol] ?? 0;
   const change    = quote?.change ?? 0;
@@ -916,23 +918,55 @@ function Header({ symbol, connected, view, onViewChange, isMobile }) {
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
         {!isMobile && <span style={{ fontSize: 10, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em' }}>{clock} UTC+5:30</span>}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: !connected ? T.red : (isNSEMarketOpen() ? T.green : T.gold),
-            boxShadow: connected && isNSEMarketOpen() ? `0 0 8px ${T.greenGlow}` : 'none',
-            animation: connected && isNSEMarketOpen() ? 'pulse 2s ease-in-out infinite' : 'none'
-          }} />
-          <span style={{
-            fontSize: 10,
-            color: !connected ? T.red : (isNSEMarketOpen() ? T.green : T.gold),
-            fontFamily: "'IBM Plex Mono', monospace",
-            letterSpacing: '0.08em'
-          }}>
-            {!connected ? 'OFFLINE' : (isNSEMarketOpen() ? 'LIVE' : 'CLOSED')}
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: !connected ? T.red : (isNSEMarketOpen() ? T.green : T.gold),
+              boxShadow: connected && isNSEMarketOpen() ? `0 0 8px ${T.greenGlow}` : 'none',
+              animation: connected && isNSEMarketOpen() ? 'pulse 2s ease-in-out infinite' : 'none'
+            }} />
+            <span style={{
+              fontSize: 10,
+              color: !connected ? T.red : (isNSEMarketOpen() ? T.green : T.gold),
+              fontFamily: "'IBM Plex Mono', monospace",
+              letterSpacing: '0.08em'
+            }}>
+              {!connected ? 'OFFLINE' : (isNSEMarketOpen() ? 'LIVE' : 'CLOSED')}
+            </span>
+          </div>
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              style={{
+                background: 'rgba(255, 61, 90, 0.05)',
+                border: '1px solid rgba(255, 61, 90, 0.2)',
+                borderRadius: 4,
+                padding: '4px 10px',
+                color: T.red,
+                fontSize: 9,
+                fontWeight: 700,
+                fontFamily: "'IBM Plex Mono', monospace",
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                letterSpacing: '0.08em',
+                outline: 'none',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(255, 61, 90, 0.15)';
+                e.currentTarget.style.borderColor = 'rgba(255, 61, 90, 0.4)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(255, 61, 90, 0.05)';
+                e.currentTarget.style.borderColor = 'rgba(255, 61, 90, 0.2)';
+              }}
+            >
+              LOGOUT
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -944,6 +978,15 @@ const TABS = ['CHART', 'WATCHLIST', 'SIGNALS', 'PORTFOLIO', 'ORDER', 'AI'];
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
+  // Security Authentication Gate
+  const [loggedIn, setLoggedIn] = useState(() => localStorage.getItem('apex_auth') === 'true');
+
+  // Warm up backend in the background as soon as the app mounts (during login screen presentation)
+  useEffect(() => {
+    const BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
+    fetch(`${BASE_URL}/`).catch(() => {});
+  }, []);
+
   const [view, setView]         = useState('CHART');   // 'CHART' | 'SIGNALS'
   const [selected, setSelected] = useState('RELIANCE.NS');
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
@@ -951,6 +994,7 @@ export default function App() {
   
   // Server warming/cold start splash page state
   const [serverWarming, setServerWarming] = useState(true);
+
 
   // Mobile Responsiveness State
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 800);
@@ -1154,6 +1198,10 @@ export default function App() {
     setServerWarming(false);
   }, []);
 
+  if (!loggedIn) {
+    return <LoginScreen onLogin={() => { setLoggedIn(true); localStorage.setItem('apex_auth', 'true'); }} />;
+  }
+
   return (
     <>
       {serverWarming && <IntroSplash onWokenUp={handleWokenUp} />}
@@ -1203,7 +1251,7 @@ export default function App() {
         )}
 
         {/* Header */}
-        <Header symbol={selected} connected={connected} view={view} onViewChange={setView} isMobile={isMobile} />
+        <Header symbol={selected} connected={connected} view={view} onViewChange={setView} isMobile={isMobile} onLogout={() => { setLoggedIn(false); localStorage.removeItem('apex_auth'); }} />
 
         {/* Main layout */}
         <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
