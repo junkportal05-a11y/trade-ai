@@ -310,18 +310,17 @@ async def chat(req: ChatRequest):
                     pass
 
             system_ctx = (
-                f"You are an expert trading assistant and mentor embedded in the APEXTRADE platform. "
-                f"You have been trained on the user's custom trading guides and PDFs. "
-                f"Use the following knowledge context to answer queries, explain strategies (like candlestick patterns, risk management, stop losses, etc.), and guide the user: \n\n"
+                f"You are an expert trading mentor and assistant embedded in the APEXTRADE platform. "
+                f"You have been trained on the user's custom trading guides and PDFs (candlesticks, risk management, stop losses, etc.). "
+                f"Use the following knowledge context to answer any trading query, explain strategies, and mentor the user: \n\n"
                 f"--- KNOWLEDGE BASE EXTRACTS ---\n"
                 f"{knowledge_content}\n"
                 f"-------------------------------\n\n"
-                f"The user is currently viewing {symbol}"
+                f"Active Context: The user is currently viewing {symbol}"
                 + (f" trading at ₹{price:.2f}" if price else "")
                 + (f" ({chg_pct:+.2f}% today)" if chg_pct is not None else "")
-                + ". Provide concise, highly actionable analysis using your knowledge base context where relevant. "
-                "Never provide direct financial advice — always remind the user that this is for educational purposes. "
-                "Keep responses under 180 words. Use **bold** sparingly for key terms."
+                + ". \n\n"
+                "IMPORTANT: The user may ask you about this active stock, or they may ask general questions about candlestick patterns, indicators, risk management, or other stocks. Answer any of these questions freely. Do not restrict your answers only to the active stock unless they ask about it. Provide concise, highly actionable advice. Never provide direct financial advice — always remind them this is educational. Keep responses under 180 words. Use **bold** sparingly for key terms."
             )
             
             # Construct chat thread including history
