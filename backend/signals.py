@@ -190,22 +190,53 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
             interval = "1d"
             scan_type = "OVERNIGHT"
 
-        # Fetch yfinance data with browser-like session to avoid cloud IP blocks
+        # Fetch intraday/overnight data
         df = yf.download(
             symbol, period=period, interval=interval,
             auto_adjust=True, progress=False,
             session=_YF_SESSION,
         )
+        
+        # Fetch Daily Macro Data for Multi-Timeframe Analysis
+        df_daily = yf.download(
+            symbol, period="3mo", interval="1d",
+            auto_adjust=True, progress=False,
+            session=_YF_SESSION,
+        )
+
         if df is None or len(df) < 20:
             return None
 
         # Flatten multi-level columns if returned by yfinance
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
+        if df_daily is not None and isinstance(df_daily.columns, pd.MultiIndex):
+            df_daily.columns = df_daily.columns.get_level_values(0)
 
         df = df.dropna(subset=["Close", "High", "Low", "Open", "Volume"])
         if len(df) < 20:
             return None
+            
+        # ── Compute Daily Macro Trend ──────────────────────────────────────
+        macro_bullish = None
+        if df_daily is not None and len(df_daily) >= 21:
+            df_daily = df_daily.dropna(subset=["Close"])
+            daily_close = df_daily["Close"]
+            daily_ema21 = daily_close.ewm(span=21, adjust=False).mean()
+            
+            # Daily RSI
+            delta_d = daily_close.diff()
+            gain_d = delta_d.clip(lower=0).rolling(14).mean()
+            loss_d = (-delta_d.clip(upper=0)).rolling(14).mean()
+            rs_d = gain_d / loss_d.replace(0, np.nan)
+            daily_rsi14 = 100 - (100 / (1 + rs_d))
+            
+            macro_ema = daily_ema21.iloc[-1]
+            macro_close = daily_close.iloc[-1]
+            macro_rsi = daily_rsi14.iloc[-1]
+            
+            # Simple macro trend definition: Price above EMA21 and RSI > 50
+            macro_bullish = (macro_close > macro_ema) and (macro_rsi > 50)
 
         # ── Pure pandas/numpy indicators (no pandas-ta dependency) ────────
         close  = df["Close"]
@@ -419,8 +450,25 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
                 score -= 1
                 reasons_bear.append(f"Strong Trend (ADX {adx_val:.1f})")
         elif adx_val < 20:
-            score = int(score * 0.7)  # penalize signals in choppy markets
-            reasons_bear.append(f"Sideways range (ADX {adx_val:.1f})")
+            score = int(score * 0.5)  # strictly penalize signals in choppy markets
+            reasons_bear.append(f"Choppy sideways market (ADX {adx_val:.1f} < 20)")
+
+        # 7.5 Macro Trend Alignment (Multi-Timeframe Analysis)
+        if macro_bullish is not None:
+            if macro_bullish:
+                if score > 0:
+                    score += 3
+                    reasons_bull.insert(0, "Macro Trend Aligned (Daily Bullish)")
+                elif score < 0:
+                    score += 1 # Cushion the drop
+                    reasons_bear.append("Counter-trend Intraday (Macro is Bullish)")
+            else:
+                if score < 0:
+                    score -= 3
+                    reasons_bear.insert(0, "Macro Trend Aligned (Daily Bearish)")
+                elif score > 0:
+                    score -= 2 # Penalize intraday buy in daily downtrend
+                    reasons_bull.append("Counter-trend Intraday (Macro is Bearish)")
 
         # 8. Stochastic Crossovers
         if stoch_k < 20 and stoch_k > stoch_d and df["STOCHk_14_3_3"].iloc[-2] <= df["STOCHd_14_3_3"].iloc[-2]:
@@ -465,20 +513,25 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
             signal    = "HOLD"
             confidence = 50
 
-        # ── Set Target & Stop Levels via ATR ──────────────────────────────────
-        atr2 = atr_val * 2
-        atr1 = atr_val * 1.2
+        # ── Set Target & Stop Levels via ATR & Macro Alignment ────────────────
+        is_trend_following = (signal in ("BUY", "WEAK BUY") and macro_bullish) or (signal in ("SELL", "WEAK SELL") and macro_bullish is False)
+        
+        atr_target_mult = 2.5 if is_trend_following else 1.8
+        atr_stop_mult = 1.0 if is_trend_following else 1.5
+        
+        atr_target = atr_val * atr_target_mult
+        atr_stop = atr_val * atr_stop_mult
 
         if signal in ("BUY", "WEAK BUY"):
             entry  = round(price, 2)
-            target = round(price + atr2, 2)
-            stop   = round(price - atr1, 2)
+            target = round(price + atr_target, 2)
+            stop   = round(price - atr_stop, 2)
             risk   = round(price - stop, 2)
             reward = round(target - price, 2)
         elif signal in ("SELL", "WEAK SELL"):
             entry  = round(price, 2)
-            target = round(price - atr2, 2)
-            stop   = round(price + atr1, 2)
+            target = round(price - atr_target, 2)
+            stop   = round(price + atr_stop, 2)
             risk   = round(stop - price, 2)
             reward = round(price - target, 2)
         else:
