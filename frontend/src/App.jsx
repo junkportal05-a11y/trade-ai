@@ -3,6 +3,7 @@ import { createChart, CandlestickSeries, HistogramSeries, LineSeries } from 'lig
 import { useHistory, useQuote, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
 import SignalsPanel from './SignalsPanel';
 import PerformancePanel from './PerformancePanel';
+import IntroSplash from './IntroSplash';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -743,7 +744,7 @@ function MdText({ text }) {
 // ── AI Chat Panel ─────────────────────────────────────────────────────────────
 function ChatPanel({ symbol, price, changePct }) {
   const [msgs, setMsgs]         = useState([
-    { role: 'assistant', text: `I'm your AI trading assistant. Ask me anything about ${symbol.replace('.NS', '')}, market conditions, or trading strategies.` }
+    { role: 'assistant', text: `Greetings! I'm your AI Trading Mentor. Ask me any questions about trading strategies, candlestick patterns (Candlestick Bible), risk management (SL Guide), or technical indicators.` }
   ]);
   const [input, setInput]       = useState('');
   const [busy, setBusy]         = useState(false);
@@ -752,11 +753,6 @@ function ChatPanel({ symbol, price, changePct }) {
   const inputRef                = useRef();
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
-
-  // Reset greeting when symbol changes
-  useEffect(() => {
-    setMsgs([{ role: 'assistant', text: `Switched to **${symbol.replace('.NS', '')}**. Ask me about price targets, technicals, or risk management.` }]);
-  }, [symbol]);
 
   const send = useCallback(async () => {
     if (!input.trim() || busy) return;
@@ -781,8 +777,8 @@ function ChatPanel({ symbol, price, changePct }) {
       setMsgs(m => [...m, { role: 'assistant', text: data.reply || 'No response.' }]);
     } catch {
       const fallback = [
-        `**${symbol.replace('.NS', '')}** @ ₹${fmt(price)} — The AI backend isn't running. Start it with \`uvicorn main:app --reload\` from the backend folder.`,
-        `Technical analysis for **${symbol.replace('.NS', '')}**: At ₹${fmt(price)}, watch key moving averages and volume for directional confirmation.`,
+        `**AI Assistant** — The backend isn't running or timed out. Start it with \`uvicorn main:app --reload\` to enable real-time mentor features.`,
+        `Risk Management Advice: Always apply the 2% maximum risk rule from your SL Guide. Sizing is key!`,
       ];
       setMsgs(m => [...m, { role: 'assistant', text: fallback[Math.floor(Math.random() * fallback.length)] }]);
     }
@@ -790,7 +786,7 @@ function ChatPanel({ symbol, price, changePct }) {
   }, [input, busy, symbol, price, changePct]);
 
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
-  const SUGGESTIONS = ['Is it a good time to buy?', 'Show risk management tips', 'Key technical levels?', 'Upcoming catalysts?'];
+  const SUGGESTIONS = ['Explain Hammer Candlesticks', 'What is the 2% Risk Rule?', 'How to place Stop Losses?', 'Analyze market trend?'];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -837,7 +833,7 @@ function ChatPanel({ symbol, price, changePct }) {
 
       <div style={{ padding: '10px 12px', borderTop: `1px solid ${T.border}`, display: 'flex', gap: 8 }}>
         <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
-          placeholder={`Ask about ${symbol.replace('.NS', '')}...`}
+          placeholder="Ask the AI Mentor anything (e.g. Hammer candlestick, 2% risk)..."
           style={{ flex: 1, background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 8, padding: '9px 12px', color: T.text, fontSize: 12, outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.2s' }}
           onFocus={e => e.target.style.borderColor = T.accent}
           onBlur={e => e.target.style.borderColor = T.borderHi}
@@ -953,6 +949,9 @@ export default function App() {
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
   const [rightTab, setRightTab] = useState('ORDER');
   
+  // Server warming/cold start splash page state
+  const [serverWarming, setServerWarming] = useState(true);
+
   // Mobile Responsiveness State
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 800);
   const [mobileTab, setMobileTab] = useState('CHART'); // 'WATCHLIST' | 'CHART' | 'SIGNALS' | 'ORDER' | 'PORTFOLIO' | 'AI'
@@ -1153,6 +1152,7 @@ export default function App() {
 
   return (
     <>
+      {serverWarming && <IntroSplash onWokenUp={() => setServerWarming(false)} />}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
