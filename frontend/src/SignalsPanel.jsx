@@ -650,7 +650,10 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices })
     try {
       const res = await fetch(`${BASE}/api/allocate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Token': sessionStorage.getItem('apt_token') || ''
+        },
         body: JSON.stringify({ capital: amt }),
         signal: abortRef.current.signal,
       });

@@ -291,9 +291,10 @@ export default function PerformancePanel() {
 
   const load = useCallback(async () => {
     try {
+      const headers = { 'X-Session-Token': sessionStorage.getItem('apt_token') || '' };
       const [sRes, hRes] = await Promise.all([
-        fetch(`${BASE}/api/backtest/stats`),
-        fetch(`${BASE}/api/backtest/history?limit=200`),
+        fetch(`${BASE}/api/backtest/stats`, { headers }),
+        fetch(`${BASE}/api/backtest/history?limit=200`, { headers }),
       ]);
       if (sRes.ok) setStats(await sRes.json());
       if (hRes.ok) {
@@ -317,7 +318,10 @@ export default function PerformancePanel() {
     if (!confirm("Clear all signal history? This cannot be undone.")) return;
     setResetting(true);
     try {
-      await fetch(`${BASE}/api/backtest/reset`, { method: 'POST' });
+      await fetch(`${BASE}/api/backtest/reset`, {
+        method: 'POST',
+        headers: { 'X-Admin-Key': 'apextrade_admin_2024_secure' }
+      });
       await load();
     } finally {
       setResetting(false);
@@ -337,7 +341,9 @@ export default function PerformancePanel() {
 
     try {
       const query = `symbol=${backtestSymbol}&range=${backtestRange}&capital=${capitalAmt}&stop_atr=${backtestStopAtr}&target_atr=${backtestTargetAtr}&entry_score=${backtestEntryScore}&risk_pct=${backtestRiskPct}&early_exit=${backtestEarlyExit}`;
-      const res = await fetch(`${BASE}/api/backtest/run?${query}`);
+      const res = await fetch(`${BASE}/api/backtest/run?${query}`, {
+        headers: { 'X-Session-Token': sessionStorage.getItem('apt_token') || '' }
+      });
       if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
       const data = await res.json();
       if (data.error) {
