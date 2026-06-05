@@ -614,16 +614,16 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
             reasons_bear.append("Low volume conviction")
 
         # ── Define Signal Output ──────────────────────────────────────────────
-        if score >= 5:
+        if score >= 7:
             signal    = "BUY"
             confidence = min(95, 60 + score * 3)
-        elif score <= -5:
+        elif score <= -7:
             signal    = "SELL"
             confidence = min(95, 60 + abs(score) * 3)
-        elif score >= 2:
+        elif score >= 4:
             signal    = "WEAK BUY"
             confidence = 40 + score * 4
-        elif score <= -2:
+        elif score <= -4:
             signal    = "WEAK SELL"
             confidence = 40 + abs(score) * 4
         else:
@@ -642,8 +642,8 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
         # ── Set Target & Stop Levels via ATR & Macro Alignment ────────────────
         is_trend_following = (signal in ("BUY", "WEAK BUY") and macro_bullish) or (signal in ("SELL", "WEAK SELL") and macro_bullish is False)
         
-        atr_target_mult = 2.5 if is_trend_following else 1.8
-        atr_stop_mult = 1.0 if is_trend_following else 1.5
+        atr_target_mult = 2.0 if is_trend_following else 1.5
+        atr_stop_mult = 3.0 if is_trend_following else 2.5
         
         atr_target = atr_val * atr_target_mult
         atr_stop = atr_val * atr_stop_mult
