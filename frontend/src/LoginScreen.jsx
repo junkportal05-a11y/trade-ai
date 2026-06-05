@@ -24,9 +24,13 @@ export default function LoginScreen({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Set selected secure credentials
-  const VALID_USER = "apex_trader";
-  const VALID_PASS = "apex_password";
+  // Selected secure registry
+  const USER_REGISTRY = {
+    'apex_trader': { pass: 'apex_password', role: 'Master Quant / Administrator' },
+    'user1': { pass: 'pass1', role: 'Quant Trader Level 1' },
+    'user2': { pass: 'pass2', role: 'Quant Trader Level 2' },
+    'user3': { pass: 'pass3', role: 'Risk Manager' },
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -41,14 +45,17 @@ export default function LoginScreen({ onLogin }) {
 
     // Simulate cryptographic challenge verification delay
     setTimeout(() => {
-      if (username.trim() === VALID_USER && password === VALID_PASS) {
-        onLogin();
+      const u = username.trim();
+      const userObj = USER_REGISTRY[u];
+      if (userObj && userObj.pass === password) {
+        onLogin(u);
       } else {
         setError("AUTHENTICATION FAILED: Invalid credentials.");
         setLoading(false);
       }
     }, 1200);
   };
+
 
   return (
     <div style={{
