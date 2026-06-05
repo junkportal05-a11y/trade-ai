@@ -8,5 +8,6 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.0"
+      - fromGroup: apextrade-secrets
     plan: free
     healthCheckPath: /
