@@ -1150,9 +1150,13 @@ export default function App() {
     setIvIdx(0);  // Switch to 1D (5-min) for intraday
   };
 
+  const handleWokenUp = useCallback(() => {
+    setServerWarming(false);
+  }, []);
+
   return (
     <>
-      {serverWarming && <IntroSplash onWokenUp={() => setServerWarming(false)} />}
+      {serverWarming && <IntroSplash onWokenUp={handleWokenUp} />}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
