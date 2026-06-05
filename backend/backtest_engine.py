@@ -21,10 +21,17 @@ _YF_SESSION.headers.update({
     ),
 })
 
-def run_historical_backtest(symbol: str, period_range: str = "6mo", initial_capital: float = 10000.0) -> dict:
+def run_historical_backtest(
+    symbol: str, 
+    period_range: str = "6mo", 
+    initial_capital: float = 10000.0,
+    stop_atr: float = 1.5,
+    target_atr: float = 2.5,
+    entry_score: int = 5,
+    risk_pct: float = 0.02
+) -> dict:
     """
-    Runs a historical strategy backtest on Daily (1D) bars.
-    Simulates long trades under standard risk parameters (2% risk rule, ATR stop-loss).
+    Runs a historical strategy backtest on Daily (1D) bars with configurable risk/target thresholds.
     """
     try:
         # Download daily data
@@ -322,17 +329,17 @@ def run_historical_backtest(symbol: str, period_range: str = "6mo", initial_capi
                 position = None
                 continue
 
-            # Check Entry Condition (Score >= 5, long-only)
-            if not position and score >= 5:
-                # 2% Risk Sizing Rule
-                stop_loss = round(price - 1.5 * atr_val, 2)
-                target = round(price + 2.5 * atr_val, 2)
+            # Check Entry Condition (Score >= entry_score, long-only)
+            if not position and score >= entry_score:
+                # Risk Sizing Rule
+                stop_loss = round(price - stop_atr * atr_val, 2)
+                target = round(price + target_atr * atr_val, 2)
                 
                 risk_per_share = price - stop_loss
                 if risk_per_share <= 0:
                     continue
 
-                max_risk_money = capital * 0.02
+                max_risk_money = capital * risk_pct
                 shares_by_risk = math.floor(max_risk_money / risk_per_share)
                 shares_by_cap = math.floor((capital * 0.95) / price)
                 shares = min(shares_by_risk, shares_by_cap)

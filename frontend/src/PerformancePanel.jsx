@@ -116,26 +116,56 @@ function WinBar({ label, wins, total, avg_pnl }) {
   );
 }
 
-// Glowing SVG-based Equity Curve component (lightweight, zero packages)
+// Glowing SVG-based Equity Curve component with premium interactive cursor + tooltip
 function EquityChart({ data }) {
   if (!data || data.length < 2) return null;
   const values = data.map(d => d.value);
   const minVal = Math.min(...values);
   const maxVal = Math.max(...values);
   const valRange = maxVal - minVal || 1;
+  const initialVal = values[0] || 10000;
   
   const width = 500;
   const height = 100;
   const padding = 8;
   
+  // State for hover tracking
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+  const svgRef = React.useRef(null);
+  
   const points = data.map((d, i) => {
     const x = padding + (i / (data.length - 1)) * (width - 2 * padding);
     const y = height - padding - ((d.value - minVal) / valRange) * (height - 2 * padding);
-    return `${x},${y}`;
+    return { x, y, val: d.value, date: d.date, index: i };
   });
   
-  const pathD = `M ${points.join(' L ')}`;
+  const pathD = `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`;
   const areaD = `${pathD} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`;
+
+  const handleMouseMove = (e) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const mouseX = ((e.clientX - rect.left) / rect.width) * width;
+    
+    // Find closest point by x coordinate
+    let closestIndex = 0;
+    let minDiff = Infinity;
+    points.forEach((p, idx) => {
+      const diff = Math.abs(p.x - mouseX);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestIndex = idx;
+      }
+    });
+    setHoveredIndex(closestIndex);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredIndex(null);
+  };
+
+  const activePoint = hoveredIndex !== null ? points[hoveredIndex] : null;
+  const currentReturnPct = activePoint ? ((activePoint.val - initialVal) / initialVal * 100).toFixed(2) : 0;
   
   return (
     <div style={{ marginTop: 8 }}>
@@ -143,16 +173,96 @@ function EquityChart({ data }) {
         <span>CAPITAL HISTORY (EQUITY CURVE)</span>
         <span>PEAK: ₹{fmt(maxVal)} · TROUGH: ₹{fmt(minVal)}</span>
       </div>
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: '80px', background: 'rgba(255,255,255,0.005)', borderRadius: 8, border: `1px solid ${T.border}`, display: 'block' }}>
+      
+      {/* Interactive Tooltip HUD */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        padding: '6px 10px', 
+        background: T.panel, 
+        border: `1px solid ${T.borderHi}`, 
+        borderRadius: '6px 6px 0 0', 
+        fontSize: 9.5, 
+        color: T.textMid, 
+        ...mono,
+        borderBottom: 'none',
+        height: '28px'
+      }}>
+        {activePoint ? (
+          <>
+            <span>DATE: <span style={{ color: T.text, fontWeight: 700 }}>{activePoint.date}</span></span>
+            <span>EQUITY: <span style={{ color: T.accent, fontWeight: 700 }}>₹{fmt(activePoint.val)}</span></span>
+            <span>RETURN: <span style={{ color: clr(activePoint.val - initialVal), fontWeight: 700 }}>{activePoint.val >= initialVal ? '+' : ''}{currentReturnPct}%</span></span>
+          </>
+        ) : (
+          <div style={{ color: T.textDim, fontSize: 8.5 }}>💡 Move mouse over the chart below to track capital history</div>
+        )}
+      </div>
+
+      <svg 
+        ref={svgRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        viewBox={`0 0 ${width} ${height}`} 
+        style={{ 
+          width: '100%', 
+          height: '80px', 
+          background: 'rgba(255,255,255,0.005)', 
+          borderRadius: '0 0 8px 8px', 
+          border: `1px solid ${T.border}`, 
+          display: 'block',
+          cursor: 'crosshair'
+        }}
+      >
         <defs>
           <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={T.accent} stopOpacity="0.15"/>
+            <stop offset="0%" stopColor={T.accent} stopOpacity="0.18"/>
             <stop offset="100%" stopColor={T.accent} stopOpacity="0.0"/>
           </linearGradient>
         </defs>
+        
+        {/* Horizontal half-way gridline */}
         <line x1={padding} y1={height/2} x2={width-padding} y2={height/2} stroke={T.border} strokeDasharray="3,3" />
+        
+        {/* Area fill */}
         <path d={areaD} fill="url(#areaGrad)" />
+        
+        {/* Sparkline curve */}
         <path d={pathD} fill="none" stroke={T.accent} strokeWidth="1.5" />
+        
+        {/* Interactive tracking elements */}
+        {activePoint && (
+          <>
+            {/* Vertical crosshair tracker */}
+            <line 
+              x1={activePoint.x} 
+              y1={padding} 
+              x2={activePoint.x} 
+              y2={height - padding} 
+              stroke={T.borderHi} 
+              strokeWidth="0.8" 
+              strokeDasharray="2,2" 
+            />
+            {/* Glowing active point dot */}
+            <circle 
+              cx={activePoint.x} 
+              cy={activePoint.y} 
+              r="4" 
+              fill={T.accent} 
+              stroke="#fff" 
+              strokeWidth="1"
+              style={{ filter: 'drop-shadow(0px 0px 3px rgba(123,108,255,0.8))' }}
+            />
+            <circle 
+              cx={activePoint.x} 
+              cy={activePoint.y} 
+              r="8" 
+              fill={T.accent} 
+              fillOpacity="0.25"
+            />
+          </>
+        )}
       </svg>
     </div>
   );
@@ -169,6 +279,11 @@ export default function PerformancePanel() {
   const [backtestSymbol, setBacktestSymbol]   = useState('RELIANCE.NS');
   const [backtestRange, setBacktestRange]     = useState('3mo');
   const [backtestCap, setBacktestCap]         = useState('10000');
+  const [backtestStopAtr, setBacktestStopAtr]   = useState(1.5);
+  const [backtestTargetAtr, setBacktestTargetAtr] = useState(2.5);
+  const [backtestEntryScore, setBacktestEntryScore] = useState(5);
+  const [backtestRiskPct, setBacktestRiskPct]     = useState(2.0);
+  const [showConfig, setShowConfig]               = useState(false);
   const [backtestResult, setBacktestResult]   = useState(null);
   const [backtestLoading, setBacktestLoading] = useState(false);
   const [backtestError, setBacktestError]     = useState(null);
@@ -220,7 +335,8 @@ export default function PerformancePanel() {
     setBacktestResult(null);
 
     try {
-      const res = await fetch(`${BASE}/api/backtest/run?symbol=${backtestSymbol}&range=${backtestRange}&capital=${capitalAmt}`);
+      const query = `symbol=${backtestSymbol}&range=${backtestRange}&capital=${capitalAmt}&stop_atr=${backtestStopAtr}&target_atr=${backtestTargetAtr}&entry_score=${backtestEntryScore}&risk_pct=${backtestRiskPct}`;
+      const res = await fetch(`${BASE}/api/backtest/run?${query}`);
       if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
       const data = await res.json();
       if (data.error) {
@@ -311,6 +427,20 @@ export default function PerformancePanel() {
             />
           </div>
 
+          {/* Config toggle button */}
+          <button 
+            onClick={() => setShowConfig(!showConfig)}
+            style={{
+              alignSelf: 'flex-end',
+              padding: '8px 14px', background: showConfig ? T.borderHi : 'transparent', border: `1px solid ${T.borderHi}`,
+              borderRadius: 6, color: T.text, fontSize: 10, fontWeight: 700,
+              cursor: 'pointer', fontFamily: "'IBM Plex Mono', monospace",
+              letterSpacing: '0.06em', transition: 'all 0.2s', marginTop: '12px'
+            }}
+          >
+            {showConfig ? '⚙ HIDE SETTINGS' : '⚙ TWEAK STRATEGY'}
+          </button>
+
           {/* Run button */}
           <button 
             onClick={handleRunBacktest} 
@@ -326,6 +456,81 @@ export default function PerformancePanel() {
             {backtestLoading ? '⚙ RUNNING...' : '🚀 RUN BACKTEST'}
           </button>
         </div>
+
+        {/* Collapsible Strategy settings drawer */}
+        {showConfig && (
+          <div style={{ 
+            background: T.bg, 
+            border: `1px solid ${T.borderHi}`, 
+            borderRadius: 8, 
+            padding: '14px 18px', 
+            marginBottom: 14, 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+            gap: 16,
+            animation: 'fadeIn 0.2s ease'
+          }}>
+            {/* Risk per trade */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, color: T.textMid, ...mono }}>
+                <span>RISK PER TRADE</span>
+                <span style={{ color: T.accent, fontWeight: 700 }}>{backtestRiskPct}%</span>
+              </div>
+              <input 
+                type="range" min="0.5" max="5.0" step="0.5"
+                value={backtestRiskPct}
+                onChange={e => setBacktestRiskPct(parseFloat(e.target.value))}
+                style={{ accentColor: T.accent, cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: 7.5, color: T.textDim }}>Golden rule: 1-2% maximum account exposure.</span>
+            </div>
+
+            {/* Entry score gate */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, color: T.textMid, ...mono }}>
+                <span>ENTRY SCORE THRESHOLD</span>
+                <span style={{ color: T.green, fontWeight: 700 }}>+{backtestEntryScore}</span>
+              </div>
+              <input 
+                type="range" min="3" max="8" step="1"
+                value={backtestEntryScore}
+                onChange={e => setBacktestEntryScore(parseInt(e.target.value))}
+                style={{ accentColor: T.green, cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: 7.5, color: T.textDim }}>Minimum points from EMAs/ADX/volume to enter.</span>
+            </div>
+
+            {/* Stop loss ATR */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, color: T.textMid, ...mono }}>
+                <span>STOP-LOSS DISTANCE (ATR)</span>
+                <span style={{ color: T.red, fontWeight: 700 }}>{backtestStopAtr}x ATR</span>
+              </div>
+              <input 
+                type="range" min="1.0" max="3.0" step="0.1"
+                value={backtestStopAtr}
+                onChange={e => setBacktestStopAtr(parseFloat(e.target.value))}
+                style={{ accentColor: T.red, cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: 7.5, color: T.textDim }}>Wider stops allow volatile stocks to breathe.</span>
+            </div>
+
+            {/* Take profit ATR */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, color: T.textMid, ...mono }}>
+                <span>PROFIT TARGET DISTANCE (ATR)</span>
+                <span style={{ color: T.gold, fontWeight: 700 }}>{backtestTargetAtr}x ATR</span>
+              </div>
+              <input 
+                type="range" min="1.5" max="5.0" step="0.1"
+                value={backtestTargetAtr}
+                onChange={e => setBacktestTargetAtr(parseFloat(e.target.value))}
+                style={{ accentColor: T.gold, cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: 7.5, color: T.textDim }}>Set targets to achieve &gt; 1:2 Reward-to-Risk.</span>
+            </div>
+          </div>
+        )}
 
         {/* Errors display */}
         {backtestError && (
