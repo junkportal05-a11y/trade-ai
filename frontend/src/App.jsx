@@ -5,6 +5,8 @@ import SignalsPanel from './SignalsPanel';
 import PerformancePanel from './PerformancePanel';
 import IntroSplash from './IntroSplash';
 import LoginScreen from './LoginScreen';
+import AccountPanel from './AccountPanel';
+
 
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -872,17 +874,27 @@ function Header({ symbol, connected, view, onViewChange, isMobile, onLogout }) {
         ◈ APEXTRADE
       </div>
 
-      {/* View switcher — CHART | SIGNALS | PERFORMANCE (Hidden on Mobile) */}
+      {/* View switcher — CHART | SIGNALS | PERFORMANCE | ACCOUNT (Hidden on Mobile) */}
       {!isMobile && (
         <div style={{ display: 'flex', background: T.bg, borderRadius: 6, padding: 2, border: `1px solid ${T.border}`, flexShrink: 0 }}>
-          {[['CHART', '📈'], ['SIGNALS', '📡'], ['PERFORMANCE', '📊']].map(([v, icon]) => (
+          {[['CHART', '📈'], ['SIGNALS', '📡'], ['PERFORMANCE', '📊'], ['ACCOUNT', '🛡️ SECURITY']].map(([v, icon]) => (
             <button key={v} onClick={() => onViewChange(v)} style={{
               padding: '4px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
-              background: view === v ? (v === 'SIGNALS' ? T.accentDim : v === 'PERFORMANCE' ? T.greenDim : T.blueDim) : 'transparent',
-              color: view === v ? (v === 'SIGNALS' ? T.accentAlt : v === 'PERFORMANCE' ? T.green : T.accent) : T.textDim,
+              background: view === v 
+                ? (v === 'SIGNALS' ? T.accentDim : v === 'PERFORMANCE' ? T.greenDim : v === 'ACCOUNT' ? T.accentDim : T.blueDim) 
+                : 'transparent',
+              color: view === v 
+                ? (v === 'SIGNALS' ? T.accentAlt : v === 'PERFORMANCE' ? T.green : v === 'ACCOUNT' ? T.accentAlt : T.accent) 
+                : T.textDim,
               fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
               fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
-              boxShadow: view === v && v === 'SIGNALS' ? `0 0 10px ${T.accentGlow}` : view === v && v === 'PERFORMANCE' ? `0 0 10px ${T.greenGlow}` : 'none',
+              boxShadow: view === v && v === 'SIGNALS' 
+                ? `0 0 10px ${T.accentGlow}` 
+                : view === v && v === 'PERFORMANCE' 
+                  ? `0 0 10px ${T.greenGlow}` 
+                  : view === v && v === 'ACCOUNT' 
+                    ? `0 0 10px ${T.accentGlow}` 
+                    : 'none',
             }}>{icon} {v === 'SIGNALS' ? 'SCAN & ALLOCATE' : v}</button>
           ))}
         </div>
@@ -974,12 +986,14 @@ function Header({ symbol, connected, view, onViewChange, isMobile, onLogout }) {
 }
 
 // ── Bottom Tab Bar (mobile-friendly) ─────────────────────────────────────────
-const TABS = ['CHART', 'WATCHLIST', 'SIGNALS', 'PORTFOLIO', 'ORDER', 'AI'];
+const TABS = ['CHART', 'WATCHLIST', 'SIGNALS', 'PORTFOLIO', 'ORDER', 'AI', 'ACCOUNT'];
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   // Security Authentication Gate
   const [loggedIn, setLoggedIn] = useState(() => localStorage.getItem('apex_auth') === 'true');
+  const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('apex_user') || 'apex_trader');
+
 
   // Warm up backend in the background as soon as the app mounts (during login screen presentation)
   useEffect(() => {
@@ -1199,7 +1213,7 @@ export default function App() {
   }, []);
 
   if (!loggedIn) {
-    return <LoginScreen onLogin={() => { setLoggedIn(true); localStorage.setItem('apex_auth', 'true'); }} />;
+    return <LoginScreen onLogin={(user) => { setLoggedIn(true); setCurrentUser(user); localStorage.setItem('apex_auth', 'true'); localStorage.setItem('apex_user', user); }} />;
   }
 
   return (
@@ -1262,6 +1276,9 @@ export default function App() {
           ) : view === 'PERFORMANCE' ? (
             /* PERFORMANCE VIEW — full width */
             <PerformancePanel />
+          ) : view === 'ACCOUNT' ? (
+            /* ACCOUNT VIEW — full width */
+            <AccountPanel currentUser={currentUser} />
           ) : (
             <>
               {isMobile ? (
@@ -1342,6 +1359,12 @@ export default function App() {
                         <ChatPanel symbol={selected} price={currentPrice} changePct={currentChangePct} />
                       </div>
                     )}
+
+                    {mobileTab === 'ACCOUNT' && (
+                      <div style={{ flex: 1, background: T.surface }}>
+                        <AccountPanel currentUser={currentUser} />
+                      </div>
+                    )}
                   </div>
 
                   {/* Bottom Navigation Bar */}
@@ -1350,14 +1373,14 @@ export default function App() {
                       <button key={tab} onClick={() => setMobileTab(tab)} style={{
                         flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
                         background: 'transparent',
-                        color: mobileTab === tab ? (tab === 'AI' ? T.accentAlt : T.accent) : T.textDim,
+                        color: mobileTab === tab ? (tab === 'AI' ? T.accentAlt : tab === 'ACCOUNT' ? T.accentAlt : T.accent) : T.textDim,
                         fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
                         fontFamily: "'IBM Plex Mono', monospace",
                         transition: 'all 0.2s',
-                        borderTop: `2px solid ${mobileTab === tab ? (tab === 'AI' ? T.accentAlt : T.accent) : 'transparent'}`,
+                        borderTop: `2px solid ${mobileTab === tab ? (tab === 'AI' ? T.accentAlt : tab === 'ACCOUNT' ? T.accentAlt : T.accent) : 'transparent'}`,
                         marginTop: -1
                       }}>
-                        {tab === 'AI' ? '✦ AI' : tab === 'SIGNALS' ? '📡 SCAN' : tab}
+                        {tab === 'AI' ? '✦ AI' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'ACCOUNT' ? '🛡️ SEC' : tab}
                       </button>
                     ))}
                   </div>
