@@ -52,7 +52,7 @@ const WATCHLIST_STOCKS = [
   { symbol: 'INFY.NS', name: 'Infosys' },
   { symbol: 'ICICIBANK.NS', name: 'ICICI Bank' },
   { symbol: 'SBIN.NS', name: 'State Bank of India' },
-  { symbol: 'TATAMOTORS.NS', name: 'Tata Motors' },
+  { symbol: 'TMPV.NS', name: 'Tata Motors (TMPV)' },
   { symbol: 'WIPRO.NS', name: 'Wipro' },
   { symbol: 'AXISBANK.NS', name: 'Axis Bank' }
 ];
