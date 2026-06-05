@@ -1,0 +1,3036 @@
+# ApexTrade AI Mentor Knowledge Base
+
+This file contains extracted knowledge from the user-provided trading guides and PDFs.
+Use this information to answer trading questions, explain strategies, and mentor users.
+
+## SOURCE DOCUMENT: candlesticks (1).pdf
+
+Total Pages: 15
+
+### [Page 2 / 15]
+Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
+WHAT IS A CANDLESTICK?
+A candlestick depicts the battle between Bulls (buyers) and
+Bears (sellers) over a given period of time.
+Before we get down to the nitty-gritty, (spoiler alert: awesome
+candlestick formation images are coming your way) it’s
+important for you to understand what a candlestick actually is.
+No, we’re not talking about the kind you pick up from that
+fancy candle store to set the mood on date night. We’re talking
+about Japanese Candlesticks — the market signal that shows
+the battle between the Bulls (buyers) and the Bears (sellers)
+over a certain amount of time.
+Why do you need to know Candlesticks like the back of your
+hand? Because knowledge could give you the upper hand
+when the Bulls and the Bears are in the middle of a market
+smackdown. Candlestick formations allow you to find setups,
+determine market direction and identify optimal entry and
+exit points that could help you execute profitable returns
+consistently in your trades.
+
+### [Page 3 / 15]
+Understanding the Language
+of the Market
+Bulls, Bears, buyers, sellers…is anyone else confused? Don’t
+get your trendlines in a bunch; it’s easier than you think.
+Now that you know what a candlestick is, we can talk about
+how they essentially determine how you attack the market. At
+first glance, you’ll notice two types of candlesticks:
+Hollow (Light) candlesticks - close price is greater
+than the open price, indicating buying pressure
+Filled (Dark) candlesticks - close price is less than
+open price, indicating selling pressure
+Clear as black and white, wouldn’t you agree? Now that you
+have this part down pat, you’re ready to learn about the Bulls
+and the Bears.
+PRO TRADER TIP
+Most charts allow you to color code your candlesticks
+however you like, but for the purpose of this e-book, we’ll
+be referring to Bullish as light-colored candlesticks and
+Bearish as dark-colored candlesticks.
+Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
+
+### [Page 4 / 15]
+BEARISH BULLISH
+Long ﬁlled candlesticks
+indicate that the Bears
+controlled trading for
+most of the time.
+Long hollow candlesticks
+indicate that the Bulls
+controlled trading for
+most of the time.
+What can their formations
+tell us?
+TYPES OF CANDLESTICKS
+Open
+Close
+Open
+Close
+The relationship between the open and close is considered
+vital information and forms the essence of candlesticks.
+Hollow candlesticks, where the close is greater than the open,
+indicate buying pressure. Filled candlesticks, where the close is
+less than the open, indicate selling pressure.
+Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
+
+### [Page 5 / 15]
+BULLISH
+Bullish candlesticks indicate the
+market is moving in an upward
+trend. An easy way to remember this
+is by picturing an actual bull: bulls’ horns
+go up just like the market will when you spot
+this type of candlestick.
+So, what exactly are you looking for? Keep an eye out
+for those hollow or light-colored candlesticks we were
+talking about earlier. Once you have your bullish candle,
+take a look at the body. The bigger the body, the bigger the
+upward price movement for that specific point in time. Ideally,
+you want to identify a full-bodied candlestick with small wicks.
+Now that you’re a certified market matador, here are a couple
+of bullish formations you could find in your charts (see next
+page).
+PRO TRADER TIP
+The small wicks signify the highest and lowest price. The
+smaller the wick, the less volatile the price movement
+during that time period. Small bodies with large wicks
+mean indecision and fighting for control. Large bodies with
+small wicks means one group is in control of the market
+for that particular time period.
+Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
+
+### [Page 6 / 15]
+Openingprice of thebearishcandle
+Openingprice of thebearishcandle
+Buy at theopening of thenext candle.
+Buy at the opening of the next candle.
+Buy at theopening ofthe nextcandle.
+Close of
+the Bullishcandle must be beyond a 60% u-turn.
+Protective Stop Loss Order 10 pips below the low
+Protective Stop Loss Order 10 pips below the low
+Protective Stop Loss Order 10 pips below the low
+BULLISH
+BULLISH
+BULLISH
+MORNINGSTAR
+SHOOTINGSTAR
+ENGULFINGCANDLE
+After the Bullish Engulfing Candle
+appears in the direction of the
+trend, BUY at the opening of the
+next candle with a protective stop
+loss order approximately 10 pips
+beyond the lows of the wicks.
+When you see this: BUY in the
+direction of the trend at the
+opening of the next candle or when
+it meets the criteria of the Bullish
+Shooting Star.
+When you see this: BUY in the
+direction of the trend at the
+opening of the next candle or when
+it meets the criteria of the Bullish
+Morning Star.
+Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
+
+### [Page 7 / 15]
+Long WicksSmallBodies
+Buy at the opening of the next candle.
+60%
+Close of the bullish candle must be beyond a 60% u-turn of the bearish candle.
+Wick min. 60%
+Buy at theopening ofthe nextcandle.
+Protective Stop Loss Order 10 pips below the low
+Protective Stop Loss Order 10 pips below the low
+BULLISH
+BULLISH
+TWEEZERBOTTOM
+PIERCINGLINE
+When you see this: BUY in the
+direction of the trend at the
+opening of the next candle or when
+it meets the criteria of the Bullish
+Piercing Line.
+When you see this: BUY in the
+direction of the trend at the opening
+of the next candle or when it meets
+the criteria of the Tweezer Bottom.
+HAVE ANY QUESTIONS? Send them our way by heading to our
+Facebook, LinkedIn, Telegram or Twitter pages and we’ll do
+our best to answer them as quickly as possible!
+Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
+
+### [Page 8 / 15]
+Can you spot the bullish candlestick formations?
+Identify formations A, B & C. Answers provided upside-down under the chart. No peeking!
+Like what you’re reading? Of course you do! But why limit
+yourself to this cheat sheet? Come join us for a free
+workshop where our expert trading analysts cover
+the live market. See how real traders react to
+real market situations and learn how you
+could use their experiences to become a
+confident and consistent trader.
+APPLY IT
+A. BULLISH MORNING STAR | B. BULLISH ENGULFING CANDLE | C. BULLISH TWEEZER BOTTOM
+Get More Trading Tips
+
+### [Page 9 / 15]
+BEARISH
+Bearish candlesticks indicate the
+market is moving in a downward
+trend. Need an easy way to remember
+this? Think of a bear trying to swat down
+a bee hive for some honey; only you’re a
+trader and you’re trying to swat some pips into
+your P/L statement to help you see returns sweeter
+than honey!
+Now, what makes a candlestick bearish? You guessed it:
+filled or dark-colored candlesticks. Once you spot one, make
+sure it follows the same body-to-wick ratio that we talked
+about for bullish candlesticks.
+The body rule still holds true for bearish candlesticks except
+this time, we’re in a downward price movement. Guess what
+they say is true: the bigger they are the harder they fall.
+Here are a few of bearish formations that frequently pop up
+on the charts (see next page).
+Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
+
+### [Page 10 / 15]
+Opening priceof thebullishcandle
+Openingprice of thebullishcandle
+Sell attheopeningof thenextcandle.
+Sell at theopening ofthe nextcandle.
+Sell at theopening of thenext candle.
+Close of thebearishcandlemust bebeyond a60% u-turn.
+Protective Stop Loss Order 15 pips above the high
+Protective Stop Loss Order 15 pips above the high
+Protective Stop Loss Order 15 pips above the high
+BEARISH
+BEARISH
+BEARISH
+EVENINGSTAR
+SHOOTINGSTAR
+ENGULFINGCANDLE
+When you see this: SELL in the
+direction of the trend at the
+opening of the next candle or when
+it meets the criteria of the Bearish
+Shooting Star.
+When you see this: SELL in the
+direction of the trend at the
+opening of the next candle or when
+it meets the criteria of the Bearish
+Evening Star.
+When you see this: After the Engulfing
+Bearish Candle appears in the direction
+of the trend, SELL at the opening of the
+next candle with a protective stop loss
+order approximately 15 pips beyond
+the HIGHS of the wicks.
+Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
+
+### [Page 11 / 15]
+LongWicksSmallBodies
+Opening price of thebullishcandle
+60%
+Sell at theopening of thenext candle.
+Wick min. 60%
+Sell at theopening of thenext candle.
+Close of thebearishcandle mustbe beyond a60% u-turn ofthe bullishcandle.
+Protective Stop Loss Order 15 pips above the high
+Protective Stop Loss Order 15 pips above the
+high
+BEARISH
+BEARISH
+TWEEZERTOP
+DARK CLOUDCOVER
+When you see this: SELL in the
+direction of the trend at the opening
+of the next candle or when it meets
+the criteria of the Bearish Dark
+Cloud Cover formation.
+When you see this: After you have
+two candles that have met the
+criteria of
+a Tweezer Top, SELL at the
+opening
+of the next candle with a protective
+stop loss order approximately 15
+pips beyond the highs of the wicks.
+HAVE ANY QUESTIONS? Send them our way by heading to our
+Facebook, LinkedIn, Telegram or Twitter pages and we’ll do
+our best to answer them as quickly as possible!
+Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
+
+### [Page 12 / 15]
+APPLY IT
+Get More Trading Tips
+Identify formations A, B & C. Answers provided upside-down under the chart. No peeking!
+Look at you becoming a pro trader! Keep the momentum
+going and get a taste for what the market has to offer
+by attending one of our free live market workshops.
+There’s no better way to see these formations
+in action!
+Can you spot the bearish candlestick formations?
+A. BEARISH EVENING STAR | B. BEARISH ENGULFING CANDLE | C. BEARISH TWEEZER TOP
+
+### [Page 13 / 15]
+So What Did You Learn?
+Other than you are going to be one heck of a trader!
+Here’s a quick overview to tie everything together:
+Candlesticks help you determine market movements. There
+are hollow/light candlesticks, known as Bullish candlesticks
+and there are filled/dark candlesticks, known as Bearish
+candlesticks.
+Bullish candlesticks mean the markets moving in
+an upward trend, indicating buying pressure.
+Bearish candlesticks reveal the market is in a
+downward trend and there is high selling
+pressure.
+With enough consecutive
+Bullish candlesticks and the
+right indicators, you can
+determine that an
+upward movement
+is taking place.
+
+### [Page 14 / 15]
+This tells you to trade that upward
+movement in an uptrend.
+On the other hand, Bearish
+candlesticks reveal the market is in
+a downward trend and there is high
+selling pressure. Once you spot a
+trail of Bearish candlesticks, you’ll be
+looking at a downwards movement,
+signifying you could trade that
+movement as a downtrend.
+The size of the candlestick’s body is
+also important to help you determine
+how much movement happened
+during a certain time period (it could be an hour,
+a week, or a month, depending on how you have
+your charts set-up).
+You also got a brief overview of some of the
+candlestick formations that typically pop up on your charts.
+Candlesticks are only one way to see where the market
+is going. There are many other indicators that could help
+determine trend direction or reversals in the market. To learn
+what these indicators are and how they could boost your
+trading results, come to one of our upcoming workshops and
+see how these candlesticks play out in action.
+Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
+
+### [Page 15 / 15]
+That’s our vision. Often referred to as MTA, Metaverse Trading
+Academy, is a financial education and training company
+based in Rajkot, India. We provide education to beginner,
+intermediate, and advanced traders.
+For many, MTA is synonymous with high standards, effective
+teaching, sound instructional materials, and a dedicated
+commitment to performance-oriented results.
+For more information, visit Metaversetradingacademy.in
+MarketTraders.com
+3900 Millenia Boulevard
+Orlando, Fl. 32839
+Ph: 800-866-7431
+Metaverse Trading Academy
+Creating Successful Traders
+Copyright ©2023 Meta verse Trading Academy
+Trading India exchange on margin carries a high level of risk, and may not be
+suitable for everyone. Past performance is not indicative of future results. The
+high degree of leverage can work against you as well as for you. Before getting
+involved in foreign exchange you should carefully consider your personal
+venture objectives, level of experience, and risk appetite. The possibility exists
+that you could sustain a loss of some or all of your initial deposit and therefore
+you should not place funds that you cannot afford to lose. You should be aware
+of all the risks associated with foreign exchange trading, and seek advice from
+an independent financial advisor if you have any doubts. The information
+contained in this web page does not constitute financial advice or a solicitation
+to buy or sell any Forex contract or securities of any type. MTA will not accept
+liability for any loss or damage, including without limitation any loss of profit,
+which may arise directly or indirectly from use of or reliance on such
+information.
+Please read our RISK DISCLAIMER, GENERAL DISCLAIMER and PRIVACY POLICY
+for more information.
+
+---
+
+## SOURCE DOCUMENT: mentor (1).pdf
+
+Total Pages: 6
+
+### [Page 2 / 6]
+Is your trade setup below 60-70% success ratio?
+Do you still want to be a part of 90% looser traders as per SEBI
+or 10% successful traders?
+Is your stop loss is getting hit frequently by smart money
+managers and institutions?
+Are you still looking for Buy or sell calls from an unknown
+person and risking your money to markets?
+Is your profit and loss days are not consistent?
+Are you missing the rides after getting stop loss hit?
+Are you missing the exact point of point of reversals
+frequently?
+Are you getting repeatedly beaten by the market?
+Are you still believing that Markets operators are only
+interested in hitting your Stop loss and get away?
+Do you want to be among the 5% winner trading community or
+on the other side of it?
+Do you still believe that we can decode markets/charts with a
+few hours of class room or recorded videos?
+Dear Friends,
+If you are interested to find proper answers for the above
+questions from the masters of markets in trading you came to
+right place Metaverse trading academy.
+Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in Page -1
+
+### [Page 3 / 6]
+At Metaverse Trading academy If you want to come in for a trading
+call this is not the right place. Here we deliver self-sufficient traders
+who are capable to give calls rather than taking call from others in
+all aspects of trading such as scalping, Intraday, Positional, Swing
+and Investor levels.
+Why do you need to choose Metaverse
+Mentorship:
+Metaverse is founded and lead by Mr Vikas Gehlot an NISM
+certified financial advisor assisted by a team of professionals
+dedicated to each index and each data analysis which can affect
+the market moments.
+Core team of 11 members fully dedicated to monitor and share
+every major action happening globally in all segments of markets
+such as Future and options, Option chain analysis, Global markets,
+Vigilance on News, Currency and Commodities markets. The entire
+team will be available to access online on every single trading
+session open to questions from traders.
+Here there is only Open-door continuous live market analysis on
+each and every trading day starting from 8.45 AM to 15.30 PM and
+6.00m to 10.00 PM on Global commodities continuously.
+Along with this every trader will be reviewed on their trading
+progress on week ends with case to case basis analysis apart from
+every day online community trading with Ace traders.
+Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in Page -2
+
+### [Page 4 / 6]
+Any person can show on a rewind screen using any nature
+indicators take a position on either side of markets. But can they
+do the same while the market is functional on live basis?
+On every single day the Metaverse academy core team will stay
+alive to help you to Read, understand and most importantly to
+INTERPRET and take a right and accurate judgement on your
+entries on both Online video and Telegram too.
+Once anyone get habituated with SELF accuracy in reading,
+Analysing and interpreting the markets consistently will become a
+self-sufficient trader to trade in any markets with full confidence.
+We all must understand that charts, scripts, software’s, indicators
+and setups are almost common for you, me along with other too.
+Then why only some people (less than 5-10%) are capable to take
+profits from markets while remaining (90%) are failing?
+Prerequisites of Metaverse Mentorship:
+Well if you want to become a professional trader there are some
+basic requirements to understand our teaching. Hence for the
+welfare and benefit of traders in learning we uploaded all our
+basic and fundamental videos in You Tube by visiting Metaverse
+Trading academy. Along with the same a personal attention will be
+provided to help you understand basics on regular basis.
+Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in Page -3
+
+### [Page 5 / 6]
+A fully evolved trader who can read and interprets any global
+charts confidently.
+Identify and expand your core strength of trading in markets
+such as
+Day traders 2) Positional Trader 3) Swing traders 4) Scalpers 5)
+Investors.
+The art of balancing the risk reward ratio with a higher success
+rate typically Target price and Stop loss beyond reach of smart
+money managers.
+Unshakable mindset and balance with confidence in your
+entries and exit.
+Independently capable to keep a target for all your entries in
+both Cash and Derivatives too.
+Read, Listen and stay on this program on trading any global
+markets without noise & false signals.
+Our trading methods:
+Once your fundamentals of chart reading are sufficient every one
+of us stay alive on every trading day with a community of Smart
+traders between 9.00 AM to 3.30 PM continuously for BSE, NSE
+and 6.00 PM to 10.00 PM on MCX. how to interpret and
+implement the same in real market conditions for a period of One
+full year means 365 days full.
+What do we achieve finally?
+Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in
+Page -4
+
+### [Page 6 / 6]
+Do you still want to know more about our Metaverse trading
+academy we would invite you all for a Demo class on every
+Thursday as a Town hall meeting.
+Looking forward to see you there in person.
+Wishing to see you as a successful Ace trader ahead.
+Metaverse Trading Academy.
+Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in
+Copyright ©2023 Metaverse Trading Academy.Trading exchange on margin carries a high level of risk, and may not be suitable for everyone. Past performance is not indicative offuture results. The high degree of leverage can work against you as well as for you. Before getting involved in foreign exchange youshould carefully consider your personal venture objectives, level of experience, and risk appetite. The possibility exists that you couldsustain a loss of some or all of your initial deposit and therefore you should not place funds that you cannot afford to lose. Youshould be aware of all the risks associated with foreign exchange trading, and seek advice from an independent financial advisor ifyou have any doubts. The information contained in this web page does not constitute financial advice or a solicitation to buy or sellany Forex contract or securities of any type. MTA will not accept liability for any loss or damage, including without limitation any lossof profit, which may arise directly or indirectly from use of or reliance on such information.
+JOIN US TODAY!
+
+---
+
+## SOURCE DOCUMENT: pdfebook.pdf
+
+Total Pages: 51
+
+### [Page 1 / 51]
+Join Now
+A Trading Ebook
+Identifying Chart Patterns
+with Technical Analysis
+Join Our Telegram for FREE
+https://telegram.me/metaverse
+
+### [Page 7 / 51]
+1
+TechnicalAnalysisWebinarSeries
+Getting Started with Technical Analysis
+Learn the assumptions that guide technical analysis, and get to
+know the basics of trend trading.
+Understanding Indicators in Technical Analysis
+Identify the various types of technical indicators, including trend,
+momentum, volume, volatility, and support and resistance.
+important patterns in bar and candlestick charts.
+Manage your trading risk with a range of confirmation methods.
+Managing Risk with Technical Analysis
+Identifying Chart Patterns with Technical Analysis
+Use charts and learn chart patterns through specific examples of
+
+### [Page 8 / 51]
+3
+BROKERAGE: TECHNICAL ANALYSIS
+Techniques for
+Trading Patterns
+Construction UnderstandingPatterns andTheir Limits
+of CommonChart Patterns
+Agenda
+
+### [Page 10 / 51]
+5
+BROKERAGE: TECHNICAL ANALYSIS
+Defining Patterns
+• period (weekly, daily, minute, etc.)
+•A pattern is bounded by at least two trend lines (straight or curved)
+•All patterns have a combination of entry and exit points
+•Patterns can be continuation patterns or reversal patterns
+Patterns are fractal, meaning that they can be seen in any charting
+•A pattern is not complete or activated until an actual breakout occurs
+
+### [Page 11 / 51]
+6
+BROKERAGE: TECHNICAL ANALYSIS
+The Limits of Patterns
+Keep in Mind
+Some of our human tendencies can be dangerous
+for investors.
+•
+•
+•
+See patterns where there aren’t any
+Look backwards rather than forward
+Stick with original price targets of patterns after conditions have
+changed
+• Believe “market lore,” technical and fundamental, without evidence
+
+### [Page 13 / 51]
+8
+BROKERAGE: TECHNICAL ANALYSIS
+Techniques for Trading Patterns
+•Breakouts
+•Entry Stops
+•Protective Stops
+•Retracements
+
+### [Page 14 / 51]
+9
+BROKERAGE: TECHNICAL ANALYSIS
+Breakouts
+Violation of Trend Line,
+Support or Resistance, orprevious reversal point
+It signifies that a change
+in buyer and seller
+behavior and signals the beginning or end of a trend.
+Resistance
+Price
+Breakout
+
+### [Page 15 / 51]
+10
+BROKERAGE: TECHNICAL ANALYSIS
+Confirmation Filters
+Types of Filters
+•
+Apply a confirmation filter to
+determine whether a breakout
+has taken place.
+• Time
+• Percentage or point
+• Money
+Intrabar
+• Multiple closes
+Confirmation
+Filters
+
+### [Page 16 / 51]
+11
+BROKERAGE: TECHNICAL ANALYSIS
+Entry Stops
+Entry Stops
+Buy stop orders are used to
+enter trades once the price
+breaks out.
+Resistance Breakout
+Trend Line Breakout
+
+### [Page 17 / 51]
+12
+BROKERAGE: TECHNICAL ANALYSIS
+False and Failed Breakouts
+False Breakout
+Price breaks out but almost immediately returns
+back through its breakout price.
+(Trap)
+False breakout occurs and
+the price then breaks out in
+the opposite direction.
+Failed Breakout
+Resistance
+Line
+Trend Line
+Failed Breakout
+False Breakout (return
+through breakout level)
+Breakout
+
+### [Page 18 / 51]
+13
+BROKERAGE: TECHNICAL ANALYSIS
+Protective Stops
+Protects Capital
+Determines the amount of
+capital risk before entry
+Types of
+placement
+points, or money
+Trend line, support or
+resistance level with filter
+Filters, such as percent, •
+•
+Resistance Line
+Protective Stop
+Breakout
+
+### [Page 19 / 51]
+14
+BROKERAGE: TECHNICAL ANALYSIS
+Trading False Breakouts Using Protective Stops
+Example
+•
+•
+•
+•
+Enter on breakout Place
+protective stop
+outside breakout bar opposite from breakout
+direction
+Place entry stop at same
+level (called a “stop and
+reverse” order)
+If price continues in
+direction of breakout, profit
+from breakout entry
+If breakout is false, profit
+from stop and reverse
+• Failure
+False Breakout short entry stop
+Protective sell stop and sell
+
+### [Page 20 / 51]
+15
+BROKERAGE: TECHNICAL ANALYSIS
+Retracements
+Counter Trend
+Correction
+Types
+• •
+Waiting for
+•
+• Don’t always occur
+Performance can suffer
+when they do
+Pullback (on breakout down)
+Throwback (on breakout up)
+Trend Line Breakout
+Retracement (pullback)
+
+### [Page 22 / 51]
+17
+BROKERAGE: TECHNICAL ANALYSIS
+Common Chart Patterns
+Multi-Bar
+Patterns
+Horizontal Congestion
+Candlestick
+Patterns
+Short-Term
+Patterns
+• •
+Triangles
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+•
+Symmetrical
+Ascending and Descending
+Wedges
+Double and Triple
+Tops/Bottoms
+Rectangles
+Head and Shoulders
+Cup and Handle
+Doji
+Harami
+Hanging Man/Hammer
+Shooting Star/Inverted
+Hammer
+Engulfing
+Dark Cloud/Piercing
+Pennant/Flag
+Gaps
+Pipe Bottom
+Narrow Range
+Other
+
+### [Page 23 / 51]
+18
+Entry
+Breakout
+Pullback
+Breakout
+Double Top
+(breakout down)
+BROKERAGE: TECHNICAL ANALYSIS
+Horizontal Congestion: Double Top
+Characteristics:
+•
+•
+•
+Two successive peaks separated
+by an opposite reversal point
+Either rounded or pointed peaks
+that are usually at roughly the same
+price (resistance level)
+Price must break out of middle
+reversal point
+Double Top
+Resistance Line
+Support
+Line
+Price
+Taking the height from the highest peak to the trough and
+then subtracting the amount from the breakout price to the
+downside.
+Calculate target price:
+
+### [Page 24 / 51]
+19
+Entry
+Breakout
+Throwback
+Breakout
+BROKERAGE: TECHNICAL ANALYSIS
+Horizontal Congestion: Double Bottom
+Characteristics:
+•
+•
+•
+Two successive troughs separated
+by a peak
+Either rounded or pointed troughs
+that are usually at roughly the same
+price (support level)
+Price must break out of
+middle peak
+Double BottomSupport line
+Resistance line
+Price
+Taking the distance from the troughs to the peak and then
+adding that amount from the breakout price to the upside.
+Double Bottom
+(breakout up)
+Calculate target price:
+
+### [Page 25 / 51]
+20
+Entry Breakout
+Pullback
+Breakout
+Characteristics:
+• Three distinct peaks at roughly the
+same price level separated by two
+intermittent troughs
+Breakout occurs when price exceeds
+the extreme of the intermittent
+trough or a trend line connecting those points
+•
+BROKERAGE: TECHNICAL ANALYSIS
+Horizontal Congestion: Triple Top
+Resistance line
+Support line
+Take the height from the highest peak to the lowest trough
+in the pattern. Then subtract that amount from the lowest
+trough in the pattern to generate a price target.
+Price
+Triple Top
+(breakout down) Triple
+Top
+Calculate target price:
+
+### [Page 26 / 51]
+21
+Entry Breakout
+Throwback
+BROKERAGE: TECHNICAL ANALYSIS
+Horizontal Congestion: Triple Bottom
+Characteristics:
+•
+•
+•
+•
+Three distinct troughs at roughly the
+same price level separated by two
+intermittent peaks at any level
+Breakout occurs when price exceeds
+the extreme of the intermittent peaks
+or a trend line connecting those points
+Best performance may be after a
+sustained decline*
+An average performance, but watch
+for failures*
+Support line
+Resistance line
+Take the height from the highest peak to the lowest trough
+in the pattern. Then add that amount to the highest peak in
+the pattern to generate a price target.
+Price
+Triple Bottom
+(breakout up)
+Triple
+Bottom
+Breakout
+Calculate target price:
+
+### [Page 27 / 51]
+22
+Entry
+Shortfall
+Throwback
+Breakout
+Breakout
+Characteristics:
+•
+•
+•
+•
+breaking upward*
+Trading range with support and
+resistance levels bounding price
+action
+Slight tilt, similar to horizontal
+channel
+Often has many false breakouts*
+Things to consider:
+-
+-
+Confirm a breakout
+“Shortfall” often indicator of eventual breakout direction
+Support line
+Resistance line
+Price
+either add that amount to the resistance line to generate a price
+target for an upside breakout, OR subtract that amount from the
+support line to generate a price target for a downside breakout.
+• Best occurrence may be bottom
+BROKERAGE: TECHNICAL ANALYSIS
+Horizontal Congestion: Rectangles
+Rectangle
+(entry up, breakout up) Resistance Zone
+Support Zone
+Calculate target price:
+Take the height from the resistance line to the support line. Then
+
+### [Page 28 / 51]
+23
+Entry
+Breakout
+Cradle
+Throwback
+Target Line
+Characteristics:
+•
+•
+•
+•
+Things to consider:
+-
+Best occurrence may be upward
+breaking out –above average for
+all patterns*
+Bounded by a downward sloping
+upper trend line and an upward
+sloping lower trend line. Each bound
+is a straight trend line
+Prices must touch each bound at
+least twice. Many false breakouts.
+Moderately successful in
+performance
+Confirm a breakout
+BROKERAGE: TECHNICAL ANALYSIS
+Triangle: Symmetrical
+Price
+Take the height from the highest peak in the pattern to the
+lowest trough in the pattern. Then either add it (for upward
+breakouts) to the breakout price or subtract it (for downward
+breakouts) from the breakout price to generate a price target.
+Symmetrical Triangle
+(breakout up)
+Calculate target price:
+
+### [Page 29 / 51]
+24
+Entry
+Breakout
+Target
+Line
+Characteristics:
+•
+•
+•
+•
+Bounded by a horizontal upper trend
+line and an upward sloping lower
+trend line. Each bound is a straight
+trend line
+Prices can break in either direction,
+but more commonly upward*
+Breakout usually occurs in pattern.
+About average failure rates but many
+small false breakouts*
+Post breakout performance average
+on upside but above average on downside*
+BROKERAGE: TECHNICAL ANALYSIS
+Triangle: Ascending
+Uptrend Line
+Pullback
+Resistance line
+Price
+Take the height from the highest peak in the pattern to the
+lowest trough in the pattern. Then either add it (for upward
+breakouts) to the breakout price or subtract it (for downward
+breakouts) from the breakout price to generate a price target.
+Support line
+Ascending Triangle
+(breakout down)
+Calculate target price:
+
+### [Page 30 / 51]
+25
+Entry
+Breakout
+Downtrend
+Line Pullback
+Breakout Down
+Characteristics:
+•
+•
+•
+Bounded by two trend lines; the
+lower is horizontal and the upper
+slopes downward
+Prices can break in either direction
+but most commonly downward*
+Above-average performance on
+upside break; retracements occur
+often*
+BROKERAGE: TECHNICAL ANALYSIS
+Triangle: Descending
+Resistance line
+Price
+Take the height from the highest peak in the pattern to the
+lowest trough in the pattern. Then either add it (for upward
+breakouts) to the breakout price or subtract it (for downward
+breakouts) from the breakout price to generate a price target.
+Descending Triangle
+(breakout down)
+Support line
+Calculate target price:
+
+### [Page 31 / 51]
+26
+Climax
+Breakout
+Pullback
+BROKERAGE: TECHNICAL ANALYSIS
+Triangle: Wedge
+Characteristics:
+•
+•
+• Performance in both types is below
+average, and retracements are
+very common*
+Bounded by two trend lines, each
+headed in the same direction; Price
+must touch a trend line at least five
+times (3 times on one and 2 times on
+the other) before a breakout
+Often occur following a panic
+(declining wedge) or bubble (rising wedge)
+Price
+For downward breakout, the lowest trough in the pattern is the
+price target. For upward breakouts, take the height from the
+highest peak in the pattern to the lowest trough in the pattern
+and add that amount to the breakout price for a price target.
+Rising Wedge
+(breakout down from climax peak)
+Entry
+Calculate target price:
+nd
+
+### [Page 32 / 51]
+27
+BROKERAGE: TECHNICAL ANALYSIS
+Head and Shoulders: Top
+Characteristics:
+•
+•
+•
+•
+•
+•
+Three peaks with center peak higherthan the other two
+Shoulders should be at approximately
+the same level and the head higher
+Line connecting the two throughs
+between the peaks is called the “neckline”
+Pattern is only complete on breaking
+the neckline
+Target is the distance from the head to
+the neckline projected from the neckline
+This is a standard pattern for tops and
+has one of the lowest failure rates
+Neckline
+Head
+Target
+Right Shoulder
+Breakout
+Left Shoulder
+
+### [Page 33 / 51]
+28
+Entry
+Left Shoulder
+Head
+Breakout
+Right Shoulder
+Throwback
+Breakout
+BROKERAGE: TECHNICAL ANALYSIS
+Head and Shoulders: Bottom (Inverse)
+Characteristics:
+• Inverted but otherwise
+identical to a top pattern
+except not as profitable*
+Neckline
+Price
+Head and Shoulders Bottom
+(breakout up)
+Neckline
+Left Shoulder
+Head
+Right
+Shoulder
+
+### [Page 34 / 51]
+29
+Entry
+Lip
+Breakout
+Handle
+Throwback
+Down
+Breakout
+Lip
+BROKERAGE: TECHNICAL ANALYSIS
+Cup and Handle (also “Saucer”)
+Characteristics:
+•
+•
+•
+•
+Pattern consists of a rounded bottom
+(not a “V” bottom), two “lips” at each
+end, and a “handle” (similar to a flag
+pattern) from the handle
+Pattern is complete with breakout
+above both lips
+Often have a throwback
+The pattern’s performance ranks
+about average for bottom patterns*
+Calculate target price:
+Take the height of the right cup lip to the bottom of the
+cup, then add that amount to the breakout price.
+Cup or Bowl
+Price
+Rounding Bottom
+(breakout up)
+Breakout
+
+### [Page 35 / 51]
+30
+nd
+BROKERAGE: TECHNICAL ANALYSIS
+Trading with Patterns
+*Source: Technical Analysis: the Complete Resource for Financial Market Technicians, 2 ed.
+= Buy
+= Stop
+= Exit
+Rectangle
+Triangle
+Triangle
+Wedge
+Wedge
+
+### [Page 36 / 51]
+31
+BROKERAGE: TECHNICAL ANALYSIS
+Best Multi-Bar Patterns
+Upward Signals Downward Signals
+•
+•
+•
+•
+•Pipe Bottom
+Descending
+Triangle
+Rectangle
+Flag
+Head and
+Shoulders top
+Island Reversal
+•
+
+### [Page 37 / 51]
+32
+BROKERAGE: TECHNICAL ANALYSIS
+General Information about a Candlestick
+Characteristics:
+•
+•
+•
+Traditionally, candlestick patterns are reversal patterns, meaning theyare used to identify when a trend is ending
+Candlestick patterns are often used with longer-term trends, thus,
+upward reversal patterns after a correction in a longer upward trend
+show the best performance, and vice versa for downward reversal patterns in a long downward trend
+Be careful not to act on a perceived candle pattern until the pattern
+has formed and is activated by a breakout in a certain direction
+
+### [Page 38 / 51]
+33
+BROKERAGE: TECHNICAL ANALYSIS
+Doji
+Characteristics:
+•
+•
+•
+A one-candle pattern formed when the open
+and close are the same price, and the high
+and low are roughly equidistant from the open
+and close
+Extremely common
+Indicates indecision in the marketplace and
+thus is a possible warning of price change
+Doji
+
+---
+
+## SOURCE DOCUMENT: SL Guide (1).pdf
+
+Total Pages: 7
+
+### [Page 2 / 7]
+Stop loss is a risk management tool used by traders and investors
+in financial markets, particularly in stock trading and other asset
+classes. Its importance and ideas revolve around limiting potential
+losses and preserving capital. Here are the key points regarding
+the importance and ideas of stop loss:
+1. Risk Management: The primary importance of stop loss is to
+manage risk. By setting a predetermined price level at which you
+are willing to sell an asset, you protect yourself from significant
+losses. This helps maintain a disciplined approach to trading and
+investing.
+Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in Rajkot (HQ) , Ahmedabad, Surat
+2. Capital Preservation: Stop loss orders are essential for
+preserving your trading capital. They prevent you from losing
+more money than you can afford, ensuring that you live to trade
+another day. This is vital for long-term success in the markets.
+
+### [Page 3 / 7]
+Rajkot (HQ) , Ahmedabad, Surat
+3. Emotional Control: Setting a stop loss in advance helps to
+control emotions like fear and greed. It prevents impulsive
+decisions driven by emotions and ensures that you stick to your
+trading or investment plan.
+4. Objective Decision-Making: Stop loss levels are determined
+based on technical or fundamental analysis. This makes your
+decisions more objective and systematic, reducing the chances of
+making impulsive, irrational choices.
+5. Trade Timing: Stop loss orders can also help with timing your
+trades. They can be used to enter or exit the market when a
+specific price level is breached. For example, a stop order can be
+used to trigger a buy order when a stock reaches a certain price.
+Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in
+
+### [Page 4 / 7]
+2. Support and Resistance: Set stop loss levels just below key
+support levels or just above key resistance levels. This helps you
+avoid losses in case the market breaks against your position.
+3. Trailing Stop Loss: As your trade moves in your favor, adjust
+your stop loss upward to lock in profits. This is known as a trailing
+stop loss and allows you to capture more gains while limiting
+losses.
+1. Percentage-Based Stop Loss: Determine a percentage of your
+initial investment that you are willing to risk on a trade. For
+example, if you are willing to risk 2% of your capital, set a stop loss
+2% below your entry price.
+Rajkot (HQ) , Ahmedabad, Surat
+IDEAS FOR USING STOP LOSS:
+Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in
+
+### [Page 5 / 7]
+Rajkot (HQ) , Ahmedabad, Surat
+\
+4. Volatility-Based Stop Loss: Adjust your stop loss based on the
+volatility of the asset you are trading. In more volatile markets, a
+wider stop loss may be appropriate, while in less volatile markets,
+a tighter stop loss can be used.
+5. Time-Based Stop Loss: Set a time-based stop loss if you have a
+specific time frame for your trade or investment. For example, you
+may decide to exit a trade after a certain number of days if your
+price target is not reached.
+6. Risk-Reward Ratio: Determine your target profit and set your
+stop loss accordingly to maintain a favourable risk-reward ratio.
+For example, if you aim for a 2:1 risk-reward ratio, your stop loss
+should be half the distance of your profit target from your entry
+point.
+In summary, stop loss is a critical tool in trading and investing to
+manage risk, preserve capital, and maintain a disciplined
+approach. Its importance lies in preventing large losses, emotional
+decision-making, and ensuring systematic trading or investing. The
+specific approach to using stop loss should be tailored to your
+trading strategy and risk tolerance.
+Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in
+
+### [Page 6 / 7]
+2
+3
+1
+FOR MORE TRADING TIPS, ATTEND A FREE WEBINAR:
+REGISTER NOW
+Find out what strategies successful traders are using to
+see quicker returns on their investment.
+Get a live market review with a stock analyst that shows
+you simple techniques that have been proven profitable
+to all MTA students
+Get Free PCR update of Nifty, BankNifty and FinNifty in
+Every 15 minutes on our free Telegram.
+GET EMPOWERED TO TRADE THE
+STOCK MARKET
+Rajkot (HQ) , Ahmedabad, Surat
+JOIN TELEGRAM
+Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in
+
+### [Page 7 / 7]
+That’s our vision. Often referred to as Metaverse Trading
+academy, is a financial education and training company
+based in Rajkot, Gujarat. We provide education to beginner,
+intermediate, and advanced traders.
+For many, MTA is synonymous with high standards, effective
+teaching, sound instructional materials, and a dedicated
+commitment to performance-oriented results.
+For more information, visit metaversetradingacademy.in
+Creating Successful Traders
+Copyright ©2023 Metaverse Trading Academy.
+Trading exchange on margin carries a high level of risk, and may not be
+suitable for everyone. Past performance is not indicative of future results. The
+high degree of leverage can work against you as well as for you. Before getting
+involved in foreign exchange you should carefully consider your personal
+venture objectives, level of experience, and risk appetite. The possibility exists
+that you could sustain a loss of some or all of your initial deposit and therefore
+you should not place funds that you cannot afford to lose. You should be aware
+of all the risks associated with foreign exchange trading, and seek advice from
+an independent financial advisor if you have any doubts. The information
+contained in this web page does not constitute financial advice or a solicitation
+to buy or sell any Forex contract or securities of any type. MTA will not accept
+liability for any loss or damage, including without limitation any loss of profit,
+which may arise directly or indirectly from use of or reliance on such
+information.
+METAVERSE TRADING ACADEMY
+
+---
+
+## SOURCE DOCUMENT: The Ai Trader.pdf
+
+Total Pages: 65
+
+### [Page 1 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+QUANTIFIED  EDGE
+A  Professional  Trader's  Complete  System  for  Using  AI,
+ChatGPT  &  Python  in  Real  Markets
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10  Chapters   |   25  Engineered  Prompts   |   Working  Python  Code Real  Trade  Case  Studies   |   Statistical  Edge  Framework
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 3 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+01 CHAPTER
+Honest  AI  Limitations The  Disclaimer  Chapter  Nobody  Writes
+Most  AI  trading  eBooks  begin  by  telling  you  what  AI  can  do.  This  one  begins  with  what  it  cannot  —
+because
+understanding
+the
+boundaries
+is
+not
+a
+weakness
+in
+your
+toolkit;
+it
+is
+the
+foundation
+of
+using
+any
+tool
+profitably.
+1.1   What  ChatGPT  Cannot  Do  in  Trading
+Critical  Limitation  —  Live  Market  Data ChatGPT  has  no  real-time  market  access.  It  cannot  see  your  charts,  pull  live  prices,  read  Level  2  data,  or  process  order  flow  unless  you  explicitly  provide  that  data  in  text  format.  Products  that  tell  you  to  'just  show  ChatGPT  your  chart'  without  explaining  this  are  misleading  you.
+Let  us  be  precise  about  each  limitation:
+1.1.1   Chart  Reading  via  GPT-4V  (Vision) GPT-4V  can  process  images  of  charts.  This  is  real.  But  here  is  what  the  marketing  literature  omits:
+•  GPT-4V  identifies  approximate  price  levels  and  general  trend  direction,  but  cannot  reliably
+identify
+specific
+candlestick
+patterns
+at
+high
+accuracy •  It  struggles  with  overlapping  price  action,  dense  volume  bars,  and  multi-timeframe  overlays •  It  has  no  spatial  reasoning  for  exact  pixel-level  price  measurements  —  it  infers,  it  does  not
+measure •  Its  output  changes  between  runs.  Ask  it  to  analyse  the  same  chart  twice;  you  may  get  different
+structural
+reads •  It  cannot  read  footprint  candles,  delta  divergence,  or  volume  profile  shapes  reliably  —  these
+require
+precise
+numerical
+parsing,
+not
+visual
+inference   Practical  Rule  for  GPT-4V  Chart  Use Use  GPT-4V  for  HIGH-LEVEL  context  only:  broad  trend,  general  structure,  obvious  support/resistance  zones.  Never  use  it  for  precise  entry/exit  decisions.  Always  cross-reference  with  your  own  analysis.  If  the  model  gives  you  a  specific  price,  verify  it  manually.
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 5 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+Hallucination  risk  is  highest  when  you  ask  ChatGPT  to:
+•  Recall  specific  historical  price  data  (it  may  fabricate  plausible-sounding  numbers) •  Describe  what  a  specific  market  'usually  does'  at  a  price  level  (no  statistical  basis) •  Confirm  your  thesis  (confirmation  bias  amplification  —  it  will  often  agree  with  your  framing)  Mitigation  strategies:
+1.  Always  provide  the  data  yourself  —  do  not  ask  AI  to  recall  market  data 2.  Ask  AI  to  argue  against  your  thesis,  not  confirm  it 3.  Use  AI  for  process  and  structure,  not  for  facts  you  have  not  independently  verified 4.  When  in  doubt:  'What  are  three  reasons  this  trade  idea  could  be  completely  wrong?'
+1.4   Platform  Reality  Check
+Platform  /  Tool Genuine  AI  Integration  Capability
+ChatGPT  (web/mobile) Text  reasoning,  GPT-4V  chart  images,  code  generation,  no  live  data
+ChatGPT  API  (custom  build) Full  capability  —  with  developer  integration,  can  receive  structured  market  data
+TradingView  +  Pine  Script AI  can  write/debug  Pine  Script  —  you  run  it;  AI  does  not  execute  it
+Python  +  OpenAI  SDK Most  powerful  —  build  your  own  analysis  pipelines  with  real  data
+Bookmap  /  Sierra  Chart No  native  AI  integration;  export  to  CSV  for  AI  analysis
+Interactive  Brokers  API Can  be  integrated  with  Python  +  AI  —  requires  developer  setup
+Chapter  1  Takeaway Every  subsequent  chapter  in  this  eBook  is  written  with  these  limitations  in  mind.  When  a  prompt  uses  chart  data,  we  provide  text  descriptions  of  that  chart.  When  we  claim  AI  can  identify  a  pattern,  we  mean  in  described  or  exported  data  —  not  via  real-time  visual  feed.  This  honesty  is  not  a  weakness;  it  is  what  separates  a  professional  tool  from  a  toy.
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 7 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+You  are  a  professional  market  structure  analyst.  You  never  give  a  directional  bias  before  completing  a  full  structural  analysis.  When  answering,  use  this  reasoning  chain:  (1)  Identify  the  dominant  timeframe  trend,  (2)  Identify  the  current  market  structure  phase,  (3)  Identify  key  liquidity  zones  above  and  below  current  price,  (4)  State  what  price  would  need  to  do  to  confirm  each  bias,  (5)  Only  then  state  your  conclusion.
+USER  MESSAGE
+Analyse  this  setup.  NQ  Futures,  4H  timeframe.  Price  has  made  three  higher  highs  and  higher  lows  from  18,200  to  18,650  over  six  weeks.  It  has  just  broken  the  most  recent  higher  low  at  18,480,  returning  to  18,470.  Volume  declined  on  the  last  two  impulse  legs.  Delta  has  been  consistently  negative  on  the  last  three  4H  bars.
+EXPECTED  OUTPUT  STRUCTURE
+[TREND  ANALYSIS]  Dominant  4H  trend:  Bullish  (HH/HL  sequence  intact  until  recent  HL  break)[STRUCTURE  PHASE]  Potential  distribution  —  HL  broken,  watch  for  BOS  confirmation  below  18,200[LIQUIDITY  ZONES]  Buy-side  liquidity  above  18,650  (equal  highs).  Sell-side  below  18,200  (prior  swing  low).[CONFIRMATION  REQUIRED]  Bullish:  reclaim  18,480  with  strong  delta.  Bearish:  close  below  18,420  on  4H.[CONCLUSION]  Neutral  until  confirmation.  Slight  bearish  lean  given  delta  divergence.
+WHY  IT  WORKS
+The  system  instruction  prevents  premature  bias.  The  reasoning  chain  ensures  the  AI  works  through  evidence  before  concluding  —  the  same  discipline  we  want  in  our  own  decision-making.  The  output  format  makes  the  response  actionable,  not  conversational.
+2.3   Negative  Prompting  —  What  to  Exclude  Negative  prompting  tells  the  AI  what  NOT  to  do.  This  is  underused  and  highly  effective  for  trading:
+•  'Do  not  give  me  a  prediction.  Give  me  conditions.' •  'Do  not  assume  the  trend  continues.  Analyse  structure  only.' •  'Do  not  mention  fundamentals  or  news.  This  is  purely  technical.' •  'Do  not  give  a  bullish  or  bearish  label  until  you  have  listed  at  least  three  risks  to  that  thesis.'   Why  Negative  Prompting  Matters AI  models  have  a  tendency  to  give  you  what  you  seem  to  want.  If  your  description  of  a  setup  sounds  bullish,  the  model  will  often  give  you  a  bullish  conclusion.  Negative  prompting  breaks  this  tendency  and  forces  more  rigorous  analysis.
+2.4   Few-Shot  Prompting  for  Pattern  Recognition
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 9 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+SYSTEM  INSTRUCTION
+You  are  an  auction  market  theory  specialist.  Classify  days  using  the  following  framework:  TREND  DAY  (directional,  one  timeframe  auction,  closes  near  high  or  low),  NORMAL  VARIATION  DAY  (balanced  open,  slight  directional  close),  NORMAL  DAY  (balanced,  close  near  middle  of  range),  NEUTRAL  DAY  (range-bound,  close  within  prior  day  range).  Always  provide  evidence  before  classification.
+USER  MESSAGE
+Prior  day  data:  Instrument  [NQ],  Open  [18450],  High  [18620],  Close  [18605],  Low  [18430],  Range  [190pts].  Value  area  from  prior  day:  VAH  [18590],  VAL  [18480],  POC  [18540].  Opening  range  (first  30  mins):  High  [18480],  Low  [18445].  Volume  distribution:  65%  above  POC.
+EXPECTED  OUTPUT  STRUCTURE
+[DAY  TYPE]  Normal  Variation  —  Bullish[EVIDENCE]  Price  opened  in  value,  tested  below  VAL  briefly,  recovered,  closed  above  VAH.  Volume  skew  above  POC  confirms  buyer  control  without  full  trend  day  extension.[IMPLICATION  FOR  TODAY]  Watch  for  open  above  prior  close  (18605)  as  bull  signal.  Gap  fill  potential  to  POC  (18540).  Acceptance  above  VAH  suggests  continued  buy  programme.
+WHY  IT  WORKS
+Providing  structured  prior-day  data  with  explicit  field  labels  prevents  the  AI  from  hallucinating  market  data.  The  output  format  produces  actionable  morning  context,  not  generic  commentary.
+Prompt  2  —  Overnight  Gap  Analysis
+SYSTEM  INSTRUCTION
+You  are  a  futures  market  specialist  focused  on  gap  analysis  and  opening  auction  dynamics.  Analyse  gaps  using  these  categories:  (1)  Gap  and  Go  —  continuation,  (2)  Gap  Fill  —  mean  reversion,  (3)  Gap  and  Reverse  —  failed  auction.  Weigh  gap  size  relative  to  prior  day  ATR.
+USER  MESSAGE
+Instrument:  [ES],  Prior  close:  [4592],  Current  overnight  high:  [4618],  Current  price  at  open:  [4614].  Prior  day  ATR  (20):  [28pts].  Gap  size:  [22pts].  Overnight  volume  profile:  thin  between  4592-4600,  high  volume  node  at  4610-4618.
+EXPECTED  OUTPUT  STRUCTURE
+[GAP  SIZE]  22pts  vs  28pt  ATR  =  0.79x  ATR.  Significant  gap.[OVERNIGHT  PROFILE]  Low-volume  area  4592-4600  =  gap  fill  magnet.  High-volume  node  4610-4618  =  acceptance  zone.[SCENARIO  A  —  Gap  Fill]  If  opening  auction  fails  at  4618  and  rotates  to  4600,  high  probability  gap  fill  to  4592.  Monitor  first  15-min  volume.[SCENARIO  B  —  Gap  and  Go]  If  opening  auction  holds  above  4608  and  expands,  target  prior  day  VAH  +  gap  extension.
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 11 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+recovered  inside  Asia  range  and  is  holding  above  Asia  low  =  buy-side  pressure.[NY  OPEN  IMPLICATION]  High  probability  NY  open  continues  London's  recovery.  Watch  for  NY  open  above  Asia  high  (1.0842)  to  confirm  bull  case.  Target:  next  clean  high  at  [user  to  supply  HTF  level].[INVALIDATION]  If  NY  open  sells  off  and  breaks  below  London  low  (1.0812),  manipulation  failed  —  reassess.
+WHY  IT  WORKS
+Session  transition  analysis  relies  on  well-structured  inputs.  The  prompt  produces  institutional-grade  context  without  hallucination  because  all  data  is  user-supplied  and  the  AI  is  asked  to  reason  about  relationships,  not  invent  price  levels.
+Prompt  5  —  News  Event  Context  Framing
+SYSTEM  INSTRUCTION
+You  are  a  macro-to-technical  context  analyst.  You  do  not  predict  news  outcomes.  You  identify  the  likely  market  behaviour  scenarios  around  high-impact  events  and  how  structure  should  be  interpreted  depending  on  the  outcome.  Focus  on  the  technical  framework,  not  the  economic  forecast.
+USER  MESSAGE
+Event:  [US  CPI,  release  in  45  minutes].  Current  ES  price:  [4580].  Key  levels:  Resistance  [4600],  Support  [4555].  Prior  CPI  reaction:  +35pts  on  hot  print,  -28pts  on  cool  print  (from  your  journal  data  —  or  use:  'assume  typical  CPI  volatility  of  25-40pts').
+EXPECTED  OUTPUT  STRUCTURE
+[PRE-EVENT  POSTURE]  Avoid  directional  trades  within  20  minutes  of  release.  Current  price  mid-range  suggests  no  edge.[SCENARIO  —  HOT  CPI  (above  estimate)]  Expect  initial  sell  spike  to  4555  support.  IF  4555  holds  and  price  recovers  above  4570  within  30  mins,  consider  long  for  mean  reversion  to  4580.  DO  NOT  chase  the  initial  move.[SCENARIO  —  COOL  CPI  (at  or  below  estimate)]  Expect  buy  spike  toward  4600.  IF  4600  is  rejected  with  volume  exhaustion  within  15  mins,  consider  short  fade.  DO  NOT  buy  the  initial  gap.[KEY  PRINCIPLE]  News  creates  the  move.  Structure  determines  the  trade.
+WHY  IT  WORKS
+The  system  instruction  'you  do  not  predict  news  outcomes'  is  essential.  It  keeps  AI  in  its  competent  domain  (scenario  planning,  not  forecasting)  and  prevents  the  dangerous  false  confidence  of  directional  news  predictions.
+Prompts  6-10:  Real-Time  Structure  Analysis
+Prompt  6  —  Order  Block  Validation
+SYSTEM  INSTRUCTION
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 13 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+1.2700  with  tight  stop  below  SH2.  Conservative:  wait  for  HL  formation  and  confirmation.
+WHY  IT  WORKS
+The  explicit  definition  of  CHOCH  vs  BOS  in  the  system  prompt  prevents  the  AI  from  using  generic  internet  definitions  which  often  differ  from  trader-specific  frameworks.  This  is  how  few-shot  and  definition-priming  work  together.
+Prompt  8  —  Fair  Value  Gap  Analysis
+SYSTEM  INSTRUCTION
+You  are  a  liquidity  and  imbalance  analyst.  Analyse  fair  value  gaps  (FVGs)  using  these  rules:  a  bullish  FVG  is  a  three-candle  formation  where  the  low  of  candle  3  is  higher  than  the  high  of  candle  1  (gap  between  them  is  the  FVG).  A  bearish  FVG  is  where  the  high  of  candle  3  is  lower  than  the  low  of  candle  1.  Rate  FVGs  by:  size  relative  to  ATR,  proximity  to  premium/discount  zones,  whether  they  align  with  OB  or  CHOCH  context.
+USER  MESSAGE
+4H  candle  data  (last  3  candles):Candle  1:  High  [4592],  Low  [4568]Candle  2:  High  [4615],  Low  [4590]  (strong  bull  candle)Candle  3:  High  [4635],  Low  [4597]ATR(14):  [32pts].  Current  price:  [4598].
+EXPECTED  OUTPUT  STRUCTURE
+[FVG  IDENTIFIED]  Bullish  FVG:  between  Candle  1  High  (4592)  and  Candle  3  Low  (4597).  Gap  =  5pts.[SIZE  ASSESSMENT]  5pts  vs  32pt  ATR  =  15.6%  of  ATR  —  Small  FVG.[LOCATION]  Price  currently  at  4598  =  at  the  bottom  of  FVG.  This  is  a  fill-in-progress.[QUALITY  RATING]  MEDIUM  —  Small  gap,  but  aligned  with  recent  bullish  impulse  structure.[TRADE  FRAMEWORK]  If  price  holds  above  4592  (FVG  bottom)  on  the  1H,  bullish  continuation.  Violation  of  4592  suggests  deeper  pullback  toward  next  structural  support.
+WHY  IT  WORKS
+Providing  three-candle  OHLC  data  explicitly  lets  the  AI  calculate  the  actual  FVG  range  rather  than  guessing.  The  ATR  context  makes  the  quality  rating  relative,  not  absolute  —  which  is  how  professional  traders  assess  gap  significance.
+Prompt  9  —  Liquidity  Sweep  Identification
+SYSTEM  INSTRUCTION
+You  are  an  institutional  order  flow  analyst  specialising  in  liquidity  engineering.  Identify  liquidity  sweeps  using  these  criteria:  (1)  Price  moves  beyond  a  key  level  (equal  highs/lows,  prior  session  high/low,  round  numbers)  briefly,  (2)  Then  rapidly  reverses,  (3)  Volume  spike  typically  accompanies  the  sweep.  Distinguish  between  a  genuine  breakout  (price  accepts  beyond  the  level)  and  a  sweep  (price  rejects).
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 15 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+Prompts  11-15:  Post-Trade  Analysis
+Prompt  11  —  Trade  Review  &  Lesson  Extraction
+SYSTEM  INSTRUCTION
+You  are  a  trading  coach  specialising  in  post-trade  analysis.  Your  goal  is  not  to  judge  whether  the  trade  was  profitable,  but  to  evaluate  process  quality.  Assess:  (1)  Was  the  setup  valid  per  stated  rules?  (2)  Was  execution  aligned  with  the  plan?  (3)  What  would  a  professional  do  differently?  (4)  What  is  the  one  specific  lesson  for  future  trades?
+USER  MESSAGE
+Trade:  Long  NQ,  entry  18,480,  stop  18,450,  target  18,580.  Reason:  4H  OB  at  18,470-18,490,  CHOCH  on  1H,  weekly  bias  bullish.  Result:  Stopped  out  at  18,450.  Then  price  reversed  and  hit  18,600  (target  +20pts  beyond  plan).  My  mistake:  I  moved  my  stop  to  breakeven  too  early  (when  price  was  at  18,510)  and  was  stopped  on  a  wick.
+EXPECTED  OUTPUT  STRUCTURE
+[SETUP  VALIDITY]  Valid  —  OB,  CHOCH,  and  weekly  bias  alignment  =  high  confluence.[EXECUTION  QUALITY]  POOR  —  Stop  moved  to  BE  prematurely.  Stop  placement  at  18,450  (original)  was  correct  structurally.[ROOT  CAUSE]  Emotional  response  to  floating  profit.  Classic  fear  of  losing  a  winner  before  it  has  confirmed.[SPECIFIC  LESSON]  Rule  to  add:  'Do  not  move  stop  to  BE  until  price  has  closed  a  candle  beyond  the  midpoint  of  the  target  range.'  This  rule  is  testable  and  specific.[PROFESSIONAL  ALTERNATIVE]  Hold  original  stop.  Accept  that  30pt  drawdown  from  18,510  to  18,480  is  within  the  trade's  risk  parameters.
+WHY  IT  WORKS
+The  system  instruction  'not  to  judge  whether  the  trade  was  profitable'  is  transformative.  It  shifts  the  review  from  outcome-based  to  process-based  —  which  is  how  professional  traders  actually  improve.
+Prompt  12  —  Loss  Analysis  Deep  Dive
+SYSTEM  INSTRUCTION
+You  are  a  trading  psychologist  and  technical  analyst.  For  losing  trades,  identify  whether  the  loss  was  due  to:  (A)  Valid  setup,  poor  execution,  (B)  Invalid  setup,  correct  exit,  (C)  Valid  setup,  valid  execution,  adverse  market  (acceptable  loss),  or  (D)  Invalid  setup,  poor  execution  (most  dangerous  pattern).  Only  category  D  losses  require  rule  changes.
+USER  MESSAGE
+Losing  trade:  Short  GBP/USD  at  1.2720  (HTF  resistance).  Stop  1.2745,  Target  1.2660.  Result:  Stopped  at  1.2745  (-25pts).  Entry  reasoning:  'resistance  looked  strong  and  I  felt  the  market  was  ready  to  drop.'  No  OB,  no  CHoCH,  no
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 17 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+WHY  IT  WORKS
+Converting  described  approaches  into  explicit,  testable  rules  is  one  of  the  most  valuable  applications  of  AI  in  trading.  The  output  becomes  a  document  you  can  backtesting  against  —  not  a  journal  entry  you  forget  about.
+Prompt  14  —  Bias  Audit  Before  Trading
+SYSTEM  INSTRUCTION
+You  are  a  trading  cognitive  bias  auditor.  Before  I  execute  a  trade,  review  my  stated  reasoning  and  identify  any  cognitive  biases  present.  Be  direct  and  specific.  Do  not  validate  my  reasoning  unless  it  is  genuinely  bias-free.
+USER  MESSAGE
+I  want  to  go  long  NQ.  I've  been  watching  it  all  morning.  It  dipped  to  18,400  and  bounced.  I  lost  a  short  trade  yesterday  so  I  want  to  make  it  back  today.  The  market  'feels'  like  it's  ready  to  reverse.  I  went  long  last  Tuesday  at  a  similar  level  and  made  80pts.  I'm  pretty  confident  this  works.
+EXPECTED  OUTPUT  STRUCTURE
+[BIASES  IDENTIFIED]1.  LOSS  AVERSION  /  REVENGE  TRADING  —  'Lost  yesterday,  want  to  make  it  back  today.'  This  is  emotional  motivation,  not  edge-based.2.  RECENCY  BIAS  —  'Last  Tuesday  worked.'  One  similar  trade  is  not  a  sample  size.  Past  result  does  not  determine  future  probability.3.  NARRATIVE  FALLACY  —  'Feels  like  it's  ready  to  reverse.'  What  is  the  structural  evidence?  Feeling  is  not  a  trading  reason.4.  OVERCONFIDENCE  —  'Pretty  confident.'  Confidence  should  track  evidence,  not  desire.[WHAT'S  MISSING]  No  mention  of:  HTF  bias,  structure  context,  OB/CHOCH  presence,  session  timing,  or  stop  level.[RECOMMENDATION]  Do  not  enter  this  trade.  Define  the  setup  in  objective  terms  first.  If  you  cannot  state  entry,  stop,  and  target  with  structural  justification,  it  is  not  a  trade.
+WHY  IT  WORKS
+This  is  one  of  the  most  powerful  prompts  in  this  library.  Submitting  your  pre-trade  reasoning  to  a  bias  audit  forces  you  to  articulate  your  logic  explicitly  —  which  itself  reduces  impulsive  trading.  The  AI  acts  as  an  objective  second  voice.
+Prompt  15  —  Weekly  Edge  Review
+SYSTEM  INSTRUCTION
+You  are  a  quantitative  trading  performance  analyst.  Analyse  this  week's  trade  data  and  identify:  (1)  Which  setups  had  the  highest  expectancy,  (2)  Which  sessions  produced  the  best  results,  (3)  Whether  the  win  rate  and  R:R  are  consistent  with  a  positive  expectancy  system,  (4)  One  specific  area  to  improve  next  week.
+USER  MESSAGE
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 19 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+Free-form  journal  entries  are  gold  mines  of  self-knowledge  that  most  traders  never  mine.  This  prompt  transforms  raw  emotional  notes  into  structured  performance  data  without  requiring  the  trader  to  write  in  a  specific  format.
+Prompt  17  —  Bias  Pattern  Recognition  (Monthly)
+SYSTEM  INSTRUCTION
+You  are  a  trading  pattern  analyst.  Review  this  month's  journal  entries  and  identify  recurring  cognitive  bias  patterns.  For  each  pattern:  name  the  bias,  provide  three  examples  from  the  journal,  and  suggest  a  specific  pre-trade  intervention.
+USER  MESSAGE
+Journal  entries  (abbreviated):  Week  1:  'Took  three  trades  on  Friday  because  I  needed  to  make  up  for  a  bad  week.'  Week  2:  'Entered  early  because  I  was  sure  this  one  would  work.'  Week  3:  'Moved  stop  to  BE  too  early  again,  price  hit  target  without  me.'  Week  4:  'Doubled  size  after  a  good  week,  had  a  big  loss  that  wiped  out  3  days  of  gains.  Also  went  short  at  resistance  because  it  worked  last  time.'
+EXPECTED  OUTPUT  STRUCTURE
+[BIAS  1]  LOSS  AVERSION  /  MAKE-UP  TRADING  —  Week  1  Friday  trading.  Intervention:  Implement  weekly  trade  cap.  If  at  weekly  loss  limit  (-3R),  no  more  entries  that  week.[BIAS  2]  OVERCONFIDENCE  AFTER  WINS  —  Week  4  size  increase.  Intervention:  Fixed  fractional  sizing  only.  No  size  changes  based  on  recent  results.[BIAS  3]  PREMATURE  STOP  MANAGEMENT  —  Week  3  BE  stop.  Intervention:  Write  stop-move  rule  and  laminate  it.  'Stop  only  moves  to  BE  when  price  closes  past  50%  of  target.'[BIAS  4]  RECENCY  BIAS  —  Week  4  short  'because  it  worked  last  time.'  Intervention:  Before  each  trade,  state  explicitly:  'This  outcome  is  independent  of  my  last  trade.'
+WHY  IT  WORKS
+Monthly  bias  review  is  where  AI  adds  compounding  value.  Individual  trades  don't  reveal  patterns  —  a  month  of  journals  does.  This  prompt  turns  raw  data  into  a  personal  bias  profile  that  improves  over  time.
+Prompt  18  —  Notion  Journal  Template  Prompt
+SYSTEM  INSTRUCTION
+You  are  a  trading  operations  specialist.  Generate  a  structured  daily  trading  journal  template  for  use  in  Notion.  The  template  must  capture:  pre-session  preparation,  each  trade's  objective  data,  emotional  state  ratings,  rule  compliance,  and  end-of-day  review.  Use  a  format  that  can  be  pasted  into  Notion  as-is.
+USER  MESSAGE
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 21 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+Prompt  20  —  Cognitive  Bias  Challenger
+SYSTEM  INSTRUCTION
+You  are  a  devil's  advocate  analyst.  When  I  present  a  trade  idea,  your  job  is  to  find  every  legitimate  reason  it  could  fail.  Do  not  validate  my  thesis.  Do  not  find  balance.  Your  only  job  is  to  present  the  strongest  possible  bear  case  for  a  bull  trade  (or  bull  case  for  a  bear  trade).  I  will  evaluate  the  objections  myself.
+USER  MESSAGE
+I  want  to  go  long  NQ  from  the  4H  OB  at  18,480.  Weekly  trend  is  bullish,  4H  CHOCH  confirmed,  OB  has  not  been  mitigated,  FVG  above  supports  continuation  to  18,620.
+EXPECTED  OUTPUT  STRUCTURE
+[DEVIL'S  ADVOCATE  —  BEAR  CASE  FOR  THIS  LONG]1.  WEEKLY  CONTEXT:  While  weekly  trend  is  bullish,  price  is  approaching  the  upper  half  of  the  weekly  range.  Statistically,  pullbacks  are  more  common  at  this  level.2.  OB  VALIDITY:  OB  at  18,480  is  the  second  test  of  this  zone.  First  OB  tests  have  higher  probability.  Second  tests  have  lower  probability  —  some  practitioners  consider  second  tests  mitigated.3.  FVG  CONCERN:  FVG  imbalances  are  filled  approximately  70%  of  the  time  before  continuation.  If  there's  a  downside  FVG  between  18,350-18,420,  that  could  be  the  actual  magnet  before  any  upside.4.  SESSION  RISK:  Entering  mid-session  (not  at  open)  means  less  institutional  order  flow  alignment.5.  MACRO:  If  there  is  a  news  event  within  2  hours,  the  OB  setup  is  irrelevant  —  news  will  dominate.
+WHY  IT  WORKS
+This  is  the  most  important  intellectual  discipline  in  trading:  actively  looking  for  reasons  you  are  wrong.  The  devil's  advocate  prompt  outsources  this  discipline  to  AI,  which  has  no  ego  investment  in  being  right.
+Prompts  21-25:  System  Building  &  Statistics
+Prompt  21  —  Expectancy  Calculator
+SYSTEM  INSTRUCTION
+You  are  a  quantitative  trading  statistician.  Calculate  the  expectancy,  profit  factor,  and  minimum  required  win  rate  for  the  system  described.  Show  all  maths.  State  clearly  whether  the  system  has  a  positive  expectancy  and  what  the  edge  is  per  trade  in  R.
+USER  MESSAGE
+System  stats  from  last  60  trades:  34  winners,  26  losers.  Average  winner:  1.8R.  Average  loser:  1R  (all  losses  at  1R  due  to  fixed  stop).  Largest  winner:  4.2R.  Largest  loser:  1R.  Consecutive  losses  max:  7.
+EXPECTED  OUTPUT  STRUCTURE
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 23 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+Prompt  23  —  Trade  Plan  Generator
+SYSTEM  INSTRUCTION
+You  are  a  professional  trade  plan  writer.  Given  a  market  setup,  generate  a  complete,  structured  trade  plan  that  covers  every  decision  point  before  the  trade  is  entered.  The  plan  must  be  specific  enough  that  another  trader  could  execute  it  without  asking  a  single  question.
+USER  MESSAGE
+Setup:  Long  GBP/USD  from  4H  OB  at  1.2680-1.2695.  HTF  weekly  trend  bullish.  1H  CHOCH  confirmed  at  1.2700.  FVG  between  1.2695-1.2710.  Current  price:  1.2705.  Session:  London,  08:30  GMT.
+EXPECTED  OUTPUT  STRUCTURE
+[TRADE  PLAN  —  GBP/USD  LONG]DATE/TIME:  [user  fills]SESSION:  London  OpenBIAS:  Long  (aligned  with  weekly  bullish  trend,  4H  OB,  1H  CHOCH)ENTRY  ZONE:  1.2680-1.2695  (4H  OB  body).  Limit  order  at  1.2688  (midpoint  of  OB).ALTERNATIVE  ENTRY:  If  price  does  not  retrace  to  OB,  do  not  chase.  No  entry  above  1.2700.STOP  LOSS:  1.2672  (5  pips  below  OB  low  of  1.2677).  Fixed.  Do  not  move  until  Target  1  hit.STOP  RATIONALE:  OB  invalidated  if  price  closes  1H  below  1.2677.TARGET  1:  1.2740  (prior  4H  swing  high).  Scale  out  50%  of  position.TARGET  2:  1.2775  (next  daily  resistance).  Move  stop  to  BE  after  Target  1.RISK:  Entry  1.2688  -  Stop  1.2672  =  16  pips  =  1R.  Position  size:  [account  x  risk  %]  /  16  pips.R:R  TO  T1:  1.2740  -  1.2688  =  52  pips  =  3.25RR:R  TO  T2:  1.2775  -  1.2688  =  87  pips  =  5.44RINVALIDATION  BEFORE  ENTRY:  If  price  trades  below  1.2677  before  reaching  OB  entry  zone,  cancel  plan.IN-TRADE  MANAGEMENT:  No  manual  intervention  until  Target  1.  No  news  trading  (check  economic  calendar).
+WHY  IT  WORKS
+A  complete  trade  plan  eliminates  in-the-moment  decision-making,  which  is  where  emotional  errors  occur.  Having  AI  generate  the  plan  forces  you  to  define  every  parameter  before  entering  —  the  most  underrated  risk  management  discipline.
+Prompt  24  —  Session  Recap  &  Forward  Planning
+SYSTEM  INSTRUCTION
+You  are  a  trading  session  analyst.  Review  today's  session  and  produce:  (1)  Key  market  events  that  occurred,  (2)  How  the  session  related  to  the  morning  bias,  (3)  What  setups  triggered  (planned  vs  actual),  (4)  Tomorrow's  key  levels  to  watch.
+USER  MESSAGE
+Morning  bias:  Bullish  above  4580.  Session  recap:  ES  opened  at  4582,  ran  to  4598  within  30  mins  (London  open  run),  pulled  back  to  4575  (below  morning  bias  level),  recovered  to  4603  by  NY  open.  NY  session:  sideways  4595-4610.  Close:  4607.  Tomorrow  key  event:  FOMC  minutes  14:00  EST.
+EXPECTED  OUTPUT  STRUCTURE
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 25 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+The  improvement  workshop  prompt  is  most  valuable  when  used  monthly.  It  requires  specific  data  (not  just  'it's  not  working')  and  produces  testable  hypotheses  rather  than  generic  advice  —  which  is  the  professional  standard  for  strategy  development.
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 27 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+System:  "You  are  a  market  structure  quality  analyst.  When  I  describe  a  potential  BOS,
+check:  (1)  Was  it  a  candle  close,  not  a  wick?  (2)  Which  swing  high/low  was  broken?
+(3)  Is  this  consistent  with  the  higher  timeframe  trend?  (4)  What  would  invalidate  this  BOS?"
+User:  "4H  ES  BOS.  Price  was  in  uptrend.  Last  swing  high  was  4580.  New  candle  closed  at  4583.
+Previous  3  candles  were  inside  range.  Volume  on  BOS  candle  was  15%  below  20-period  average."
+Expected:  AI  flags  the  low-volume  BOS  as  a  potential  false  breakout,
+recommends  waiting  for  retest  of  4580  before  entry  confirmation.
+3.2   Change  of  Character  (CHOCH)  —  Full  Treatment  A  Change  of  Character  (CHOCH)  is  the  first  structural  violation  against  the  prevailing  trend.  In  a
+downtrend,
+it
+is
+the
+first
+time
+price
+breaks
+above
+the
+most
+recent
+lower
+high.
+In
+an
+uptrend,
+it
+is
+the
+first
+time
+price
+breaks
+below
+the
+most
+recent
+higher
+low.
+CHOCH  is  a  Warning,  Not  a  Reversal  Signal Professional  traders  treat  CHOCH  as  an  alert  to  stop  adding  trend  positions  and  begin  monitoring  for  reversal  confirmation.  It  takes  at  least  one  confirmed  opposing  swing  (new  Higher  Low  after  CHOCH  in  downtrend)  before  the  structure  is  confirmed  reversed.
+CHOCH  Quality  Grading
+CHOCH  Quality Characteristics
+HIGH Strong  displacement  candle,  closing  significantly  beyond  swing,  above-average  volume,  aligned  with  HTF  bias  shift
+MEDIUM Clean  candle  close  beyond  swing,  average  volume,  HTF  still  trending  (counter-trend  CHOCH)
+LOW Wick-based,  low  volume,  inside  a  consolidation  range,  or  second/third  test  of  a  level
+INVALID Inside  prior  candle  range,  no  structural  significance,  noise  on  lower  timeframe
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 29 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+Key  statistical  reality:  FVGs  are  filled  —  meaning  price  returns  to  trade  within  them  —  approximately
+60-75%
+of
+the
+time
+within
+the
+same
+trading
+session,
+and
+approximately
+80-85%
+of
+the
+time
+within
+the
+following
+session.
+This
+is
+not
+a
+certainty.
+It
+is
+a
+probabilistic
+tendency
+that
+must
+be
+combined
+with
+structural
+context.
+Trading  FVGs  Professionally The  edge  in  FVG  trading  is  not  in  'price  will  fill  the  gap.'  It  is  in  'price  fills  the  gap  AND  reacts  from  it.'  Always  define  what  rejection  looks  like  inside  the  FVG  before  entering.  Without  a  rejection  criteria,  you  are  simply  mean-reverting  into  an  imbalance  with  no  edge  definition.
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 31 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+Professional  usage:
+•  Opening  inside  value:  expect  rotation  within  value,  potentially  testing  both  extremes  before
+directional
+movement •  Opening  outside  value:  either  price  gets  accepted  back  inside  (and  fills  the  70%  zone)  or  it
+rejects
+back
+rapidly
+(most
+common
+behaviour
+—
+80%
+of
+opens
+outside
+value
+return
+inside
+within
+the
+first
+30
+minutes) •  Acceptance  is  defined  as  two  consecutive  30-minute  time  price  opportunities  (TPOs)  at  or
+beyond
+the
+boundary
+4.2.2   Point  of  Control  (POC) The  POC  is  the  price  level  with  the  most  TPOs  —  the  price  at  which  the  most  time  was  spent  during  the
+session.
+It
+is
+the
+market's
+best
+estimate
+of
+'fair
+value'
+for
+that
+day.
+POC  migration  is  one  of  the  most  important  intraday  signals:
+•  POC  migrating  higher  throughout  the  day  =  buyer  control,  trend  day  developing •  POC  migrating  lower  =  seller  control •  POC  static  at  day's  midpoint  =  balance,  expect  rotation  day •  POC  at  session  high  or  low  =  one-timeframe  auction  —  the  most  powerful  trend  day  signal
+4.2.3   TPO  Structure  —  Time  Price  Opportunities Each  30-minute  period  of  the  trading  session  is  assigned  a  letter  (A  through  M  for  a  full  session).  Each
+price
+level
+traded
+during
+that
+period
+receives
+that
+letter's
+TPO.
+The
+resulting
+visual
+distribution
+shows
+where
+time
+was
+spent
+at
+each
+price.
+TPO  Pattern Interpretation
+Rounded  distribution  (bell  curve) Balanced,  two-timeframe  auction.  Expect  mean  reversion  to  POC.
+Double  distribution  (two  peaks) Two  value  areas  —  market  auctioned  to  both.  Watch  for  directional  resolution.
+P-shape  profile Short-covering  —  sellers  ran  stops,  buyers  took  control.  Bullish  implication.
+b-shape  profile Long  liquidation  —  buyers  took  profits,  sellers  pushed  down.  Bearish  implication.
+Elongated  single  distribution Trend  day  —  one  timeframe  auction.  Do  not  fade;  trade  in  direction.
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 33 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+Characteristics:  Two-timeframe  auction.  Market  tests  both  extremes  and  closes  in  the  middle.  Neither
+buyers
+nor
+sellers
+win.
+Often
+precedes
+a
+directional
+day.
+•  Trading  implication:  Range  bound.  Fade  both  extremes.  Watch  for  failed  auction  at  one  extreme
+to
+signal
+next
+day's
+direction.
+5.  Non-Trend  Day Characteristics:  Very  small  range.  Low  volume.  No  directional  intent.  Often  occurs  before  major  news
+events
+or
+on
+holiday-shortened
+sessions.
+•  Trading  implication:  Reduce  position  size  significantly.  Expect  false  breakouts.  Often  best  to  not
+trade.
+4.4   The  Worked  Example  —  Prior  Day  Analysis  to  Trade  Plan  This  is  the  full  workflow  using  AI  and  market  profile  data:
+Step  1  —  Gather  Prior  Day  Data Export  or  record:  Open,  High,  Low,  Close,  POC,  VAH,  VAL,  initial  balance  high/low  (first  60  minutes),  overnight  high/low,  volume,  and  any  reference  prices  (prior  session  extremes,  weekly  levels).
+Prior  Day  Profile  (ES  Futures):
+Open:  4562  |  High:  4605  |  Low:  4548  |  Close:  4601
+POC:  4588  |  VAH:  4598  |  VAL:  4568
+Initial  Balance:  High  4575,  Low  4558  (18pt  range)
+Volume:  1.23M  contracts  (above  20-day  avg  of  1.1M)
+Prior  Day  Type:  Normal  Variation  —  Bullish
+Close  relative  to  VAH:  Above  VAH  (acceptance  above  value)
+Step  2  —  AI  Day  Type  Classification  Prompt Feed  this  data  to  Prompt  1  (Chapter  2).  The  AI  should  classify  the  prior  day  and  generate  implications  for  today's  opening.
+AI  Output  (using  Prompt  1  template):
+[DAY  TYPE]  Normal  Variation  —  Bullish
+[CONFIDENCE]  HIGH
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 35 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+A  poor  high  or  poor  low  has  multiple  TPOs  at  the  extreme  —  meaning  the  market  spent  time  there
+without
+significant
+rejection.
+Unlike
+excess,
+poor
+structures
+are
+unfinished
+business:
+the
+market
+is
+likely
+to
+return
+and
+probe
+through
+them.
+Poor  High  vs.  Excess  —  Common  Confusion A  poor  high  has  3+  TPOs  at  the  extreme  =  unfinished,  will  likely  be  probed  again.  An  excess  high  has  1-2  TPOs  at  the  extreme  =  sharp  rejection,  likely  to  hold.  Getting  this  wrong  inverts  your  directional  bias.
+Single  Prints Single  prints  are  price  levels  where  only  one  TPO  traded  —  a  fast-moving  market  that  left  no
+overlapping
+letters
+at
+that
+price.
+They
+represent
+an
+auction
+that
+moved
+too
+fast
+to
+be
+efficient
+and
+often
+act
+as
+a
+magnet
+for
+future
+price
+to
+return
+and
+fill.
+Single  Print  Trading  Rule Single  prints  between  two  distributions  (not  at  an  extreme)  are  the  highest-probability  fill  targets  in  Market  Profile  analysis.  They  are  gaps  in  the  auction  that  the  market  tends  to  resolve  within  1-3  sessions.
+4.6   Using  AI  with  Market  Profile  Data  Since  AI  cannot  read  profile  charts  directly,  the  workflow  is:  export  your  platform's  profile  data  to  text  or
+CSV
+format,
+then
+submit
+structured
+text
+descriptions
+to
+the
+engineered
+prompts
+from
+Chapter
+2.
+Platforms  that  can  export  profile  data  in  text-compatible  formats:
+•  Sierra  Chart:  Export  TPO  data  via  right-click  →  Export  Data  to  File •  Jigsaw  Trading:  Daily  stats  export  includes  VAH/VAL/POC  with  volume  breakdown •  NinjaTrader:  Market  Analyzer  can  export  profile  statistics •  TradingView:  No  native  profile  export  —  describe  the  profile  structure  manually   The  2-Minute  Morning  Profile  Digest Each  morning,  spend  2  minutes  writing  5  text  lines:  (1)  Yesterday's  day  type.  (2)  Where  price  closed  relative  to  value.  (3)  Today's  overnight  range  and  where  we  are  relative  to
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 37 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+05 CHAPTER
+Delta,  Footprint  &  Order  Flow Honest  Integration  —  No  False  Promises
+Order  flow  analysis  is  the  most  direct  view  available  to  retail  traders  of  institutional  activity.  Delta  —  the
+difference
+between
+buying
+and
+selling
+volume
+—
+is
+the
+most
+fundamental
+order
+flow
+metric.
+But
+it
+is
+also
+the
+most
+misrepresented
+in
+trading
+education,
+including
+AI-trading
+education.
+5.1   What  Delta  Actually  Tells  You  Delta  =  Volume  traded  at  the  ask  (aggressive  buyers)  -  Volume  traded  at  the  bid  (aggressive  sellers).
+Positive
+delta
+means
+more
+aggressive
+buying.
+Negative
+delta
+means
+more
+aggressive
+selling.
+Delta  Does  Not  Equal  Price  Direction Positive  delta  can  occur  during  price  declines  (buyers  absorbing  a  sell  programme  without  moving  price).  Negative  delta  can  occur  during  price  rises  (sellers  unable  to  push  price  down).  Delta  alone  is  not  a  directional  signal  —  it  is  context  for  the  type  of  participation  occurring.
+5.2   The  Honest  AI  Integration  for  Order  Flow  ChatGPT  cannot  see  your  Bookmap  or  footprint  chart.  It  cannot  process  real-time  DOM  data.  Here  is
+what
+it
+CAN
+do:
+What  AI  Can  Do  with  Order  Flow How  to  Provide  the  Data
+Interpret  described  delta  patterns Describe  in  text:  'Delta  divergence  —  price  made  new  high  at  4612,  delta  was  -2,400  (negative)'
+Coach  absorption  pattern  reading Describe:  'At  4600,  8,500  contracts  traded  over  10  minutes  with  price  unmoved'
+Generate  hypotheses  from  CSV  exports Export  Sierra  Chart  footprint  to  CSV,  paste  relevant  rows  to  AI
+Explain  the  institutional  logic 'Why  would  institutions  buy  with  negative  delta?'  —  AI  explains  supply  absorption
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 39 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+5.4   Exporting  Footprint  Data  for  AI  Analysis
+Sierra  Chart  Export  Workflow 21.  Right-click  on  your  footprint  chart  →  'Save  As'  or  'Export'  (version  dependent) 22.  Select  CSV  format  with  columns:  Time,  Price,  Bid  Volume,  Ask  Volume,  Delta 23.  Open  the  CSV  and  copy  the  rows  relevant  to  your  area  of  interest  (key  price  level  ±  10-20  rows) 24.  Paste  into  ChatGPT  with  a  prompt  from  Chapter  2  that  requests  pattern  analysis
+//  Sample  exported  footprint  data  format  for  AI:
+Time,  Price,  BidVol,  AskVol,  Delta
+09:30:00,  18580,  1200,  1600,  +400
+09:30:00,  18582,  890,  440,  -450
+09:30:00,  18584,  2100,  300,  -1800
+09:30:00,  18586,  3200,  180,  -3020
+//  Prompt:  Analyse  this  footprint  data.
+What  is  the  dominant  order  flow  pattern?  Is  there  absorption?
+What  does  this  tell  us  about  the  18,580-18,590  price  level?
+5.5   Volume  Profile  vs.  Footprint  —  Key  Distinction  Volume  Profile  shows  TOTAL  volume  at  each  price  level  —  it  does  not  distinguish  between  buying  and
+selling.
+Footprint
+shows
+the
+split
+between
+bid
+and
+ask
+volume
+at
+each
+price,
+revealing
+the
+aggressor.
+Metric What  It  Shows AI  Integration
+Volume  Profile  (TPO) Time  spent  at  each  price Describe  VAH/VAL/POC  +  distribution  shape
+Volume  Profile  (Vol) Total  volume  at  each  price Describe  HVN/LVN  locations  and  POC  by  volume
+Footprint  (Delta) Net  buying  vs  selling  pressure  per  candle
+Describe  delta  values  and  divergence  patterns
+Footprint  (Imbalance) Bid/Ask  imbalance  >300%  at  specific  prices
+Describe  imbalance  clusters  and  locations
+DOM/Level  2 Current  resting  orders  at  prices Describe  notable  bid/ask  stacks  and  their  levels
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 41 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+import  pandas  as  pd
+from  datetime  import  datetime,  timedelta
+SYSTEM_PROMPT  =  '''You  are  a  quantitative  trading  performance  analyst.
+Analyse  the  trade  log  provided.  Calculate  and  report:
+1.  Win  rate,  average  winner  (R),  average  loser  (R),  expectancy
+2.  Best  and  worst  performing  setup  types
+3.  Best  and  worst  performing  sessions  (London/NY/Asia)
+4.  Cognitive  bias  patterns  visible  in  the  notes
+5.  One  specific  rule  change  to  improve  results
+Show  all  maths.  Be  direct.  Do  not  add  filler  commentary.'''
+def  load_trades(csv_path:  str,  days_back:  int  =  7)  ->  pd.DataFrame:
+df  =  pd.read_csv(csv_path)
+df['date']  =  pd.to_datetime(df['date'])
+cutoff  =  datetime.now()  -  timedelta(days=days_back)
+return  df[df['date']  >=  cutoff]
+def  format_trades_for_ai(df:  pd.DataFrame)  ->  str:
+lines  =  ['TRADE  LOG  —  LAST  7  DAYS',  '='  *  40]
+for  _,  row  in  df.iterrows():
+lines.append(
+f"Date:  {row['date'].date()}  |  Setup:  {row['setup']}  |  "
+f"Session:  {row['session']}  |  Result:  {row['result_r']}R  |  "
+f"Notes:  {row.get('notes',  'None')}"
+)
+lines.append(f'\nTotal  trades:  {len(df)}')
+return  '\n'.join(lines)
+def  weekly_review(csv_path:  str):
+try:
+trades  =  load_trades(csv_path)
+if  len(trades)  ==  0:
+print('No  trades  in  last  7  days.')
+return
+formatted  =  format_trades_for_ai(trades)
+analysis  =  ask_claude(SYSTEM_PROMPT,  formatted)
+output_file  =  f'weekly_review_{datetime.now().strftime("%Y%m%d")}.txt'
+with  open(output_file,  'w')  as  f:
+f.write(f'WEEKLY  REVIEW  —  {datetime.now().strftime("%B  %d,  %Y")}\n')
+f.write('='  *  60  +  '\n\n')
+f.write(analysis)
+print(f'Review  saved  to  {output_file}')
+except  FileNotFoundError:
+print(f'Error:  {csv_path}  not  found.')
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 43 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+def  run_backtest(
+df:  pd.DataFrame,
+risk_r:  float  =  2.0,
+stop_atr_mult:  float  =  1.5
+)  ->  dict:
+df  =  calculate_indicators(df.copy())
+trades  =  []
+in_trade  =  False
+for  i  in  range(20,  len(df)):
+row  =  df.iloc[i]
+prev  =  df.iloc[i-1]
+#  ENTRY  RULE:  Price  above  EMA20,  prior  bar  was  swing  low,  bullish  reversal
+if  (not  in_trade  and
+row['close']  >  row['ema20']  and
+prev['swing_low']  and
+row['close']  >  prev['close']):
+entry  =  row['close']
+stop  =  entry  -  (row['atr']  *  stop_atr_mult)
+target  =  entry  +  ((entry  -  stop)  *  risk_r)
+risk  =  entry  -  stop
+in_trade  =  True
+trade  =  {'entry_idx':  i,  'entry':  entry,
+'stop':  stop,  'target':  target,  'risk':  risk}
+elif  in_trade:
+#  Check  exit  conditions
+if  row['low']  <=  trade['stop']:
+trade.update({'exit':  trade['stop'],  'result':  -1.0,
+'exit_idx':  i})
+trades.append(trade)
+in_trade  =  False
+elif  row['high']  >=  trade['target']:
+trade.update({'exit':  trade['target'],  'result':  risk_r,
+'exit_idx':  i})
+trades.append(trade)
+in_trade  =  False
+if  not  trades:
+return  {'error':  'No  trades  generated'}
+results  =  pd.DataFrame(trades)
+wins  =  results[results['result']  >  0]
+losses  =  results[results['result']  <  0]
+win_rate  =  len(wins)  /  len(results)
+avg_win  =  wins['result'].mean()  if  len(wins)  >  0  else  0
+avg_loss  =  abs(losses['result'].mean())  if  len(losses)  >  0  else  0
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 45 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+4.  Target:  2R  from  entry
+5.  Show  entry,  stop,  and  target  on  the  chart'
+Debugging  Workflow 25.  Paste  your  Pine  Script  code  into  ChatGPT  with  the  error  message  you  received 26.  Use  system  prompt:  'You  are  a  Pine  Script  v5  debugger.  Identify  the  exact  error  and  provide
+corrected
+code
+only.' 27.  Ask  for  an  explanation  separately  if  needed:  'Now  explain  why  that  fix  works  in  plain  English' 28.  Test  the  corrected  code  on  TradingView  before  trusting  any  backtest  results   Pine  Script  Backtesting  Limitations TradingView's  strategy  tester  uses  bar  magnification  on  smaller  timeframes,  which  can  produce  look-ahead  bias.  Always  validate  Pine  Script  results  against  manually  checked  trades  before  drawing  conclusions  from  the  backtest  statistics.
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 47 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+WHY  IT  WORKS
+Asking  AI  to  quote  the  exact  journal  text  that  indicates  bias  creates  accountability.  It  is  much  harder  to  dismiss  'your  own  words'  than  a  general  statement  about  bias.  This  prompt  works  best  with  actual  journal  text,  not  summaries.
+7.2   Loss  Aversion  Definition:  The  tendency  to  feel  losses  more  intensely  than  equivalent  gains.  Kahneman  and  Tversky's
+research
+shows
+losses
+feel
+approximately
+twice
+as
+powerful
+as
+gains
+of
+the
+same
+magnitude.
+In
+trading,
+this
+manifests
+as
+moving
+stops
+to
+breakeven
+prematurely,
+cutting
+winners
+short,
+and
+holding
+losers
+too
+long.
+The  BE  Stop  Problem Moving  a  stop  to  breakeven  before  price  has  reached  the  first  target  is  almost  always  loss  aversion,  not
+risk
+management.
+The
+logic
+'I'm
+protecting
+profits'
+is
+incorrect
+when
+there
+are
+no
+profits
+yet
+to
+protect
+—
+breakeven
+is
+not
+a
+profit.
+The  Professional  Rule A  stop  should  only  move  to  breakeven  when:  (a)  price  has  closed  beyond  at  least  50%  of  the  distance  to  Target  1,  AND  (b)  the  move  has  shown  continuation  characteristics  (strong  close,  above-average  delta).  Any  earlier  move  is  likely  emotional.
+7.3   Disposition  Effect  Definition:  The  tendency  to  sell  winners  too  quickly  and  hold  losers  too  long.  First  documented  by
+Shefrin
+and
+Statman
+in
+1985.
+In
+trading:
+exiting
+at
++0.5R
+when
+the
+target
+is
++2R,
+then
+holding
+a
+losing
+trade
+that
+has
+breached
+its
+stop.
+Disposition  Effect  Calculation If  your  average  winner  is  1.2R  but  your  target  is  2R,  you  are  leaving  0.8R  on  the  table  per  winning  trade  due  to  early  exits.  Over  100  winning  trades  at  50%  win  rate  (50  winners),  you  are  losing  50  x  0.8R  =  40R  per  100  trades.  This  single  bias  can  make  a  positive  expectancy  system  unprofitable.
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 49 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+just  look  similar?[DECISION]  If  you  cannot  answer  all  four  questions  with  'yes',  'normal',  and  a  fully  qualifying  setup  description  —  do  not  enter.
+WHY  IT  WORKS
+This  prompt  is  designed  as  a  friction  mechanism  —  it  forces  you  to  pause  and  answer  questions  before  executing.  The  goal  is  not  to  prevent  trading;  it  is  to  ensure  the  next  trade  is  motivated  by  edge,  not  emotion.  Using  it  as  a  discipline  habit  after  losses  restructures  behaviour  over  time.
+7.6   Confirmation  Bias  Definition:  Seeking  and  interpreting  information  in  ways  that  confirm  your  existing  thesis.  In  trading:
+reading
+a
+chart
+and
+unconsciously
+weighting
+the
+signals
+that
+support
+your
+desired
+direction.
+AI  amplifies  confirmation  bias  if  used  incorrectly.  If  you  describe  a  setup  with  bullish  framing  and  ask  'Is
+this
+a
+good
+long?',
+the
+AI
+will
+almost
+always
+agree.
+This
+is
+why
+Prompt
+20
+(Devil's
+Advocate)
+in
+Chapter
+2
+is
+one
+of
+the
+most
+important
+prompts
+in
+this
+library.
+Always
+ask
+AI
+to
+argue
+against
+your
+thesis
+before
+asking
+it
+to
+support
+it.
+7.7   Narrative  Fallacy  Definition:  Constructing  a  coherent  story  around  an  outcome  after  the  fact,  believing  the  story  explains
+the
+outcome.
+In
+trading:
+'The
+market
+went
+up
+because
+the
+jobs
+data
+was
+strong'
+—
+when
+in
+reality,
+the
+relationship
+between
+any
+specific
+catalyst
+and
+market
+direction
+is
+far
+less
+deterministic
+than
+the
+narrative
+implies.
+The  risk  in  trading:  narrative  fallacy  makes  random  outcomes  feel  predictable.  If  you  explain  every  loss
+with
+a
+story,
+you
+never
+see
+the
+randomness
+inherent
+in
+any
+system
+—
+and
+you
+never
+accurately
+assess
+your
+statistical
+edge.
+7.8   Gambler's  Fallacy  Definition:  Believing  that  past  independent  events  influence  future  independent  events.  In  trading:  'I've
+had
+five
+losses
+in
+a
+row,
+I
+must
+be
+due
+a
+winner.'
+Each
+trade
+in
+a
+properly
+executed
+system
+is
+statistically
+independent.
+Five
+losses
+do
+not
+increase
+the
+probability
+of
+a
+win.
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 51 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+08 CHAPTER
+Real  Trade  Examples Three  Full  Case  Studies  —  Win,  Loss,  Break-Even
+The  following  case  studies  use  realistic  simulated  data  to  demonstrate  how  AI  integrates  at  each  stage
+of
+a
+trade:
+pre-trade
+analysis,
+in-trade
+monitoring,
+and
+post-trade
+review.
+The
+instrument
+is
+NQ
+Futures
+(E-mini
+NASDAQ-100).
+Each
+case
+is
+independent.
+Case  Study  1  —  The  Winner:  OB+CHOCH  Alignment
+Setup  Context
+Parameter Detail
+Date/Session Tuesday,  London  Open,  08:00  GMT
+Instrument NQ  Futures
+Weekly  Bias Bullish  —  price  above  weekly  EMA,  prior  week  closed  at  highs
+4H  Structure Uptrend,  three  higher  highs  and  higher  lows.  Most  recent  4H  HL  at  18,240.
+4H  Order  Block Bullish  OB:  18,220-18,240  (last  bearish  4H  candle  before  280pt  impulse)
+1H  Context CHOCH:  1H  broke  above  LH  at  18,280  after  pullback  to  18,235
+Current  Price 18,275  —  inside  FVG  above  OB
+Entry  Plan Limit  long  at  18,242  (OB  midpoint).  Stop:  18,218.  Target:  18,380.
+Risk 24  points  =  1R.  Target  =  138  points  =  5.75R
+Pre-Trade  AI  Analysis
+SYSTEM  INSTRUCTION
+You  are  a  multi-timeframe  structure  analyst  using  SMC  and  Market  Profile.  Evaluate  this  setup  for  confluence  quality  and  identify  the  single  greatest  risk  to  the  long  thesis.
+USER  MESSAGE
+NQ  long  setup  at  4H  OB  (18,220-18,240).  Weekly  bullish.  4H  uptrend  intact.  1H  CHOCH  at  18,280.  Current  price  18,275,  inside  1H  FVG.  Entry:  18,242.  Stop:  18,218.  Target:  18,380.  Market  Profile:  Prior  day  VAH  was  18,260,  close  was  18,268.  Today  opened  at  18,272  (gap  above  prior  VAH).
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 53 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+1H  close  at  18,310.  Did  not  scale  out  at  18,320  (half-target)  as  planned  —  held  for  full  target  instead.  In  retrospect,  the  hold  was  correct.
+EXPECTED  OUTPUT  STRUCTURE
+[PROCESS  QUALITY]  EXCELLENT[CORRECT  ACTIONS]  Confluence  check,  limit  entry  (no  chasing),  stop  movement  per  rule  (after  50%+  progress),  patience  through  consolidation  in  OB.[AREA  TO  MONITOR]  'Did  not  scale  out  at  18,320  as  planned  but  held  for  full  target.'  While  the  outcome  was  correct,  deviating  from  the  plan  —  even  profitably  —  creates  a  dangerous  precedent.  One  unplanned  good  outcome  can  justify  two  future  unplanned  bad  outcomes.[LESSON]  When  you  skip  the  scale-out  rule  and  it  works,  log  it  explicitly  as  'plan  deviation  —  positive  outcome.'  Do  not  let  it  silently  modify  your  rules.[TRANSFERABLE  INSIGHT]  The  45-minute  consolidation  inside  the  OB  zone  was  patience-testing  but  structurally  normal.  Build  'OB  consolidation  is  normal'  into  your  pre-trade  expectations.
+WHY  IT  WORKS
+Reviewing  winning  trades  for  process  deviations  is  as  important  as  reviewing  losing  trades.  Profitable  plan  deviations  are  the  most  dangerous  outcomes  because  they  invisibly  erode  rule  discipline.
+Case  Study  2  —  The  Loser:  Valid  Setup,  Adverse  Outcome
+Setup  Context
+Parameter Detail
+Date/Session Thursday,  NY  Open,  14:00  EST
+Instrument NQ  Futures
+Weekly  Bias Neutral  —  range  week,  no  clear  HTF  direction
+4H  Structure Sideways.  Two  equal  highs  at  18,480.  Two  equal  lows  at  18,320.
+Setup Short  from  equal  highs  (liquidity  sweep  above  18,480  to  18,492,  sharp  rejection)
+Entry 18,478  (short  after  sweep  rejection,  1H  close  below  18,480)
+Stop 18,498  (above  sweep  high  with  buffer)
+Target 18,380  (range  low)
+Risk 20  points  =  1R.  Target  =  98  points  =  4.9R
+Pre-Trade  AI  Analysis
+SYSTEM  INSTRUCTION
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 55 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+NQ  short  from  sweep  play,  -1R.  Setup  was  valid  (equal  highs  sweep,  1H  rejection).  Loss  caused  by  surprise  ISM  data  release.  I  did  not  check  the  economic  calendar  before  entering.  There  was  a  medium-impact  event  at  15:00  EST  —  45  minutes  after  my  entry  at  14:15  EST.
+EXPECTED  OUTPUT  STRUCTURE
+[CLASSIFICATION]  Category  A  —  Valid  setup,  partially  poor  execution.[PROCESS  FAILURE]  Not  checking  economic  calendar  before  entry.  This  is  a  rule  violation  —  even  a  'medium  impact'  event  can  override  technical  setups.[RULE  ALREADY  IN  EXISTENCE?]  Review  your  system  rules:  does  Rule  X  state  'check  economic  calendar  before  entry'?  If  yes  —  this  is  a  rule  violation  loss.  If  no  —  add  it  now.[RULE  TO  ADD]  'Before  any  entry,  check  economic  calendar  for  events  within  90  minutes.  If  medium+  impact  event  exists:  (a)  reduce  size  by  50%  or  (b)  enter  after  event  with  first  15-min  bar  close  confirmation.'[HONEST  LESSON]  The  setup  was  right.  The  market  context  management  was  wrong.  Fix  the  context,  not  the  setup.
+WHY  IT  WORKS
+The  distinction  between  a  setup  failure  and  a  context  failure  is  critical.  If  you  abandon  a  valid  setup  after  an  adverse  news  event,  you  eliminate  an  edge.  If  you  continue  ignoring  news  events,  you  accept  preventable  losses.  The  solution  is  process  improvement,  not  setup  abandonment.
+Case  Study  3  —  The  Break-Even:  AI  Helps  Navigate  Ambiguity
+Setup  Context
+Parameter Detail
+Date/Session Monday,  London,  09:30  GMT
+Instrument GBP/USD  Forex
+Weekly  Bias Mildly  bullish  —  recent  weekly  CHOCH,  early  in  new  structure
+Setup 1H  OB  at  1.2680-1.2695,  1H  CHOCH  at  1.2702
+Entry 1.2685  (limit,  OB  midpoint)
+Stop 1.2672  (below  OB  low)
+Target 1.2740  (prior  swing  high)
+Result Price  moved  to  1.2716,  stalled.  Moved  stop  to  BE  (1.2685).  Stopped  at  1.2684.
+Mid-Trade  AI  Consultation  (Ambiguous  Structure)
+SYSTEM  INSTRUCTION
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 57 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+09 CHAPTER
+Building  Your  Complete  AI  Trading  System Daily,  Weekly  &  Monthly  Workflows
+This  chapter  consolidates  all  the  prompts,  tools,  and  frameworks  from  previous  chapters  into  a
+complete,
+repeatable
+trading
+system.
+The
+goal
+is
+a
+workflow
+that
+takes
+30-45
+minutes
+per
+day
+and
+integrates
+AI
+at
+each
+stage
+without
+creating
+distraction
+during
+trading
+hours.
+9.1   The  Morning  Preparation  Routine  (20-25  minutes)
+Step  1  —  Gather  Prior  Day  Data  (5  minutes) From  your  trading  platform,  record:
+•  Prior  day  OHLC  +  session  volume  +  Market  Profile  data  (VAH,  VAL,  POC) •  Overnight  high/low  and  current  pre-market  price •  Economic  calendar  for  the  day  (mark  any  medium+  impact  events) •  Weekly  context  (where  are  we  relative  to  prior  week's  range  and  value  area)
+Step  2  —  Run  Morning  AI  Context  Prompt  (5  minutes) Use  Prompt  1  (Prior  Day  Classification)  from  Chapter  2.  Paste  your  data,  get  your  prior  day
+classification
+and
+today's
+opening
+scenarios.
+This
+takes
+less
+than
+2
+minutes
+including
+AI
+response
+time.
+Step  3  —  Pre-Draw  Key  Levels  (10  minutes) On  your  chart,  mark:
+•  Prior  day  VAH,  VAL,  POC •  Today's  opening  price  relative  to  those  levels •  Any  relevant  weekly  levels  (prior  week  high/low,  weekly  OBs) •  Session  high/low  from  overnight •  Your  planned  setup  zones  (OBs,  liquidity  pools,  FVGs)
+Step  4  —  Psychology  Check  (2  minutes) Use  Prompt  19  (Pre-Session  State  Check).  Rate  your  sleep,  stress,  and  focus  on  the  scale.  If  your
+readiness
+score
+is
+below
+6/10
+on
+two
+or
+more
+dimensions,
+reduce
+position
+size
+by
+50%
+for
+the
+session.
+©  2025  Quantified  Edge   |
+Page
+
+### [Page 59 / 65]
+Quantified  Edge
+Metaverse  Trading  Academy
+9.4   Weekly  Review  (30-45  minutes,  on  Friday  or  weekend)  40.  Export  your  journal  as  CSV  (Prompt  15  input  format) 41.  Run  Prompt  15  (Weekly  Edge  Review)  —  AI  calculates  your  weekly  statistics 42.  Run  Prompt  21  (Expectancy  Calculator)  if  you  have  20+  trades  in  the  period 43.  Review  any  flagged  rule  violations  —  pattern  or  one-off? 44.  Update  your  strategy  rules  document  if  any  legitimate  rule  changes  are  warranted  (not
+emotional
+rewrites) 45.  Set  the  focus  intention  for  next  week  —  one  specific  improvement
+9.5   Monthly  Review  (60-90  minutes,  end  of  month)  46.  Run  Prompt  17  (Bias  Pattern  Recognition)  on  all  journal  entries  from  the  month 47.  Run  Prompt  25  (Strategy  Improvement  Workshop)  to  identify  the  highest-leverage  change 48.  Review  your  drawdown  and  expectancy  statistics  (Prompts  21,  22) 49.  Assess  position  sizing  —  is  your  risk  per  trade  still  appropriate  given  account  performance? 50.  Set  three  goals  for  the  following  month  (process  goals,  not  P&L  goals)   Process  Goals  vs.  P&L  Goals Process  goals:  'Take  only  OB+CHOCH  setups  —  no  exceptions.'  'Check  economic  calendar  before  every  entry.'  'Complete  journal  within  2  hours  of  session  close.'  These  are  controllable.  P&L  goals  are  not  controllable  and  create  emotional  pressure  that  degrades  performance.
+©  2025  Quantified  Edge   |
+Page
+
+---
+
+## SOURCE DOCUMENT: THE CANDLE STICK BIBLE.pdf
+
+Total Pages: 168
+
+### [Page 6 / 168]
+6
+THE CANDLESTICK TRADING BIBLE
+Overview
+The eBook is divided into the following sections:
+1-Candlesticks Anatomy
+Just as human s, candlestick s have different body sizes, and when it
+comes to trading, it’s important to check out the bodies of candlesticks
+and understand the psychology behind it. that’s what you will learn in
+this section.
+2-Candlestick patterns
+Candlestick patterns are an integra l part of technical analysis,
+candlestick patterns emerge because human actions and reactions are
+patterned and constantly repeated.
+In this section you will learn how to recognize the most important
+candlestick patterns, the psychology behind it’s formati on, and what
+do they indicate when they form in the market.
+3-The Market structure
+In this section, you will learn how to identify trending markets, ranging
+markets, and choppy markets. You will learn how these markets move
+and how to trade them professionally.
+You will also learn how to draw support and resistance, and trendlines.
+4-Time frames and top down analysis
+Multiple time frame analysis is very important for you as a price action
+trader, in this section you will learn how to analyze the market usin g
+the top down analysis approach.
+5-Trading strategies and tactics
+In this section you will learn how trade the market using four price
+action trading strategies:
+-The pin bar strategy
+
+### [Page 11 / 168]
+11
+THE CANDLESTICK TRADING BIBLE
+What is a candlestick?
+Japanese candlesticks are formed using the open, high, low and close
+of the chosen time frame.
+-If the close is above the open, we can say that the candlestick is bullish
+which means that the market is rising in this period of time. Bullish
+candlesticks are always displayed as white candlestick.
+The most trading platform use white color to refer to bullish
+candlesticks. But the color doesn’t matter, you can use whatever color
+you want.
+The most important is the open price and the close price.
+-If the close is below the open, we  can say that the candlestick is
+bearish which indicates that the market is falling in this session.
+Bearish candles are always displayed as black candlesticks. But this is
+not a rule.
+
+### [Page 16 / 168]
+16
+THE CANDLESTICK TRADING BIBLE
+The engulfing bar candlestick pattern
+The Engulfing bar as it states in its title is formed when it fully engulfs
+the previous candle. The engulfing bar can engulf more than one
+previous candle, but to be considered an engulfing bar, at least one
+candle must be fully consumed.
+The bearish engulfing is one of the most important candlestick
+patterns.
+This candlestick pattern consists of two bodies:
+The first body is smaller than the second one, in other words, the
+second body engulfs the previous one. See the illustration below:
+This is how a bearish  engulfing bar pattern looks like on your charts,
+this candlestick pattern gives us valuable information about bulls and
+bears in the market.
+
+### [Page 21 / 168]
+21
+THE CANDLESTICK TRADING BIBLE
+The chart above shows how the market changed direction after the
+formation of the Doji candlestick.
+The market was trending  up, that means that buyers were in control
+of the market.
+The formation of the Doji candlestick indicates that buyers are unable
+to keep price higher, and sellers push prices back to the opening price.
+This is a clear indication that a trend reversal is likely to happen.
+Remember always that a Doji indicates equality and indecision in the
+market, you will often find it during periods of resting after big moves
+higher or lower.
+When it is found at the bottom or at the top of a trend, it is considered
+as a sign that a prior trend is losing its strengths.
+
+### [Page 26 / 168]
+26
+THE CANDLESTICK TRADING BIBLE
+The image above illustrates a perfect gravestone Doji. This pattern
+indicates that while buyers were able to push prices well above the
+open.
+Later in the day sellers overwhelmed the market pushing the price
+back down.
+This is interpreted as a sign that bulls are losing their momentum and
+the market is ready for a reversal.
+See another illustration below:
+The chart above shows a gravestone Doji at the top of an uptrend,
+after a period of strong bullish activity.
+The formation of this candlestick pattern indicates that buyers are no
+longer in control of the market. For this pattern to be reliable, it must
+occur near a resistance level.
+
+### [Page 31 / 168]
+31
+THE CANDLESTICK TRADING BIBLE
+The evening star pattern
+The evening star pattern is considered as a bearish reversal pattern
+that usually occurs at the top of an uptrend.
+The pattern consists of three candlesticks:
+-The first candle is a bullish candle
+-The second candle is a small candlestick, it can be bullish or bearish or
+it can be a Doji or any other candlestick.
+-The third candle is a large bearish candle. In general, the evening star
+pattern is the bearish version of the morning star pattern. See the
+example below:
+
+### [Page 36 / 168]
+36
+THE CANDLESTICK TRADING BIBLE
+created, you will be able to predict the market direction with high
+accuracy.
+We will talk about how to trade this pattern and how to filter this signal
+in the next chapters.
+
+### [Page 41 / 168]
+41
+THE CANDLESTICK TRADING BIBLE
+As you see the smaller body is totally covered by the previous mother
+candle, don’t bother yourself with the colors, the most important is
+that the smaller body closes inside of the first bigger candle.
+The Harami candle tells us that the market is in an indecision period.
+In other words, the market is consolidating.
+So, buyers and sellers don’t know what to do, and there is no one in
+control of the market.
+When this candlestick pattern happens during an uptrend or a
+downtrend, it is interpreted as a continuation pattern which gives a
+good opportunity to join the trend.
+And if it is occurred at the top of an uptrend or at the bottom of a
+downtrend, it is considered as a trend reversal signal.
+Look at another example below:
+
+### [Page 46 / 168]
+46
+THE CANDLESTICK TRADING BIBLE
+Because if you can understand why it was formed, you will understand
+what happened in the market, and you can easily predict the future
+movement of price.
+
+### [Page 51 / 168]
+51
+THE CANDLESTICK TRADING BIBLE
+The market structure
+One of the most important skill that you need as a trader is the ability
+to read the market structure, it is a critical skill that will allow you to
+use the right price action strategies in the right market condition.
+You are not going to trade all the markets the same way; you need to
+study how the markets move, and how traders behave in the market.
+The market structure is the study of the market behavior.
+And if you can master this skill, when you open your chart, you will be
+able to answer these important questions:
+What the crowds are doing? Who is in control of the market buyers or
+sellers? What is the right time and place to enter or to exit the market
+and when you need to stay away?
+Through your price action analysis, you will experience three types of
+markets, trending markets, ranging markets, and choppy markets.
+In this chapter, you will learn how to identify every market, and how
+to trade it.
+1-Trending markets
+Trending markets are simply characterized by a repeating pattern of
+higher highs and higher low in an up -trending market, and lower high
+and lower low in a down trending market.
+See the example below:
+
+### [Page 56 / 168]
+56
+THE CANDLESTICK TRADING BIBLE
+The illustration above shows a downtrend market, as you can see the
+best trading decision is to sell the market at the beginning of an
+impulsive move.
+If you try to sell in the retracement move, you will be trapped by
+professional traders, and you will lose your trade.
+Now we know how to identify downtrend s and uptrends, and how to
+differentiate between an impulsive move, and a retracement move.
+This is very important for you as a price action trader to know.
+BUT the most important  question is how to identify the beginning of
+the impulsive move to enter the market in the right time with
+professional traders, and avoid being tr apped by the retracement
+move?
+
+### [Page 61 / 168]
+61
+THE CANDLESTICK TRADING BIBLE
+How to draw trend lines?
+To draw a quality trend line, you will need to find at least 2 minimum
+swing points, and simply connect them with each other. The levels
+must be clear, don’t try to force a trend line.
+Don’t use smaller time frame to draw trend lines, use always the 4H
+and the daily time frames to find obvious trend lines.
+We will tr y to focus right now on how to draw them in a trending
+markets, our purpose is to identify the beginning of impulsive moves
+in a trending market.
+In the next chapter, i will explain you in detail how to trade trend lines
+in combination with our price action trading setups.
+See an example of how to draw trend lines in a downtrend market.
+As you can see the market respects the trend line, and when price
+approach it, the market reverse and continue in the same direction.
+
+### [Page 66 / 168]
+66
+THE CANDLESTICK TRADING BIBLE
+As you can see the market was trading between support and resistance
+levels, and suddenly the price broke out of the resistance level, this
+indicates that the beginning of a trend is likely to happen.
+So the best way to enter is after the breakout.
+It’s important to remember that range boundaries are often overshot,
+giving the illusion a breakout is occurring, this can be very deceptive,
+and it does trap a lot of traders who positioned into the breakout.
+The third way to trade ranging markets is to wait for a pullback after
+the breakout of the support or the resistance level.
+The pullback is another chance to join the trend for traders who didn’t
+enter in the breakout.
+See the example below:
+
+### [Page 71 / 168]
+71
+THE CANDLESTICK TRADING BIBLE
+-The market structure: the weekly analysis will help you identify if the
+market is trendin g up or down, or it is ranging, or choppy market. In
+general, you will know what the big investors are doing. And you will
+try to find a way to follow them on the smaller time frames using my
+price action strategies.
+-The previous candle: the last candle on the weekly chart is
+important, because it tells us what happens during a week, and it
+provides us with valuable information about the future market move.
+When you identify these points using the weekly chart, you can now
+move to the daily chart or the 4h chart and try to gather information
+such as:
+-The market condition: what the market is doing on the 4h time
+frame, is it trending up or down, is it ranging, or is it a choppy
+market.
+- what are the most important key levels on the 4h or the daily time
+frame: this could be support and resistance, supply and demand
+areas, trend lines….
+-price action signal: a candlestick patterns that will provide you with
+a signal to buy or short the market. This could be a pin bar, an
+engulfing bar or an inside bar…
+Let me give you an example to help you understand why it is
+important to adopt the top down analysis concept in your trading
+method and what is going to happen if you don’t look at the bigger
+time frame before switching to your primary chart.
+Look at the illustration below:
+
+### [Page 76 / 168]
+76
+THE CANDLESTICK TRADING BIBLE
+The daily chart above confirms our weekly analysis, as you can see;
+there is a clear bearish signal near the weekly resistance level.
+The pin bar was rejected from that level, and there is also the
+formation of an inside bar false breakout.
+This is a clear indication of a trend change.
+See what happened next:
+
+### [Page 81 / 168]
+81
+THE CANDLESTICK TRADING BIBLE
+The pin bar candlestick pattern strategy
+The pin bar candlestick  is one of the most famous Japanes e
+candlesticks; it is widely used by price action traders to determine
+reversal points in the market.
+In this section, you will learn in detail how to identify potential pin bar
+signals, and the conditions needed for high probability setups.
+A pin bar is a chart candlestick, it is characterized by a very long tail
+that shows rejection and indicates that the market will move in the
+opposite direction.
+The area between the open and close is called the real body, typically
+all pin bars have a very small real body and a long shadow.
+A Bullish pin bar is known for its lower wicks, and the bearish one is
+characterized by long upper wicks, the color of the candlestick is not
+quite important, however, bullish candles with white real body are
+more powerful than candles with a real black body.
+On the other hand, a bearish pin bars with black real bodies are more
+important than the ones with white real bodies.
+See how pin bars look like below:
+
+### [Page 86 / 168]
+86
+THE CANDLESTICK TRADING BIBLE
+If the formation of this candlestick occurs near a resistanc e level, it
+indicates that the bears reject prices, and prevent the bulls from
+breaking this level. So, this means that sellers are willing to push the
+market downward. See the chart below:
+
+### [Page 91 / 168]
+91
+THE CANDLESTICK TRADING BIBLE
+The 4-hour chart above illustrates how the 21 -moving average could
+help us find key points in the market.
+When prices approach the moving average, the buying pressure takes
+place in the market, and the price goes up.
+The pin bar signal is clear on the chart, because the trend is bullish, the
+price action setup has a bullish anatomy as well, and the rejection from
+the 21-moving average is a confirmation signal to buy the market.
+
+### [Page 96 / 168]
+96
+THE CANDLESTICK TRADING BIBLE
+Trading pin bars with confluence
+Confluence happens when many technical indicators generate the
+same signal, this trading concept is used by price action traders to filter
+their entry points and spot high probability signals in the market.
+It doesn’t matter if you are beginner or advanced trader, trading with
+confluence is a must, because it will help you focus on quality setups
+rather than quantity, and it will enhance tremendously your trading
+performance.
+Confluence means combination or conjunction, it is a situation in
+which two or more things join or come together, for example, if we are
+looking for a pin bar signal, we need to find other factors of confluence
+to confirm our entry; we are not going to take any pin bar that we find
+on our chart.
+Factors of confluence:
+The trend: it is one of the most important factor of confluence, this is
+the first thing that most successful traders look for on their charts, you
+can’t trade any setup without identifying if it is in  line with the
+direction of the market or not.
+A bearish pin bar in a downtrend is more powerful signal than the one
+in a range-bound market.
+Support and resistance levels and supply and demand areas:  these
+major levels have a significant importance in th e market, because all
+big participants watch these specific areas.
+Moving averages: i personally use the 8 and 21 moving average, this
+technical trading tool acts as dynamic support and resistance, and it is
+a very important factor of confluence in trending markets.
+Fibonacci retracement tool : I use the 61% and 50 % Fibonacci
+retracement to find the most powerful areas in the market.
+
+### [Page 101 / 168]
+101
+THE CANDLESTICK TRADING BIBLE
+The formation of the pin bar near the resistance level indicates that
+the retracement move is over, and the beginning of an impulsive move
+is likely to happen.
+When we put the 21 moving average and the Fibonacci retracement
+on the chart, we see that the pin bar is rejected from these levels which
+indicates that this level is very important and sellers are willing to push
+the market lower.
+Here in this example we have solid reasons to sell the market, the first
+reason is the downtrend.
+The second reason is the formation of the pin bar near the resistance
+level which indicates the end of the pullback and the beginning of a
+new move downward.
+The third reason is the rejection of the pin bar from the resistance
+level, and from the 21-moving average,
+The last reason is the pin bar rejection from  the 50% Fibonacci
+retracement level which is considered to be one of the most powerful
+key levels in the market.
+Look at the chart below to see what happened next:
+
+### [Page 106 / 168]
+106
+THE CANDLESTICK TRADING BIBLE
+The figure above illustrates a range-bound market, the price broke out
+of the support level and retraces back to the point  of the breakout,
+and the formation of an obvious pin bar indicates a high probability
+signal to short the market.
+This is how professional trader s trade ranging markets based on this
+price action signal.
+How to confirm pin bar signals using technical indicators
+Using technical indicators to confirm your entries will increase your
+probability of the trade being profitable, i’am not telling you that you
+have to focus on indicators to generate signals, because this will never
+work for you, but if you can combine your price action strategies with
+the right indicators, you will be able to filter your signals and trade the
+best setups.
+One of the best indicators that i use to confirm my entries when i
+examine a range-bound market is the Bollinger bands indicator.
+This technical trading tool was developed by John Bollinger to measure
+a market’s volatility.
+The strategy is very simple, we will combine horizontal support and
+resistance with the upper and lower Bollinger bands false breakout, if
+prices are rejected from major key levels and from the bands, this is a
+confirmation that the market will bounce from these levels.
+See an example below:
+
+### [Page 111 / 168]
+111
+THE CANDLESTICK TRADING BIBLE
+According to Steve Nison, the father of modern candlestick charting,
+this candle must meet three important criteria to be considered as a
+reversal pattern:
+1-The market is in a clearly definable uptrend or downtrend
+2-The engulfing candle comprises of two candlest icks, and the first
+body is entirely engulfed by the second one.
+3- The second real body is the opposite of the first real body.
+
+### [Page 121 / 168]
+121
+THE CANDLESTICK TRADING BIBLE
+In the example above, the engulfing bar price action signal matches up
+with the 50 % and 61 % Fibonacci retracement level, the resistance
+level that becomes support is another confirmation to take this high
+probability setup.
+This trading strategy is very powerful, here is another example below
+that illustrates the power of 50% and 61 % Fibonacci retracement:
+Trading the market from 50% and 61% Fibonacci levels means you are
+trading from better price levels, as a result, you will put as many
+probabilities in your favor as possible, and that will allow you to
+become one of the most successful traders.
+
+### [Page 126 / 168]
+126
+THE CANDLESTICK TRADING BIBLE
+Let me give you an example, when you are driving your car, you don’t
+always drive the same way, if you are driving downtown, you try to
+drive slowly, because you know that driving fast can put your life or
+other’s life in danger
+But when you are driving in a highway, you’re driving style changes
+completely, because you know that you can drive fast. So, you always
+try to adapt your driving style to the appropriate situation.
+You have to do the same thing when you are trading the engulfing bar
+pattern, because all price action strategies we discussed before  will
+not work in range bound markets, and you have to use the right
+techniques that fit these market conditions.
+Before talking about the right way to trade trendless m arkets, you
+have to be selective about trading range bound markets to protect
+your trading account, because not all sideways markets are worth
+trading. You have to know how to differentiate between sideways and
+choppy markets.
+See the illustration below about choppy markets:
+
+### [Page 131 / 168]
+131
+THE CANDLESTICK TRADING BIBLE
+See another example of these areas:
+I think that it’s not complicated to identify these zones, because they
+are characterized by strong moves. The secret behind supply and
+demand areas is that big players put their pending orders there, when
+the market approaches these zones, we see a crazy move from these
+levels.
+
+### [Page 136 / 168]
+136
+THE CANDLESTICK TRADING BIBLE
+No matter how smart you are, you have to think always in term of
+probabilities, bear in mind that you can experience series of losing
+trades, and if you risk too much money, you will not survive longer.
+
+### [Page 141 / 168]
+141
+THE CANDLESTICK TRADING BIBLE
+As it is illustrated above, the market is trending down; the formation
+of inside bar patterns gave us three opportunities to join the trend.
+If you are used to our tra ding approach, you will only look for selling
+opportunities, this way, you are not fighting big institutions and central
+banks, you are just trading in the direction that is favored by the
+market.
+You can place a sell order after the breakout of the patter n as it is
+mentioned in the chart above, and your stop loss order should be
+placed above the mother candle. Your profit target is the next support
+level.
+See another example below:
+
+### [Page 146 / 168]
+146
+THE CANDLESTICK TRADING BIBLE
+Tips on trading the inside bar price action setups
+1-Trade the bigger time frames
+I’m not against trading lower time frames, you can trade this setup on
+5 minutes time frame using other technical indicators to filter your
+signals and take just high probability setups.
+But you have to be an experienced trader, if you are beginner
+i recommend you to stick with trading this signal in bigger time frames
+such the daily and the 4-hour time frame.
+Trading this setup on lower time frame will increase your chance to
+overtrade the market and take low probability price action signals. And
+this is the quickest way to blow up your trading account.
+If you focus just  on bigger time frames, this will allow you to set and
+forget your trade instead of being emotionally controlled by the
+market.
+2- Trade the dominant trend
+You should start trading inside bars in line with the direction of the
+market, especially in a strong bullish or bearish trend, but don’t never
+try to trade it against the trend if you are a newbie.
+When you feel like you master trading this pattern with the trend, you
+can move to trade range bound markets, and counter trends.
+3- Trade only from key levels
+Remember that not all inside bars are worth your hard-earned money;
+there are specific locations where this setup works great, so make sure
+that your signal is located in a key level in the market.
+4- Find different factors of confluence
+Trading with  confluence means combining different signals to make
+the best trading decision.
+
+### [Page 151 / 168]
+151
+THE CANDLESTICK TRADING BIBLE
+Inside Bars false breakouts trading examples
+In my own experience, the most important levels that traders should
+look for to trade this signal are the following:
+-Support and resistance levels, and supply and demand areas
+-Fibonacci retracement levels, particularly, the 50% and 61%
+retracement levels.
+-21 moving averages and trend lines in trending markets
+-Horizontal levels in range-bound markets
+Here is an example of how to trade inside bar false breakout in a
+trending market:
+As you see in the chart above, the market was trending down, that
+indicates that sellers are in control of the market, so if you decide to
+
+### [Page 156 / 168]
+156
+THE CANDLESTICK TRADING BIBLE
+As you can see, the price moved higher, pulled back to reach our key
+ratios, and then continue higher. The formation of the inside bar false
+breakout in this area indicates that the pullback has  finished and
+another strong move will take place.
+Understanding the market structure is very important to know how to
+use this strategy in your advantage, if the market is trending, you can
+trade the inside bar false breakout as we discussed before.
+But if the market is ranging, you have to change your tactic.
+See the illustration below:
+In the chart above, the market is trading between horizontal support
+and resistance levels, as you see if you had entered as soon as th e
+
+---
+

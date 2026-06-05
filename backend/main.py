@@ -293,14 +293,30 @@ async def chat(req: ChatRequest):
     # ── Try Gemini (google-genai SDK) ────────────────────────────────────────
     if _genai_client:
         try:
+            # Load custom trading knowledge base
+            knowledge_content = ""
+            knowledge_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "trading_knowledge.txt"))
+            if os.path.exists(knowledge_path):
+                try:
+                    with open(knowledge_path, "r", encoding="utf-8") as kf:
+                        # Limit context size to avoid token limit issues, take first 40000 chars
+                        knowledge_content = kf.read(40000)
+                except Exception:
+                    pass
+
             system_ctx = (
-                f"You are an expert trading assistant embedded in a professional trading platform. "
+                f"You are an expert trading assistant and mentor embedded in the APEXTRADE platform. "
+                f"You have been trained on the user's custom trading guides and PDFs. "
+                f"Use the following knowledge context to answer queries, explain strategies (like candlestick patterns, risk management, stop losses, etc.), and guide the user: \n\n"
+                f"--- KNOWLEDGE BASE EXTRACTS ---\n"
+                f"{knowledge_content}\n"
+                f"-------------------------------\n\n"
                 f"The user is currently viewing {symbol}"
                 + (f" trading at ₹{price:.2f}" if price else "")
                 + (f" ({chg_pct:+.2f}% today)" if chg_pct is not None else "")
-                + ". Provide concise, actionable analysis. "
-                "Never provide financial advice — always remind the user this is educational. "
-                "Keep responses under 150 words. Use **bold** sparingly for key terms."
+                + ". Provide concise, highly actionable analysis using your knowledge base context where relevant. "
+                "Never provide direct financial advice — always remind the user that this is for educational purposes. "
+                "Keep responses under 180 words. Use **bold** sparingly for key terms."
             )
             prompt = f"{system_ctx}\n\nUser: {req.message}\nAssistant:"
             response = _genai_client.models.generate_content(
