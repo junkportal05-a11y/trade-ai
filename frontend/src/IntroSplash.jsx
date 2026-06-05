@@ -55,6 +55,12 @@ export default function IntroSplash({ onWokenUp }) {
     }
   }, [logIndex, isDone]);
 
+  // Keep latest onWokenUp callback in a ref to avoid resetting the ping effect
+  const onWokenUpRef = React.useRef(onWokenUp);
+  useEffect(() => {
+    onWokenUpRef.current = onWokenUp;
+  }, [onWokenUp]);
+
   // Ping backend to wake it up
   useEffect(() => {
     let active = true;
@@ -76,7 +82,7 @@ export default function IntroSplash({ onWokenUp }) {
               "✦ Handshake confirmed. Redirecting to trading terminal..."
             ]);
             setTimeout(() => {
-              if (active) onWokenUp();
+              if (active) onWokenUpRef.current();
             }, 1800);
             return;
           }
@@ -84,9 +90,12 @@ export default function IntroSplash({ onWokenUp }) {
       } catch (e) {
         failCount++;
         // Speed up logs if server takes longer to wake up
-        if (failCount > 3 && logIndex < 6) {
-          setLogIndex(prev => Math.min(6, prev + 1));
-        }
+        setLogIndex(prev => {
+          if (failCount > 3 && prev < 6) {
+            return Math.min(6, prev + 1);
+          }
+          return prev;
+        });
       }
       
       // Ping again in 2 seconds
@@ -104,7 +113,7 @@ export default function IntroSplash({ onWokenUp }) {
       active = false;
       clearTimeout(startDelay);
     };
-  }, [onWokenUp]);
+  }, []);
 
   return (
     <div style={{
