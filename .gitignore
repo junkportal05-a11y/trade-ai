@@ -14,3 +14,4 @@ backend/.env
 *.db
 backend/trading_platform.db
 changes.txt
+apex_codebase.txt
