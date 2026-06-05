@@ -1191,7 +1191,7 @@ export default function App() {
             flexShrink: 0
           }}>
             <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: T.gold, animation: 'pulse 1.5s infinite' }} />
-            BACKEND OFFLINE — STANDALONE SIMULATION TERMINAL ACTIVE (₹ locale formatted)
+            BACKEND OFFLINE — WAITING FOR RENDER SERVER TO WAKE UP (THIS TAKES 30–50 SECONDS)
           </div>
         )}
 
