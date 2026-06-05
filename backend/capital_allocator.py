@@ -148,6 +148,13 @@ def generate_mentor_advice(sig: dict, actual_cost: float, pot_loss: float, capit
     # 4. Stop loss placement advice
     advice.append(f"✦ Stop Loss Guide: Place your stop loss strictly below support at ₹{sig.get('stop_loss', 0):,.2f}. Avoid placing it exactly on round numbers to prevent market-maker stop-runs.")
     
+    # 5. Flat brokerage warning for small capital
+    if capital < 10000:
+        advice.append(
+            f"✦ Brokerage Alert: With small capital (₹{capital:,.0f}), flat brokerage fees (e.g. ₹20/order) "
+            f"will significantly eat into profits. Ensure you use discount brokers or accumulate larger capital for sustainable trading."
+        )
+
     return advice
 
 
@@ -288,11 +295,11 @@ def allocate(capital: float, signals: list) -> dict:
             continue  # can't even buy 1 share
 
         # Position sizing: risk-based
-        risk_per_share  = entry - stop
+        risk_per_share  = abs(entry - stop)
         max_risk_money  = capital * risk_pct
-        shares_by_risk  = math.floor(max_risk_money / risk_per_share) if risk_per_share > 0 else 1
+        shares_by_risk  = math.floor(max_risk_money / risk_per_share) if risk_per_share > 0 else shares_by_cap
         shares_by_cap   = math.floor(budget / entry)
-        shares          = max(1, min(shares_by_risk, shares_by_cap))
+        shares          = min(shares_by_risk, shares_by_cap)
 
         # Recheck affordability
         while shares * entry > remaining and shares > 0:
@@ -311,7 +318,7 @@ def allocate(capital: float, signals: list) -> dict:
         if pot_profit < min_profit_target:
             # Try to bump shares to hit minimum
             needed_shares = math.ceil(min_profit_target / (target - entry)) if (target - entry) > 0 else shares
-            if needed_shares * entry <= remaining:
+            if needed_shares * entry <= remaining and (needed_shares * risk_per_share) <= max_risk_money:
                 shares        = needed_shares
                 actual_cost   = round(shares * entry, 2)
                 pot_profit    = round(shares * (target - entry), 2)

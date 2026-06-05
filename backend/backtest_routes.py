@@ -7,8 +7,22 @@ Mount this in main.py with: app.include_router(backtest_router)
 
 from fastapi import APIRouter, Query
 import db
+import backtest_engine
 
 backtest_router = APIRouter(prefix="/api/backtest", tags=["backtest"])
+
+
+@backtest_router.get("/run")
+def run_backtest(
+    symbol: str = Query(..., description="NSE symbol to backtest"),
+    range: str = Query("3mo", description="Timeframe range, e.g. 1mo, 3mo, 6mo, 1y"),
+    capital: float = Query(10000.0, description="Initial backtest capital size")
+):
+    """Run historical backtest simulation on a symbol."""
+    sym = symbol.upper().strip()
+    if not sym.endswith(".NS"):
+        sym = sym + ".NS"
+    return backtest_engine.run_historical_backtest(sym, range, capital)
 
 
 @backtest_router.get("/stats")

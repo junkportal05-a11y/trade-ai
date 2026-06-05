@@ -1,11 +1,11 @@
 /**
  * PerformancePanel.jsx
  * ─────────────────────────────────────────────────────────────────────────────
- * Full-width backtesting & signal history dashboard.
- * Drop into frontend/src/PerformancePanel.jsx
+ * Full-width Backtesting & Live Signal History Dashboard.
+ * Includes a dynamic Historical Backtest Sandbox with interactive charting.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -32,9 +32,10 @@ const T = {
   grayDim:  'rgba(64,72,99,0.2)',
 };
 
-const fmt2 = (n) => n == null ? '—' : Number(n).toFixed(2);
-const pct  = (n) => n == null ? '—' : `${n > 0 ? '+' : ''}${fmt2(n)}%`;
+const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
+const pct  = (n) => n == null ? '—' : `${n > 0 ? '+' : ''}${Number(n).toFixed(2)}%`;
 const clr  = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
+const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
 const STATUS_META = {
   HIT_TARGET: { label: 'TARGET HIT',  bg: T.greenDim, color: T.green,   dot: T.green  },
@@ -43,6 +44,18 @@ const STATUS_META = {
   EXPIRED:    { label: 'EXPIRED',      bg: T.grayDim,  color: T.gray,    dot: T.gray   },
   CLOSED:     { label: 'CLOSED',       bg: T.blueDim,  color: T.blue,    dot: T.blue   },
 };
+
+const WATCHLIST_STOCKS = [
+  { symbol: 'RELIANCE.NS', name: 'Reliance Industries' },
+  { symbol: 'TCS.NS', name: 'TCS' },
+  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank' },
+  { symbol: 'INFY.NS', name: 'Infosys' },
+  { symbol: 'ICICIBANK.NS', name: 'ICICI Bank' },
+  { symbol: 'SBIN.NS', name: 'State Bank of India' },
+  { symbol: 'TATAMOTORS.NS', name: 'Tata Motors' },
+  { symbol: 'WIPRO.NS', name: 'Wipro' },
+  { symbol: 'AXISBANK.NS', name: 'Axis Bank' }
+];
 
 function StatusBadge({ status }) {
   const m = STATUS_META[status] || STATUS_META.CLOSED;
@@ -65,14 +78,14 @@ function KpiCard({ label, value, sub, color, big }) {
   return (
     <div style={{
       background: T.panel, border: `1px solid ${T.border}`,
-      borderRadius: 10, padding: '16px 20px', flex: 1, minWidth: 120,
+      borderRadius: 10, padding: '14px 18px', flex: 1, minWidth: 120,
     }}>
       <div style={{ fontSize: 9, color: T.textDim, letterSpacing: '0.12em',
         fontFamily: "'IBM Plex Mono', monospace", marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: big ? 28 : 22, fontWeight: 700,
+      <div style={{ fontSize: big ? 24 : 18, fontWeight: 700,
         color: color || T.text, fontFamily: "'IBM Plex Mono', monospace",
         letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: T.textMid, marginTop: 6 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 9.5, color: T.textMid, marginTop: 6 }}>{sub}</div>}
     </div>
   );
 }
@@ -103,12 +116,62 @@ function WinBar({ label, wins, total, avg_pnl }) {
   );
 }
 
+// Glowing SVG-based Equity Curve component (lightweight, zero packages)
+function EquityChart({ data }) {
+  if (!data || data.length < 2) return null;
+  const values = data.map(d => d.value);
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const valRange = maxVal - minVal || 1;
+  
+  const width = 500;
+  const height = 100;
+  const padding = 8;
+  
+  const points = data.map((d, i) => {
+    const x = padding + (i / (data.length - 1)) * (width - 2 * padding);
+    const y = height - padding - ((d.value - minVal) / valRange) * (height - 2 * padding);
+    return `${x},${y}`;
+  });
+  
+  const pathD = `M ${points.join(' L ')}`;
+  const areaD = `${pathD} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`;
+  
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace", marginBottom: 4 }}>
+        <span>CAPITAL HISTORY (EQUITY CURVE)</span>
+        <span>PEAK: ₹{fmt(maxVal)} · TROUGH: ₹{fmt(minVal)}</span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: '80px', background: 'rgba(255,255,255,0.005)', borderRadius: 8, border: `1px solid ${T.border}`, display: 'block' }}>
+        <defs>
+          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={T.accent} stopOpacity="0.15"/>
+            <stop offset="100%" stopColor={T.accent} stopOpacity="0.0"/>
+          </linearGradient>
+        </defs>
+        <line x1={padding} y1={height/2} x2={width-padding} y2={height/2} stroke={T.border} strokeDasharray="3,3" />
+        <path d={areaD} fill="url(#areaGrad)" />
+        <path d={pathD} fill="none" stroke={T.accent} strokeWidth="1.5" />
+      </svg>
+    </div>
+  );
+}
+
 export default function PerformancePanel() {
   const [stats,   setStats]   = useState(null);
   const [history, setHistory] = useState([]);
   const [filter,  setFilter]  = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
+
+  // Historical Backtesting Sandbox State
+  const [backtestSymbol, setBacktestSymbol]   = useState('RELIANCE.NS');
+  const [backtestRange, setBacktestRange]     = useState('3mo');
+  const [backtestCap, setBacktestCap]         = useState('10000');
+  const [backtestResult, setBacktestResult]   = useState(null);
+  const [backtestLoading, setBacktestLoading] = useState(false);
+  const [backtestError, setBacktestError]     = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -122,7 +185,7 @@ export default function PerformancePanel() {
         setHistory(d.history || []);
       }
     } catch {
-      // backend offline — show empty state
+      // backend offline
     } finally {
       setLoading(false);
     }
@@ -130,7 +193,7 @@ export default function PerformancePanel() {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 15000); // refresh every 15s
+    const t = setInterval(load, 25000); // refresh every 25s
     return () => clearInterval(t);
   }, [load]);
 
@@ -145,9 +208,35 @@ export default function PerformancePanel() {
     }
   };
 
-  const filtered = filter === 'ALL'
-    ? history
-    : history.filter(h => h.status === filter);
+  const handleRunBacktest = async () => {
+    const capitalAmt = parseFloat(backtestCap.replace(/,/g, ''));
+    if (!capitalAmt || capitalAmt < 500) {
+      setBacktestError("Minimum capital of ₹500 required for simulation");
+      return;
+    }
+
+    setBacktestLoading(true);
+    setBacktestError(null);
+    setBacktestResult(null);
+
+    try {
+      const res = await fetch(`${BASE}/api/backtest/run?symbol=${backtestSymbol}&range=${backtestRange}&capital=${capitalAmt}`);
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+      const data = await res.json();
+      if (data.error) {
+        setBacktestError(data.error);
+      } else {
+        setBacktestResult(data);
+      }
+    } catch (e) {
+      setBacktestError("Backend not responding. Make sure uvicorn backend server is running.");
+    } finally {
+      setBacktestLoading(false);
+    }
+  };
+
+  const filtered = filter === 'ALL' ? history : history.filter(h => h.status === filter);
+  const noData = !stats || stats.total === 0;
 
   if (loading) {
     return (
@@ -156,32 +245,186 @@ export default function PerformancePanel() {
         <span style={{ width: 14, height: 14, border: `2px solid ${T.border}`,
           borderTopColor: T.accent, borderRadius: '50%', display: 'inline-block',
           animation: 'spin 0.7s linear infinite' }} />
-        LOADING PERFORMANCE DATA
+        LOADING PERFORMANCE DATABASE
       </div>
     );
   }
-
-  const noData = !stats || stats.total === 0;
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px',
       display: 'flex', flexDirection: 'column', gap: 20, background: T.bg }}>
 
-      {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: T.text,
-            fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.04em' }}>
-            SIGNAL PERFORMANCE
+      {/* ── SECTION 1: HISTORICAL BACKTEST SANDBOX ── */}
+      <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 12, padding: '16px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <span style={{ fontSize: 16 }}>🚀</span>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', color: T.text, fontFamily: "'IBM Plex Mono', monospace" }}>
+            HISTORICAL STRATEGY BACKTESTING SANDBOX
+          </span>
+          <span style={{ fontSize: 8.5, padding: '2px 6px', borderRadius: 3, background: T.greenDim, color: T.green, ...mono, border: `1px solid ${T.green}30` }}>
+            1D DAILY BARS
+          </span>
+        </div>
+        <div style={{ fontSize: 11, color: T.textMid, lineHeight: 1.5, marginBottom: 14 }}>
+          Runs the technical scanning rules (EMA crossovers, ADX choppiness gating, Candlestick Bible hammers/engulfing, and volume surges) over historical data to calculate win rates, maximum drawdown, and profit curves.
+        </div>
+
+        {/* Inputs row */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+          {/* Stock selector */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 8, color: T.textDim, ...mono }}>SELECT STOCK</span>
+            <select 
+              value={backtestSymbol} 
+              onChange={e => setBacktestSymbol(e.target.value)}
+              style={{ background: T.bg, color: T.text, border: `1px solid ${T.borderHi}`, borderRadius: 6, padding: '8px 12px', fontSize: 11, ...mono, outline: 'none' }}
+            >
+              {WATCHLIST_STOCKS.map(s => (
+                <option key={s.symbol} value={s.symbol}>{s.symbol.replace('.NS','')} - {s.name}</option>
+              ))}
+            </select>
           </div>
-          <div style={{ fontSize: 11, color: T.textMid, marginTop: 4 }}>
-            Automated backtesting — signals logged every 60s during market hours
+
+          {/* Timeframe range */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 8, color: T.textDim, ...mono }}>RANGE TIMEFRAME</span>
+            <select 
+              value={backtestRange} 
+              onChange={e => setBacktestRange(e.target.value)}
+              style={{ background: T.bg, color: T.text, border: `1px solid ${T.borderHi}`, borderRadius: 6, padding: '8px 12px', fontSize: 11, ...mono, outline: 'none' }}
+            >
+              <option value="1mo">1 Month</option>
+              <option value="3mo">3 Months</option>
+              <option value="6mo">6 Months</option>
+              <option value="1y">1 Year</option>
+            </select>
+          </div>
+
+          {/* Capital input */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 8, color: T.textDim, ...mono }}>SIMULATED CAPITAL (₹)</span>
+            <input 
+              value={backtestCap} 
+              onChange={e => setBacktestCap(e.target.value)}
+              placeholder="Capital size..."
+              style={{ background: T.bg, color: T.text, border: `1px solid ${T.borderHi}`, borderRadius: 6, padding: '8px 12px', fontSize: 11, fontWeight: 700, ...mono, outline: 'none', width: '120px' }}
+            />
+          </div>
+
+          {/* Run button */}
+          <button 
+            onClick={handleRunBacktest} 
+            disabled={backtestLoading}
+            style={{
+              alignSelf: 'flex-end',
+              padding: '9px 18px', background: backtestLoading ? T.accentDim : T.accent, border: 'none',
+              borderRadius: 6, color: '#fff', fontSize: 10, fontWeight: 700,
+              cursor: backtestLoading ? 'not-allowed' : 'pointer', fontFamily: "'IBM Plex Mono', monospace",
+              letterSpacing: '0.06em', transition: 'all 0.2s', marginTop: '12px'
+            }}
+          >
+            {backtestLoading ? '⚙ RUNNING...' : '🚀 RUN BACKTEST'}
+          </button>
+        </div>
+
+        {/* Errors display */}
+        {backtestError && (
+          <div style={{ padding: '9px 14px', background: T.redDim, border: `1px solid rgba(255,61,90,0.25)`, borderRadius: 6, fontSize: 10, color: T.red, ...mono }}>
+            ⚠ Error running backtest: {backtestError}
+          </div>
+        )}
+
+        {/* Backtest Results Render */}
+        {backtestResult && (
+          <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 14, animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* KPI Cards */}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <KpiCard 
+                label="STRATEGY WIN RATE" 
+                value={`${backtestResult.win_rate}%`} 
+                sub={`${backtestResult.wins} Wins / ${backtestResult.losses} Losses`} 
+                color={backtestResult.win_rate >= 50 ? T.green : backtestResult.win_rate >= 35 ? T.gold : T.red}
+                big
+              />
+              <KpiCard 
+                label="TOTAL RETURN (P&L)" 
+                value={`${backtestResult.total_pnl >= 0 ? '+' : ''}₹${fmt(backtestResult.total_pnl)}`} 
+                sub={`${backtestResult.total_pnl_pct}% return on capital`} 
+                color={clr(backtestResult.total_pnl)}
+              />
+              <KpiCard 
+                label="PROFIT FACTOR" 
+                value={backtestResult.profit_factor} 
+                sub="Gross profit / Gross loss ratio" 
+                color={backtestResult.profit_factor >= 1.5 ? T.green : backtestResult.profit_factor >= 1.0 ? T.gold : T.red}
+              />
+              <KpiCard 
+                label="MAX HISTORICAL DRAWDOWN" 
+                value={`${backtestResult.max_drawdown}%`} 
+                sub="Maximum peak-to-trough drop" 
+                color={backtestResult.max_drawdown <= 5 ? T.green : backtestResult.max_drawdown <= 12 ? T.gold : T.red}
+              />
+              <KpiCard 
+                label="TOTAL EXECUTED TRADES" 
+                value={backtestResult.total_trades} 
+                sub={`Simulated over ${backtestResult.period === '1y' ? '1 year' : backtestResult.period === '6mo' ? '6 months' : '3 months'}`} 
+              />
+            </div>
+
+            {/* Sparkline Equity Chart */}
+            <EquityChart data={backtestResult.equity_curve} />
+
+            {/* Simulated closed trades list */}
+            <div>
+              <div style={{ fontSize: 9, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace", marginBottom: 6 }}>
+                SIMULATED TRADES LOG ({backtestResult.trades.length})
+              </div>
+              <div style={{ maxHeight: '180px', overflowY: 'auto', border: `1px solid ${T.border}`, borderRadius: 8 }}>
+                {/* Headers */}
+                <div style={{ display: 'grid', gridTemplateColumns: '70px 140px 65px 65px 75px 130px', padding: '6px 14px', borderBottom: `1px solid ${T.border}`, fontSize: 7.5, color: T.textDim, ...mono, letterSpacing: '0.08em' }}>
+                  <span>TRADE DATES</span>
+                  <span>EXIT STATUS</span>
+                  <span>BUY PRICE</span>
+                  <span>SELL PRICE</span>
+                  <span>TRADE P&L</span>
+                  <span>EXIT REASON</span>
+                </div>
+                {/* Rows */}
+                {backtestResult.trades.length === 0 ? (
+                  <div style={{ padding: 20, textAlign: 'center', fontSize: 10, color: T.textDim, ...mono }}>No trades executed during this timeframe.</div>
+                ) : (
+                  backtestResult.trades.map((t, index) => (
+                    <div key={index} style={{ display: 'grid', gridTemplateColumns: '70px 140px 65px 65px 75px 130px', padding: '8px 14px', borderBottom: index === backtestResult.trades.length - 1 ? 'none' : `1px solid ${T.border}`, fontSize: 10, ...mono, color: T.textMid }}>
+                      <span style={{ fontSize: 9 }}>{t.entry_date}</span>
+                      <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ width: 4, height: 4, borderRadius: '50%', background: t.pnl > 0 ? T.green : t.pnl < 0 ? T.red : T.textDim }} />
+                        <span style={{ fontSize: 8.5, fontWeight: 700, color: t.pnl > 0 ? T.green : t.pnl < 0 ? T.red : T.textMid }}>{t.status}</span>
+                      </span>
+                      <span>₹{fmt(t.entry_price, 1)}</span>
+                      <span>₹{fmt(t.exit_price, 1)}</span>
+                      <span style={{ color: clr(t.pnl), fontWeight: 700 }}>{t.pnl_pct > 0 ? '+' : ''}{t.pnl_pct}%</span>
+                      <span style={{ fontSize: 9, color: T.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.reason}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── SECTION 2: LIVE PAPER TRADING SIGNAL LOGS ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: `1px solid ${T.border}`, paddingTop: 18 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.text,
+            fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.04em' }}>
+            Live Signal & Paper Trading History
+          </div>
+          <div style={{ fontSize: 10.5, color: T.textMid, marginTop: 4 }}>
+            Tracks signals logged in real-time from the background scanning daemon during market hours.
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <div style={{ fontSize: 10, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>
-            AUTO-REFRESH 15s
-          </div>
           <button onClick={reset} disabled={resetting || noData} style={{
             padding: '8px 16px', background: T.redDim, border: `1px solid rgba(255,61,90,0.3)`,
             borderRadius: 6, color: T.red, fontSize: 10, fontWeight: 700,
@@ -189,26 +432,20 @@ export default function PerformancePanel() {
             fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em',
             transition: 'all 0.2s',
           }}>
-            {resetting ? 'CLEARING...' : '⟳ RESET DB'}
+            {resetting ? 'CLEARING...' : '⟳ RESET DATABASE'}
           </button>
         </div>
       </div>
 
       {noData ? (
-        /* Empty state */
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-          justifyContent: 'center', gap: 16, padding: '60px 0' }}>
-          <div style={{ fontSize: 40 }}>📡</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: T.text,
+          justifyContent: 'center', gap: 16, padding: '40px 0' }}>
+          <div style={{ fontSize: 32 }}>📡</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.text,
             fontFamily: "'IBM Plex Mono', monospace" }}>NO TRADES LOGGED YET</div>
-          <div style={{ fontSize: 12, color: T.textMid, textAlign: 'center', maxWidth: 400, lineHeight: 1.6 }}>
+          <div style={{ fontSize: 11, color: T.textMid, textAlign: 'center', maxWidth: 400, lineHeight: 1.6 }}>
             The background scanner logs BUY/SELL signals automatically every 60 seconds
             during NSE market hours (9:15 AM – 3:30 PM IST). Check back after the market opens.
-          </div>
-          <div style={{ padding: '12px 20px', background: T.panel, border: `1px solid ${T.border}`,
-            borderRadius: 8, fontSize: 11, color: T.textMid,
-            fontFamily: "'IBM Plex Mono', monospace" }}>
-            Backend must be running: <span style={{ color: T.accent }}>uvicorn main:app --reload</span>
           </div>
         </div>
       ) : (
@@ -228,9 +465,6 @@ export default function PerformancePanel() {
               color={clr(stats.avg_pnl)} sub="per resolved trade" />
             <KpiCard label="RESOLVED" value={stats.resolved}
               sub={`${stats.expired} expired · ${stats.closed} closed`} />
-            <KpiCard label="ACTIVE NOW" value={stats.pending}
-              color={stats.pending > 0 ? T.gold : T.textMid}
-              sub="monitoring live" />
           </div>
 
           {/* Breakdown charts */}
@@ -327,7 +561,7 @@ export default function PerformancePanel() {
             </div>
 
             {/* Rows */}
-            <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+            <div style={{ maxHeight: 300, overflowY: 'auto' }}>
               {filtered.length === 0 ? (
                 <div style={{ padding: '30px 20px', textAlign: 'center',
                   color: T.textDim, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace" }}>
@@ -370,13 +604,6 @@ export default function PerformancePanel() {
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Disclaimer */}
-          <div style={{ fontSize: 10, color: T.textDim, textAlign: 'center',
-            lineHeight: 1.6, padding: '0 20px' }}>
-            Backtesting uses algorithmic signals only. Past performance does not guarantee future results.
-            Signals are for educational purposes — not financial advice.
           </div>
         </>
       )}

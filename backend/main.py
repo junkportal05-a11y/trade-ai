@@ -59,6 +59,34 @@ def root():
     return {"status": "ok", "message": "Trading Platform API is running"}
 
 
+@app.get("/api/keepalive")
+def keep_alive():
+    """
+    Keep-alive endpoint to prevent Render free tier cold starts.
+    Configure a free cron-job (e.g., via cron-job.org) targeting this endpoint
+    to run every 10 minutes between 9:10 AM and 3:40 PM IST, Monday to Friday.
+    """
+    from datetime import datetime, timezone, timedelta
+    now_utc = datetime.now(timezone.utc)
+    now_ist = now_utc + timedelta(hours=5, minutes=30)
+    
+    market_open = is_nse_market_open()
+    
+    return {
+        "status": "active",
+        "message": "ApexTrade keep-alive handshake successful.",
+        "current_time_ist": now_ist.strftime("%Y-%m-%d %H:%M:%S"),
+        "market_status": "OPEN" if market_open else "CLOSED",
+        "cron_setup_guide": {
+            "target_url": "/api/keepalive",
+            "schedule": "Every 10 minutes",
+            "active_hours": "09:10 AM to 03:40 PM IST (03:40 to 10:10 UTC)",
+            "active_days": "Monday to Friday",
+            "purpose": "Keeps backend node warm during NSE trading session to eliminate 5m candle latency."
+        }
+    }
+
+
 @app.get("/api/quote")
 def get_quote(symbol: str = Query(..., description="Ticker symbol, e.g. AAPL")):
     """
