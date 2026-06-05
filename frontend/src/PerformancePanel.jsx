@@ -279,10 +279,11 @@ export default function PerformancePanel() {
   const [backtestSymbol, setBacktestSymbol]   = useState('RELIANCE.NS');
   const [backtestRange, setBacktestRange]     = useState('3mo');
   const [backtestCap, setBacktestCap]         = useState('10000');
-  const [backtestStopAtr, setBacktestStopAtr]   = useState(1.5);
-  const [backtestTargetAtr, setBacktestTargetAtr] = useState(2.5);
-  const [backtestEntryScore, setBacktestEntryScore] = useState(5);
+  const [backtestStopAtr, setBacktestStopAtr]   = useState(3.0); // Optimized default
+  const [backtestTargetAtr, setBacktestTargetAtr] = useState(2.0); // Optimized default
+  const [backtestEntryScore, setBacktestEntryScore] = useState(7); // Optimized default
   const [backtestRiskPct, setBacktestRiskPct]     = useState(2.0);
+  const [backtestEarlyExit, setBacktestEarlyExit] = useState(-4); // Optimized default
   const [showConfig, setShowConfig]               = useState(false);
   const [backtestResult, setBacktestResult]   = useState(null);
   const [backtestLoading, setBacktestLoading] = useState(false);
@@ -335,7 +336,7 @@ export default function PerformancePanel() {
     setBacktestResult(null);
 
     try {
-      const query = `symbol=${backtestSymbol}&range=${backtestRange}&capital=${capitalAmt}&stop_atr=${backtestStopAtr}&target_atr=${backtestTargetAtr}&entry_score=${backtestEntryScore}&risk_pct=${backtestRiskPct}`;
+      const query = `symbol=${backtestSymbol}&range=${backtestRange}&capital=${capitalAmt}&stop_atr=${backtestStopAtr}&target_atr=${backtestTargetAtr}&entry_score=${backtestEntryScore}&risk_pct=${backtestRiskPct}&early_exit=${backtestEarlyExit}`;
       const res = await fetch(`${BASE}/api/backtest/run?${query}`);
       if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
       const data = await res.json();
@@ -528,6 +529,21 @@ export default function PerformancePanel() {
                 style={{ accentColor: T.gold, cursor: 'pointer' }}
               />
               <span style={{ fontSize: 7.5, color: T.textDim }}>Set targets to achieve &gt; 1:2 Reward-to-Risk.</span>
+            </div>
+
+            {/* Early exit threshold */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, color: T.textMid, ...mono }}>
+                <span>EARLY EXIT THRESHOLD</span>
+                <span style={{ color: T.blue, fontWeight: 700 }}>{backtestEarlyExit}</span>
+              </div>
+              <input 
+                type="range" min="-6" max="-1" step="1"
+                value={backtestEarlyExit}
+                onChange={e => setBacktestEarlyExit(parseInt(e.target.value))}
+                style={{ accentColor: T.blue, cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: 7.5, color: T.textDim }}>Lower values (e.g. -4) filter out minor pullbacks.</span>
             </div>
           </div>
         )}

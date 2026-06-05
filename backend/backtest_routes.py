@@ -20,14 +20,15 @@ def run_backtest(
     stop_atr: float = Query(1.5, description="Stop-loss ATR multiplier"),
     target_atr: float = Query(2.5, description="Profit target ATR multiplier"),
     entry_score: int = Query(5, description="Minimum signal score for entry"),
-    risk_pct: float = Query(2.0, description="Risk percentage per trade (e.g. 2.0 for 2%)")
+    risk_pct: float = Query(2.0, description="Risk percentage per trade (e.g. 2.0 for 2%)"),
+    early_exit: int = Query(-4, description="Early exit score threshold")
 ):
     """Run historical backtest simulation on a symbol."""
     sym = symbol.upper().strip()
     if not sym.endswith(".NS"):
         sym = sym + ".NS"
     return backtest_engine.run_historical_backtest(
-        sym, range, capital, stop_atr, target_atr, entry_score, risk_pct / 100.0
+        sym, range, capital, stop_atr, target_atr, entry_score, risk_pct / 100.0, early_exit
     )
 
 

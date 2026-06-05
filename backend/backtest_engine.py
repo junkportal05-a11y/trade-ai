@@ -28,10 +28,11 @@ def run_historical_backtest(
     stop_atr: float = 1.5,
     target_atr: float = 2.5,
     entry_score: int = 5,
-    risk_pct: float = 0.02
+    risk_pct: float = 0.02,
+    early_exit: int = -4
 ) -> dict:
     """
-    Runs a historical strategy backtest on Daily (1D) bars with configurable risk/target thresholds.
+    Runs a historical strategy backtest on Daily (1D) bars with configurable risk/target and early exit thresholds.
     """
     try:
         # Download daily data
@@ -309,7 +310,7 @@ def run_historical_backtest(
                 score += 1 if score > 0 else -1
 
             # Check early exits on existing position if trend turns
-            if position and score <= -2:
+            if position and score <= early_exit:
                 # Early exit
                 pnl = (price - position["entry_price"]) * position["shares"]
                 capital += (position["shares"] * price)
