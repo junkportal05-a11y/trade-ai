@@ -61,7 +61,7 @@ HIGH_VOLATILITY_UNIVERSE = {
     "MID": [
         {"symbol": "ADANIENT.NS",    "name": "Adani Enterprises",  "sector": "Conglomerate"},
         {"symbol": "ADANIPORTS.NS",  "name": "Adani Ports",        "sector": "Infrastructure"},
-        {"symbol": "TATAMOTORS.NS",  "name": "Tata Motors",        "sector": "Auto"},
+        {"symbol": "TMPV.NS",        "name": "Tata Motors (TMPV)", "sector": "Auto"},
         {"symbol": "JSWSTEEL.NS",    "name": "JSW Steel",          "sector": "Metals"},
         {"symbol": "SBIN.NS",        "name": "SBI",               "sector": "Banking"},
         {"symbol": "AXISBANK.NS",    "name": "Axis Bank",          "sector": "Banking"},
@@ -297,8 +297,8 @@ def allocate(capital: float, signals: list) -> dict:
         # Position sizing: risk-based
         risk_per_share  = abs(entry - stop)
         max_risk_money  = capital * risk_pct
-        shares_by_risk  = math.floor(max_risk_money / risk_per_share) if risk_per_share > 0 else shares_by_cap
         shares_by_cap   = math.floor(budget / entry)
+        shares_by_risk  = math.floor(max_risk_money / risk_per_share) if risk_per_share > 0 else shares_by_cap
         shares          = min(shares_by_risk, shares_by_cap)
 
         # Recheck affordability
