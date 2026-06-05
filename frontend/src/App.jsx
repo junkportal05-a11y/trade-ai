@@ -1213,6 +1213,7 @@ export default function App() {
               <CapitalAllocator />
             </div>
           ) : (
+            <>
               {isMobile ? (
                 /* MOBILE VIEW — Single column with bottom tabs */
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.bg }}>
@@ -1394,6 +1395,7 @@ export default function App() {
                   </div>
                 </>
               )}
+            </>
           )}
         </div>
       </div>
