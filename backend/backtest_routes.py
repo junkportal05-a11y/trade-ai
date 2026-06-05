@@ -5,14 +5,15 @@ FastAPI router for backtesting endpoints.
 Mount this in main.py with: app.include_router(backtest_router)
 """
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 import db
 import backtest_engine
+from auth_helpers import require_session, require_admin
 
 backtest_router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 
 
-@backtest_router.get("/run")
+@backtest_router.get("/run", dependencies=[Depends(require_session)])
 def run_backtest(
     symbol: str = Query(..., description="NSE symbol to backtest"),
     range: str = Query("3mo", description="Timeframe range, e.g. 1mo, 3mo, 6mo, 1y"),
@@ -32,13 +33,13 @@ def run_backtest(
     )
 
 
-@backtest_router.get("/stats")
+@backtest_router.get("/stats", dependencies=[Depends(require_session)])
 def get_backtest_stats():
     """Aggregated performance statistics."""
     return db.get_stats()
 
 
-@backtest_router.get("/history")
+@backtest_router.get("/history", dependencies=[Depends(require_session)])
 def get_backtest_history(
     limit:  int = Query(100, ge=1, le=500),
     symbol: str = Query(None),
@@ -51,7 +52,7 @@ def get_backtest_history(
     }
 
 
-@backtest_router.post("/reset")
+@backtest_router.post("/reset", dependencies=[Depends(require_admin)])
 def reset_backtest():
     """Wipe all signal history."""
     db.clear_history()

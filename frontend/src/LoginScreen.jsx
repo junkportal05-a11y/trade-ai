@@ -24,36 +24,42 @@ export default function LoginScreen({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Selected secure registry
-  const USER_REGISTRY = {
-    'apex_head_quant': { pass: 'Ap3xTr@de#Secur1ty!2026', role: 'Master Quant / Administrator' },
-    'user1': { pass: 'pass1', role: 'Quant Trader Level 1' },
-    'user2': { pass: 'pass2', role: 'Quant Trader Level 2' },
-    'user3': { pass: 'pass3', role: 'Risk Manager' },
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
-    if (!username.trim() || !password.trim()) {
+    const u = username.trim();
+    const p = password;
+    if (!u || !p) {
       setError("Please fill in all security fields.");
       return;
     }
 
     setLoading(true);
 
-    // Simulate cryptographic challenge verification delay
-    setTimeout(() => {
-      const u = username.trim();
-      const userObj = USER_REGISTRY[u];
-      if (userObj && userObj.pass === password) {
-        onLogin(u);
-      } else {
-        setError("AUTHENTICATION FAILED: Invalid credentials.");
-        setLoading(false);
+    try {
+      const BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
+      const res = await fetch(`${BASE_URL}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p })
+      });
+      
+      if (!res.ok) {
+        throw new Error("AUTHENTICATION FAILED: Invalid credentials.");
       }
-    }, 1200);
+      
+      const data = await res.json();
+      
+      // Store session token in sessionStorage (in-memory only, clears on tab close)
+      sessionStorage.setItem('apt_token', data.token);
+      
+      // Propagate user metadata to parent App component
+      onLogin(u, data.role, data.clearance);
+    } catch (err) {
+      setError(err.message || "AUTHENTICATION FAILED: Connection error.");
+      setLoading(false);
+    }
   };
 
 

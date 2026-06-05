@@ -3,24 +3,66 @@ Trading Platform Backend - FastAPI + yfinance
 Run with: uvicorn main:app --reload --port 8000
 """
 
-import asyncio
-import json
 import os
-import random
 import time
+import json
+import random
+import asyncio
+import functools
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional
+from dotenv import load_dotenv
 
 import yfinance as yf
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from pydantic import BaseModel
 
 import signals as sig_engine
 import db
 import capital_allocator
 from backtest_routes import backtest_router
+
+load_dotenv()
+
+ADMIN_KEY   = os.getenv("ADMIN_KEY", "change-me")
+APP_PASSWORD = os.getenv("APP_PASSWORD", "apextrade123")
+SECRET_KEY  = os.getenv("SECRET_KEY", "insecure-default")
+
+limiter = Limiter(key_func=get_remote_address)
+
+app = FastAPI(title="ApexTrade API", version="2.0.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173,http://localhost:3000,https://trade-ai-beta.vercel.app"
+).split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+from auth_helpers import (
+    require_admin,
+    require_session,
+    create_session,
+    cleanup_sessions,
+    ACTIVE_SESSIONS,
+    SESSION_TTL,
+    ADMIN_KEY,
+    APP_PASSWORD,
+    USER_REGISTRY
+)
 
 # Optional Gemini AI integration (google-genai SDK)
 try:
@@ -33,21 +75,41 @@ try:
 except ImportError:
     _genai_client = None
 
-app = FastAPI(title="Trading Platform API", version="1.0.0")
-
-# ── CORS: allow any origin for easy hosting ──────────
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 app.include_router(backtest_router)
+
 
 # ── Active WebSocket connections ───────────────────────────────────────────────
 active_connections: list[WebSocket] = []
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+@app.post("/api/login")
+@limiter.limit("10/minute")
+async def login(req: LoginRequest, request: Request):
+    u = req.username.strip()
+    user_obj = USER_REGISTRY.get(u)
+    if not user_obj or user_obj['pass'] != req.password:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    token = create_session(u)
+    return {
+        "token": token,
+        "username": u,
+        "role": user_obj["role"],
+        "clearance": user_obj["clearance"],
+        "expires_in": SESSION_TTL
+    }
+
+@app.post("/api/logout")
+async def logout(x_session_token: str = Header(None)):
+    if x_session_token and x_session_token in ACTIVE_SESSIONS:
+        del ACTIVE_SESSIONS[x_session_token]
+    return {"status": "logged out"}
+
+@app.get("/api/auth/verify")
+async def verify(token: str = Depends(require_session)):
+    return {"status": "valid"}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -231,9 +293,12 @@ _executor = ThreadPoolExecutor(max_workers=8)
 
 
 @app.get("/api/signals")
+@limiter.limit("5/minute")
 async def get_signals(
+    request: Request,
     symbols: Optional[str] = Query(None, description="Comma-separated NSE symbols, e.g. RELIANCE.NS,TCS.NS. Omit for full scan."),
     limit:   int = Query(20, ge=1, le=50, description="Max results to return"),
+    _=Depends(require_session)
 ):
     """
     Scans NSE stocks and returns ranked intraday signals.
@@ -314,7 +379,8 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/api/chat")
-async def chat(req: ChatRequest):
+@limiter.limit("20/minute")
+async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
     """
     AI trading assistant. Uses Gemini if GEMINI_API_KEY is set,
     otherwise falls back to a context-aware heuristic engine.
@@ -695,13 +761,16 @@ async def startup_event():
 
 
 @app.websocket("/ws/prices")
-async def websocket_prices(websocket: WebSocket, symbols: str = "RELIANCE.NS,TCS.NS,HDFCBANK.NS,INFY.NS,ICICIBANK.NS,SBIN.NS,BAJFINANCE.NS,TMPV.NS,WIPRO.NS,AXISBANK.NS"):
-    """
-    Streams price ticks for the requested symbols.
-    Simulates micro-ticks around live yfinance baseline prices when market is open.
-    Sends static, non-fluctuating closing prices when market is closed.
-    """
+async def websocket_prices(
+    websocket: WebSocket,
+    token: str = Query(None),
+    symbols: str = "RELIANCE.NS,TCS.NS,HDFCBANK.NS,INFY.NS,ICICIBANK.NS,SBIN.NS,BAJFINANCE.NS,TMPV.NS,WIPRO.NS,AXISBANK.NS"
+):
     await websocket.accept()
+    if not token or token not in ACTIVE_SESSIONS:
+        await websocket.close(code=4001)
+        return
+
     active_connections.append(websocket)
 
     watch = [s.strip().upper() for s in symbols.split(",") if s.strip()]
@@ -797,7 +866,8 @@ class CapitalRequest(BaseModel):
 
 
 @app.post("/api/allocate")
-async def allocate_capital(req: CapitalRequest):
+@limiter.limit("3/minute")
+async def allocate_capital(req: CapitalRequest, request: Request, _=Depends(require_session)):
     """
     Scan HIGH_VOLATILITY_UNIVERSE matched to capital size.
     Small capital → cheap volatile stocks (YESBANK, SUZLON, RVNL…)
@@ -845,7 +915,8 @@ async def allocate_capital(req: CapitalRequest):
 
 
 @app.post("/api/allocate/quick")
-async def allocate_capital_quick(req: CapitalRequest):
+@limiter.limit("3/minute")
+async def allocate_capital_quick(req: CapitalRequest, request: Request, _=Depends(require_session)):
     """
     Fast allocation using already-cached live prices (no fresh yfinance scan).
     Returns instantly if LIVE_PRICES_CACHE is warm; falls back to full scan otherwise.

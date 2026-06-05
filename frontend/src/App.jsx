@@ -768,7 +768,10 @@ function ChatPanel({ symbol, price, changePct }) {
       const API_BASE = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Token': sessionStorage.getItem('apt_token') || ''
+        },
         body: JSON.stringify({
           message: userMsg,
           context: { symbol: symbol.replace('.NS', ''), price, changePct },
@@ -991,7 +994,7 @@ const TABS = ['CHART', 'WATCHLIST', 'SIGNALS', 'PORTFOLIO', 'ORDER', 'AI', 'ACCO
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   // Security Authentication Gate
-  const [loggedIn, setLoggedIn] = useState(() => localStorage.getItem('apex_auth') === 'true');
+  const [loggedIn, setLoggedIn] = useState(() => sessionStorage.getItem('apt_token') !== null);
   const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('apex_user') || 'apex_head_quant');
 
 
@@ -1213,7 +1216,7 @@ export default function App() {
   }, []);
 
   if (!loggedIn) {
-    return <LoginScreen onLogin={(user) => { setLoggedIn(true); setCurrentUser(user); localStorage.setItem('apex_auth', 'true'); localStorage.setItem('apex_user', user); }} />;
+    return <LoginScreen onLogin={(user) => { setLoggedIn(true); setCurrentUser(user); localStorage.setItem('apex_user', user); }} />;
   }
 
   return (
@@ -1265,7 +1268,7 @@ export default function App() {
         )}
 
         {/* Header */}
-        <Header symbol={selected} connected={connected} view={view} onViewChange={setView} isMobile={isMobile} onLogout={() => { setLoggedIn(false); localStorage.removeItem('apex_auth'); }} />
+        <Header symbol={selected} connected={connected} view={view} onViewChange={setView} isMobile={isMobile} onLogout={() => { setLoggedIn(false); sessionStorage.removeItem('apt_token'); localStorage.removeItem('apex_user'); }} />
 
         {/* Main layout */}
         <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
