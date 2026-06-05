@@ -442,16 +442,27 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
             reasons_bear.append("Supertrend Bearish")
 
         # 7. ADX Trend Strength Modifier
-        if adx_val > 25:
+        if adx_val > 40:
+            if score > 0:
+                score += 2
+                reasons_bull.append(f"Very Strong Trend (ADX {adx_val:.1f})")
+            elif score < 0:
+                score -= 2
+                reasons_bear.append(f"Very Strong Trend (ADX {adx_val:.1f})")
+        elif adx_val > 25:
             if score > 0:
                 score += 1
                 reasons_bull.append(f"Strong Trend (ADX {adx_val:.1f})")
             elif score < 0:
                 score -= 1
                 reasons_bear.append(f"Strong Trend (ADX {adx_val:.1f})")
+        elif adx_val < 15:
+            score = 0  # completely skip signal
+            reasons_bear.append(f"Choppy sideways market (ADX {adx_val:.1f} < 15)")
+            reasons_bull.append(f"Choppy sideways market (ADX {adx_val:.1f} < 15)")
         elif adx_val < 20:
-            score = int(score * 0.5)  # strictly penalize signals in choppy markets
-            reasons_bear.append(f"Choppy sideways market (ADX {adx_val:.1f} < 20)")
+            score = int(score * 0.7)  # 30% penalty
+            reasons_bear.append(f"Weak sideways market (ADX {adx_val:.1f} < 20)")
 
         # 7.5 Macro Trend Alignment (Multi-Timeframe Analysis)
         if macro_bullish is not None:
@@ -512,6 +523,15 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
         else:
             signal    = "HOLD"
             confidence = 50
+
+        # 11. Volatility Clustering Boost
+        atr_pct = (atr_val / price) * 100
+        if atr_pct > 2.5 and vol_r > 1.8:
+            confidence = min(95, confidence * 1.3)
+            if score > 0:
+                reasons_bull.insert(0, f"Volatility Clustering Boost (ATR% {atr_pct:.1f})")
+            elif score < 0:
+                reasons_bear.insert(0, f"Volatility Clustering Boost (ATR% {atr_pct:.1f})")
 
         # ── Set Target & Stop Levels via ATR & Macro Alignment ────────────────
         is_trend_following = (signal in ("BUY", "WEAK BUY") and macro_bullish) or (signal in ("SELL", "WEAK SELL") and macro_bullish is False)
