@@ -26,7 +26,7 @@ export default function LoginScreen({ onLogin }) {
 
   // Selected secure registry
   const USER_REGISTRY = {
-    'apex_trader': { pass: 'apex_password', role: 'Master Quant / Administrator' },
+    'apex_head_quant': { pass: 'Ap3xTr@de#Secur1ty!2026', role: 'Master Quant / Administrator' },
     'user1': { pass: 'pass1', role: 'Quant Trader Level 1' },
     'user2': { pass: 'pass2', role: 'Quant Trader Level 2' },
     'user3': { pass: 'pass3', role: 'Risk Manager' },
