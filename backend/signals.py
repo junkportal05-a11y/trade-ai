@@ -514,6 +514,58 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
             score -= 1
             reasons_bear.append("OBV volume distribution")
 
+        # 9.5 Candlestick Pattern Recognition (Based on Candlestick Bible)
+        try:
+            # Check latest bar details
+            latest_open  = float(df["Open"].iloc[-1])
+            latest_high  = float(df["High"].iloc[-1])
+            latest_low   = float(df["Low"].iloc[-1])
+            latest_close = float(df["Close"].iloc[-1])
+            prev_open    = float(df["Open"].iloc[-2])
+            prev_close   = float(df["Close"].iloc[-2])
+            
+            body = abs(latest_close - latest_open)
+            candle_range = (latest_high - latest_low) if (latest_high - latest_low) > 0 else 0.001
+            upper_wick = (latest_high - max(latest_open, latest_close))
+            lower_wick = (min(latest_open, latest_close) - latest_low)
+            
+            # 1. Hammer (Bullish reversal pattern)
+            # Body is small, lower wick is at least 2x body size, little to no upper wick
+            if lower_wick > (2 * body) and upper_wick < (0.1 * candle_range) and body > (0.05 * candle_range):
+                score += 3
+                reasons_bull.append("Candlestick: Bullish Hammer detected")
+                
+            # 2. Shooting Star (Bearish reversal pattern)
+            # Body is small, upper wick is at least 2x body size, little to no lower wick
+            elif upper_wick > (2 * body) and lower_wick < (0.1 * candle_range) and body > (0.05 * candle_range):
+                score -= 3
+                reasons_bear.append("Candlestick: Bearish Shooting Star detected")
+                
+            # 3. Engulfing Patterns
+            else:
+                # Bullish Engulfing: previous candle was bearish, current candle is bullish and its body fully engulfs the previous body
+                if latest_close > latest_open and prev_close < prev_open:
+                    if latest_close >= prev_open and latest_open <= prev_close:
+                        score += 3
+                        reasons_bull.append("Candlestick: Bullish Engulfing pattern")
+                # Bearish Engulfing: previous candle was bullish, current candle is bearish and its body fully engulfs the previous body
+                elif latest_close < latest_open and prev_close > prev_open:
+                    if latest_close <= prev_open and latest_open >= prev_close:
+                        score -= 3
+                        reasons_bear.append("Candlestick: Bearish Engulfing pattern")
+                        
+            # 4. Marubozu (Strong momentum indicator)
+            # Body represents >90% of the entire range
+            if body / candle_range > 0.90:
+                if latest_close > latest_open:
+                    score += 2
+                    reasons_bull.append("Candlestick: Bullish Marubozu (Extreme buying force)")
+                else:
+                    score -= 2
+                    reasons_bear.append("Candlestick: Bearish Marubozu (Extreme selling force)")
+        except Exception:
+            pass
+
         # 10. Volume Confirmation
         if vol_r >= 1.5:
             score += 1 if score > 0 else -1
