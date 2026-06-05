@@ -173,6 +173,32 @@ def is_nse_market_open() -> bool:
     return start_minutes <= minutes_since_midnight <= end_minutes
 
 
+def _download_market_data(symbol: str, period: str, interval: str) -> Optional[pd.DataFrame]:
+    """
+    Downloads market data with fallback handling.
+    This serves as the primary data abstraction layer.
+    
+    To migrate to a dedicated broker API (like Zerodha Kite Connect, Dhan, Upstox, or TrueData):
+    1. Initialize the broker client session (e.g. kite = KiteConnect(api_key=...)).
+    2. Replace the yfinance logic below with your broker API historical data call:
+       e.g., records = kite.historical_data(instrument_token, from_date, to_date, interval)
+       df = pd.DataFrame(records)
+    3. Ensure standard columns ['Open', 'High', 'Low', 'Close', 'Volume'] are returned
+       with a datetime index.
+    """
+    try:
+        df = yf.download(
+            symbol, period=period, interval=interval,
+            auto_adjust=True, progress=False,
+            session=_YF_SESSION,
+        )
+        if df is not None and not df.empty:
+            return df
+    except Exception as e:
+        print(f"[Data Abstraction] Error downloading {symbol} ({interval}): {e}")
+    return None
+
+
 # ── Core Signal Calculation ───────────────────────────────────────────────────
 
 def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
@@ -193,12 +219,9 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
             interval = "1d"
             scan_type = "OVERNIGHT"
 
-        # Fetch intraday/overnight data
-        df = yf.download(
-            symbol, period=period, interval=interval,
-            auto_adjust=True, progress=False,
-            session=_YF_SESSION,
-        )
+        # Fetch data via data abstraction helper
+        df = _download_market_data(symbol, period, interval)
+        
         # ── Compute Daily Macro Trend (With Caching) ─────────────────────────
         current_date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         cached_macro = _MACRO_CACHE.get(symbol)
@@ -208,12 +231,8 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
         if cached_macro and cached_macro.get("date") == current_date_str:
             macro_bullish = cached_macro.get("bullish")
         else:
-            # Fetch Daily Macro Data for Multi-Timeframe Analysis
-            df_daily = yf.download(
-                symbol, period="3mo", interval="1d",
-                auto_adjust=True, progress=False,
-                session=_YF_SESSION,
-            )
+            # Fetch Daily Macro Data for Multi-Timeframe Analysis via data abstraction helper
+            df_daily = _download_market_data(symbol, "3mo", "1d")
             
             if df_daily is not None and len(df_daily) >= 21:
                 if isinstance(df_daily.columns, pd.MultiIndex):
@@ -532,37 +551,55 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
             # 1. Hammer (Bullish reversal pattern)
             # Body is small, lower wick is at least 2x body size, little to no upper wick
             if lower_wick > (2 * body) and upper_wick < (0.1 * candle_range) and body > (0.05 * candle_range):
-                score += 3
-                reasons_bull.append("Candlestick: Bullish Hammer detected")
+                if vol_r >= 1.5:
+                    score += 3
+                    reasons_bull.append(f"Candlestick: Bullish Hammer detected (vol surge {vol_r:.1f}x)")
+                else:
+                    reasons_bull.append(f"Candlestick: Hammer detected but rejected (low volume {vol_r:.1f}x)")
                 
             # 2. Shooting Star (Bearish reversal pattern)
             # Body is small, upper wick is at least 2x body size, little to no lower wick
             elif upper_wick > (2 * body) and lower_wick < (0.1 * candle_range) and body > (0.05 * candle_range):
-                score -= 3
-                reasons_bear.append("Candlestick: Bearish Shooting Star detected")
+                if vol_r >= 1.5:
+                    score -= 3
+                    reasons_bear.append(f"Candlestick: Bearish Shooting Star detected (vol surge {vol_r:.1f}x)")
+                else:
+                    reasons_bear.append(f"Candlestick: Shooting Star rejected (low volume {vol_r:.1f}x)")
                 
             # 3. Engulfing Patterns
             else:
                 # Bullish Engulfing: previous candle was bearish, current candle is bullish and its body fully engulfs the previous body
                 if latest_close > latest_open and prev_close < prev_open:
                     if latest_close >= prev_open and latest_open <= prev_close:
-                        score += 3
-                        reasons_bull.append("Candlestick: Bullish Engulfing pattern")
+                        if vol_r >= 1.5:
+                            score += 3
+                            reasons_bull.append(f"Candlestick: Bullish Engulfing pattern (vol surge {vol_r:.1f}x)")
+                        else:
+                            reasons_bull.append(f"Candlestick: Engulfing pattern rejected (low volume {vol_r:.1f}x)")
                 # Bearish Engulfing: previous candle was bullish, current candle is bearish and its body fully engulfs the previous body
                 elif latest_close < latest_open and prev_close > prev_open:
                     if latest_close <= prev_open and latest_open >= prev_close:
-                        score -= 3
-                        reasons_bear.append("Candlestick: Bearish Engulfing pattern")
+                        if vol_r >= 1.5:
+                            score -= 3
+                            reasons_bear.append(f"Candlestick: Bearish Engulfing pattern (vol surge {vol_r:.1f}x)")
+                        else:
+                            reasons_bear.append(f"Candlestick: Engulfing pattern rejected (low volume {vol_r:.1f}x)")
                         
             # 4. Marubozu (Strong momentum indicator)
             # Body represents >90% of the entire range
             if body / candle_range > 0.90:
                 if latest_close > latest_open:
-                    score += 2
-                    reasons_bull.append("Candlestick: Bullish Marubozu (Extreme buying force)")
+                    if vol_r >= 1.5:
+                        score += 2
+                        reasons_bull.append(f"Candlestick: Bullish Marubozu (Extreme buying force, vol surge {vol_r:.1f}x)")
+                    else:
+                        reasons_bull.append(f"Candlestick: Bullish Marubozu rejected (low volume {vol_r:.1f}x)")
                 else:
-                    score -= 2
-                    reasons_bear.append("Candlestick: Bearish Marubozu (Extreme selling force)")
+                    if vol_r >= 1.5:
+                        score -= 2
+                        reasons_bear.append(f"Candlestick: Bearish Marubozu (Extreme selling force, vol surge {vol_r:.1f}x)")
+                    else:
+                        reasons_bear.append(f"Candlestick: Bearish Marubozu rejected (low volume {vol_r:.1f}x)")
         except Exception:
             pass
 

@@ -162,10 +162,46 @@ function simulateAllocation(capital, fallbackSignals) {
     };
   }
   
-  const maxPos = capital < 2000 ? 1 : capital < 15000 ? 2 : 3;
+  let maxPos = 3;
+  let cashBuffer = 0.05;
+  let riskPct = 0.04;
+  let maxPerStock = 0.45;
+  
+  if (capital < 2000) {
+    maxPos = 1;
+    cashBuffer = 0.02;
+    riskPct = 0.08;
+    maxPerStock = 0.98;
+  } else if (capital < 5000) {
+    maxPos = 1;
+    cashBuffer = 0.03;
+    riskPct = 0.06;
+    maxPerStock = 0.97;
+  } else if (capital < 15000) {
+    maxPos = 2;
+    cashBuffer = 0.04;
+    riskPct = 0.05;
+    maxPerStock = 0.65;
+  } else if (capital < 50000) {
+    maxPos = 3;
+    cashBuffer = 0.05;
+    riskPct = 0.04;
+    maxPerStock = 0.45;
+  } else if (capital < 200000) {
+    maxPos = 4;
+    cashBuffer = 0.05;
+    riskPct = 0.03;
+    maxPerStock = 0.35;
+  } else {
+    maxPos = 6;
+    cashBuffer = 0.05;
+    riskPct = 0.025;
+    maxPerStock = 0.25;
+  }
+  
   const candidates = buys.slice(0, maxPos);
   const totalScore = candidates.reduce((sum, c) => sum + c.confidence, 0);
-  const deployable = capital * 0.96;
+  const deployable = capital * (1 - cashBuffer);
   
   let deployed = 0;
   const positions = [];
@@ -179,7 +215,20 @@ function simulateAllocation(capital, fallbackSignals) {
     const budget = Math.min(deployable * weight, deployable - deployed);
     if (budget < entry) return;
     
-    const shares = Math.max(1, Math.floor(budget / entry));
+    // Position sizing: risk-based
+    const riskPerShare = Math.abs(entry - stop);
+    const maxRiskMoney = capital * riskPct;
+    const sharesByRisk = riskPerShare > 0 ? Math.floor(maxRiskMoney / riskPerShare) : Math.floor(budget / entry);
+    const sharesByCap = Math.floor(budget / entry);
+    
+    let shares = Math.min(sharesByRisk, sharesByCap);
+    
+    // Recheck affordability
+    while (shares * entry > (deployable - deployed) && shares > 0) {
+      shares--;
+    }
+    if (shares === 0) return;
+    
     const cost = Number((shares * entry).toFixed(2));
     const profit = Number((shares * (target - entry)).toFixed(2));
     const loss = Number((shares * (entry - stop)).toFixed(2));
@@ -192,6 +241,19 @@ function simulateAllocation(capital, fallbackSignals) {
       if (r.includes("Engulfing")) candleStr = "Engulfing Pattern";
       if (r.includes("Marubozu")) candleStr = "Marubozu Pattern";
     });
+
+    const mentorAdvice = [
+      `✦ Candlestick Bible: ${candleStr} detected near key moving average support. This indicates strong buy response.`,
+      `✦ Risk Management: Risking ₹${loss} (${((loss / capital) * 100).toFixed(1)}% of capital), respecting the ${(riskPct * 100).toFixed(0)}% maximum risk rule from your SL Guide.`,
+      `✦ Risk-Reward: R:R ratio is 1:${rr}. Highly favorable reward-to-risk ratio.`,
+      `✦ Stop Loss Guide: Place your stop loss slightly below pivot low at ₹${stop.toFixed(2)} to avoid stop-hunts.`
+    ];
+
+    if (capital < 10000) {
+      mentorAdvice.push(
+        `✦ Brokerage Alert: With small capital (₹${capital.toLocaleString('en-IN')}), flat brokerage fees (e.g. ₹20/order) will significantly eat into profits. Ensure you use discount brokers or accumulate larger capital for sustainable trading.`
+      );
+    }
 
     positions.push({
       symbol: sig.symbol,
@@ -215,12 +277,7 @@ function simulateAllocation(capital, fallbackSignals) {
       vwap: sig.vwap,
       vol_surge: sig.vol_ratio,
       reasons: sig.reasons,
-      mentor_advice: [
-        `✦ Candlestick Bible: ${candleStr} detected near key moving average support. This indicates strong buy response.`,
-        `✦ Risk Management: Risking ₹${loss} (${((loss / capital) * 100).toFixed(1)}% of capital), respecting the 2% maximum risk rule from your SL Guide.`,
-        `✦ Risk-Reward: R:R ratio is 1:${rr}. Highly favorable reward-to-risk ratio.`,
-        `✦ Stop Loss Guide: Place your stop loss slightly below pivot low at ₹${stop.toFixed(2)} to avoid stop-hunts.`
-      ]
+      mentor_advice: mentorAdvice
     });
     deployed += cost;
   });

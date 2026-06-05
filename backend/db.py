@@ -42,6 +42,23 @@ def init_db():
                 pnl_pct     REAL
             )
         """)
+        
+        # Self-healing migration for existing databases:
+        # Check if columns exist and add them if missing
+        cursor = c.cursor()
+        cursor.execute("PRAGMA table_info(signals_history)")
+        columns = [row[1] for row in cursor.fetchall()]
+        
+        if "rr_ratio" not in columns:
+            try:
+                c.execute("ALTER TABLE signals_history ADD COLUMN rr_ratio REAL NOT NULL DEFAULT 0")
+            except Exception:
+                pass
+        if "atr" not in columns:
+            try:
+                c.execute("ALTER TABLE signals_history ADD COLUMN atr REAL NOT NULL DEFAULT 0")
+            except Exception:
+                pass
         c.commit()
 
 
