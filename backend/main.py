@@ -223,10 +223,21 @@ async def get_signals(
 
     # Run analysis concurrently in thread pool (yfinance is blocking I/O)
     import functools
-    results = await loop.run_in_executor(
-        _executor,
-        functools.partial(sig_engine.run_scan, watchlist),
-    )
+    try:
+        results = await asyncio.wait_for(
+            loop.run_in_executor(
+                _executor,
+                functools.partial(sig_engine.run_scan, watchlist),
+            ),
+            timeout=150
+        )
+    except asyncio.TimeoutError:
+        return {
+            "error": "Scan took too long (backend cold start)",
+            "total": 0,
+            "signals": [],
+            "message": "First scan on free tier takes 2 min. Try again in 30s when backend is warm."
+        }
 
     return {
         "market":      "NSE",
@@ -746,10 +757,20 @@ async def allocate_capital(req: CapitalRequest):
 
     # Convert symbol strings to the dict format sig_engine.run_scan expects
     # (run_scan accepts both plain symbol strings and dicts with 'symbol' key)
-    signals = await loop.run_in_executor(
-        _executor,
-        functools.partial(sig_engine.run_scan, target_symbols),
-    )
+    try:
+        signals = await asyncio.wait_for(
+            loop.run_in_executor(
+                _executor,
+                functools.partial(sig_engine.run_scan, target_symbols),
+            ),
+            timeout=150
+        )
+    except asyncio.TimeoutError:
+        return {
+            "error": "Scan took too long (backend cold start)",
+            "positions": [],
+            "message": "First scan on free tier takes 2 min. Try again in 30s when backend is warm."
+        }
 
     # Normalise signal fields so allocator can read them
     normalised = []
