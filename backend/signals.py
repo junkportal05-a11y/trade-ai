@@ -42,6 +42,9 @@ _YF_SESSION.headers.update({
     "Connection": "keep-alive",
 })
 
+# Cache for Daily Macro Trend data to speed up intraday scanning
+_MACRO_CACHE = {}
+
 
 
 # ── Pure pandas/numpy indicator helpers ───────────────────────────────────────
@@ -196,13 +199,50 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
             auto_adjust=True, progress=False,
             session=_YF_SESSION,
         )
+        # ── Compute Daily Macro Trend (With Caching) ─────────────────────────
+        current_date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        cached_macro = _MACRO_CACHE.get(symbol)
         
-        # Fetch Daily Macro Data for Multi-Timeframe Analysis
-        df_daily = yf.download(
-            symbol, period="3mo", interval="1d",
-            auto_adjust=True, progress=False,
-            session=_YF_SESSION,
-        )
+        macro_bullish = None
+        
+        if cached_macro and cached_macro.get("date") == current_date_str:
+            macro_bullish = cached_macro.get("bullish")
+        else:
+            # Fetch Daily Macro Data for Multi-Timeframe Analysis
+            df_daily = yf.download(
+                symbol, period="3mo", interval="1d",
+                auto_adjust=True, progress=False,
+                session=_YF_SESSION,
+            )
+            
+            if df_daily is not None and len(df_daily) >= 21:
+                if isinstance(df_daily.columns, pd.MultiIndex):
+                    df_daily.columns = df_daily.columns.get_level_values(0)
+                df_daily = df_daily.dropna(subset=["Close"])
+                
+                if not df_daily.empty:
+                    daily_close = df_daily["Close"]
+                    daily_ema21 = daily_close.ewm(span=21, adjust=False).mean()
+                    
+                    # Daily RSI
+                    delta_d = daily_close.diff()
+                    gain_d = delta_d.clip(lower=0).rolling(14).mean()
+                    loss_d = (-delta_d.clip(upper=0)).rolling(14).mean()
+                    rs_d = gain_d / loss_d.replace(0, np.nan)
+                    daily_rsi14 = 100 - (100 / (1 + rs_d))
+                    
+                    macro_ema = daily_ema21.iloc[-1]
+                    macro_close = daily_close.iloc[-1]
+                    macro_rsi = daily_rsi14.iloc[-1]
+                    
+                    # Simple macro trend definition: Price above EMA21 and RSI > 50
+                    macro_bullish = bool((macro_close > macro_ema) and (macro_rsi > 50))
+            
+            # Save result to cache
+            _MACRO_CACHE[symbol] = {
+                "date": current_date_str,
+                "bullish": macro_bullish
+            }
 
         if df is None or len(df) < 20:
             return None
@@ -210,33 +250,10 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
         # Flatten multi-level columns if returned by yfinance
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
-        if df_daily is not None and isinstance(df_daily.columns, pd.MultiIndex):
-            df_daily.columns = df_daily.columns.get_level_values(0)
 
         df = df.dropna(subset=["Close", "High", "Low", "Open", "Volume"])
         if len(df) < 20:
             return None
-            
-        # ── Compute Daily Macro Trend ──────────────────────────────────────
-        macro_bullish = None
-        if df_daily is not None and len(df_daily) >= 21:
-            df_daily = df_daily.dropna(subset=["Close"])
-            daily_close = df_daily["Close"]
-            daily_ema21 = daily_close.ewm(span=21, adjust=False).mean()
-            
-            # Daily RSI
-            delta_d = daily_close.diff()
-            gain_d = delta_d.clip(lower=0).rolling(14).mean()
-            loss_d = (-delta_d.clip(upper=0)).rolling(14).mean()
-            rs_d = gain_d / loss_d.replace(0, np.nan)
-            daily_rsi14 = 100 - (100 / (1 + rs_d))
-            
-            macro_ema = daily_ema21.iloc[-1]
-            macro_close = daily_close.iloc[-1]
-            macro_rsi = daily_rsi14.iloc[-1]
-            
-            # Simple macro trend definition: Price above EMA21 and RSI > 50
-            macro_bullish = (macro_close > macro_ema) and (macro_rsi > 50)
 
         # ── Pure pandas/numpy indicators (no pandas-ta dependency) ────────
         close  = df["Close"]
