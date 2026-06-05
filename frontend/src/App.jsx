@@ -770,7 +770,11 @@ function ChatPanel({ symbol, price, changePct }) {
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg, context: { symbol: symbol.replace('.NS', ''), price, changePct } }),
+        body: JSON.stringify({
+          message: userMsg,
+          context: { symbol: symbol.replace('.NS', ''), price, changePct },
+          history: msgs.map(m => ({ role: m.role, text: m.text }))
+        }),
       });
       if (!res.ok) throw new Error('backend unavailable');
       const data = await res.json();

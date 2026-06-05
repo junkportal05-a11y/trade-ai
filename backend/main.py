@@ -275,9 +275,14 @@ async def get_signal_single(symbol: str):
 
 
 
+class ChatMessage(BaseModel):
+    role: str
+    text: str
+
 class ChatRequest(BaseModel):
     message: str
     context: Optional[dict] = None  # { symbol, price, change_pct, ... }
+    history: Optional[List[ChatMessage]] = None
 
 
 @app.post("/api/chat")
@@ -318,7 +323,16 @@ async def chat(req: ChatRequest):
                 "Never provide direct financial advice — always remind the user that this is for educational purposes. "
                 "Keep responses under 180 words. Use **bold** sparingly for key terms."
             )
-            prompt = f"{system_ctx}\n\nUser: {req.message}\nAssistant:"
+            
+            # Construct chat thread including history
+            formatted_history = ""
+            if req.history:
+                for h in req.history:
+                    role_label = "User" if h.role == "user" else "Assistant"
+                    formatted_history += f"{role_label}: {h.text}\n"
+            
+            prompt = f"{system_ctx}\n\n{formatted_history}User: {req.message}\nAssistant:"
+            
             response = _genai_client.models.generate_content(
                 model="gemini-2.0-flash",
                 contents=prompt,
