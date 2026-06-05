@@ -79,8 +79,7 @@ export function useHistory(symbol, { interval = "1d", range = "3mo", seedPrice =
       } catch (e) {
         if (!cancelled) {
           setError(e.message);
-          // Fallback: generate synthetic OHLCV so the chart still renders
-          setBars(generateFallbackBars(90, seedPrice));
+          // Removed fallback: no synthetic data on fetch error
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -112,36 +111,7 @@ export function useLivePrices(symbols = []) {
     let reconnectTimeout = null;
     let isMounted = true;
 
-    function startFallback() {
-      if (fallbackTimer.current) return; // already running
-      fallbackTimer.current = setInterval(() => {
-        setPrices(prev => {
-          const next = { ...prev };
-          const marketOpen = isNSEMarketOpen();
-          symbols.forEach(sym => {
-            const seedPrice = SEED_PRICES[sym] || 150;
-            const last = (prev[sym]?.price) || seedRef.current[sym] || seedPrice;
-            const newPrice = marketOpen ? simulateTick(last) : last;
-            seedRef.current[sym] = newPrice;
-            
-            // Fix: stable prevClose so changePct fluctuates realistically
-            const prevClose = prev[sym]?.prevClose || seedPrice;
-            const change    = newPrice - prevClose;
-            const changePct = (change / prevClose) * 100;
-            
-            next[sym] = { price: newPrice, prevClose, change, changePct, timestamp: Date.now() };
-          });
-          return next;
-        });
-      }, 1000);
-    }
-
-    function stopFallback() {
-      if (fallbackTimer.current) {
-        clearInterval(fallbackTimer.current);
-        fallbackTimer.current = null;
-      }
-    }
+    // Removed synthetic fallback simulation
 
     function connect() {
       try {
@@ -151,7 +121,6 @@ export function useLivePrices(symbols = []) {
         ws.onopen = () => {
           if (!isMounted) return;
           setConnected(true);
-          stopFallback();
           // Tell backend which symbols we want
           ws.send(JSON.stringify({ action: "subscribe", symbols }));
         };
@@ -183,13 +152,11 @@ export function useLivePrices(symbols = []) {
         ws.onerror = () => {
           if (!isMounted) return;
           setConnected(false);
-          startFallback();
         };
 
         ws.onclose = () => {
           if (!isMounted) return;
           setConnected(false);
-          startFallback();
           // Reconnect after 5 s
           reconnectTimeout = setTimeout(() => {
             if (isMounted) connect();
@@ -197,7 +164,6 @@ export function useLivePrices(symbols = []) {
         };
       } catch (_) {
         setConnected(false);
-        startFallback();
       }
     }
 
@@ -205,7 +171,6 @@ export function useLivePrices(symbols = []) {
 
     return () => {
       isMounted = false;
-      stopFallback();
       clearTimeout(reconnectTimeout);
       if (wsRef.current) {
         wsRef.current.onclose = null; // prevent reconnect loop on unmount
@@ -221,34 +186,7 @@ export function useLivePrices(symbols = []) {
 //  Helpers
 // ══════════════════════════════════════════════════════════════════════════════
 
-function simulateTick(last) {
-  return Math.max(0.01, last * (1 + (Math.random() - 0.5) * 0.002));
-}
-
-function generateFallbackBars(days = 90, startPrice = 150) {
-  const bars = [];
-  let price = startPrice;
-  const now  = Date.now();
-
-  for (let i = days; i >= 0; i--) {
-    const d    = new Date(now - i * 86_400_000);
-    const open = price;
-    const move = (Math.random() - 0.48) * (price * 0.02); // 2% daily moves max
-    const close = Math.max(1, open + move);
-    const high  = Math.max(open, close) + Math.random() * (price * 0.01);
-    const low   = Math.min(open, close) - Math.random() * (price * 0.01);
-    bars.push({
-      time:   d.toISOString().slice(0, 10),
-      open:   +open.toFixed(2),
-      high:   +high.toFixed(2),
-      low:    +low.toFixed(2),
-      close:  +close.toFixed(2),
-      volume: Math.floor(5_000_000 + Math.random() * 20_000_000),
-    });
-    price = close;
-  }
-  return bars;
-}
+// Removed simulateTick and generateFallbackBars
 
 export function isNSEMarketOpen() {
   const now = new Date();
