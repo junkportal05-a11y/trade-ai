@@ -992,7 +992,7 @@ const TABS = ['CHART', 'WATCHLIST', 'SIGNALS', 'PORTFOLIO', 'ORDER', 'AI', 'ACCO
 export default function App() {
   // Security Authentication Gate
   const [loggedIn, setLoggedIn] = useState(() => localStorage.getItem('apex_auth') === 'true');
-  const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('apex_user') || 'apex_trader');
+  const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('apex_user') || 'apex_head_quant');
 
 
   // Warm up backend in the background as soon as the app mounts (during login screen presentation)

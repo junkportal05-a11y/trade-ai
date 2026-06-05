@@ -36,7 +36,7 @@ export default function AccountPanel({ currentUser }) {
   const [auditLogs, setAuditLogs] = useState([]);
   
   const USER_REGISTRY = [
-    { username: 'apex_trader', role: 'Master Quant / Administrator', clearance: 'LEVEL_4_ROOT' },
+    { username: 'apex_head_quant', role: 'Master Quant / Administrator', clearance: 'LEVEL_4_ROOT' },
     { username: 'user1', role: 'Quant Trader Level 1', clearance: 'LEVEL_2_SECURE' },
     { username: 'user2', role: 'Quant Trader Level 2', clearance: 'LEVEL_2_SECURE' },
     { username: 'user3', role: 'Risk Manager', clearance: 'LEVEL_3_ELEVATED' }
