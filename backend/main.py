@@ -813,6 +813,7 @@ async def allocate_capital(req: CapitalRequest):
         })
 
     plan = capital_allocator.allocate(req.capital, normalised)
+    plan["all_signals"] = normalised
     return plan
 
 
@@ -855,5 +856,6 @@ async def allocate_capital_quick(req: CapitalRequest):
         return await allocate_capital(req)
 
     plan = capital_allocator.allocate(req.capital, quick_signals)
+    plan["all_signals"] = quick_signals
     plan["note"] = "Quick allocation using cached prices — run /api/allocate for a full fresh scan."
     return plan

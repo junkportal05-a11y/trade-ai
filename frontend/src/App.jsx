@@ -3,7 +3,6 @@ import { createChart, CandlestickSeries, HistogramSeries, LineSeries } from 'lig
 import { useHistory, useQuote, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
 import SignalsPanel from './SignalsPanel';
 import PerformancePanel from './PerformancePanel';
-import CapitalAllocator from './CapitalAllocator';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -878,15 +877,15 @@ function Header({ symbol, connected, view, onViewChange, isMobile }) {
       {/* View switcher — CHART | SIGNALS | PERFORMANCE (Hidden on Mobile) */}
       {!isMobile && (
         <div style={{ display: 'flex', background: T.bg, borderRadius: 6, padding: 2, border: `1px solid ${T.border}`, flexShrink: 0 }}>
-          {[['CHART', '📈'], ['SIGNALS', '📡'], ['PERFORMANCE', '📊'], ['ALLOCATE', '💰']].map(([v, icon]) => (
+          {[['CHART', '📈'], ['SIGNALS', '📡'], ['PERFORMANCE', '📊']].map(([v, icon]) => (
             <button key={v} onClick={() => onViewChange(v)} style={{
               padding: '4px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
-              background: view === v ? (v === 'SIGNALS' ? T.accentDim : v === 'PERFORMANCE' ? T.greenDim : v === 'ALLOCATE' ? T.goldDim : T.blueDim) : 'transparent',
-              color: view === v ? (v === 'SIGNALS' ? T.accentAlt : v === 'PERFORMANCE' ? T.green : v === 'ALLOCATE' ? T.gold : T.accent) : T.textDim,
+              background: view === v ? (v === 'SIGNALS' ? T.accentDim : v === 'PERFORMANCE' ? T.greenDim : T.blueDim) : 'transparent',
+              color: view === v ? (v === 'SIGNALS' ? T.accentAlt : v === 'PERFORMANCE' ? T.green : T.accent) : T.textDim,
               fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
               fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
-              boxShadow: view === v && v === 'SIGNALS' ? `0 0 10px ${T.accentGlow}` : view === v && v === 'PERFORMANCE' ? `0 0 10px ${T.greenGlow}` : view === v && v === 'ALLOCATE' ? `0 0 10px rgba(245,200,66,0.3)` : 'none',
-            }}>{icon} {v}</button>
+              boxShadow: view === v && v === 'SIGNALS' ? `0 0 10px ${T.accentGlow}` : view === v && v === 'PERFORMANCE' ? `0 0 10px ${T.greenGlow}` : 'none',
+            }}>{icon} {v === 'SIGNALS' ? 'SCAN & ALLOCATE' : v}</button>
           ))}
         </div>
       )}
@@ -945,7 +944,7 @@ function Header({ symbol, connected, view, onViewChange, isMobile }) {
 }
 
 // ── Bottom Tab Bar (mobile-friendly) ─────────────────────────────────────────
-const TABS = ['CHART', 'WATCHLIST', 'PORTFOLIO', 'ORDER', 'AI'];
+const TABS = ['CHART', 'WATCHLIST', 'SIGNALS', 'PORTFOLIO', 'ORDER', 'AI'];
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
@@ -956,7 +955,7 @@ export default function App() {
   
   // Mobile Responsiveness State
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 800);
-  const [mobileTab, setMobileTab] = useState('CHART'); // 'WATCHLIST' | 'CHART' | 'ORDER' | 'PORTFOLIO' | 'AI'
+  const [mobileTab, setMobileTab] = useState('CHART'); // 'WATCHLIST' | 'CHART' | 'SIGNALS' | 'ORDER' | 'PORTFOLIO' | 'AI'
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 800);
@@ -1211,11 +1210,6 @@ export default function App() {
           ) : view === 'PERFORMANCE' ? (
             /* PERFORMANCE VIEW — full width */
             <PerformancePanel />
-          ) : view === 'ALLOCATE' ? (
-            /* ALLOCATE VIEW — full width with scroll */
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', background: T.bg }}>
-              <CapitalAllocator />
-            </div>
           ) : (
             <>
               {isMobile ? (
@@ -1273,6 +1267,12 @@ export default function App() {
                       </div>
                     )}
 
+                    {mobileTab === 'SIGNALS' && (
+                      <div style={{ flex: 1, background: T.surface, overflowY: 'auto' }}>
+                        <SignalsPanel onSelectSymbol={(s) => { setSelected(s); setMobileTab('CHART'); }} selectedSymbol={selected} prices={prices} />
+                      </div>
+                    )}
+
                     {mobileTab === 'ORDER' && (
                       <div style={{ flex: 1, background: T.surface }}>
                         <OrderPanel symbol={selected} price={currentPrice} cash={cash} openOrders={openOrders} onExecuteOrder={handleExecuteOrder} onCancelOrder={handleCancelOrder} />
@@ -1305,7 +1305,7 @@ export default function App() {
                         borderTop: `2px solid ${mobileTab === tab ? (tab === 'AI' ? T.accentAlt : T.accent) : 'transparent'}`,
                         marginTop: -1
                       }}>
-                        {tab === 'AI' ? '✦ AI' : tab}
+                        {tab === 'AI' ? '✦ AI' : tab === 'SIGNALS' ? '📡 SCAN' : tab}
                       </button>
                     ))}
                   </div>

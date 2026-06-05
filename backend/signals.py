@@ -668,6 +668,7 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
             "obv":          round(obv_val, 2),
             "scan_type":    scan_type,
             "reasoning":    reasoning,
+            "reasons":      all_reasons,
             "scanned_at":   datetime.utcnow().isoformat() + "Z",
         }
 

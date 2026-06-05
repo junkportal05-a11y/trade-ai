@@ -105,6 +105,52 @@ def get_target_universe(capital: float) -> list:
         return small + mid + large
 
 
+def generate_mentor_advice(sig: dict, actual_cost: float, pot_loss: float, capital: float, rr: float) -> list:
+    advice = []
+    
+    # 1. Candlestick check from Candlestick Bible
+    candlestick_found = False
+    reasons = sig.get("reasons", [])
+    for r in reasons:
+        if "Hammer" in r:
+            advice.append("✦ Candlestick Bible: Hammer detected! This shows buyers rejected lower prices and took control. Wait for the next candle to break the high for confirmation.")
+            candlestick_found = True
+            break
+        elif "Shooting Star" in r:
+            advice.append("✦ Candlestick Bible: Shooting Star detected! Selling pressure pushes prices down. Keep stop loss tight above the high wick.")
+            candlestick_found = True
+            break
+        elif "Engulfing" in r:
+            advice.append("✦ Candlestick Bible: Engulfing Pattern detected! Shows a powerful shift in momentum. Buy engulfing suggests buyers have overwhelmed sellers completely.")
+            candlestick_found = True
+            break
+        elif "Marubozu" in r:
+            advice.append("✦ Candlestick Bible: Marubozu detected! A full solid body shows extreme buying strength. Momentum is highly likely to continue higher.")
+            candlestick_found = True
+            break
+            
+    if not candlestick_found:
+        advice.append("✦ Candlestick Bible: Look for confirmation patterns (like Engulfing or Hammer candles) near moving average supports before entering.")
+
+    # 2. Risk sizing check from SL Guide
+    risk_pct_of_cap = (pot_loss / capital) * 100 if capital > 0 else 0
+    if risk_pct_of_cap <= 2.0:
+        advice.append(f"✦ Risk Management: Risking ₹{pot_loss:,.1f} ({risk_pct_of_cap:.1f}% of capital). This aligns perfectly with the 1-2% golden risk rule in your SL Guide.")
+    else:
+        advice.append(f"✦ Risk Management: Risking ₹{pot_loss:,.1f} ({risk_pct_of_cap:.1f}% of capital). This exceeds the standard 2% rule. Consider scaling down if account size permits.")
+
+    # 3. R:R check
+    if rr >= 2.0:
+        advice.append(f"✦ Risk-Reward: R:R ratio is 1:{rr:.2f}. This exceeds your guide's target minimum of 1:2. Excellent trade structure!")
+    else:
+        advice.append(f"✦ Risk-Reward: R:R ratio is 1:{rr:.2f}. Below your guide's ideal 1:2 ratio. Tighten your stop loss or aim for higher targets to improve reward ratios.")
+
+    # 4. Stop loss placement advice
+    advice.append(f"✦ Stop Loss Guide: Place your stop loss strictly below support at ₹{sig.get('stop_loss', 0):,.2f}. Avoid placing it exactly on round numbers to prevent market-maker stop-runs.")
+    
+    return advice
+
+
 def allocate(capital: float, signals: list) -> dict:
     """
     Build a high-return allocation plan targeting 10-20% on invested capital.
@@ -274,6 +320,8 @@ def allocate(capital: float, signals: list) -> dict:
                 profit_on_cap = round((pot_profit / capital) * 100, 2)
             # if still can't hit, include anyway — 1 share is better than nothing
 
+        advice = generate_mentor_advice(sig, actual_cost, pot_loss, capital, rr)
+
         positions.append({
             "symbol":            sig.get("symbol", ""),
             "direction":         "BUY",
@@ -296,6 +344,7 @@ def allocate(capital: float, signals: list) -> dict:
             "vwap":              round(sig.get("vwap", 0), 2),
             "vol_surge":         round(sig.get("vol_surge", 1), 2),
             "reasons":           sig.get("reasons", [])[:4],
+            "mentor_advice":     advice,
         })
         deployed += actual_cost
 
