@@ -165,28 +165,61 @@ def get_historical_candles(symbol: str, period_or_range: str, interval: str) -> 
     if not key:
         return None
         
-    # Map interval
-    mapped_int = "5minute" if interval in ("5m", "5minute") else "day"
+    # Map interval to Upstox API format
+    # Upstox supports: 1minute, 5minute, 10minute, 15minute, 30minute, 60minute, day, week, month
+    if interval in ("1m", "1min", "1minute"):
+        mapped_int = "1minute"
+    elif interval in ("5m", "5min", "5minute"):
+        mapped_int = "5minute"
+    elif interval in ("10m", "10min", "10minute"):
+        mapped_int = "10minute"
+    elif interval in ("15m", "15min", "15minute"):
+        mapped_int = "15minute"
+    elif interval in ("30m", "30min", "30minute"):
+        mapped_int = "30minute"
+    elif interval in ("1h", "60m", "60min", "60minute", "1hour"):
+        mapped_int = "60minute"
+    elif interval in ("1d", "day", "1day"):
+        mapped_int = "day"
+    elif interval in ("1wk", "week", "1week", "wk"):
+        mapped_int = "week"
+    elif interval in ("1mo", "month", "1month", "mo"):
+        mapped_int = "month"
+    else:
+        mapped_int = "day"
     
     # Calculate date range
     to_dt = datetime.now(timezone.utc)
     days_back = 5
     
-    if interval in ("1d", "day"):
+    # Check if we are requesting daily or longer interval bars
+    is_daily_or_longer = mapped_int in ("day", "week", "month")
+    
+    if is_daily_or_longer:
         if period_or_range == "1mo":
             days_back = 30
         elif period_or_range == "3mo":
             days_back = 90
+        elif period_or_range == "6mo":
+            days_back = 180
         elif period_or_range == "1y":
             days_back = 365
+        elif period_or_range == "2y":
+            days_back = 365 * 2
+        elif period_or_range == "5y":
+            days_back = 365 * 5
+        elif period_or_range == "max":
+            days_back = 365 * 10
         else:
             days_back = 365 * 2
     else:
-        # Intraday
+        # Intraday (1m, 5m, 15m, 30m, 60m)
         if period_or_range == "1d":
             days_back = 1
         elif period_or_range == "5d":
             days_back = 7
+        elif period_or_range == "1mo":
+            days_back = 30
         else:
             days_back = 10
             
