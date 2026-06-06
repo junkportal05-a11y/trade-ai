@@ -17,12 +17,14 @@ from dotenv import load_dotenv
 import yfinance as yf
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from pydantic import BaseModel
 
 import signals as sig_engine
+import upstox_feed
 import db
 import capital_allocator
 from backtest_routes import backtest_router
@@ -155,6 +157,64 @@ def get_quote(symbol: str = Query(...)):
     if not result:
         raise HTTPException(status_code=404, detail=f"No data for {symbol}")
     return result
+
+
+@app.get("/api/upstox/authorize")
+def upstox_authorize(state: Optional[str] = Query(None)):
+    if not upstox_feed.UPSTOX_API_KEY or not upstox_feed.UPSTOX_REDIRECT_URI:
+        raise HTTPException(
+            status_code=400,
+            detail="Upstox API key or Redirect URI not configured in the environment."
+        )
+    url = upstox_feed.get_login_url(state or "")
+    return RedirectResponse(url)
+
+
+@app.get("/api/upstox/callback")
+def upstox_callback(code: str = Query(...), state: Optional[str] = Query(None)):
+    res = upstox_feed.exchange_code_for_token(code)
+    if not res:
+        raise HTTPException(status_code=400, detail="Failed to exchange authorization code for access token")
+    
+    redirect_target = state or ""
+    if not redirect_target:
+        redirect_uri = upstox_feed.UPSTOX_REDIRECT_URI
+        if "localhost" in redirect_uri:
+            redirect_target = "http://localhost:5173/account"
+        else:
+            redirect_target = "https://trade-ai-beta.vercel.app/account"
+    else:
+        if not redirect_target.endswith("/account"):
+            if redirect_target.endswith("/"):
+                redirect_target += "account"
+            else:
+                redirect_target += "/account"
+                
+    if "?" in redirect_target:
+        redirect_target += "&broker_login=success"
+    else:
+        redirect_target += "?broker_login=success"
+        
+    return RedirectResponse(redirect_target)
+
+
+@app.get("/api/upstox/status")
+def upstox_status():
+    authorized = upstox_feed.is_authorized()
+    status_data = {
+        "authorized": authorized,
+        "api_key_configured": bool(upstox_feed.UPSTOX_API_KEY),
+        "redirect_uri_configured": bool(upstox_feed.UPSTOX_REDIRECT_URI),
+    }
+    if authorized:
+        try:
+            with open(upstox_feed.TOKEN_FILE, "r") as f:
+                data = json.load(f)
+                status_data["updated_at"] = data.get("updated_at")
+                status_data["user_name"] = data.get("user_name")
+        except Exception:
+            pass
+    return status_data
 
 
 @app.get("/api/history")
@@ -506,29 +566,45 @@ async def fetch_live_quotes_loop():
     watchlist_symbols = [w["symbol"] for w in sig_engine.NSE_WATCHLIST]
     
     while True:
-        # Preserve Twelve Data API credits by only crawling when active users are online
-        if sig_engine.TWELVE_DATA_KEY and len(active_connections) == 0:
-            await asyncio.sleep(10)
+        # Preserve API rate limits / credits when no active users are online
+        if len(active_connections) == 0:
+            await asyncio.sleep(5)
             continue
 
+        sleep_time = 10
         try:
             loop = asyncio.get_event_loop()
             
-            if sig_engine.TWELVE_DATA_KEY:
+            if upstox_feed.is_authorized():
+                # Fetch live quotes from Upstox
+                quotes = await loop.run_in_executor(
+                    _crawl_executor,
+                    functools.partial(upstox_feed.get_live_quotes, watchlist_symbols)
+                )
+                if quotes:
+                    for sym in watchlist_symbols:
+                        quote = quotes.get(sym)
+                        if quote:
+                            LIVE_PRICES_CACHE[sym] = {
+                                "price": quote["price"],
+                                "prev_close": quote["prev_close"],
+                                "timestamp": int(time.time() * 1000)
+                            }
+                # Sleep for 1 second for true live ticks when Upstox is active
+                sleep_time = 1
+                
+            elif sig_engine.TWELVE_DATA_KEY:
                 # Twelve Data bulk quote fetch
                 clean_syms = [s.replace(".NS", "").replace(".BO", "") for s in watchlist_symbols]
                 url = f"https://api.twelvedata.com/quote?symbol={','.join(clean_syms)}&exchange=NSE&apikey={sig_engine.TWELVE_DATA_KEY}"
                 
-                # Fetch in executor since requests is blocking
                 r = await loop.run_in_executor(
                     _crawl_executor,
                     functools.partial(requests.get, url, timeout=10)
                 )
                 data = r.json()
                 
-                # Check if bulk dictionary format
                 is_dict = all(sym in data for sym in clean_syms if sym in data)
-                
                 for sym in watchlist_symbols:
                     try:
                         clean = sym.replace(".NS", "").replace(".BO", "")
@@ -549,6 +625,8 @@ async def fetch_live_quotes_loop():
                                 }
                     except Exception:
                         pass
+                sleep_time = 10
+                
             else:
                 # yfinance fallback bulk download
                 df = await loop.run_in_executor(
@@ -586,8 +664,9 @@ async def fetch_live_quotes_loop():
                                     }
                         except Exception:
                             pass
-        except Exception:
-            pass
+                sleep_time = 10
+        except Exception as e:
+            print(f"[fetch_live_quotes_loop] Error: {e}")
             
         # Reconcile pending signals after prices update
         try:
@@ -595,7 +674,7 @@ async def fetch_live_quotes_loop():
         except Exception:
             pass
             
-        await asyncio.sleep(10)
+        await asyncio.sleep(sleep_time)
 
 
 def reconcile_pending_signals():
@@ -804,6 +883,7 @@ async def websocket_prices(
                 pass
 
             market_open = is_nse_market_open()
+            use_upstox = upstox_feed.is_authorized()
             ticks = []
             for sym in watch:
                 cached = LIVE_PRICES_CACHE.get(sym)
@@ -813,12 +893,12 @@ async def websocket_prices(
                 else:
                     baseline_price = local_prices.get(sym, SEED_PRICES.get(sym, 150.0))
 
-                if market_open:
-                    # Stream simulated tick fluctuations around the live baseline price
+                if market_open and not use_upstox:
+                    # Stream simulated tick fluctuations around the live baseline price (fallback only)
                     price = _simulate_tick(baseline_price)
                     local_prices[sym] = price
                 else:
-                    # Gating: Closed market, stream static closing price without visual walk
+                    # Gating: Closed market or Upstox authorized (use true live tick prices)
                     price = baseline_price
                     local_prices[sym] = price
 
