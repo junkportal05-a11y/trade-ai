@@ -150,32 +150,11 @@ def keep_alive():
 
 
 @app.get("/api/quote")
-def get_quote(symbol: str = Query(..., description="Ticker symbol, e.g. AAPL")):
-    """
-    Returns current price, daily change, volume, and metadata for a symbol.
-    """
-    try:
-        q = sig_engine.get_symbol_quote(symbol)
-        if not q or q.get("price") is None:
-            raise HTTPException(status_code=404, detail=f"No price data for {symbol}")
-        
-        return {
-            "symbol": symbol.upper(),
-            "price": round(float(q["price"]), 2),
-            "change": round(float(q["change"]), 2),
-            "change_pct": round(float(q["change_pct"]), 2),
-            "volume": q["volume"],
-            "open": round(float(q["open"]), 2),
-            "high": round(float(q["high"]), 2),
-            "low": round(float(q["low"]), 2),
-            "prev_close": round(float(q["prev_close"]), 2),
-            "name": q["name"],
-            "sector": q["sector"]
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+def get_quote(symbol: str = Query(...)):
+    result = sig_engine.get_symbol_quote(symbol)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"No data for {symbol}")
+    return result
 
 
 @app.get("/api/history")
@@ -199,10 +178,9 @@ def get_history(
         raise HTTPException(status_code=400, detail=f"Invalid range. Choose from: {VALID_RANGES}")
 
     try:
-        df = sig_engine.download_market_data_df(symbol, range, interval)
-
+        df = sig_engine.download_market_data_df(symbol, period=range, interval=interval)
         if df is None or df.empty:
-            raise HTTPException(status_code=404, detail=f"No history data found for {symbol}")
+            raise HTTPException(status_code=404, detail=f"No history for {symbol}")
 
         # Drop NaN values in OHLC columns to prevent JSON serialization crash
         df = df.dropna(subset=["Open", "High", "Low", "Close"])
