@@ -35,12 +35,54 @@ export default function AccountPanel({ currentUser }) {
   const [autoLockEnabled, setAutoLockEnabled] = useState(true);
   const [auditLogs, setAuditLogs] = useState([]);
   
+  const [upstoxStatus, setUpstoxStatus] = useState({
+    authorized: false,
+    api_key_configured: false,
+    redirect_uri_configured: false,
+    updated_at: null,
+    user_name: null
+  });
+  const [loadingStatus, setLoadingStatus] = useState(true);
+  const [showToast, setShowToast] = useState(false);
+
   const USER_REGISTRY = [
     { username: 'apex_head_quant', role: 'Master Quant / Administrator', clearance: 'LEVEL_4_ROOT' },
     { username: 'user1', role: 'Quant Trader Level 1', clearance: 'LEVEL_2_SECURE' },
     { username: 'user2', role: 'Quant Trader Level 2', clearance: 'LEVEL_2_SECURE' },
     { username: 'user3', role: 'Risk Manager', clearance: 'LEVEL_3_ELEVATED' }
   ];
+
+  // Fetch Upstox broker status on mount
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/upstox/status`);
+        if (res.ok) {
+          const data = await res.json();
+          setUpstoxStatus(data);
+        }
+      } catch (e) {
+        console.error("Failed to fetch Upstox status:", e);
+      } finally {
+        setLoadingStatus(false);
+      }
+    };
+    fetchStatus();
+  }, []);
+
+  // Check query parameter for login status
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("broker_login") === "success") {
+      setShowToast(true);
+      // Remove query param without reloading page
+      const newUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, newUrl);
+      
+      const timer = setTimeout(() => setShowToast(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Pre-populate with typical security startup logs
   useEffect(() => {
@@ -164,6 +206,111 @@ export default function AccountPanel({ currentUser }) {
                 <span style={{ color: T.text, fontWeight: 600, ...mono }}>{loginTime} IST</span>
               </div>
             </div>
+          </div>
+
+          {/* Upstox Card */}
+          <div style={{
+            background: T.panel,
+            border: `1px solid ${T.border}`,
+            borderRadius: 12,
+            padding: 24,
+            boxShadow: '0 8px 30px rgba(0,0,0,0.2)'
+          }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, ...mono }}>📈 UPSTOX BROKER INTEGRATION</h3>
+            
+            {loadingStatus ? (
+              <div style={{ fontSize: 11, color: T.textMid, ...mono }}>Checking broker connectivity...</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: T.panelAlt,
+                  border: `1px solid ${T.border}`,
+                  padding: '12px 16px',
+                  borderRadius: 8
+                }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: T.textMid }}>Broker Connection Status</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: upstoxStatus.authorized ? T.green : T.red, marginTop: 2 }}>
+                      {upstoxStatus.authorized ? "CONNECTED" : "DISCONNECTED"}
+                    </div>
+                  </div>
+                  <div style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: upstoxStatus.authorized ? T.green : T.red,
+                    boxShadow: upstoxStatus.authorized ? `0 0 10px ${T.green}` : `0 0 10px ${T.red}`
+                  }} />
+                </div>
+
+                <div style={{ fontSize: 11, color: T.textMid, lineHeight: 1.4 }}>
+                  {upstoxStatus.authorized ? (
+                    <div>
+                      Your session is authorized for live tick quotes and faster scanning. Upstox tokens expire daily.
+                    </div>
+                  ) : (
+                    <div>
+                      Demat authorization is required to access live NSE ticks and speed up strategy scans to &lt; 10s.
+                    </div>
+                  )}
+                </div>
+
+                {upstoxStatus.authorized && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: T.panelAlt, padding: 12, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 11 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: T.textMid }}>User ID</span>
+                      <span style={{ color: '#fff', fontWeight: 600, ...mono }}>{upstoxStatus.user_name || "Active Session"}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: T.textMid }}>Last Authorized</span>
+                      <span style={{ color: '#fff', fontWeight: 600, ...mono }}>
+                        {upstoxStatus.updated_at ? new Date(upstoxStatus.updated_at * 1000).toLocaleString('en-IN', { hour12: true }) : "N/A"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => {
+                    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+                    const state = window.location.origin;
+                    window.location.href = `${baseUrl}/api/upstox/authorize?state=${state}`;
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    background: upstoxStatus.authorized ? 'rgba(77, 166, 255, 0.08)' : T.accent,
+                    border: upstoxStatus.authorized ? `1px solid ${T.blue}40` : 'none',
+                    borderRadius: 8,
+                    color: upstoxStatus.authorized ? T.blue : '#fff',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    ...mono
+                  }}
+                  onMouseEnter={e => {
+                    if (upstoxStatus.authorized) {
+                      e.currentTarget.style.background = 'rgba(77, 166, 255, 0.15)';
+                    } else {
+                      e.currentTarget.style.background = '#6c5ce7';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (upstoxStatus.authorized) {
+                      e.currentTarget.style.background = 'rgba(77, 166, 255, 0.08)';
+                    } else {
+                      e.currentTarget.style.background = T.accent;
+                    }
+                  }}
+                >
+                  {upstoxStatus.authorized ? "✓ RE-AUTHORIZE BROKER" : "🔌 AUTHORIZE BROKER"}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Security Controls */}
@@ -343,6 +490,30 @@ export default function AccountPanel({ currentUser }) {
           </div>
         </div>
       </div>
+      {showToast && (
+        <div style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          background: T.greenDim,
+          border: `1px solid ${T.green}`,
+          borderRadius: 8,
+          padding: '16px 20px',
+          color: '#fff',
+          boxShadow: `0 8px 30px ${T.greenGlow}`,
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          animation: 'slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}>
+          <span style={{ fontSize: 18 }}>✓</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: T.green }}>Upstox Connected</div>
+            <div style={{ fontSize: 11, color: T.textMid }}>Your terminal is now receiving real NSE ticks.</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
