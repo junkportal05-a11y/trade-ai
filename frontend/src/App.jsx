@@ -778,6 +778,12 @@ function ChatPanel({ symbol, price, changePct }) {
           history: msgs.map(m => ({ role: m.role, text: m.text }))
         }),
       });
+      if (res.status === 401) {
+        sessionStorage.removeItem('apt_token');
+        localStorage.removeItem('apex_user');
+        window.location.reload();
+        return;
+      }
       if (!res.ok) throw new Error('backend unavailable');
       const data = await res.json();
       setAiSource(data.source);
