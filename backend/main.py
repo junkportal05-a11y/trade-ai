@@ -132,7 +132,7 @@ def keep_alive():
     now_utc = datetime.now(timezone.utc)
     now_ist = now_utc + timedelta(hours=5, minutes=30)
     
-    market_open = is_nse_market_open()
+    market_open = sig_engine.is_nse_market_open()
     
     return {
         "status": "active",
@@ -155,38 +155,22 @@ def get_quote(symbol: str = Query(..., description="Ticker symbol, e.g. AAPL")):
     Returns current price, daily change, volume, and metadata for a symbol.
     """
     try:
-        ticker = yf.Ticker(symbol.upper())
-        info = ticker.info
-
-        # yfinance key names vary; fall back gracefully
-        price = (
-            info.get("currentPrice")
-            or info.get("regularMarketPrice")
-            or info.get("ask")
-            or info.get("bid")
-        )
-        if price is None:
+        q = sig_engine.get_symbol_quote(symbol)
+        if not q or q.get("price") is None:
             raise HTTPException(status_code=404, detail=f"No price data for {symbol}")
-
-        prev_close = info.get("previousClose") or info.get("regularMarketPreviousClose", price)
-        change = price - prev_close
-        change_pct = (change / prev_close) * 100 if prev_close else 0.0
-
+        
         return {
             "symbol": symbol.upper(),
-            "name": info.get("shortName", symbol.upper()),
-            "price": round(price, 4),
-            "change": round(change, 4),
-            "change_pct": round(change_pct, 4),
-            "volume": info.get("regularMarketVolume", 0),
-            "market_cap": info.get("marketCap"),
-            "day_high": info.get("dayHigh") or info.get("regularMarketDayHigh"),
-            "day_low": info.get("dayLow") or info.get("regularMarketDayLow"),
-            "fifty_two_week_high": info.get("fiftyTwoWeekHigh"),
-            "fifty_two_week_low": info.get("fiftyTwoWeekLow"),
-            "currency": info.get("currency", "USD"),
-            "exchange": info.get("exchange", ""),
-            "fetched_at": datetime.utcnow().isoformat(),
+            "price": round(float(q["price"]), 2),
+            "change": round(float(q["change"]), 2),
+            "change_pct": round(float(q["change_pct"]), 2),
+            "volume": q["volume"],
+            "open": round(float(q["open"]), 2),
+            "high": round(float(q["high"]), 2),
+            "low": round(float(q["low"]), 2),
+            "prev_close": round(float(q["prev_close"]), 2),
+            "name": q["name"],
+            "sector": q["sector"]
         }
     except HTTPException:
         raise
@@ -215,10 +199,9 @@ def get_history(
         raise HTTPException(status_code=400, detail=f"Invalid range. Choose from: {VALID_RANGES}")
 
     try:
-        ticker = yf.Ticker(symbol.upper())
-        df = ticker.history(period=range, interval=interval, auto_adjust=True)
+        df = sig_engine.download_market_data_df(symbol, range, interval)
 
-        if df.empty:
+        if df is None or df.empty:
             raise HTTPException(status_code=404, detail=f"No history data found for {symbol}")
 
         # Drop NaN values in OHLC columns to prevent JSON serialization crash
@@ -537,53 +520,94 @@ _crawl_executor = ThreadPoolExecutor(max_workers=5)
 async def fetch_live_quotes_loop():
     """
     Background crawler task that runs every 10 seconds to fetch the latest
-    quotes for all watchlisted NSE stocks in a thread pool and updates LIVE_PRICES_CACHE.
+    quotes for all watchlisted NSE stocks and updates LIVE_PRICES_CACHE.
     """
     import functools
+    import requests
     import pandas as pd
     watchlist_symbols = [w["symbol"] for w in sig_engine.NSE_WATCHLIST]
     
     while True:
+        # Preserve Twelve Data API credits by only crawling when active users are online
+        if sig_engine.TWELVE_DATA_KEY and len(active_connections) == 0:
+            await asyncio.sleep(10)
+            continue
+
         try:
             loop = asyncio.get_event_loop()
             
-            # Fetch all symbols at once (bulk download is extremely fast)
-            df = await loop.run_in_executor(
-                _crawl_executor,
-                functools.partial(
-                    yf.download, 
-                    tickers=" ".join(watchlist_symbols), 
-                    period="1d", 
-                    interval="1m", 
-                    auto_adjust=True, 
-                    progress=False
+            if sig_engine.TWELVE_DATA_KEY:
+                # Twelve Data bulk quote fetch
+                clean_syms = [s.replace(".NS", "").replace(".BO", "") for s in watchlist_symbols]
+                url = f"https://api.twelvedata.com/quote?symbol={','.join(clean_syms)}&exchange=NSE&apikey={sig_engine.TWELVE_DATA_KEY}"
+                
+                # Fetch in executor since requests is blocking
+                r = await loop.run_in_executor(
+                    _crawl_executor,
+                    functools.partial(requests.get, url, timeout=10)
                 )
-            )
-            
-            if df is not None and not df.empty:
-                is_multi = isinstance(df.columns, pd.MultiIndex)
+                data = r.json()
+                
+                # Check if bulk dictionary format
+                is_dict = all(sym in data for sym in clean_syms if sym in data)
+                
                 for sym in watchlist_symbols:
                     try:
-                        if is_multi:
-                            close_col = ('Close', sym)
-                            open_col  = ('Open', sym)
-                        else:
-                            close_col = 'Close'
-                            open_col  = 'Open'
+                        clean = sym.replace(".NS", "").replace(".BO", "")
+                        sym_data = None
+                        if is_dict:
+                            sym_data = data.get(clean)
+                        elif len(watchlist_symbols) == 1:
+                            sym_data = data
                             
-                        if (is_multi and close_col in df.columns) or (not is_multi and close_col in df.columns):
-                            prices_series = df[close_col].dropna()
-                            if not prices_series.empty:
-                                last_price = float(prices_series.iloc[-1])
-                                # Fallback prev_close is the first price (open of the day)
-                                first_price = float(df[open_col].dropna().iloc[0]) if open_col in df.columns else last_price
+                        if sym_data and sym_data.get("status") != "error":
+                            price = float(sym_data.get("price") or 0.0)
+                            prev_close = float(sym_data.get("previous_close") or price)
+                            if price > 0:
                                 LIVE_PRICES_CACHE[sym] = {
-                                    "price": last_price,
-                                    "prev_close": first_price,
+                                    "price": price,
+                                    "prev_close": prev_close,
                                     "timestamp": int(time.time() * 1000)
                                 }
                     except Exception:
                         pass
+            else:
+                # yfinance fallback bulk download
+                df = await loop.run_in_executor(
+                    _crawl_executor,
+                    functools.partial(
+                        yf.download, 
+                        tickers=" ".join(watchlist_symbols), 
+                        period="1d", 
+                        interval="1m", 
+                        auto_adjust=True, 
+                        progress=False
+                    )
+                )
+                
+                if df is not None and not df.empty:
+                    is_multi = isinstance(df.columns, pd.MultiIndex)
+                    for sym in watchlist_symbols:
+                        try:
+                            if is_multi:
+                                close_col = ('Close', sym)
+                                open_col  = ('Open', sym)
+                            else:
+                                close_col = 'Close'
+                                open_col  = 'Open'
+                                
+                            if (is_multi and close_col in df.columns) or (not is_multi and close_col in df.columns):
+                                prices_series = df[close_col].dropna()
+                                if not prices_series.empty:
+                                    last_price = float(prices_series.iloc[-1])
+                                    first_price = float(df[open_col].dropna().iloc[0]) if open_col in df.columns else last_price
+                                    LIVE_PRICES_CACHE[sym] = {
+                                        "price": last_price,
+                                        "prev_close": first_price,
+                                        "timestamp": int(time.time() * 1000)
+                                    }
+                        except Exception:
+                            pass
         except Exception:
             pass
             
