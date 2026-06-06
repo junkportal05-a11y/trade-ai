@@ -92,7 +92,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice }) {
   const candleSeriesRef = useRef();
   const volSeriesRef = useRef();
   
-  const { bars, loading } = useHistory(symbol, { interval, range, seedPrice: SEED_PRICES[symbol] });
+  const { bars, loading, error } = useHistory(symbol, { interval, range, seedPrice: SEED_PRICES[symbol] });
 
   useEffect(() => {
     if (loading || !bars.length) return;
@@ -383,6 +383,23 @@ function CandleChart({ symbol, interval, range, indicators, livePrice }) {
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,12,16,0.7)', zIndex: 2, gap: 10, color: T.textMid, fontSize: 13, letterSpacing: '0.05em' }}>
           <span style={{ display: 'inline-block', width: 14, height: 14, border: `2px solid ${T.border}`, borderTopColor: T.accent, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
           LOADING MARKET DATA
+        </div>
+      )}
+
+      {!loading && error && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,12,16,0.9)', zIndex: 2, gap: 12, color: T.red, fontSize: 13, letterSpacing: '0.05em', padding: 20, textAlign: 'center' }}>
+          <span style={{ fontSize: 24 }}>⚠️</span>
+          <div style={{ fontWeight: 600 }}>ERROR LOADING MARKET DATA: {error}</div>
+          <div style={{ fontSize: 11, color: T.textDim, marginTop: 4, maxWidth: 300, lineHeight: 1.4 }}>
+            Yahoo Finance fallback failed. Please go to the <strong>ACCOUNT</strong> panel to authorize <strong>Upstox Broker</strong> for live data.
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && !bars.length && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,12,16,0.9)', zIndex: 2, gap: 12, color: T.textMid, fontSize: 13, letterSpacing: '0.05em' }}>
+          <span style={{ fontSize: 24 }}>📭</span>
+          <div style={{ fontWeight: 600 }}>NO HISTORICAL DATA FOUND FOR {symbol}</div>
         </div>
       )}
       
