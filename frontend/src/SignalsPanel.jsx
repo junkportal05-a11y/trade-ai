@@ -672,6 +672,12 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices })
         body: JSON.stringify({ capital: amt }),
         signal: abortRef.current.signal,
       });
+      if (res.status === 401) {
+        sessionStorage.removeItem('apt_token');
+        localStorage.removeItem('apex_user');
+        window.location.reload();
+        return;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       

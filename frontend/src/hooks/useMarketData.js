@@ -155,9 +155,18 @@ export function useLivePrices(symbols = []) {
           setConnected(false);
         };
 
-        ws.onclose = () => {
+        ws.onclose = (event) => {
           if (!isMounted) return;
           setConnected(false);
+
+          if (event.code === 4001) {
+            console.warn("[WebSocket] Connection closed with code 4001: Session unauthorized/expired.");
+            sessionStorage.removeItem('apt_token');
+            localStorage.removeItem('apex_user');
+            window.location.reload();
+            return;
+          }
+
           // Reconnect after 5 s
           reconnectTimeout = setTimeout(() => {
             if (isMounted) connect();
