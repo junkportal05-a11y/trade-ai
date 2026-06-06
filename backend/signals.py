@@ -26,6 +26,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timezone, timedelta
 from typing import Optional
+import upstox_feed
 
 # ── API Config ────────────────────────────────────────────────────────────────
 TWELVE_DATA_KEY = os.getenv("TWELVE_DATA_KEY", "")
@@ -178,8 +179,9 @@ def populate_batch_cache(symbols: list, interval: str, outputsize: int = 390):
     results = batch_download(symbols, interval, outputsize)
     now = time.time()
     for sym_key, df in results.items():
-        _BATCH_CANDLE_CACHE[sym_key] = df
-        _CACHE_TIMESTAMP[sym_key]    = now
+        cache_key = f"{sym_key}_{interval}"
+        _BATCH_CANDLE_CACHE[cache_key] = df
+        _CACHE_TIMESTAMP[cache_key]    = now
     print(f"[TwelveData] Cached {len(results)}/{len(symbols)} symbols successfully")
 
 
@@ -195,23 +197,36 @@ def download_market_data_df(
     """
     Fetch OHLCV DataFrame for a symbol.
     Priority:
-      1. Check batch cache (populated by populate_batch_cache)
-      2. Twelve Data individual call (if API key set)
-      3. yfinance fallback
+      1. Check batch cache (populated by populate_batch_cache or individual fetch)
+      2. Upstox API v2 call (if authorized)
+      3. Twelve Data individual call (if API key set)
+      4. yfinance fallback
     """
     twelve_sym  = _to_twelve(symbol)
-    td_interval = map_interval(interval)
+    cache_key = f"{twelve_sym}_{interval}"
 
     # ── 1. Check batch cache ───────────────────────────────────────────────
-    cached = _BATCH_CANDLE_CACHE.get(twelve_sym)
+    cached = _BATCH_CANDLE_CACHE.get(cache_key)
     if cached is not None:
-        age = time.time() - _CACHE_TIMESTAMP.get(twelve_sym, 0)
+        age = time.time() - _CACHE_TIMESTAMP.get(cache_key, 0)
         if age < CACHE_TTL:
             return cached
 
-    # ── 2. Twelve Data individual call ────────────────────────────────────
+    # ── 2. Upstox API v2 call (if authorized) ──────────────────────────────
+    if upstox_feed.is_authorized():
+        try:
+            df = upstox_feed.get_historical_candles(symbol, period, interval)
+            if df is not None and not df.empty:
+                _BATCH_CANDLE_CACHE[cache_key] = df
+                _CACHE_TIMESTAMP[cache_key]    = time.time()
+                return df
+        except Exception as e:
+            print(f"[Upstox Candles] Fetch failed for {symbol}: {e}")
+
+    # ── 3. Twelve Data individual call ────────────────────────────────────
     if TWELVE_DATA_KEY:
         try:
+            td_interval = map_interval(interval)
             outputsize = period_to_outputsize(period, td_interval)
             r = httpx.get(
                 f"{TWELVE_BASE}/time_series",
@@ -227,13 +242,13 @@ def download_market_data_df(
             r.raise_for_status()
             df = parse_twelve_data_candles(r.json())
             if df is not None and not df.empty:
-                _BATCH_CANDLE_CACHE[twelve_sym] = df
-                _CACHE_TIMESTAMP[twelve_sym]    = time.time()
+                _BATCH_CANDLE_CACHE[cache_key] = df
+                _CACHE_TIMESTAMP[cache_key]    = time.time()
                 return df
         except Exception as e:
             print(f"[TwelveData] Individual fetch failed for {symbol}: {e}")
 
-    # ── 3. yfinance fallback ───────────────────────────────────────────────
+    # ── 4. yfinance fallback ───────────────────────────────────────────────
     print(f"[yfinance fallback] Fetching {symbol}")
     try:
         import yfinance as yf
@@ -255,6 +270,8 @@ def download_market_data_df(
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
             df.dropna(inplace=True)
+            _BATCH_CANDLE_CACHE[cache_key] = df
+            _CACHE_TIMESTAMP[cache_key]    = time.time()
             return df
     except Exception as e:
         print(f"[yfinance] Fallback failed for {symbol}: {e}")
@@ -271,6 +288,15 @@ def get_symbol_quote(symbol: str) -> Optional[dict]:
     Get current price + change for a symbol.
     Returns: { price, change, change_pct, volume, name }
     """
+    # ── Upstox Quote ───────────────────────────────────────────────────────
+    if upstox_feed.is_authorized():
+        try:
+            quotes = upstox_feed.get_live_quotes([symbol])
+            if quotes and symbol in quotes:
+                return quotes[symbol]
+        except Exception as e:
+            print(f"[Upstox quote] Failed for {symbol}: {e}")
+
     twelve_sym = _to_twelve(symbol)
 
     # ── Twelve Data quote ──────────────────────────────────────────────────
