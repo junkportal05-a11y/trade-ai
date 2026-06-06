@@ -19,6 +19,7 @@ Supports Market Hours Gating:
   • Market Closed: Overnight scanning using daily (1d) interval bars.
 """
 
+import os
 import math
 from datetime import datetime, date, timezone, timedelta
 from typing import Optional
@@ -44,6 +45,171 @@ _YF_SESSION.headers.update({
 
 # Cache for Daily Macro Trend data to speed up intraday scanning
 _MACRO_CACHE = {}
+
+TWELVE_DATA_KEY = os.getenv("TWELVE_DATA_KEY", "")
+_BATCH_CANDLE_CACHE = {}
+
+def map_interval_to_twelve_data(interval: str) -> str:
+    mapping = {
+        "1m": "1min",
+        "2m": "2min",
+        "5m": "5min",
+        "15m": "15min",
+        "30m": "30min",
+        "60m": "1h",
+        "90m": "1h",
+        "1h": "1h",
+        "1d": "1day",
+        "5d": "1day",
+        "1wk": "1week",
+        "1mo": "1month"
+    }
+    return mapping.get(interval, interval)
+
+def parse_twelve_data_candles(symbol_data: dict) -> Optional[pd.DataFrame]:
+    if symbol_data.get("status") != "ok" or "values" not in symbol_data:
+        return None
+    rows = symbol_data["values"]
+    if not rows:
+        return None
+    df = pd.DataFrame(rows)
+    df.rename(columns={
+        "datetime": "Date",
+        "open": "Open",
+        "high": "High",
+        "low": "Low",
+        "close": "Close",
+        "volume": "Volume"
+    }, inplace=True)
+    df = df.astype({
+        "Open": float,
+        "High": float,
+        "Low": float,
+        "Close": float,
+        "Volume": float
+    })
+    df["Date"] = pd.to_datetime(df["Date"])
+    df.set_index("Date", inplace=True)
+    df.sort_index(inplace=True)
+    return df
+
+def download_market_data_df(symbol: str, period: str, interval: str) -> Optional[pd.DataFrame]:
+    # 1. Check batch cache
+    cache_key = (symbol.upper(), interval)
+    if cache_key in _BATCH_CANDLE_CACHE:
+        df = _BATCH_CANDLE_CACHE[cache_key]
+        if df is not None and not df.empty:
+            return df
+
+    # 2. Try Twelve Data if API Key is configured
+    if TWELVE_DATA_KEY:
+        try:
+            clean = symbol.replace(".NS", "").replace(".BO", "")
+            td_interval = map_interval_to_twelve_data(interval)
+            
+            outputsize_map = {
+                "1d": 500 if interval == "1m" else 100,
+                "5d": 500,
+                "1mo": 35 if interval == "1d" else 1500,
+                "3mo": 100 if interval == "1d" else 4000,
+                "6mo": 200,
+                "1y": 300,
+                "2y": 600,
+                "5y": 1500,
+                "max": 5000
+            }
+            outputsize = outputsize_map.get(period, 100)
+            
+            url = (
+                f"https://api.twelvedata.com/time_series"
+                f"?symbol={clean}&interval={td_interval}&exchange=NSE"
+                f"&outputsize={outputsize}&apikey={TWELVE_DATA_KEY}"
+            )
+            r = requests.get(url, timeout=10)
+            data = r.json()
+            df = parse_twelve_data_candles(data)
+            if df is not None and not df.empty:
+                return df
+        except Exception as e:
+            print(f"[Twelve Data API] Error fetching {symbol} ({interval}): {e}")
+
+    # 3. Fallback to yfinance
+    try:
+        df = yf.download(
+            symbol, period=period, interval=interval,
+            auto_adjust=True, progress=False,
+            session=_YF_SESSION,
+        )
+        if df is not None and not df.empty:
+            # Flatten multi-level columns if returned by yfinance
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            return df
+    except Exception as e:
+        print(f"[yfinance Fallback] Error downloading {symbol} ({interval}): {e}")
+    return None
+
+def get_symbol_quote(symbol: str) -> Optional[dict]:
+    # 1. Try Twelve Data
+    if TWELVE_DATA_KEY:
+        try:
+            clean = symbol.replace(".NS", "").replace(".BO", "")
+            url = f"https://api.twelvedata.com/quote?symbol={clean}&exchange=NSE&apikey={TWELVE_DATA_KEY}"
+            r = requests.get(url, timeout=10)
+            data = r.json()
+            if data.get("status") == "ok" or "price" in data:
+                price = float(data.get("price") or 0.0)
+                change = float(data.get("change") or 0.0)
+                change_pct = float(data.get("percent_change") or 0.0)
+                volume = int(float(data.get("volume") or 0.0))
+                high = float(data.get("high") or 0.0)
+                low = float(data.get("low") or 0.0)
+                open_val = float(data.get("open") or 0.0)
+                prev_close = float(data.get("previous_close") or 0.0)
+                return {
+                    "price": price,
+                    "change": change,
+                    "change_pct": change_pct,
+                    "volume": volume,
+                    "open": open_val,
+                    "high": high,
+                    "low": low,
+                    "prev_close": prev_close,
+                    "name": data.get("name", symbol),
+                    "sector": "NSE Stock"
+                }
+        except Exception as e:
+            print(f"[Twelve Data Quote] Error fetching quote for {symbol}: {e}")
+
+    # 2. Fallback to yfinance
+    try:
+        ticker = yf.Ticker(symbol.upper())
+        info = ticker.info
+        price = (
+            info.get("currentPrice")
+            or info.get("regularMarketPrice")
+            or info.get("ask")
+            or info.get("bid")
+            or 0.0
+        )
+        prev_close = info.get("regularMarketPreviousClose") or info.get("previousClose") or price
+        change = price - prev_close
+        change_pct = (change / prev_close) * 100 if prev_close else 0.0
+        return {
+            "price": price,
+            "change": change,
+            "change_pct": change_pct,
+            "volume": info.get("volume") or info.get("regularMarketVolume") or 0,
+            "open": info.get("open") or info.get("regularMarketOpen") or price,
+            "high": info.get("dayHigh") or info.get("regularMarketDayHigh") or price,
+            "low": info.get("dayLow") or info.get("regularMarketDayLow") or price,
+            "prev_close": prev_close,
+            "name": info.get("longName") or info.get("shortName") or symbol,
+            "sector": info.get("sector", "NSE Stock")
+        }
+    except Exception as e:
+        print(f"[yfinance Quote Fallback] Error fetching quote for {symbol}: {e}")
+    return None
 
 
 
@@ -174,29 +340,7 @@ def is_nse_market_open() -> bool:
 
 
 def _download_market_data(symbol: str, period: str, interval: str) -> Optional[pd.DataFrame]:
-    """
-    Downloads market data with fallback handling.
-    This serves as the primary data abstraction layer.
-    
-    To migrate to a dedicated broker API (like Zerodha Kite Connect, Dhan, Upstox, or TrueData):
-    1. Initialize the broker client session (e.g. kite = KiteConnect(api_key=...)).
-    2. Replace the yfinance logic below with your broker API historical data call:
-       e.g., records = kite.historical_data(instrument_token, from_date, to_date, interval)
-       df = pd.DataFrame(records)
-    3. Ensure standard columns ['Open', 'High', 'Low', 'Close', 'Volume'] are returned
-       with a datetime index.
-    """
-    try:
-        df = yf.download(
-            symbol, period=period, interval=interval,
-            auto_adjust=True, progress=False,
-            session=_YF_SESSION,
-        )
-        if df is not None and not df.empty:
-            return df
-    except Exception as e:
-        print(f"[Data Abstraction] Error downloading {symbol} ({interval}): {e}")
-    return None
+    return download_market_data_df(symbol, period, interval)
 
 
 # ── Core Signal Calculation ───────────────────────────────────────────────────
@@ -720,6 +864,77 @@ def run_scan(symbols: Optional[list] = None) -> list:
     from concurrent.futures import ThreadPoolExecutor
     watchlist = symbols or NSE_WATCHLIST
     results = []
+
+    # 1. Warm up Batch Cache if Twelve Data is configured
+    global _BATCH_CANDLE_CACHE
+    _BATCH_CANDLE_CACHE.clear()
+
+    if TWELVE_DATA_KEY and len(watchlist) > 0:
+        try:
+            market_open = is_nse_market_open()
+            scan_interval = "5m" if market_open else "1d"
+            scan_period = "5d" if market_open else "3mo"
+            
+            clean_symbols = [item["symbol"].replace(".NS", "").replace(".BO", "") for item in watchlist]
+            symbols_str = ",".join(clean_symbols)
+            
+            td_scan_interval = map_interval_to_twelve_data(scan_interval)
+            outputsize_scan = 500 if scan_interval == "5m" else 100
+            
+            scan_url = (
+                f"https://api.twelvedata.com/time_series"
+                f"?symbol={symbols_str}&interval={td_scan_interval}&exchange=NSE"
+                f"&outputsize={outputsize_scan}&apikey={TWELVE_DATA_KEY}"
+            )
+            r_scan = requests.get(scan_url, timeout=15)
+            data_scan = r_scan.json()
+            
+            # Check if Twelve Data returned a multi-symbol dict response
+            is_dict_response = all(sym in data_scan for sym in clean_symbols if sym in data_scan)
+            
+            # Fetch macro daily trend data (1d interval, 3mo period) in bulk if market is open
+            data_macro = {}
+            if market_open:
+                macro_url = (
+                    f"https://api.twelvedata.com/time_series"
+                    f"?symbol={symbols_str}&interval=1day&exchange=NSE"
+                    f"&outputsize=100&apikey={TWELVE_DATA_KEY}"
+                )
+                r_macro = requests.get(macro_url, timeout=15)
+                data_macro = r_macro.json()
+            
+            # Populate Batch Cache
+            for item in watchlist:
+                sym = item["symbol"]
+                clean = sym.replace(".NS", "").replace(".BO", "")
+                
+                # Scan timeframe
+                sym_data_scan = None
+                if is_dict_response:
+                    sym_data_scan = data_scan.get(clean)
+                elif len(watchlist) == 1:
+                    sym_data_scan = data_scan
+                    
+                if sym_data_scan:
+                    df_scan = parse_twelve_data_candles(sym_data_scan)
+                    if df_scan is not None and not df_scan.empty:
+                        _BATCH_CANDLE_CACHE[(sym.upper(), scan_interval)] = df_scan
+                        
+                # Macro daily timeframe
+                if market_open:
+                    sym_data_macro = None
+                    if isinstance(data_macro, dict) and clean in data_macro:
+                        sym_data_macro = data_macro.get(clean)
+                    elif len(watchlist) == 1:
+                        sym_data_macro = data_macro
+                        
+                    if sym_data_macro:
+                        df_macro = parse_twelve_data_candles(sym_data_macro)
+                        if df_macro is not None and not df_macro.empty:
+                            _BATCH_CANDLE_CACHE[(sym.upper(), "1d")] = df_macro
+            print(f"[Twelve Data Batch Cache] Successfully cached {len(_BATCH_CANDLE_CACHE)} datasets.")
+        except Exception as e:
+            print(f"[Twelve Data Batch Cache] Failed to warm up batch cache: {e}")
 
     def worker(item):
         return analyse_symbol(item["symbol"], item["name"], item["sector"])

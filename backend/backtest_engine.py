@@ -6,10 +6,10 @@ Downloads daily data, computes quant signals, and runs a chronological trade sim
 
 import math
 from datetime import datetime, timezone
-import yfinance as yf
 import pandas as pd
 import numpy as np
 import requests
+from signals import download_market_data_df
 
 # Set up browser session for yfinance
 _YF_SESSION = requests.Session()
@@ -35,12 +35,8 @@ def run_historical_backtest(
     Runs a historical strategy backtest on Daily (1D) bars with configurable risk/target and early exit thresholds.
     """
     try:
-        # Download daily data
-        df = yf.download(
-            symbol, period=period_range, interval="1d",
-            auto_adjust=True, progress=False,
-            session=_YF_SESSION
-        )
+        # Download daily data via unified abstraction layer
+        df = download_market_data_df(symbol, period_range, "1d")
         
         if df is None or len(df) < 30:
             return {"error": f"Insufficient historical data fetched for {symbol}."}
