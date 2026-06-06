@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
-const BASE = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
+const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const T = {
   bg:         '#080a0f',
@@ -378,6 +378,21 @@ function ScanProgress({ elapsed }) {
           <span>{Math.floor(pct)}%</span>
         </div>
       </div>
+      {elapsed > 5 && (
+        <div style={{
+          fontSize: 10,
+          color: '#ffd700',
+          background: 'rgba(255, 215, 0, 0.08)',
+          border: '1px solid rgba(255, 215, 0, 0.25)',
+          borderRadius: 8,
+          padding: '8px 12px',
+          lineHeight: 1.4,
+          fontFamily: "'IBM Plex Mono', monospace",
+          animation: 'shimmer 2s infinite ease-in-out'
+        }}>
+          💡 Cloud server cold-start detected. Waking up server threads on Render. This can take up to 45 seconds on the free tier. Please stand by...
+        </div>
+      )}
     </div>
   );
 }

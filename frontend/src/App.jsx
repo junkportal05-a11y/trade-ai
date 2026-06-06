@@ -765,7 +765,7 @@ function ChatPanel({ symbol, price, changePct }) {
     setMsgs(m => [...m, { role: 'user', text: userMsg }]);
     setBusy(true);
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
+      const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: {
@@ -1000,7 +1000,7 @@ export default function App() {
 
   // Warm up backend in the background as soon as the app mounts (during login screen presentation)
   useEffect(() => {
-    const BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
+    const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
     fetch(`${BASE_URL}/`).catch(() => {});
   }, []);
 
