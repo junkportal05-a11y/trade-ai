@@ -79,19 +79,20 @@ const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
 function generateFallbackSignals() {
   const watchlist = [
-    { symbol: 'RELIANCE.NS', name: 'Reliance Industries', sector: 'Energy' },
-    { symbol: 'TCS.NS', name: 'TCS', sector: 'IT' },
-    { symbol: 'HDFCBANK.NS', name: 'HDFC Bank', sector: 'Banking' },
-    { symbol: 'INFY.NS', name: 'Infosys', sector: 'IT' },
-    { symbol: 'ICICIBANK.NS', name: 'ICICI Bank', sector: 'Banking' },
-    { symbol: 'SBIN.NS', name: 'State Bank of India', sector: 'Banking' },
-    { symbol: 'TATAMOTORS.NS', name: 'Tata Motors', sector: 'Auto' },
-    { symbol: 'WIPRO.NS', name: 'Wipro', sector: 'IT' },
-    { symbol: 'AXISBANK.NS', name: 'Axis Bank', sector: 'Banking' }
+    { symbol: 'HAL.NS', name: 'HAL', sector: 'Defence' },
+    { symbol: 'BEL.NS', name: 'BEL', sector: 'Defence' },
+    { symbol: 'RVNL.NS', name: 'RVNL', sector: 'Railways' },
+    { symbol: 'IREDA.NS', name: 'IREDA', sector: 'Green Energy' },
+    { symbol: 'HUDCO.NS', name: 'HUDCO', sector: 'Finance' },
+    { symbol: 'COALINDIA.NS', name: 'Coal India', sector: 'Energy' },
+    { symbol: 'NHPC.NS', name: 'NHPC', sector: 'Power' },
+    { symbol: 'ADANIPORTS.NS', name: 'Adani Ports', sector: 'Infrastructure' },
+    { symbol: 'TATAPOWER.NS', name: 'Tata Power', sector: 'Power' },
+    { symbol: 'BHEL.NS', name: 'BHEL', sector: 'Capital Goods' }
   ];
   const signals = ['BUY', 'WEAK BUY', 'HOLD', 'WEAK SELL', 'SELL'];
   return watchlist.map((item, idx) => {
-    const price = [2920, 4100, 1780, 1650, 1290, 845, 960, 490, 1190][idx] || 500;
+    const price = [4550, 295, 385, 185, 275, 485, 95, 1405, 445, 305][idx] || 500;
     const signal = signals[(idx + 2) % signals.length];
     const confidence = 50 + ((idx * 8) % 43);
     let target, stop;
@@ -613,7 +614,7 @@ function FilterBar({ filter, onFilter, count }) {
         const cfg = f === 'ALL' ? { color: T.accent, bg: T.accentDim } : (SIGNAL_CFG[f] || { color: T.textMid, bg: 'transparent' });
         const active = filter === f;
         return (
-          <button key={f} onClick={() => onFilter(f)} style={{
+          <button key={f} className="smooth-button" onClick={() => onFilter(f)} style={{
             padding: '4px 10px', borderRadius: 4, border: `1px solid ${active ? cfg.color + '60' : T.border}`,
             background: active ? cfg.bg : 'transparent', color: active ? cfg.color : T.textDim,
             fontSize: 9, fontWeight: 700, cursor: 'pointer', ...mono, letterSpacing: '0.06em',
@@ -629,6 +630,7 @@ function FilterBar({ filter, onFilter, count }) {
 
 export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices }) {
   const [capital, setCapital]   = useState('10000');
+  const [selectedStyle, setSelectedStyle] = useState('Intraday Momentum');
   const [plan, setPlan]         = useState(null);
   const [loading, setLoading]   = useState(false);
   const [elapsed, setElapsed]   = useState(0);
@@ -669,7 +671,10 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices })
           'Content-Type': 'application/json',
           'X-Session-Token': sessionStorage.getItem('apt_token') || ''
         },
-        body: JSON.stringify({ capital: amt }),
+        body: JSON.stringify({ 
+          capital: amt,
+          trading_style: selectedStyle
+        }),
         signal: abortRef.current.signal,
       });
       if (res.status === 401) {
@@ -701,7 +706,7 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices })
     } finally {
       setLoading(false);
     }
-  }, [capital]);
+  }, [capital, selectedStyle]);
 
   // Initial scan on mount
   useEffect(() => {
@@ -747,6 +752,7 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices })
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
           {PRESETS.map(p => (
             <button key={p.label}
+              className="smooth-button"
               onClick={() => { setCapital(p.value.toString()); }}
               style={{
                 padding: '4px 10px', borderRadius: 5, border: `1px solid ${displayAmt === p.value ? T.accent : T.border}`,
@@ -775,7 +781,30 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices })
               </span>
             )}
           </div>
-          <button onClick={runScanAndAllocate} disabled={loading} style={{
+
+          <div style={{ display: 'flex', alignItems: 'center', background: T.bg, borderRadius: 8, overflow: 'hidden', border: `1px solid ${T.borderHi}`, padding: '0 8px' }}>
+            <select
+              value={selectedStyle}
+              onChange={e => setSelectedStyle(e.target.value)}
+              disabled={loading}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: T.text,
+                fontSize: 11,
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontWeight: 700,
+                cursor: 'pointer',
+                padding: '10px 4px',
+              }}
+            >
+              <option value="Intraday Momentum" style={{ background: T.surface, color: T.text }}>DEFAULT SCANNER</option>
+              <option value="My Strategy" style={{ background: T.surface, color: T.text }}>MY STRATEGY (PDFs)</option>
+            </select>
+          </div>
+
+          <button onClick={runScanAndAllocate} disabled={loading} className="smooth-button" style={{
             padding: '10px 18px', borderRadius: 8, border: 'none',
             background: loading ? T.accentDim : T.accent, color: '#fff',
             fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer',

@@ -31,11 +31,11 @@ const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 const WATCHLIST = [
-  'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS',
-  'SBIN.NS', 'BAJFINANCE.NS', 'WIPRO.NS', 'AXISBANK.NS'
+  'HAL.NS', 'BEL.NS', 'RVNL.NS', 'IREDA.NS', 'HUDCO.NS',
+  'COALINDIA.NS', 'NHPC.NS', 'ADANIPORTS.NS', 'TATAPOWER.NS', 'BHEL.NS'
 ];
 
-export default function PredictionsPanel({ prices = {}, selectedSymbol = 'RELIANCE.NS', onSelectSymbol, onViewChange }) {
+export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS', onSelectSymbol, onViewChange }) {
   const [predictions, setPredictions] = useState([]);
   const [stats, setStats] = useState({
     total_predictions: 0,

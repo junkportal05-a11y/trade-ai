@@ -29,16 +29,16 @@ const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', 
 const sign = (v) => v > 0 ? '+' : '';
 
 const DEFAULT_WATCHLIST = [
-  { symbol: 'RELIANCE.NS', name: 'Reliance', sector: 'Energy' },
-  { symbol: 'TCS.NS',      name: 'TCS', sector: 'IT' },
-  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank', sector: 'Banking' },
-  { symbol: 'INFY.NS',     name: 'Infosys', sector: 'IT' },
-  { symbol: 'ICICIBANK.NS',name: 'ICICI Bank', sector: 'Banking' },
-  { symbol: 'SBIN.NS',     name: 'SBI', sector: 'Banking' },
-  { symbol: 'BAJFINANCE.NS',name: 'Bajaj Fin', sector: 'Banking' },
-  { symbol: 'TATAMOTORS.NS',name: 'Tata Motors', sector: 'Auto' },
-  { symbol: 'WIPRO.NS',    name: 'Wipro', sector: 'IT' },
-  { symbol: 'AXISBANK.NS', name: 'Axis Bank', sector: 'Banking' },
+  { symbol: 'HAL.NS',        name: 'HAL',            sector: 'Defence' },
+  { symbol: 'BEL.NS',        name: 'BEL',            sector: 'Defence' },
+  { symbol: 'RVNL.NS',       name: 'RVNL',           sector: 'Railways' },
+  { symbol: 'IREDA.NS',      name: 'IREDA',          sector: 'Green Energy' },
+  { symbol: 'HUDCO.NS',      name: 'HUDCO',          sector: 'Finance' },
+  { symbol: 'COALINDIA.NS',  name: 'Coal India',     sector: 'Energy' },
+  { symbol: 'NHPC.NS',       name: 'NHPC',           sector: 'Power' },
+  { symbol: 'ADANIPORTS.NS', name: 'Adani Ports',    sector: 'Infrastructure' },
+  { symbol: 'TATAPOWER.NS',  name: 'Tata Power',     sector: 'Power' },
+  { symbol: 'BHEL.NS',       name: 'BHEL',           sector: 'Capital Goods' },
 ];
 
 export default function HomePanel({ 
@@ -59,7 +59,7 @@ export default function HomePanel({
   const [showEditModal, setShowEditModal] = useState(false);
   const [tempCash, setTempCash] = useState(cash);
   const [tempPortfolio, setTempPortfolio] = useState([]);
-  const [newHoldingSymbol, setNewHoldingSymbol] = useState('RELIANCE.NS');
+  const [newHoldingSymbol, setNewHoldingSymbol] = useState('HAL.NS');
   const [newHoldingShares, setNewHoldingShares] = useState('');
   const [newHoldingAvgCost, setNewHoldingAvgCost] = useState('');
 

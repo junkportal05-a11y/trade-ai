@@ -47,3 +47,43 @@ input, button, textarea, select { font-family: inherit; }
     background-position: 80px 80px;
   }
 }
+
+/* Smooth Tab Entrance Animations */
+.panel-transition {
+  animation: panelEntry 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes panelEntry {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Hover & Press Micro-interactions */
+.smooth-button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  cursor: pointer;
+}
+
+.smooth-button:hover {
+  filter: brightness(1.2);
+  transform: translateY(-1px);
+}
+
+.smooth-button:active {
+  transform: translateY(1px) scale(0.97);
+}
+
+.smooth-card {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.smooth-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 1px 1.5px rgba(123, 108, 255, 0.25) !important;
+}

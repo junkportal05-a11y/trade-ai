@@ -17,10 +17,10 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const WS_URL   = import.meta.env.VITE_WS_URL || BASE_URL.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
 
 const SEED_PRICES = {
-  'RELIANCE.NS': 2920, 'TCS.NS': 4100, 'HDFCBANK.NS': 1780,
-  'INFY.NS': 1650, 'ICICIBANK.NS': 1290, 'SBIN.NS': 845,
-  'BAJFINANCE.NS': 7200, 'TATAMOTORS.NS': 960, 'WIPRO.NS': 490,
-  'AXISBANK.NS': 1190,
+  'HAL.NS': 4550, 'BEL.NS': 295, 'RVNL.NS': 385,
+  'IREDA.NS': 185, 'HUDCO.NS': 275, 'COALINDIA.NS': 485,
+  'NHPC.NS': 95, 'ADANIPORTS.NS': 1405, 'TATAPOWER.NS': 445,
+  'BHEL.NS': 305
 };
 
 // ══════════════════════════════════════════════════════════════════════════════

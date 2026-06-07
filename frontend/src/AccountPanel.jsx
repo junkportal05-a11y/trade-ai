@@ -28,7 +28,7 @@ const T = {
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
-export default function AccountPanel({ currentUser }) {
+export default function AccountPanel({ currentUser, userRole, userClearance }) {
   const [sessionHash] = useState(() => Math.random().toString(36).substring(2, 10).toUpperCase());
   const [loginTime] = useState(() => new Date().toLocaleTimeString('en-IN', { hour12: true }));
   const [autoLockMinutes, setAutoLockMinutes] = useState(15);
@@ -45,13 +45,6 @@ export default function AccountPanel({ currentUser }) {
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [showToast, setShowToast] = useState(false);
 
-  const USER_REGISTRY = [
-    { username: 'apex_head_quant', role: 'Master Quant / Administrator', clearance: 'LEVEL_4_ROOT' },
-    { username: 'user1', role: 'Quant Trader Level 1', clearance: 'LEVEL_2_SECURE' },
-    { username: 'user2', role: 'Quant Trader Level 2', clearance: 'LEVEL_2_SECURE' },
-    { username: 'user3', role: 'Risk Manager', clearance: 'LEVEL_3_ELEVATED' }
-  ];
-
   // Fetch Upstox broker status on mount
   useEffect(() => {
     const fetchStatus = async () => {
@@ -64,6 +57,13 @@ export default function AccountPanel({ currentUser }) {
       } catch (e) {
         console.error("Failed to fetch Upstox status:", e);
       } finally {
+        setUpstoxStatus({
+          authorized: false,
+          api_key_configured: false,
+          redirect_uri_configured: false,
+          updated_at: null,
+          user_name: null
+        });
         setLoadingStatus(false);
       }
     };
@@ -89,10 +89,10 @@ export default function AccountPanel({ currentUser }) {
     setAuditLogs([
       { time: '09:15:00', type: 'SYS', msg: 'APEXTRADE Core security framework loaded.' },
       { time: '09:15:02', type: 'NET', msg: 'Local websocket proxy secure tunnel initialized.' },
-      { time: '09:15:05', type: 'SEC', msg: `Cryptographic session key set for scope: ${currentUser.toUpperCase()}` },
-      { time: loginTime, type: 'AUTH', msg: `User verification passed for: ${currentUser} (${USER_REGISTRY.find(u => u.username === currentUser)?.clearance})` }
+      { time: '09:15:05', type: 'SEC', msg: `Cryptographic session key set for scope: ${(currentUser || '').toUpperCase()}` },
+      { time: loginTime, type: 'AUTH', msg: `User verification passed for: ${currentUser} (${userClearance || 'LEVEL_1_GUEST'})` }
     ]);
-  }, [currentUser, loginTime]);
+  }, [currentUser, loginTime, userClearance]);
 
   // Append logs over time to feel dynamic/alive
   useEffect(() => {
@@ -115,7 +115,7 @@ export default function AccountPanel({ currentUser }) {
     return () => clearInterval(interval);
   }, []);
 
-  const curUserObj = USER_REGISTRY.find(u => u.username === currentUser) || { role: 'Authorized Guest', clearance: 'LEVEL_1_GUEST' };
+  const curUserObj = { role: userRole || 'Authorized Guest', clearance: userClearance || 'LEVEL_1_GUEST' };
 
   return (
     <div style={{
@@ -403,43 +403,39 @@ export default function AccountPanel({ currentUser }) {
             borderRadius: 12,
             padding: 24
           }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, ...mono }}>🔒 AUTHORIZED ENTRANT REGISTRY</h3>
+            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, ...mono }}>🔒 TERMINAL CLEARANCE POLICIES</h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {USER_REGISTRY.map(user => {
-                const isCurrent = user.username === currentUser;
+              {[
+                { level: 'LEVEL_4_ROOT', desc: 'Full administration, order routing, manual balance overwriting, custom backtests.' },
+                { level: 'LEVEL_3_ELEVATED', desc: 'Risk sizing parameter access, order cancelation keys, daily macro summaries.' },
+                { level: 'LEVEL_2_SECURE', desc: 'Standard trading execution, signals scanner scans, watchlist adjustments.' },
+                { level: 'LEVEL_1_GUEST', desc: 'Read-only access, local price feeds dashboard, guest charting.' }
+              ].map(policy => {
+                const isActiveClearance = userClearance === policy.level;
                 return (
-                  <div key={user.username} style={{
+                  <div key={policy.level} style={{
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
+                    flexDirection: 'column',
+                    gap: 4,
                     padding: '10px 12px',
-                    background: isCurrent ? 'rgba(123, 108, 255, 0.05)' : T.panelAlt,
-                    border: `1px solid ${isCurrent ? T.accent + '40' : T.border}`,
+                    background: isActiveClearance ? 'rgba(123, 108, 255, 0.05)' : T.panelAlt,
+                    border: `1px solid ${isActiveClearance ? T.accent + '40' : T.border}`,
                     borderRadius: 8
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 12 }}>👤</span>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: isCurrent ? '#fff' : T.textMid }}>
-                          {user.username} {isCurrent && <span style={{ fontSize: 9, color: T.accent, fontWeight: 700 }}>[CURRENT]</span>}
-                        </div>
-                        <div style={{ fontSize: 9, color: T.textDim }}>{user.role}</div>
-                      </div>
-                    </div>
-                    
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 8.5, color: isCurrent ? T.green : T.textDim, fontWeight: 700, ...mono }}>
-                        {user.clearance}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 700, color: isActiveClearance ? T.accent : T.textMid, ...mono }}>
+                        {policy.level} {isActiveClearance && ' [YOUR_LEVEL]'}
                       </span>
                       <span style={{
                         width: 6,
                         height: 6,
                         borderRadius: '50%',
-                        background: isCurrent ? T.green : T.textDim,
-                        boxShadow: isCurrent ? `0 0 6px ${T.greenGlow}` : 'none'
+                        background: isActiveClearance ? T.green : T.textDim,
+                        boxShadow: isActiveClearance ? `0 0 6px ${T.greenGlow}` : 'none'
                       }} />
                     </div>
+                    <div style={{ fontSize: 10, color: T.textDim }}>{policy.desc}</div>
                   </div>
                 );
               })}

@@ -29,6 +29,7 @@ import upstox_feed
 
 # ── Batch cache — populated once per scan, read by worker threads ─────────────
 _BATCH_CANDLE_CACHE: dict[str, pd.DataFrame] = {}
+_MACRO_CACHE: dict[str, dict] = {}
 _CACHE_TIMESTAMP: dict[str, float] = {}
 CACHE_TTL = 300  # 5 minutes
 
@@ -177,26 +178,16 @@ def _supertrend(high: pd.Series, low: pd.Series, close: pd.Series, period=7, mul
 
 # ── NSE Intraday Watchlist ────────────────────────────────────────────────────
 NSE_WATCHLIST = [
-    {"symbol": "RELIANCE.NS",    "name": "Reliance Industries",  "sector": "Energy"},
-    {"symbol": "TCS.NS",         "name": "TCS",                  "sector": "IT"},
-    {"symbol": "HDFCBANK.NS",    "name": "HDFC Bank",            "sector": "Banking"},
-    {"symbol": "INFY.NS",        "name": "Infosys",              "sector": "IT"},
-    {"symbol": "ICICIBANK.NS",   "name": "ICICI Bank",           "sector": "Banking"},
-    {"symbol": "KOTAKBANK.NS",   "name": "Kotak Bank",           "sector": "Banking"},
-    {"symbol": "SBIN.NS",        "name": "State Bank of India",  "sector": "Banking"},
-    {"symbol": "BAJFINANCE.NS",  "name": "Bajaj Finance",        "sector": "Finance"},
-    {"symbol": "WIPRO.NS",       "name": "Wipro",                "sector": "IT"},
-    {"symbol": "AXISBANK.NS",    "name": "Axis Bank",            "sector": "Banking"},
-    {"symbol": "TATAMOTORS.NS",  "name": "Tata Motors",          "sector": "Auto"},
-    {"symbol": "MARUTI.NS",      "name": "Maruti Suzuki",        "sector": "Auto"},
-    {"symbol": "SUNPHARMA.NS",   "name": "Sun Pharma",           "sector": "Pharma"},
-    {"symbol": "ADANIENT.NS",    "name": "Adani Enterprises",    "sector": "Conglomerate"},
-    {"symbol": "TITAN.NS",       "name": "Titan Company",        "sector": "Consumer"},
-    {"symbol": "ULTRACEMCO.NS",  "name": "UltraTech Cement",     "sector": "Cement"},
-    {"symbol": "ASIANPAINT.NS",  "name": "Asian Paints",         "sector": "Consumer"},
-    {"symbol": "HINDUNILVR.NS",  "name": "Hindustan Unilever",   "sector": "FMCG"},
-    {"symbol": "ONGC.NS",        "name": "ONGC",                 "sector": "Energy"},
-    {"symbol": "NTPC.NS",        "name": "NTPC",                 "sector": "Power"},
+    {"symbol": "HAL.NS",         "name": "HAL",                  "sector": "Defence"},
+    {"symbol": "BEL.NS",         "name": "BEL",                  "sector": "Defence"},
+    {"symbol": "RVNL.NS",        "name": "RVNL",                 "sector": "Railways"},
+    {"symbol": "IREDA.NS",       "name": "IREDA",                "sector": "Green Energy"},
+    {"symbol": "HUDCO.NS",       "name": "HUDCO",                "sector": "Finance"},
+    {"symbol": "COALINDIA.NS",   "name": "Coal India",           "sector": "Energy"},
+    {"symbol": "NHPC.NS",        "name": "NHPC",                 "sector": "Power"},
+    {"symbol": "ADANIPORTS.NS",  "name": "Adani Ports",          "sector": "Infrastructure"},
+    {"symbol": "TATAPOWER.NS",   "name": "Tata Power",           "sector": "Power"},
+    {"symbol": "BHEL.NS",        "name": "BHEL",                 "sector": "Capital Goods"},
 ]
 
 
@@ -340,7 +331,7 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
         if df is None or len(df) < 20:
             return None
 
-        # Flatten multi-level columns if returned by yfinance
+        # Flatten multi-level columns if returned by provider
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
 
@@ -483,218 +474,416 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
         vol_r     = float(vol_ratio)
 
         # ── Scoring system (Bullish: positive, Bearish: negative) ─────────────
-        score = 0
-        reasons_bull = []
-        reasons_bear = []
-
-        # 1. VWAP position (strong weight for intraday)
-        vwap_diff_pct = (price - vwap_val) / vwap_val * 100
-        if price > vwap_val * 1.002:
-            score += 2
-            reasons_bull.append(f"Price above VWAP ₹{vwap_val:.1f}")
-        elif price < vwap_val * 0.998:
-            score -= 2
-            reasons_bear.append(f"Price below VWAP ₹{vwap_val:.1f}")
-
-        # 2. RSI Overbought/Oversold
-        if 45 <= rsi_val <= 65:
-            score += 1
-            reasons_bull.append(f"RSI {rsi_val:.0f} stable momentum")
-        elif rsi_val > 70:
-            score -= 2
-            reasons_bear.append(f"RSI {rsi_val:.0f} overbought")
-        elif rsi_val < 35:
-            score += 2
-            reasons_bull.append(f"RSI {rsi_val:.0f} oversold")
-
-        # 3. MACD Histogram and Signal Line Crossover
-        if hist_val > 0 and hist_val > hist_prev:
-            score += 2
-            reasons_bull.append("MACD histogram bullish momentum")
-        elif hist_val < 0 and hist_val < hist_prev:
-            score -= 2
-            reasons_bear.append("MACD histogram bearish momentum")
-
-        if macd_val > sig_val and df["MACD_12_26_9"].iloc[-2] <= df["MACDs_12_26_9"].iloc[-2]:
-            score += 2
-            reasons_bull.append("MACD bullish crossover")
-        elif macd_val < sig_val and df["MACD_12_26_9"].iloc[-2] >= df["MACDs_12_26_9"].iloc[-2]:
-            score -= 2
-            reasons_bear.append("MACD bearish crossover")
-
-        # 4. EMA 9/21 Trend Structure
-        if ema9_val > ema21_val:
-            score += 1
-            reasons_bull.append("Bullish EMA crossover")
-        else:
-            score -= 1
-            reasons_bear.append("Bearish EMA structure")
-
-        # 5. Bollinger Bands
-        pct_b = (price - bb_lo) / (bb_up - bb_lo) if (bb_up - bb_lo) > 0 else 0.5
-        if pct_b > 0.85:
-            score -= 1
-            reasons_bear.append("Price near upper Bollinger Band")
-        elif pct_b < 0.15:
-            score += 1
-            reasons_bull.append("Price near lower Bollinger Band")
-
-        # 6. Supertrend (Strong Weight)
-        if supert_dir == 1:
-            score += 2
-            reasons_bull.append("Supertrend Bullish")
-        else:
-            score -= 2
-            reasons_bear.append("Supertrend Bearish")
-
-        # 7. ADX Trend Strength Modifier
-        if adx_val > 25:
-            if score > 0:
-                score += 2
-                reasons_bull.append(f"Strong Trend ADX {adx_val:.0f}")
-            elif score < 0:
-                score -= 2
-                reasons_bear.append(f"Strong Trend ADX {adx_val:.0f}")
-        elif adx_val < 15:
+        if style == "My Strategy":
+            # ──────────────────────────────────────────────────────────────────
+            #  MY STRATEGY SCORING MODE (PDF Manuals, Candlesticks, SMC & S/R)
+            # ──────────────────────────────────────────────────────────────────
             score = 0
-            reasons_bear.append("ADX flat consolidation")
-
-        # 7.5 Macro Trend Alignment (Multi-Timeframe Analysis)
-        if macro_bullish is not None:
-            if macro_bullish:
-                if score > 0:
-                    score += 3
-                    reasons_bull.insert(0, "Daily Macro Bullish")
-            else:
-                if score < 0:
-                    score -= 3
-                    reasons_bear.insert(0, "Daily Macro Bearish")
-
-        # 8. Stochastic Crossovers
-        if stoch_k < 20 and stoch_k > stoch_d and df["STOCHk_14_3_3"].iloc[-2] <= df["STOCHd_14_3_3"].iloc[-2]:
-            score += 1
-            reasons_bull.append("Stochastic golden cross")
-        elif stoch_k > 80 and stoch_k < stoch_d and df["STOCHk_14_3_3"].iloc[-2] >= df["STOCHd_14_3_3"].iloc[-2]:
-            score -= 1
-            reasons_bear.append("Stochastic death cross")
-
-        # 9. OBV Volume Flow
-        if obv_val > obv_prev:
-            score += 1
-            reasons_bull.append("OBV Accumulation")
-        elif obv_val < obv_prev:
-            score -= 1
-            reasons_bear.append("OBV Distribution")
-
-        # 9.5 Candlestick Pattern Recognition
-        has_candle = False
-        try:
-            latest_open  = float(df["Open"].iloc[-1])
-            latest_high  = float(df["High"].iloc[-1])
-            latest_low   = float(df["Low"].iloc[-1])
-            latest_close = float(df["Close"].iloc[-1])
-            prev_open    = float(df["Open"].iloc[-2])
-            prev_close   = float(df["Close"].iloc[-2])
+            reasons_bull = []
+            reasons_bear = []
+            has_candle = False
+            support_val, resist_val = None, None
             
-            body = abs(latest_close - latest_open)
-            candle_range = (latest_high - latest_low) if (latest_high - latest_low) > 0 else 0.001
-            upper_wick = (latest_high - max(latest_open, latest_close))
-            lower_wick = (min(latest_open, latest_close) - latest_low)
-            
-            # Hammer
-            if lower_wick > (2 * body) and upper_wick < (0.1 * candle_range) and body > (0.05 * candle_range):
-                if vol_r >= 1.5:
-                    score += 3
-                    reasons_bull.append("Bullish Hammer Candle")
+            try:
+                import candlestick_patterns
+
+                # 1. Swings & Support/Resistance
+                swing_highs, swing_lows = candlestick_patterns.detect_swings(df, window=5)
+                support_val, resist_val = candlestick_patterns.find_support_resistance(df, swing_highs, swing_lows)
+
+                # 2. SMC Structure Breaks (BOS / CHoCH)
+                struct_break, struct_reason = candlestick_patterns.detect_structure_breaks(df, swing_highs, swing_lows)
+                if struct_break == "BULLISH":
+                    score += 4
+                    reasons_bull.append(struct_reason)
+                elif struct_break == "BEARISH":
+                    score -= 4
+                    reasons_bear.append(struct_reason)
+
+                # 3. Inside Bar & Fakeouts
+                is_inside = candlestick_patterns.detect_inside_bars(df)
+                if is_inside:
+                    if score >= 0:
+                        reasons_bull.append("Inside Bar (Consolidation)")
+                    else:
+                        reasons_bear.append("Inside Bar (Consolidation)")
+                
+                fakeout_dir, fakeout_trigger = candlestick_patterns.detect_inside_bar_fakeout(df)
+                if fakeout_dir == "BULLISH":
+                    score += 4
+                    reasons_bull.append("Inside Bar False Breakout (Bullish Fakeout)")
                     has_candle = True
-            # Shooting Star
-            elif upper_wick > (2 * body) and lower_wick < (0.1 * candle_range) and body > (0.05 * candle_range):
-                if vol_r >= 1.5:
-                    score -= 3
-                    reasons_bear.append("Bearish Shooting Star Candle")
+                elif fakeout_dir == "BEARISH":
+                    score -= 4
+                    reasons_bear.append("Inside Bar False Breakout (Bearish Fakeout)")
                     has_candle = True
-            # Engulfing
-            elif latest_close > latest_open and prev_close < prev_open and latest_close >= prev_open and latest_open <= prev_close:
-                if vol_r >= 1.5:
+
+                # 4. Pin Bars with Confluences
+                pin_type, pin_confluences = candlestick_patterns.detect_pin_bars(df, ema21_val, rsi_val, support_val, resist_val)
+                if pin_type == "BULLISH":
+                    score += 3 + len(pin_confluences)
+                    desc = "Bullish Pin Bar"
+                    if pin_confluences:
+                        desc += f" ({', '.join(pin_confluences)})"
+                    reasons_bull.append(desc)
+                    has_candle = True
+                elif pin_type == "BEARISH":
+                    score -= (3 + len(pin_confluences))
+                    desc = "Bearish Pin Bar"
+                    if pin_confluences:
+                        desc += f" ({', '.join(pin_confluences)})"
+                    reasons_bear.append(desc)
+                    has_candle = True
+
+                # 5. Core Candlestick Patterns
+                # Engulfing
+                is_bull_eng, is_bear_eng = candlestick_patterns.detect_engulfing(df)
+                if is_bull_eng:
                     score += 3
                     reasons_bull.append("Bullish Engulfing Candle")
                     has_candle = True
-            elif latest_close < latest_open and prev_close > prev_open and latest_close <= prev_open and latest_open >= prev_close:
-                if vol_r >= 1.5:
+                elif is_bear_eng:
                     score -= 3
                     reasons_bear.append("Bearish Engulfing Candle")
                     has_candle = True
-        except Exception:
-            pass
 
-        # 10. Volume Confirmation
-        if vol_r >= 1.5:
-            score += 1 if score > 0 else -1
-            reasons_bull.append("Volume confirmation") if score > 0 else reasons_bear.append("Volume pressure confirmation")
-        elif vol_r < 0.7:
-            score = int(score * 0.7)
-            reasons_bear.append("Low volume breakout conviction")
+                # Doji variations
+                is_doji_std, is_dragonfly, is_gravestone = candlestick_patterns.detect_doji(df)
+                if is_dragonfly:
+                    score += 2
+                    reasons_bull.append("Dragonfly Doji (Bullish Reversal)")
+                    has_candle = True
+                elif is_gravestone:
+                    score -= 2
+                    reasons_bear.append("Gravestone Doji (Bearish Reversal)")
+                    has_candle = True
+                elif is_doji_std:
+                    if score >= 0:
+                        reasons_bull.append("Doji Candle (Indecision)")
+                    else:
+                        reasons_bear.append("Doji Candle (Indecision)")
 
-        # ── Define Component Scores (Max 20 each) ──
-        # 1. Market Score
-        nifty_bias_score = 10 if macro_bullish else 4
-        macro_align_score = 10 if macro_bullish else 2
-        market_score = min(20, nifty_bias_score + macro_align_score)
+                # Hammer / Shooting Star (only if not already registered as Pin Bar)
+                if not has_candle:
+                    is_ham, is_shoot = candlestick_patterns.detect_hammer_shooting_star(df)
+                    if is_ham:
+                        score += 2
+                        reasons_bull.append("Bullish Hammer Candle")
+                        has_candle = True
+                    elif is_shoot:
+                        score -= 2
+                        reasons_bear.append("Bearish Shooting Star Candle")
+                        has_candle = True
 
-        # 2. Tech Score
-        vwap_score = 4 if price > vwap_val * 1.002 else 0 if price < vwap_val * 0.998 else 2
-        ema_score = 4 if ema9_val > ema21_val else 0
-        bb_score = 4 if 0.15 <= pct_b <= 0.85 else 0
-        adx_score = 4 if adx_val > 25 else 2
-        stoch_score = 4 if 20 <= stoch_k <= 80 else 1
-        tech_score = min(20, vwap_score + ema_score + bb_score + adx_score + stoch_score)
+                # Stars (Morning / Evening)
+                is_m_star, is_e_star = candlestick_patterns.detect_stars(df)
+                if is_m_star:
+                    score += 3
+                    reasons_bull.append("Morning Star Reversal")
+                    has_candle = True
+                elif is_e_star:
+                    score -= 3
+                    reasons_bear.append("Evening Star Reversal")
+                    has_candle = True
 
-        # 3. Volume Score
-        rel_vol_score = 10 if vol_r >= 1.5 else 7 if vol_r >= 1.0 else 4 if vol_r >= 0.7 else 1
-        obv_score = 10 if obv_val > obv_prev else 2
-        volume_score = min(20, rel_vol_score + obv_score)
+                # Harami
+                is_bull_har, is_bear_har = candlestick_patterns.detect_harami(df)
+                if is_bull_har:
+                    score += 2
+                    reasons_bull.append("Bullish Harami Pattern")
+                    has_candle = True
+                elif is_bear_har:
+                    score -= 2
+                    reasons_bear.append("Bearish Harami Pattern")
+                    has_candle = True
 
-        # 4. Momentum Score
-        macd_momentum = 6 if hist_val > 0 and hist_val > hist_prev else 2
-        supert_momentum = 6 if supert_dir == 1 else 0
-        candle_score = 8 if has_candle else 2
-        momentum_score = min(20, macd_momentum + supert_momentum + candle_score)
+                # Tweezers
+                is_t_bot, is_t_top = candlestick_patterns.detect_tweezers(df)
+                if is_t_bot:
+                    score += 2
+                    reasons_bull.append("Tweezer Bottom Pattern")
+                    has_candle = True
+                elif is_t_top:
+                    score -= 2
+                    reasons_bear.append("Tweezer Top Pattern")
+                    has_candle = True
 
-        # ── Set Target & Stop Levels via Style & Risk ──
-        risk_mult = 0.8 if risk == "Low" else 1.4 if risk == "High" else 1.0
-        
-        if style == "Scalping":
-            atr_target1 = 1.0 * atr_val * risk_mult
-            atr_target2 = 1.6 * atr_val * risk_mult
-            atr_stop = 1.0 * atr_val * risk_mult
-        elif style == "Breakout":
-            atr_target1 = 2.5 * atr_val * risk_mult
-            atr_target2 = 4.0 * atr_val * risk_mult
-            atr_stop = 2.0 * atr_val * risk_mult
-        elif style == "Swing":
-            atr_target1 = 4.0 * atr_val * risk_mult
-            atr_target2 = 6.0 * atr_val * risk_mult
-            atr_stop = 3.0 * atr_val * risk_mult
-        else: # Intraday Momentum
-            atr_target1 = 2.0 * atr_val * risk_mult
-            atr_target2 = 3.0 * atr_val * risk_mult
-            atr_stop = 2.0 * atr_val * risk_mult
+            except Exception as e:
+                print(f"[signals] Candlestick pattern detection failed: {e}")
 
-        is_buy = score >= 0
-        if is_buy:
-            entry = round(price, 2)
-            target1 = round(price + atr_target1, 2)
-            target2 = round(price + atr_target2, 2)
-            stop = round(price - atr_stop, 2)
-            risk_amount = round(price - stop, 2)
-            reward = round(target1 - price, 2)
+            # 6. Trend Alignment modifier (add/sub points depending on EMA structure)
+            if ema9_val > ema21_val:
+                score += 1
+                reasons_bull.append("Bullish Trend Structure (EMA9 > EMA21)")
+            else:
+                score -= 1
+                reasons_bear.append("Bearish Trend Structure (EMA9 < EMA21)")
+
+            # 7. Volume Confirmation
+            if vol_r >= 1.5:
+                score += 1 if score > 0 else -1
+                reasons_bull.append("Volume confirmation") if score > 0 else reasons_bear.append("Volume pressure confirmation")
+
+            # 8. News Sentiment
+            news_sentiment = 0.0
+            try:
+                import news_feed
+                articles = news_feed.fetch_ticker_news(symbol)
+                if articles:
+                    news_sentiment = news_feed.analyze_news_sentiment(articles)
+                    if news_sentiment > 0.3:
+                        score += 2
+                        reasons_bull.append(f"Bullish News Sentiment ({news_sentiment:+.2f})")
+                    elif news_sentiment < -0.3:
+                        score -= 2
+                        reasons_bear.append(f"Bearish News Sentiment ({news_sentiment:.2f})")
+            except Exception as e:
+                print(f"[signals] News sentiment failed: {e}")
+
+            # Define Component Scores for PDF mode (Map total score to max 20)
+            market_score = min(20, 10 if macro_bullish else 5)
+            tech_score = min(20, (10 + score * 2) if score >= 0 else max(0, 10 + score * 2))
+            volume_score = min(20, 10 if vol_r >= 1.2 else 5)
+            momentum_score = min(20, 12 if has_candle else 5)
+
+            # Dynamic stop, target & position sizing
+            is_buy = score >= 0
+            signal_type = "BULLISH" if is_buy else "BEARISH"
+            try:
+                import candlestick_patterns
+                stop, target1, position_size, rr_ratio = candlestick_patterns.calculate_risk_parameters(
+                    price=price,
+                    signal_type=signal_type,
+                    df=df,
+                    support=support_val,
+                    resistance=resist_val,
+                    capital=capital,
+                    risk_pct=0.01
+                )
+                entry = round(price, 2)
+                if is_buy:
+                    target2 = round(price + 3.0 * (price - stop), 2)
+                    risk_amount = round(price - stop, 2)
+                    reward = round(target1 - price, 2)
+                else:
+                    target2 = round(price - 3.0 * (stop - price), 2)
+                    risk_amount = round(stop - price, 2)
+                    reward = round(price - target1, 2)
+            except Exception as e:
+                print(f"[signals] PDF Risk calculation failed, using fallback: {e}")
+                entry = round(price, 2)
+                atr_stop = 2.0 * atr_val
+                stop = round(price - atr_stop if is_buy else price + atr_stop, 2)
+                risk_amount = round(abs(price - stop), 2)
+                target1 = round(price + 2.0 * risk_amount if is_buy else price - 2.0 * risk_amount, 2)
+                target2 = round(price + 3.0 * risk_amount if is_buy else price - 3.0 * risk_amount, 2)
+                reward = round(abs(target1 - price), 2)
+                rr_ratio = 2.0
+                position_size = int((capital * 0.01) // risk_amount) if risk_amount > 0 else 1
+                position_size = max(1, min(position_size, int(capital // price)))
+
         else:
+            # ──────────────────────────────────────────────────────────────────
+            #  DEFAULT INDICATOR SCORING MODE
+            # ──────────────────────────────────────────────────────────────────
+            score = 0
+            reasons_bull = []
+            reasons_bear = []
+
+            # 1. VWAP position (strong weight for intraday)
+            vwap_diff_pct = (price - vwap_val) / vwap_val * 100
+            if price > vwap_val * 1.002:
+                score += 2
+                reasons_bull.append(f"Price above VWAP ₹{vwap_val:.1f}")
+            elif price < vwap_val * 0.998:
+                score -= 2
+                reasons_bear.append(f"Price below VWAP ₹{vwap_val:.1f}")
+
+            # 2. RSI Overbought/Oversold
+            if 45 <= rsi_val <= 65:
+                score += 1
+                reasons_bull.append(f"RSI {rsi_val:.0f} stable momentum")
+            elif rsi_val > 70:
+                score -= 2
+                reasons_bear.append(f"RSI {rsi_val:.0f} overbought")
+            elif rsi_val < 35:
+                score += 2
+                reasons_bull.append(f"RSI {rsi_val:.0f} oversold")
+
+            # 3. MACD Histogram and Signal Line Crossover
+            if hist_val > 0 and hist_val > hist_prev:
+                score += 2
+                reasons_bull.append("MACD histogram bullish momentum")
+            elif hist_val < 0 and hist_val < hist_prev:
+                score -= 2
+                reasons_bear.append("MACD histogram bearish momentum")
+
+            if macd_val > sig_val and df["MACD_12_26_9"].iloc[-2] <= df["MACDs_12_26_9"].iloc[-2]:
+                score += 2
+                reasons_bull.append("MACD bullish crossover")
+            elif macd_val < sig_val and df["MACD_12_26_9"].iloc[-2] >= df["MACDs_12_26_9"].iloc[-2]:
+                score -= 2
+                reasons_bear.append("MACD bearish crossover")
+
+            # 4. EMA 9/21 Trend Structure
+            if ema9_val > ema21_val:
+                score += 1
+                reasons_bull.append("Bullish EMA crossover")
+            else:
+                score -= 1
+                reasons_bear.append("Bearish EMA structure")
+
+            # 5. Bollinger Bands
+            pct_b = (price - bb_lo) / (bb_up - bb_lo) if (bb_up - bb_lo) > 0 else 0.5
+            if pct_b > 0.85:
+                score -= 1
+                reasons_bear.append("Price near upper Bollinger Band")
+            elif pct_b < 0.15:
+                score += 1
+                reasons_bull.append("Price near lower Bollinger Band")
+
+            # 6. Supertrend (Strong Weight)
+            if supert_dir == 1:
+                score += 2
+                reasons_bull.append("Supertrend Bullish")
+            else:
+                score -= 2
+                reasons_bear.append("Supertrend Bearish")
+
+            # 7. ADX Trend Strength Modifier
+            if adx_val > 25:
+                if score > 0:
+                    score += 2
+                    reasons_bull.append(f"Strong Trend ADX {adx_val:.0f}")
+                elif score < 0:
+                    score -= 2
+                    reasons_bear.append(f"Strong Trend ADX {adx_val:.0f}")
+            elif adx_val < 15:
+                score = 0
+                reasons_bear.append("ADX flat consolidation")
+
+            # 7.5 Macro Trend Alignment (Multi-Timeframe Analysis)
+            if macro_bullish is not None:
+                if macro_bullish:
+                    if score > 0:
+                        score += 3
+                        reasons_bull.insert(0, "Daily Macro Bullish")
+                else:
+                    if score < 0:
+                        score -= 3
+                        reasons_bear.insert(0, "Daily Macro Bearish")
+
+            # 8. Stochastic Crossovers
+            if stoch_k < 20 and stoch_k > stoch_d and df["STOCHk_14_3_3"].iloc[-2] <= df["STOCHd_14_3_3"].iloc[-2]:
+                score += 1
+                reasons_bull.append("Stochastic golden cross")
+            elif stoch_k > 80 and stoch_k < stoch_d and df["STOCHk_14_3_3"].iloc[-2] >= df["STOCHd_14_3_3"].iloc[-2]:
+                score -= 1
+                reasons_bear.append("Stochastic death cross")
+
+            # 9. OBV Volume Flow
+            if obv_val > obv_prev:
+                score += 1
+                reasons_bull.append("OBV Accumulation")
+            elif obv_val < obv_prev:
+                score -= 1
+                reasons_bear.append("OBV Distribution")
+
+            # 9.5 Candlestick checks
+            has_candle = False
+            try:
+                import candlestick_patterns
+                # Engulfing
+                is_bull_eng, is_bear_eng = candlestick_patterns.detect_engulfing(df)
+                if is_bull_eng:
+                    score += 3
+                    reasons_bull.append("Bullish Engulfing Candle")
+                    has_candle = True
+                elif is_bear_eng:
+                    score -= 3
+                    reasons_bear.append("Bearish Engulfing Candle")
+                    has_candle = True
+
+                # Hammer / Shooting Star
+                is_ham, is_shoot = candlestick_patterns.detect_hammer_shooting_star(df)
+                if is_ham:
+                    score += 3
+                    reasons_bull.append("Bullish Hammer Candle")
+                    has_candle = True
+                elif is_shoot:
+                    score -= 3
+                    reasons_bear.append("Bearish Shooting Star Candle")
+                    has_candle = True
+            except Exception:
+                pass
+
+            # 10. Volume Confirmation
+            if vol_r >= 1.5:
+                score += 1 if score > 0 else -1
+                reasons_bull.append("Volume confirmation") if score > 0 else reasons_bear.append("Volume pressure confirmation")
+            elif vol_r < 0.7:
+                score = int(score * 0.7)
+                reasons_bear.append("Low volume breakout conviction")
+
+            # 11. News Sentiment analysis via NewsAPI
+            news_sentiment = 0.0
+            try:
+                import news_feed
+                articles = news_feed.fetch_ticker_news(symbol)
+                if articles:
+                    news_sentiment = news_feed.analyze_news_sentiment(articles)
+                    if news_sentiment > 0.3:
+                        score += 2
+                        reasons_bull.append(f"Bullish News Sentiment ({news_sentiment:+.2f})")
+                    elif news_sentiment < -0.3:
+                        score -= 2
+                        reasons_bear.append(f"Bearish News Sentiment ({news_sentiment:.2f})")
+            except Exception as e:
+                print(f"[signals] Failed to run news sentiment scanner: {e}")
+
+            # Define Component Scores
+            market_score = min(20, (10 if macro_bullish else 4) + (10 if macro_bullish else 2))
+            tech_score = min(20, (4 if price > vwap_val * 1.002 else 0 if price < vwap_val * 0.998 else 2) + (4 if ema9_val > ema21_val else 0) + (4 if 0.15 <= pct_b <= 0.85 else 0) + (4 if adx_val > 25 else 2) + (4 if 20 <= stoch_k <= 80 else 1))
+            volume_score = min(20, (10 if vol_r >= 1.5 else 7 if vol_r >= 1.0 else 4 if vol_r >= 0.7 else 1) + (10 if obv_val > obv_prev else 2))
+            momentum_score = min(20, (6 if hist_val > 0 and hist_val > hist_prev else 2) + (6 if supert_dir == 1 else 0) + (8 if has_candle else 2))
+
+            # Set Target & Stop Levels via Style & Risk
+            risk_mult = 0.8 if risk == "Low" else 1.4 if risk == "High" else 1.0
+            if style == "Scalping":
+                atr_target1 = 1.0 * atr_val * risk_mult
+                atr_target2 = 1.6 * atr_val * risk_mult
+                atr_stop = 1.0 * atr_val * risk_mult
+            elif style == "Breakout":
+                atr_target1 = 2.5 * atr_val * risk_mult
+                atr_target2 = 4.0 * atr_val * risk_mult
+                atr_stop = 2.0 * atr_val * risk_mult
+            elif style == "Swing":
+                atr_target1 = 4.0 * atr_val * risk_mult
+                atr_target2 = 6.0 * atr_val * risk_mult
+                atr_stop = 3.0 * atr_val * risk_mult
+            else: # Intraday Momentum
+                atr_target1 = 2.0 * atr_val * risk_mult
+                atr_target2 = 3.0 * atr_val * risk_mult
+                atr_stop = 2.0 * atr_val * risk_mult
+
+            is_buy = score >= 0
             entry = round(price, 2)
-            target1 = round(price - atr_target1, 2)
-            target2 = round(price - atr_target2, 2)
-            stop = round(price + atr_stop, 2)
-            risk_amount = round(stop - price, 2)
-            reward = round(price - target1, 2)
+            if is_buy:
+                target1 = round(price + atr_target1, 2)
+                target2 = round(price + atr_target2, 2)
+                stop = round(price - atr_stop, 2)
+                risk_amount = round(price - stop, 2)
+                reward = round(target1 - price, 2)
+            else:
+                target1 = round(price - atr_target1, 2)
+                target2 = round(price - atr_target2, 2)
+                stop = round(price + atr_stop, 2)
+                risk_amount = round(stop - price, 2)
+                reward = round(price - target1, 2)
+
+            rr_ratio = round(reward / risk_amount, 2) if risk_amount > 0 else 1.0
+            position_size = int((capital * 0.01) // risk_amount) if risk_amount > 0 else 1
+            position_size = max(1, min(position_size, int(capital // price)))
 
         rr_ratio = round(reward / risk_amount, 2) if risk_amount > 0 else 1.0
         target_pct = round((target1 - price) / price * 100, 2)
@@ -743,9 +932,13 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
             "_tech_score":     tech_score,
             "_volume_score":   volume_score,
             "_momentum_score": momentum_score,
+            "position_size":   position_size,
         }
 
-    except Exception:
+    except Exception as e:
+        import traceback
+        print(f"[signals] Exception in analyse_symbol for {symbol}: {e}")
+        traceback.print_exc()
         return None
 
 
@@ -775,7 +968,7 @@ def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: str = 
         # Apply segment filter
         if segment == "BSE" and not sym.endswith(".BO"):
             return None
-        elif segment == "F&O" and sym not in ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "SBIN.NS"]:
+        elif segment == "F&O" and sym not in ["HAL.NS", "BEL.NS", "RVNL.NS", "COALINDIA.NS", "ADANIPORTS.NS", "TATAPOWER.NS", "BHEL.NS"]:
             return None
 
         df = download_market_data_df(sym, "5d", interval)
