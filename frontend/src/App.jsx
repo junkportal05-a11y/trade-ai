@@ -1131,13 +1131,7 @@ function ChatPanel({ symbol, price, changePct }) {
 }
 
 // ── Header ─────────────────────────────────────────────────────────────────────────────
-function Header({ symbol, connected, view, onViewChange, isMobile, onLogout }) {
-  const { data: quote } = useQuote(symbol);
-  const price     = quote?.price ?? SEED_PRICES[symbol] ?? 0;
-  const change    = quote?.change ?? 0;
-  const changePct = quote?.change_pct ?? 0;
-  const isUp      = changePct >= 0;
-
+function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, cash, stockValue, totalPnl, totalPct }) {
   const [clock, setClock] = useState(() => new Date().toLocaleTimeString('en-IN', { hour12: true }));
   useEffect(() => {
     const t = setInterval(() => setClock(new Date().toLocaleTimeString('en-IN', { hour12: true })), 1000);
@@ -1172,31 +1166,46 @@ function Header({ symbol, connected, view, onViewChange, isMobile, onLogout }) {
 
       <div style={{ width: 1, height: 22, background: T.border, flexShrink: 0 }} />
 
-      {/* Symbol + price */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
-        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, color: T.textMid, letterSpacing: '0.06em', flexShrink: 0 }}>
-          {symbol.replace('.NS', '')}
-        </span>
-        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 20, fontWeight: 700, color: T.text, letterSpacing: '-0.02em', flexShrink: 0 }}>₹{fmt(price)}</span>
-        <span style={{ fontSize: 10, color: clr(changePct), background: isUp ? T.greenDim : T.redDim, border: `1px solid ${isUp ? T.greenGlow : T.redGlow}`, padding: '2px 7px', borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0 }}>
-          {sign(changePct)}{fmt(changePct, 2)}%
-        </span>
-      </div>
-
-      {/* Quote metadata (Hidden on Mobile) */}
-      {quote && !isMobile && (
-        <div style={{ display: 'flex', gap: 14 }}>
-          {[
-            ['H', quote.day_high], ['L', quote.day_low],
-            ['VOL', quote.volume ? fmtK(quote.volume) : null],
-          ].filter(([, v]) => v).map(([label, value]) => (
-            <div key={label} style={{ fontSize: 10, fontFamily: "'IBM Plex Mono', monospace" }}>
-              <span style={{ color: T.textDim }}>{label} </span>
-              <span style={{ color: T.textMid }}>{typeof value === 'number' ? `₹${fmt(value)}` : value}</span>
-            </div>
-          ))}
+      {/* Account Balances Summary */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+        {/* Net Worth */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>PORTFOLIO VALUE</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
+            ₹{fmt(netWorth)}
+          </span>
         </div>
-      )}
+
+        {/* Total P&L */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>TOTAL P&L</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: clr(totalPnl), fontFamily: "'IBM Plex Mono', monospace" }}>
+            {sign(totalPnl)}₹{fmt(Math.abs(totalPnl))} ({sign(totalPct)}{fmt(totalPct, 2)}%)
+          </span>
+        </div>
+
+        {!isMobile && (
+          <>
+            <div style={{ width: 1, height: 20, background: T.border, flexShrink: 0 }} />
+
+            {/* Available Cash */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>AVAILABLE CASH</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: T.blue, fontFamily: "'IBM Plex Mono', monospace" }}>
+                ₹{fmt(cash)}
+              </span>
+            </div>
+
+            {/* Stock Holdings */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>STOCKS HOLDINGS</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>
+                ₹{fmt(stockValue)}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
         {!isMobile && <span style={{ fontSize: 10, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em' }}>{clock} UTC+5:30</span>}
@@ -1611,6 +1620,18 @@ export default function App() {
   const iv = INTERVALS[ivIdx];
   const currentPrice     = prices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
   const currentChangePct = prices[selected]?.changePct ?? 0;
+
+  const totalStockValue = portfolio.reduce((sum, pos) => {
+    const price = prices[pos.symbol]?.price ?? SEED_PRICES[pos.symbol] ?? pos.avgCost;
+    return sum + (price * pos.shares);
+  }, 0);
+  const netWorth = totalStockValue + cash;
+
+  const totalCost = portfolio.reduce((sum, pos) => {
+    return sum + (pos.avgCost * pos.shares);
+  }, 0);
+  const totalPnl = totalStockValue - totalCost;
+  const totalPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
 
   // Mobile layout sub-tab for Chart page
   const [mobileSubTab, setMobileSubTab] = useState('CHART');
@@ -2200,7 +2221,18 @@ export default function App() {
         )}
 
         {/* Header */}
-        <Header symbol={selected} connected={connected} view={view} onViewChange={setView} isMobile={isMobile} onLogout={() => { setLoggedIn(false); sessionStorage.removeItem('apt_token'); localStorage.removeItem('apex_user'); }} />
+        <Header 
+          connected={connected} 
+          view={view} 
+          onViewChange={setView} 
+          isMobile={isMobile} 
+          onLogout={() => { setLoggedIn(false); sessionStorage.removeItem('apt_token'); localStorage.removeItem('apex_user'); }} 
+          netWorth={netWorth}
+          cash={cash}
+          stockValue={totalStockValue}
+          totalPnl={totalPnl}
+          totalPct={totalPct}
+        />
 
         {/* Main layout */}
         <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
