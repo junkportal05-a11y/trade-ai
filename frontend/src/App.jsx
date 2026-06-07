@@ -6,6 +6,10 @@ import PerformancePanel from './PerformancePanel';
 import IntroSplash from './IntroSplash';
 import LoginScreen from './LoginScreen';
 import AccountPanel from './AccountPanel';
+import OrderBookPanel from './OrderBookPanel';
+import HomePanel from './HomePanel';
+import PredictionsPanel from './PredictionsPanel';
+
 
 
 
@@ -30,6 +34,8 @@ const T = {
   blueDim:    'rgba(77,166,255,0.1)',
   blueGlow:   'rgba(77,166,255,0.2)',
   gold:       '#f5c842',
+  goldDim:    'rgba(245,200,66,0.1)',
+  goldGlow:   'rgba(245,200,66,0.25)',
   accent:     '#7b6cff',
   accentAlt:  '#9b5de5',
   accentDim:  'rgba(123,108,255,0.12)',
@@ -38,22 +44,22 @@ const T = {
 
 // ── NSE Watchlist ────────────────────────────────────────────────────────────────
 const DEFAULT_WATCHLIST = [
-  { symbol: 'RELIANCE.NS', name: 'Reliance' },
-  { symbol: 'TCS.NS',      name: 'TCS' },
-  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank' },
-  { symbol: 'INFY.NS',     name: 'Infosys' },
-  { symbol: 'ICICIBANK.NS',name: 'ICICI Bank' },
-  { symbol: 'SBIN.NS',     name: 'SBI' },
-  { symbol: 'BAJFINANCE.NS',name: 'Bajaj Fin' },
-  { symbol: 'TMPV.NS',name: 'Tata Motors (TMPV)' },
-  { symbol: 'WIPRO.NS',    name: 'Wipro' },
-  { symbol: 'AXISBANK.NS', name: 'Axis Bank' },
+  { symbol: 'RELIANCE.NS', name: 'Reliance', sector: 'Energy' },
+  { symbol: 'TCS.NS',      name: 'TCS', sector: 'IT' },
+  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank', sector: 'Banking' },
+  { symbol: 'INFY.NS',     name: 'Infosys', sector: 'IT' },
+  { symbol: 'ICICIBANK.NS',name: 'ICICI Bank', sector: 'Banking' },
+  { symbol: 'SBIN.NS',     name: 'SBI', sector: 'Banking' },
+  { symbol: 'BAJFINANCE.NS',name: 'Bajaj Fin', sector: 'Banking' },
+  { symbol: 'TATAMOTORS.NS',name: 'Tata Motors', sector: 'Auto' },
+  { symbol: 'WIPRO.NS',    name: 'Wipro', sector: 'IT' },
+  { symbol: 'AXISBANK.NS', name: 'Axis Bank', sector: 'Banking' },
 ];
 
 const SEED_PRICES = {
   'RELIANCE.NS': 2920, 'TCS.NS': 4100, 'HDFCBANK.NS': 1780,
   'INFY.NS': 1650, 'ICICIBANK.NS': 1290, 'SBIN.NS': 845,
-  'BAJFINANCE.NS': 7200, 'TMPV.NS': 385, 'WIPRO.NS': 490,
+  'BAJFINANCE.NS': 7200, 'TATAMOTORS.NS': 960, 'WIPRO.NS': 490,
   'AXISBANK.NS': 1190,
 };
 
@@ -75,12 +81,12 @@ const PORTFOLIO = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt  = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtK = (n) => n >= 1e9 ? `$${(n/1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : `$${fmt(n)}`;
+const fmtK = (n) => n >= 1e9 ? `₹${(n/1e9).toFixed(2)}B` : n >= 1e6 ? `₹${(n/1e6).toFixed(1)}M` : `₹${fmt(n, 0)}`;
 const clr  = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
 const sign = (v) => v > 0 ? '+' : '';
 
 // ── Candlestick Chart (with volume and indicators) ────────────────────────
-function CandleChart({ symbol, interval, range, indicators, livePrice }) {
+function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate }) {
   const mainContainerRef = useRef();
   const rsiContainerRef = useRef();
   const macdContainerRef = useRef();
@@ -377,6 +383,20 @@ function CandleChart({ symbol, interval, range, indicators, livePrice }) {
     }
   }, [livePrice, bars]);
 
+  // Set markers when they change or bars load
+  useEffect(() => {
+    if (candleSeriesRef.current && !loading) {
+      candleSeriesRef.current.setMarkers(markers || []);
+    }
+  }, [markers, loading, bars]);
+
+  // Update parent with the last bar time for marker timestamps
+  useEffect(() => {
+    if (bars && bars.length > 0 && onLastBarUpdate) {
+      onLastBarUpdate(bars[bars.length - 1].time);
+    }
+  }, [bars, onLastBarUpdate]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
       {loading && (
@@ -458,47 +478,118 @@ function TickerBar({ prices }) {
 }
 
 // ── Watchlist Panel ───────────────────────────────────────────────────────────
-function WatchlistPanel({ prices, selected, onSelect }) {
+function WatchlistPanel({ prices, selected, onSelect, favorites = [], onToggleFavorite }) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredList = DEFAULT_WATCHLIST.filter(w => 
+    w.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (w.sector && w.sector.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const sortedList = [...filteredList].sort((a, b) => {
+    const aFav = favorites.includes(a.symbol);
+    const bFav = favorites.includes(b.symbol);
+    if (aFav && !bFav) return -1;
+    if (!aFav && bFav) return 1;
+    return 0;
+  });
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <div style={{ padding: '14px 16px 10px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>WATCHLIST</span>
-        <span style={{ fontSize: 10, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>{DEFAULT_WATCHLIST.length} SYMBOLS</span>
+      <div style={{ padding: '12px 14px 8px', borderBottom: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: T.textMid }}>WATCHLIST</span>
+          <span style={{ fontSize: 9, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>{sortedList.length} SYMBOLS</span>
+        </div>
+        {/* Search Input */}
+        <input 
+          type="text"
+          placeholder="🔍 Search watchlist..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            width: '100%',
+            background: T.bg,
+            border: `1px solid ${T.border}`,
+            borderRadius: 6,
+            color: T.text,
+            fontSize: 11,
+            padding: '5px 8px',
+            outline: 'none',
+            transition: 'border-color 0.2s',
+          }}
+          onFocus={(e) => e.target.style.borderColor = T.accent}
+          onBlur={(e) => e.target.style.borderColor = T.border}
+        />
       </div>
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {DEFAULT_WATCHLIST.map(({ symbol, name }) => {
-          const p     = prices[symbol];
-          const price = p?.price ?? SEED_PRICES[symbol] ?? 0;
-          const pct   = p?.changePct ?? 0;
-          const isUp  = pct >= 0;
-          const isSel = selected === symbol;
-          return (
-            <div key={symbol}
-              onClick={() => onSelect(symbol)}
-              style={{
-                padding: '11px 16px', cursor: 'pointer', transition: 'background 0.15s',
-                background: isSel ? T.blueDim : 'transparent',
-                borderLeft: `2px solid ${isSel ? T.blue : 'transparent'}`,
-                borderBottom: `1px solid ${T.border}`,
-              }}
-              onMouseEnter={e => !isSel && (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
-              onMouseLeave={e => !isSel && (e.currentTarget.style.background = 'transparent')}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: isSel ? T.blue : T.text, letterSpacing: '0.03em', fontFamily: "'IBM Plex Mono', monospace" }}>{symbol.replace('.NS', '')}</div>
-                  <div style={{ fontSize: 10, color: T.textDim, marginTop: 2 }}>{name}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 12, color: T.text, fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(price)}</div>
-                  <div style={{ fontSize: 10, color: clr(pct), marginTop: 2, background: isUp ? T.greenDim : T.redDim, padding: '1px 5px', borderRadius: 3, fontFamily: "'IBM Plex Mono', monospace" }}>
-                    {sign(pct)}{fmt(pct, 2)}%
+        {sortedList.length === 0 ? (
+          <div style={{ padding: '20px 14px', fontSize: 11, color: T.textDim, textAlign: 'center' }}>No matching symbols</div>
+        ) : (
+          sortedList.map(({ symbol, name, sector }) => {
+            const p     = prices[symbol];
+            const price = p?.price ?? SEED_PRICES[symbol] ?? 0;
+            const pct   = p?.changePct ?? 0;
+            const isUp  = pct >= 0;
+            const isSel = selected === symbol;
+            const isFav = favorites.includes(symbol);
+            return (
+              <div key={symbol}
+                onClick={() => onSelect(symbol)}
+                style={{
+                  padding: '10px 14px', cursor: 'pointer', transition: 'background 0.15s',
+                  background: isSel ? T.blueDim : 'transparent',
+                  borderLeft: `2px solid ${isSel ? T.blue : 'transparent'}`,
+                  borderBottom: `1px solid ${T.border}`,
+                  position: 'relative',
+                }}
+                onMouseEnter={e => !isSel && (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                onMouseLeave={e => !isSel && (e.currentTarget.style.background = 'transparent')}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {/* Favorite Button */}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onToggleFavorite(symbol); }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: 0,
+                          fontSize: 12,
+                          color: isFav ? T.gold : T.textDim,
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {isFav ? '★' : '☆'}
+                      </button>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: isSel ? T.blue : T.text, letterSpacing: '0.02em', fontFamily: "'IBM Plex Mono', monospace", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {symbol.replace('.NS', '')}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <span style={{ fontSize: 9, color: T.textDim }}>{name}</span>
+                      {sector && (
+                        <span style={{ fontSize: 8, background: 'rgba(255,255,255,0.04)', color: T.textMid, padding: '1px 4px', borderRadius: 3, fontWeight: 600 }}>
+                          {sector}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 11, color: T.text, fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(price)}</div>
+                    <div style={{ fontSize: 9, color: clr(pct), marginTop: 4, background: isUp ? T.greenDim : T.redDim, padding: '1px 4px', borderRadius: 3, fontFamily: "'IBM Plex Mono', monospace", display: 'inline-block' }}>
+                      {sign(pct)}{fmt(pct, 2)}%
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -519,6 +610,38 @@ function PortfolioPanel({ prices, portfolio, cash }) {
   const totalValue = stockValue + cash;
   const totalPnl = stockValue - totalCost;
   const totalPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+
+  // Donut chart calculation
+  const C = 157.08; // Circumference for R=25
+  const slices = [];
+  let accumulatedWeight = 0;
+
+  if (totalValue > 0) {
+    const cashWeight = cash / totalValue;
+    slices.push({
+      label: 'Cash',
+      value: cash,
+      color: T.blue,
+      weight: cashWeight,
+      dashOffset: C - (accumulatedWeight * C),
+    });
+    accumulatedWeight += cashWeight;
+  }
+
+  const COLORS = ['#7b6cff', '#00e5a8', '#ff9f43', '#9b5de5', '#f5c842', '#ff3d5a', '#ff4da6'];
+  positions.forEach((pos, idx) => {
+    if (totalValue > 0 && pos.value > 0) {
+      const weight = pos.value / totalValue;
+      slices.push({
+        label: pos.symbol.replace('.NS', ''),
+        value: pos.value,
+        color: COLORS[idx % COLORS.length],
+        weight,
+        dashOffset: C - (accumulatedWeight * C),
+      });
+      accumulatedWeight += weight;
+    }
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -542,6 +665,39 @@ function PortfolioPanel({ prices, portfolio, cash }) {
           </div>
         </div>
       </div>
+      {/* Allocation Donut Chart */}
+      {slices.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 16px', borderBottom: `1px solid ${T.border}`, gap: 20, background: 'rgba(255,255,255,0.005)' }}>
+          <svg width="68" height="68" viewBox="0 0 80 80" style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+            {/* Background circle */}
+            <circle cx="40" cy="40" r="25" stroke={T.borderHi} strokeWidth="8" fill="transparent" />
+            {slices.map((slice, idx) => (
+              <circle
+                key={idx}
+                cx="40"
+                cy="40"
+                r="25"
+                stroke={slice.color}
+                strokeWidth="8"
+                fill="transparent"
+                strokeDasharray={`${slice.weight * C} ${C}`}
+                strokeDashoffset={-slice.dashOffset + C}
+                style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+              />
+            ))}
+          </svg>
+          {/* Mini Legend */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
+            {slices.map((slice, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 9, fontFamily: "'IBM Plex Mono', monospace" }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: slice.color, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ color: T.textMid, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{slice.label}</span>
+                <span style={{ color: T.text, fontWeight: 600, flexShrink: 0 }}>{(slice.weight * 100).toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* Positions */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {positions.length === 0 ? (
@@ -572,12 +728,15 @@ function PortfolioPanel({ prices, portfolio, cash }) {
 }
 
 // ── Order Entry Panel ─────────────────────────────────────────────────────────
-function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelOrder }) {
+function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelOrder, priceAlerts = [], onAddAlert, onDeleteAlert }) {
   const [side, setSide]     = useState('buy');
   const [qty, setQty]       = useState('');
   const [type, setType]     = useState('market');
   const [limit, setLimit]   = useState('');
   const [status, setStatus] = useState(null);
+
+  const [alertCondition, setAlertCondition] = useState('above');
+  const [alertPrice, setAlertPrice] = useState('');
 
   const executionPrice = type === 'limit' ? parseFloat(limit) : price;
   const total = qty && executionPrice ? (parseFloat(qty) * executionPrice).toFixed(2) : '—';
@@ -614,7 +773,7 @@ function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelO
   return (
     <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10, height: '100%', boxSizing: 'border-box', overflowY: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>ORDER ENTRY</span>
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: T.textMid }}>ORDER ENTRY</span>
         <span style={{ fontSize: 9, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>CASH: ₹{fmt(cash)}</span>
       </div>
 
@@ -623,7 +782,7 @@ function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelO
         {['buy','sell'].map(s => (
           <button key={s} onClick={() => setSide(s)} style={{
             flex: 1, padding: '7px 0', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 700,
-            letterSpacing: '0.08em', fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
+            letterSpacing: '0.08em', fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
             background: side === s ? (s === 'buy' ? T.green : T.red) : 'transparent',
             color: side === s ? '#000' : T.textMid,
           }}>{s.toUpperCase()}</button>
@@ -636,7 +795,7 @@ function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelO
           <button key={t} onClick={() => setType(t)} style={{
             flex: 1, padding: '6px 0', border: `1px solid ${type === t ? T.accent : T.border}`,
             borderRadius: 4, cursor: 'pointer', fontSize: 10, background: type === t ? T.blueDim : 'transparent',
-            color: type === t ? T.accent : T.textMid, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em',
+            color: type === t ? T.accent : T.textMid, fontFamily: "'Inter', sans-serif", letterSpacing: '0.06em',
             transition: 'all 0.2s',
           }}>{t.toUpperCase()}</button>
         ))}
@@ -673,7 +832,7 @@ function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelO
         padding: '11px', border: 'none', borderRadius: 6, cursor: qty ? 'pointer' : 'not-allowed',
         background: side === 'buy' ? T.green : T.red,
         color: '#000', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em',
-        fontFamily: "'IBM Plex Mono', monospace", opacity: qty ? 1 : 0.4, transition: 'opacity 0.2s',
+        fontFamily: "'Inter', sans-serif", opacity: qty ? 1 : 0.4, transition: 'opacity 0.2s',
       }}>
         {status === 'placing' ? 'PLACING...' : `${side.toUpperCase()} ${symbol.replace('.NS', '')}`}
       </button>
@@ -681,7 +840,7 @@ function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelO
       {/* Open Limit Orders List */}
       {openOrders && openOrders.length > 0 && (
         <div style={{ marginTop: 10, borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: T.textMid, fontFamily: "'IBM Plex Mono', monospace", marginBottom: 6 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: T.textMid, marginBottom: 6 }}>
             OPEN LIMIT ORDERS ({openOrders.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -704,7 +863,7 @@ function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelO
                   onClick={() => onCancelOrder(o.id)}
                   style={{
                     padding: '2px 6px', background: T.redDim, border: `1px solid rgba(255,61,90,0.3)`, borderRadius: 4,
-                    color: T.red, fontSize: 8, fontWeight: 700, cursor: 'pointer', fontFamily: "'IBM Plex Mono', monospace",
+                    color: T.red, fontSize: 8, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif",
                     transition: 'all 0.15s'
                   }}
                 >
@@ -715,6 +874,98 @@ function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelO
           </div>
         </div>
       )}
+
+      {/* Price Alerts Form */}
+      <div style={{ marginTop: 10, borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: T.textMid, marginBottom: 8 }}>
+          ⏰ PRICE ALERTS
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+          <select 
+            value={alertCondition}
+            onChange={e => setAlertCondition(e.target.value)}
+            style={{
+              flex: 1.2,
+              background: T.bg,
+              border: `1px solid ${T.border}`,
+              borderRadius: 4,
+              color: T.text,
+              fontSize: 10,
+              padding: '4px',
+              height: 28,
+              outline: 'none',
+              fontFamily: "'Inter', sans-serif"
+            }}
+          >
+            <option value="above">Crosses Above (≥)</option>
+            <option value="below">Drops Below (≤)</option>
+          </select>
+          <div style={{ flex: 1.5, position: 'relative' }}>
+            <span style={{ position: 'absolute', left: 6, top: 7, fontSize: 9, color: T.textDim }}>₹</span>
+            <input 
+              type="number" 
+              value={alertPrice}
+              onChange={e => setAlertPrice(e.target.value)}
+              placeholder={price ? price.toFixed(0) : "0"} 
+              style={{
+                width: '100%',
+                background: T.bg,
+                border: `1px solid ${T.border}`,
+                borderRadius: 4,
+                color: T.text,
+                fontSize: 10,
+                padding: '4px 4px 4px 14px',
+                height: 28,
+                outline: 'none',
+                fontFamily: "'IBM Plex Mono', monospace"
+              }}
+            />
+          </div>
+          <button
+            onClick={() => {
+              if (!alertPrice || isNaN(parseFloat(alertPrice)) || parseFloat(alertPrice) <= 0) {
+                alert("Please enter a valid target price!");
+                return;
+              }
+              onAddAlert(symbol, alertCondition, parseFloat(alertPrice));
+              setAlertPrice('');
+            }}
+            style={{
+              padding: '0 10px',
+              height: 28,
+              background: T.accent,
+              border: 'none',
+              borderRadius: 4,
+              color: '#fff',
+              fontSize: 9,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: "'Inter', sans-serif"
+            }}
+          >
+            SET
+          </button>
+        </div>
+
+        {/* List of active alerts for this symbol */}
+        {priceAlerts && priceAlerts.filter(a => a.symbol === symbol).length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
+            {priceAlerts.filter(a => a.symbol === symbol).map(a => (
+              <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.bg, border: `1px solid ${T.border}`, padding: '4px 8px', borderRadius: 4, fontSize: 9, fontFamily: "'IBM Plex Mono', monospace" }}>
+                <span style={{ color: a.condition === 'above' ? T.green : T.red }}>
+                  {a.condition === 'above' ? '≥' : '≤'} ₹{fmt(a.targetPrice, 1)}
+                </span>
+                <button 
+                  onClick={() => onDeleteAlert(a.id)}
+                  style={{ background: 'none', border: 'none', color: T.red, cursor: 'pointer', fontSize: 8, fontWeight: 700, fontFamily: "'Inter', sans-serif" }}
+                >
+                  REMOVE
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div style={{ fontSize: 9, color: T.textDim, textAlign: 'center', lineHeight: 1.4, marginTop: 4 }}>PAPER TRADING ONLY — NO REAL ORDERS EXECUTED</div>
     </div>
@@ -900,28 +1151,21 @@ function Header({ symbol, connected, view, onViewChange, isMobile, onLogout }) {
         ◈ APEXTRADE
       </div>
 
-      {/* View switcher — CHART | SIGNALS | PERFORMANCE | ACCOUNT (Hidden on Mobile) */}
+      {/* View switcher — CHART | SIGNALS | PREDICTIONS | PERFORMANCE | ACCOUNT (Hidden on Mobile) */}
       {!isMobile && (
         <div style={{ display: 'flex', background: T.bg, borderRadius: 6, padding: 2, border: `1px solid ${T.border}`, flexShrink: 0 }}>
-          {[['CHART', '📈'], ['SIGNALS', '📡'], ['PERFORMANCE', '📊'], ['ACCOUNT', '🛡️ SECURITY']].map(([v, icon]) => (
+          {[['HOME', '🏠'], ['CHART', '📈'], ['SIGNALS', '📡'], ['PREDICTIONS', '🔮 PREDICT'], ['PERFORMANCE', '📊'], ['ACCOUNT', '🛡️ SECURITY']].map(([v, icon]) => (
             <button key={v} onClick={() => onViewChange(v)} style={{
               padding: '4px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
               background: view === v 
-                ? (v === 'SIGNALS' ? T.accentDim : v === 'PERFORMANCE' ? T.greenDim : v === 'ACCOUNT' ? T.accentDim : T.blueDim) 
+                ? (v === 'SIGNALS' ? T.accentDim : v === 'PERFORMANCE' ? T.greenDim : v === 'ACCOUNT' ? T.accentDim : v === 'PREDICTIONS' ? T.goldDim : T.blueDim) 
                 : 'transparent',
               color: view === v 
-                ? (v === 'SIGNALS' ? T.accentAlt : v === 'PERFORMANCE' ? T.green : v === 'ACCOUNT' ? T.accentAlt : T.accent) 
+                ? (v === 'SIGNALS' ? T.accentAlt : v === 'PERFORMANCE' ? T.green : v === 'ACCOUNT' ? T.accentAlt : v === 'PREDICTIONS' ? T.gold : T.accent) 
                 : T.textDim,
               fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
-              fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
-              boxShadow: view === v && v === 'SIGNALS' 
-                ? `0 0 10px ${T.accentGlow}` 
-                : view === v && v === 'PERFORMANCE' 
-                  ? `0 0 10px ${T.greenGlow}` 
-                  : view === v && v === 'ACCOUNT' 
-                    ? `0 0 10px ${T.accentGlow}` 
-                    : 'none',
-            }}>{icon} {v === 'SIGNALS' ? 'SCAN & ALLOCATE' : v}</button>
+              fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
+            }}>{icon} {v === 'SIGNALS' ? 'SCAN' : v === 'PREDICTIONS' ? 'PREDICT' : v}</button>
           ))}
         </div>
       )}
@@ -1012,7 +1256,7 @@ function Header({ symbol, connected, view, onViewChange, isMobile, onLogout }) {
 }
 
 // ── Bottom Tab Bar (mobile-friendly) ─────────────────────────────────────────
-const TABS = ['CHART', 'WATCHLIST', 'SIGNALS', 'PORTFOLIO', 'ORDER', 'AI', 'ACCOUNT'];
+const TABS = ['HOME', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'ACCOUNT'];
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
@@ -1020,20 +1264,291 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(() => sessionStorage.getItem('apt_token') !== null);
   const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('apex_user') || 'apex_head_quant');
 
-
   // Warm up backend in the background as soon as the app mounts (during login screen presentation)
   useEffect(() => {
     const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
     fetch(`${BASE_URL}/`).catch(() => {});
   }, []);
 
-  const [view, setView]         = useState('CHART');   // 'CHART' | 'SIGNALS'
+  const [view, setView]         = useState('HOME');   // 'HOME' is default now
   const [selected, setSelected] = useState('RELIANCE.NS');
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
   const [rightTab, setRightTab] = useState('ORDER');
   
   // Server warming/cold start splash page state
-  const [serverWarming, setServerWarming] = useState(true);
+  const [serverWarming, setServerWarming] = useState(() => localStorage.getItem('apex_splash_shown') === null);
+
+  // Mobile layout sub-tab for Chart page
+  const [mobileSubTab, setMobileSubTab] = useState('CHART');
+
+  // Price alerts state
+  const [priceAlerts, setPriceAlerts] = useState(() => {
+    const saved = localStorage.getItem('apex_price_alerts');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Watchlist favorites state
+  const [favorites, setFavorites] = useState(() => {
+    const saved = localStorage.getItem('apex_favorites');
+    return saved ? JSON.parse(saved) : ['RELIANCE.NS', 'TCS.NS'];
+  });
+
+  // AI Analyst embedded card states
+  const [aiRecommendation, setAiRecommendation] = useState('');
+  const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
+
+  // Toast notifications state
+  const [toasts, setToasts] = useState([]);
+
+  // Signals state (loaded on mount for HomePanel)
+  const [signals, setSignals] = useState([]);
+
+  const showToast = useCallback((message, type = 'success') => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 5000);
+  }, []);
+
+  const handleToggleFavorite = useCallback((symbol) => {
+    setFavorites(prev => {
+      const updated = prev.includes(symbol) ? prev.filter(s => s !== symbol) : [...prev, symbol];
+      localStorage.setItem('apex_favorites', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const handleAddAlert = useCallback((symbol, condition, targetPrice) => {
+    const newAlert = {
+      id: Math.random().toString(36).substr(2, 9),
+      symbol,
+      condition,
+      targetPrice: parseFloat(targetPrice),
+      active: true,
+    };
+    setPriceAlerts(prev => {
+      const updated = [...prev, newAlert];
+      localStorage.setItem('apex_price_alerts', JSON.stringify(updated));
+      return updated;
+    });
+    showToast(`Price alert created for ${symbol.replace('.NS', '')}`, 'success');
+  }, [showToast]);
+
+  const handleDeleteAlert = useCallback((id) => {
+    setPriceAlerts(prev => {
+      const updated = prev.filter(a => a.id !== id);
+      localStorage.setItem('apex_price_alerts', JSON.stringify(updated));
+      return updated;
+    });
+    showToast(`Price alert removed`, 'info');
+  }, [showToast]);
+
+  const [pendingPredictions, setPendingPredictions] = useState([]);
+  const resolvingIds = useRef(new Set());
+
+  // Fetch pending predictions
+  const fetchPendingPredictions = useCallback(async () => {
+    if (!loggedIn) return;
+    try {
+      const token = sessionStorage.getItem('apt_token') || '';
+      const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const res = await fetch(`${API_BASE}/api/predictions`, {
+        headers: { 'X-Session-Token': token }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPendingPredictions(data.filter(p => p.status === 'PENDING'));
+      }
+    } catch (err) {
+      console.error("Error fetching pending predictions:", err);
+    }
+  }, [loggedIn]);
+
+  useEffect(() => {
+    fetchPendingPredictions();
+    const interval = setInterval(fetchPendingPredictions, 10000); // refresh pending list every 10s
+    return () => clearInterval(interval);
+  }, [fetchPendingPredictions]);
+
+  // Tick Matching Resolution Engine
+  useEffect(() => {
+    if (!loggedIn || pendingPredictions.length === 0) return;
+
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+    pendingPredictions.forEach(async (pred) => {
+      if (resolvingIds.current.has(pred.id)) return;
+
+      const livePriceData = prices[pred.symbol];
+      if (!livePriceData || livePriceData.price == null) return;
+
+      const currentPrice = livePriceData.price;
+      const isUp = pred.prediction_type === 'UP';
+      let shouldResolve = false;
+      let status = '';
+
+      if (isUp) {
+        if (currentPrice >= pred.target_price) {
+          shouldResolve = true;
+          status = 'CORRECT';
+        } else if (currentPrice <= pred.stop_loss) {
+          shouldResolve = true;
+          status = 'INCORRECT';
+        }
+      } else {
+        // Bearish prediction
+        if (currentPrice <= pred.target_price) {
+          shouldResolve = true;
+          status = 'CORRECT';
+        } else if (currentPrice >= pred.stop_loss) {
+          shouldResolve = true;
+          status = 'INCORRECT';
+        }
+      }
+
+      if (shouldResolve) {
+        resolvingIds.current.add(pred.id);
+        try {
+          const token = sessionStorage.getItem('apt_token') || '';
+          const res = await fetch(`${API_BASE}/api/predictions/${pred.id}/resolve`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Session-Token': token
+            },
+            body: JSON.stringify({
+              actual_outcome: currentPrice,
+              status: status
+            })
+          });
+
+          if (res.ok) {
+            showToast(`🔮 Prediction resolved: ${pred.symbol.replace('.NS', '')} hit ${status === 'CORRECT' ? 'Target' : 'Stop Loss'}!`, status === 'CORRECT' ? 'success' : 'error');
+            setPendingPredictions(prev => prev.filter(p => p.id !== pred.id));
+          } else {
+            resolvingIds.current.delete(pred.id);
+          }
+        } catch (err) {
+          console.error("Error auto-resolving prediction:", err);
+          resolvingIds.current.delete(pred.id);
+        }
+      }
+    });
+  }, [prices, pendingPredictions, loggedIn, showToast]);
+
+  // Load signals for HomePanel
+  useEffect(() => {
+    if (!loggedIn) return;
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    fetch(`${API_BASE}/api/allocate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Token': sessionStorage.getItem('apt_token') || ''
+      },
+      body: JSON.stringify({ capital: cash })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.all_signals && data.all_signals.length > 0) {
+        setSignals(data.all_signals);
+      } else {
+        throw new Error("Empty signals");
+      }
+    })
+    .catch(() => {
+      // Fallback signals generator
+      const mockSignals = [
+        { symbol: 'RELIANCE.NS', name: 'Reliance', signal: 'BUY', confidence: 88, rr_ratio: 2.5, reasoning: 'RSI oversold trigger on daily candle chart. Volume spike supports reversal.' },
+        { symbol: 'TCS.NS', name: 'TCS', signal: 'BUY', confidence: 75, rr_ratio: 1.8, reasoning: 'Moving average convergence crossover signals strong bullish momentum.' },
+        { symbol: 'INFY.NS', name: 'Infosys', signal: 'SELL', confidence: 82, rr_ratio: 2.1, reasoning: 'Overbought indicator breach with high overhead volume block.' }
+      ];
+      setSignals(mockSignals);
+    });
+  }, [loggedIn]);
+
+  // Embedded AI Analyst Recommendation Fetch Effect
+  useEffect(() => {
+    if (!selected || !loggedIn) return;
+    let active = true;
+    setAiRecommendationLoading(true);
+    setAiRecommendation('');
+    
+    const timer = setTimeout(async () => {
+      try {
+        const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+        const cleanedSymbol = selected.replace('.NS', '');
+        const livePrice = prices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
+        const pct = prices[selected]?.changePct ?? 0;
+        
+        const res = await fetch(`${API_BASE}/api/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Session-Token': sessionStorage.getItem('apt_token') || ''
+          },
+          body: JSON.stringify({
+            message: `Provide a quick 1-2 sentence technical analyst recommendation for ${cleanedSymbol} at current price ₹${livePrice} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%). Focus on technical metrics like RSI, key levels, or potential triggers. Keep it extremely concise.`,
+            context: { symbol: cleanedSymbol, price: livePrice, changePct: pct },
+            history: []
+          })
+        });
+        if (res.ok && active) {
+          const data = await res.json();
+          setAiRecommendation(data.reply);
+        } else if (active) {
+          setAiRecommendation(`RSI and moving averages suggest neutral-to-bullish momentum for ${cleanedSymbol}. Set key support levels at ₹${(livePrice * 0.98).toFixed(1)}.`);
+        }
+      } catch (err) {
+        if (active) {
+          const livePrice = prices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
+          setAiRecommendation(`Support pivot found around ₹${(livePrice * 0.97).toFixed(1)} with overhead resistance at ₹${(livePrice * 1.03).toFixed(1)}.`);
+        }
+      } finally {
+        if (active) setAiRecommendationLoading(false);
+      }
+    }, 1000); // 1 second debounce
+    
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [selected, loggedIn, prices]);
+
+  // Price Alerts Engine Effect
+  useEffect(() => {
+    if (priceAlerts.length === 0) return;
+    
+    const triggeredIds = [];
+    priceAlerts.forEach(alert => {
+      const liveData = prices[alert.symbol];
+      if (!liveData) return;
+      
+      const price = liveData.price;
+      let triggered = false;
+      if (alert.condition === 'above' && price >= alert.targetPrice) {
+        triggered = true;
+      } else if (alert.condition === 'below' && price <= alert.targetPrice) {
+        triggered = true;
+      }
+      
+      if (triggered) {
+        triggeredIds.push(alert.id);
+        const sideSymbol = alert.symbol.replace('.NS', '');
+        const direction = alert.condition === 'above' ? 'crossed above' : 'dropped below';
+        showToast(`⏰ ALERT TRIGGERED: ${sideSymbol} has ${direction} ₹${fmt(alert.targetPrice, 1)} (Current: ₹${fmt(price, 1)})`, 'info');
+      }
+    });
+    
+    if (triggeredIds.length > 0) {
+      setPriceAlerts(prev => {
+        const updated = prev.filter(a => !triggeredIds.includes(a.id));
+        localStorage.setItem('apex_price_alerts', JSON.stringify(updated));
+        return updated;
+      });
+    }
+  }, [prices, priceAlerts, showToast]);
 
 
   // Mobile Responsiveness State
@@ -1057,14 +1572,74 @@ export default function App() {
   });
 
   // Paper Trading State
-  const [portfolio, setPortfolio] = useState([
-    { symbol: 'RELIANCE.NS', shares: 10, avgCost: 2750 },
-    { symbol: 'TCS.NS',      shares: 5,  avgCost: 3850 },
-    { symbol: 'HDFCBANK.NS', shares: 15, avgCost: 1650 },
-    { symbol: 'INFY.NS',     shares: 20, avgCost: 1500 },
-  ]);
-  const [cash, setCash] = useState(1000000); // Starting cash: ₹10,00,000 (10 Lakhs)
+  const [portfolio, setPortfolio] = useState(() => {
+    const saved = localStorage.getItem('apex_portfolio');
+    return saved ? JSON.parse(saved) : [
+      { symbol: 'RELIANCE.NS', shares: 10, avgCost: 2750 },
+      { symbol: 'TCS.NS',      shares: 5,  avgCost: 3850 },
+      { symbol: 'HDFCBANK.NS', shares: 15, avgCost: 1650 },
+      { symbol: 'INFY.NS',     shares: 20, avgCost: 1500 },
+    ];
+  });
+  const [cash, setCash] = useState(() => {
+    const saved = localStorage.getItem('apex_cash');
+    return saved ? parseFloat(saved) : 1000000; // Starting cash: ₹10,00,000 (10 Lakhs)
+  });
   const [openOrders, setOpenOrders] = useState([]);
+
+  useEffect(() => {
+    localStorage.setItem('apex_portfolio', JSON.stringify(portfolio));
+  }, [portfolio]);
+
+  useEffect(() => {
+    localStorage.setItem('apex_cash', cash.toString());
+  }, [cash]);
+
+  // Chart markers for executed paper trades
+  const [tradeMarkers, setTradeMarkers] = useState({});
+  const lastBarTimeRef = useRef(null);
+
+  const handleLastBarUpdate = useCallback((time) => {
+    lastBarTimeRef.current = time;
+  }, []);
+
+  const getCurrentBarTime = useCallback((interval) => {
+    const now = new Date();
+    if (interval === '1d' || interval === '1wk' || interval === '1mo' || interval === '3mo') {
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    } else {
+      let seconds = 300;
+      if (interval === '1m') seconds = 60;
+      if (interval === '5m') seconds = 300;
+      if (interval === '15m') seconds = 900;
+      if (interval === '30m') seconds = 1800;
+      if (interval === '60m' || interval === '1h') seconds = 3600;
+      const ms = seconds * 1000;
+      return Math.floor(Math.floor(Date.now() / ms) * ms / 1000);
+    }
+  }, []);
+
+  const addTradeMarker = useCallback((sym, side, qty, execPrice) => {
+    const barTime = (sym === selected && lastBarTimeRef.current) 
+      ? lastBarTimeRef.current 
+      : getCurrentBarTime(INTERVALS[ivIdx].interval);
+
+    const newMarker = {
+      time: barTime,
+      position: side === 'buy' ? 'belowBar' : 'aboveBar',
+      color: side === 'buy' ? T.green : T.red,
+      shape: side === 'buy' ? 'arrowUp' : 'arrowDown',
+      text: `${side.toUpperCase()}: ${qty} @ ₹${fmt(execPrice, 1)}`,
+    };
+
+    setTradeMarkers(prev => ({
+      ...prev,
+      [sym]: [...(prev[sym] || []), newMarker]
+    }));
+  }, [selected, ivIdx, getCurrentBarTime]);
 
   const symbols = DEFAULT_WATCHLIST.map(w => w.symbol);
   const { prices, connected } = useLivePrices(symbols);
@@ -1100,6 +1675,7 @@ export default function App() {
             return [...prev, { symbol: order.symbol, shares: qty, avgCost: price }];
           }
         });
+        addTradeMarker(order.symbol, 'buy', qty, price);
       } else {
         // sell
         let valid = true;
@@ -1121,6 +1697,7 @@ export default function App() {
           return false;
         }
         setCash(prev => prev + cost);
+        addTradeMarker(order.symbol, 'sell', qty, price);
       }
       return 'filled';
     } else {
@@ -1187,6 +1764,7 @@ export default function App() {
       if (trigger) {
         filledIds.push(order.id);
         const cost = order.qty * order.limitPrice; // execute at limit price
+        addTradeMarker(order.symbol, order.side, order.qty, order.limitPrice);
         
         if (order.side === 'buy') {
           if (cost <= updatedCash) {
@@ -1225,7 +1803,7 @@ export default function App() {
       setPortfolio(updatedPortfolio);
       setOpenOrders(prev => prev.filter(o => !filledIds.includes(o.id)));
     }
-  }, [prices, openOrders, cash, portfolio]);
+  }, [prices, openOrders, cash, portfolio, addTradeMarker]);
 
   // Called from SignalsPanel when user clicks a signal card
   const handleSignalSelect = (symbol) => {
@@ -1236,6 +1814,7 @@ export default function App() {
 
   const handleWokenUp = useCallback(() => {
     setServerWarming(false);
+    localStorage.setItem('apex_splash_shown', 'true');
   }, []);
 
   if (!loggedIn) {
@@ -1245,6 +1824,31 @@ export default function App() {
   return (
     <>
       {serverWarming && <IntroSplash onWokenUp={handleWokenUp} />}
+      {/* Toast Notifications */}
+      <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 999999, display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 360 }}>
+        {toasts.map(t => (
+          <div key={t.id} style={{
+            background: T.surface,
+            border: `1px solid ${t.type === 'error' ? T.red : t.type === 'info' ? T.blue : T.green}`,
+            boxShadow: `0 4px 16px rgba(0,0,0,0.5)`,
+            color: T.text,
+            padding: '12px 16px',
+            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            animation: 'slideIn 0.3s ease',
+            backdropFilter: 'blur(8px)',
+          }}>
+            <span style={{ color: t.type === 'error' ? T.red : t.type === 'info' ? T.blue : T.green }}>
+              {t.type === 'error' ? '⚠️' : t.type === 'info' ? '⏰' : '✓'}
+            </span>
+            <span>{t.message}</span>
+          </div>
+        ))}
+      </div>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1296,29 +1900,161 @@ export default function App() {
         {/* Main layout */}
         <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
 
-          {view === 'SIGNALS' ? (
+          {view === 'HOME' ? (
+            /* HOME VIEW — full width */
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              <HomePanel 
+                prices={prices} 
+                portfolio={portfolio} 
+                cash={cash} 
+                onViewChange={setView} 
+                onSelectSymbol={setSelected}
+                signals={signals}
+                priceAlerts={priceAlerts} 
+                onDeleteAlert={handleDeleteAlert} 
+              />
+              {isMobile && (
+                <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                  {TABS.map(tab => (
+                    <button key={tab} onClick={() => setView(tab)} style={{
+                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
+                      background: 'transparent',
+                      color: view === tab ? T.accent : T.textDim,
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                      fontFamily: "'Inter', sans-serif",
+                      transition: 'all 0.2s',
+                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
+                      marginTop: -1
+                    }}>
+                      {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'PERFORMANCE' ? '📊 PERF' : '🛡️ SEC'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : view === 'SIGNALS' ? (
             /* SIGNALS VIEW — full width */
-            <SignalsPanel onSelectSymbol={handleSignalSelect} selectedSymbol={selected} prices={prices} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              <SignalsPanel onSelectSymbol={handleSignalSelect} selectedSymbol={selected} prices={prices} />
+              {isMobile && (
+                <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                  {TABS.map(tab => (
+                    <button key={tab} onClick={() => setView(tab)} style={{
+                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
+                      background: 'transparent',
+                      color: view === tab ? T.accent : T.textDim,
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                      fontFamily: "'Inter', sans-serif",
+                      transition: 'all 0.2s',
+                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
+                      marginTop: -1
+                    }}>
+                      {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'PERFORMANCE' ? '📊 PERF' : '🛡️ SEC'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : view === 'PREDICTIONS' ? (
+            /* PREDICTIONS VIEW — full width */
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              <PredictionsPanel prices={prices} selectedSymbol={selected} onSelectSymbol={setSelected} onViewChange={setView} />
+              {isMobile && (
+                <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                  {TABS.map(tab => (
+                    <button key={tab} onClick={() => setView(tab)} style={{
+                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
+                      background: 'transparent',
+                      color: view === tab ? T.accent : T.textDim,
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                      fontFamily: "'Inter', sans-serif",
+                      transition: 'all 0.2s',
+                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
+                      marginTop: -1
+                    }}>
+                      {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'PERFORMANCE' ? '📊 PERF' : '🛡️ SEC'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : view === 'PERFORMANCE' ? (
             /* PERFORMANCE VIEW — full width */
-            <PerformancePanel />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              <PerformancePanel />
+              {isMobile && (
+                <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                  {TABS.map(tab => (
+                    <button key={tab} onClick={() => setView(tab)} style={{
+                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
+                      background: 'transparent',
+                      color: view === tab ? T.accent : T.textDim,
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                      fontFamily: "'Inter', sans-serif",
+                      transition: 'all 0.2s',
+                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
+                      marginTop: -1
+                    }}>
+                      {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'PERFORMANCE' ? '📊 PERF' : '🛡️ SEC'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : view === 'ACCOUNT' ? (
             /* ACCOUNT VIEW — full width */
-            <AccountPanel currentUser={currentUser} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              <AccountPanel currentUser={currentUser} />
+              {isMobile && (
+                <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                  {TABS.map(tab => (
+                    <button key={tab} onClick={() => setView(tab)} style={{
+                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
+                      background: 'transparent',
+                      color: view === tab ? T.accent : T.textDim,
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                      fontFamily: "'Inter', sans-serif",
+                      transition: 'all 0.2s',
+                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
+                      marginTop: -1
+                    }}>
+                      {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'PERFORMANCE' ? '📊 PERF' : '🛡️ SEC'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : (
             <>
               {isMobile ? (
-                /* MOBILE VIEW — Single column with bottom tabs */
+                /* MOBILE VIEW — Single column with bottom tabs and top sub-tabs for Chart view */
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.bg }}>
                   {/* Content Area */}
                   <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-                    {mobileTab === 'WATCHLIST' && (
+                    {/* Sub-tab switcher */}
+                    <div style={{ display: 'flex', background: T.panelAlt, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+                      {['WATCHLIST', 'CHART', 'ORDER', 'AI'].map(sub => (
+                        <button key={sub} onClick={() => setMobileSubTab(sub)} style={{
+                          flex: 1, padding: '10px 0', border: 'none', cursor: 'pointer',
+                          background: 'transparent',
+                          color: mobileSubTab === sub ? T.accent : T.textDim,
+                          fontSize: 10, fontWeight: 700,
+                          fontFamily: "'Inter', sans-serif",
+                          borderBottom: `2px solid ${mobileSubTab === sub ? T.accent : 'transparent'}`,
+                          marginTop: -1
+                        }}>
+                          {sub === 'WATCHLIST' ? '📋 WATCH' : sub === 'CHART' ? '📈 CHART' : sub === 'ORDER' ? '💸 TRADE' : '✦ AI'}
+                        </button>
+                      ))}
+                    </div>
+
+                    {mobileSubTab === 'WATCHLIST' && (
                       <div style={{ flex: 1, background: T.surface }}>
-                        <WatchlistPanel prices={prices} selected={selected} onSelect={(s) => { setSelected(s); setMobileTab('CHART'); }} />
+                        <WatchlistPanel prices={prices} selected={selected} onSelect={(s) => { setSelected(s); setMobileSubTab('CHART'); }} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
                       </div>
                     )}
 
-                    {mobileTab === 'CHART' && (
+                    {mobileSubTab === 'CHART' && (
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                         {/* Interval picker & Indicator Toggles (Scrollable on mobile) */}
                         <div style={{ padding: '8px 12px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6, background: T.surface, overflowX: 'auto', flexShrink: 0, whiteSpace: 'nowrap' }}>
@@ -1328,7 +2064,7 @@ export default function App() {
                               borderRadius: 5, cursor: 'pointer', fontSize: 10, fontWeight: 700,
                               background: ivIdx === i ? T.blueDim : 'transparent',
                               color: ivIdx === i ? T.accent : T.textMid,
-                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontFamily: "'Inter', sans-serif",
                               transition: 'all 0.15s', flexShrink: 0
                             }}>{intv.label}</button>
                           ))}
@@ -1344,51 +2080,92 @@ export default function App() {
                                 borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
                                 background: active ? T.accentDim : 'transparent',
                                 color: active ? T.accentAlt : T.textDim,
-                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontFamily: "'Inter', sans-serif",
                                 transition: 'all 0.15s', flexShrink: 0
                               }}>{label}</button>
                             );
                           })}
                         </div>
                         {/* Chart */}
-                        <CandleChart 
-                          key={`${selected}-${INTERVALS[ivIdx].interval}-${INTERVALS[ivIdx].range}-${indicators.rsi}-${indicators.macd}`} 
-                          symbol={selected} 
-                          interval={INTERVALS[ivIdx].interval} 
-                          range={INTERVALS[ivIdx].range} 
-                          indicators={indicators} 
-                          livePrice={prices[selected]}
-                        />
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                          <CandleChart 
+                            key={`${selected}-${INTERVALS[ivIdx].interval}-${INTERVALS[ivIdx].range}-${indicators.rsi}-${indicators.macd}`} 
+                            symbol={selected} 
+                            interval={INTERVALS[ivIdx].interval} 
+                            range={INTERVALS[ivIdx].range} 
+                            indicators={indicators} 
+                            livePrice={prices[selected]}
+                            markers={tradeMarkers[selected] || []}
+                            onLastBarUpdate={handleLastBarUpdate}
+                          />
+                        </div>
+                        {/* Embedded AI Analyst Card */}
+                        <div style={{
+                          margin: '8px 12px 12px',
+                          background: T.panel,
+                          border: `1px solid ${T.border}`,
+                          borderRadius: 8,
+                          padding: '10px 12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 6,
+                          flexShrink: 0
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: T.accentAlt }}>
+                              💡 AI QUANT ANALYST: {selected.replace('.NS', '')}
+                            </div>
+                            {aiRecommendationLoading && (
+                              <span style={{ display: 'inline-block', width: 10, height: 10, border: `1.5px solid ${T.border}`, borderTopColor: T.accentAlt, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                            )}
+                          </div>
+                          <div style={{ fontSize: 11, color: T.text, lineHeight: 1.4 }}>
+                            {aiRecommendationLoading ? (
+                              <span style={{ color: T.textDim }}>Running technical scan...</span>
+                            ) : (
+                              aiRecommendation || "Select a ticker from the watchlist to fetch a quick technical recommendation."
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setView('PREDICTIONS')}
+                            style={{
+                              marginTop: 4,
+                              alignSelf: 'flex-start',
+                              padding: '3px 8px',
+                              background: 'rgba(245, 200, 66, 0.08)',
+                              border: `1px solid ${T.gold}30`,
+                              borderRadius: 5,
+                              color: T.gold,
+                              fontSize: 9,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              fontFamily: "'Inter', sans-serif",
+                              letterSpacing: '0.04em',
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.15)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.08)'}
+                          >
+                            🔮 LOG SYSTEM PREDICTION
+                          </button>
+                        </div>
                       </div>
                     )}
 
-                    {mobileTab === 'SIGNALS' && (
-                      <div style={{ flex: 1, background: T.surface, overflowY: 'auto' }}>
-                        <SignalsPanel onSelectSymbol={(s) => { setSelected(s); setMobileTab('CHART'); }} selectedSymbol={selected} prices={prices} />
+                    {mobileSubTab === 'ORDER' && (
+                      <div style={{ flex: 1, background: T.surface, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                        <div style={{ flex: '1 1 50%', overflowY: 'auto', minHeight: 0 }}>
+                          <OrderPanel symbol={selected} price={currentPrice} cash={cash} openOrders={openOrders} onExecuteOrder={handleExecuteOrder} onCancelOrder={handleCancelOrder} priceAlerts={priceAlerts} onAddAlert={handleAddAlert} onDeleteAlert={handleDeleteAlert} />
+                        </div>
+                        <div style={{ flex: '1 1 50%', minHeight: 0 }}>
+                          <OrderBookPanel symbol={selected} price={currentPrice} />
+                        </div>
                       </div>
                     )}
 
-                    {mobileTab === 'ORDER' && (
-                      <div style={{ flex: 1, background: T.surface }}>
-                        <OrderPanel symbol={selected} price={currentPrice} cash={cash} openOrders={openOrders} onExecuteOrder={handleExecuteOrder} onCancelOrder={handleCancelOrder} />
-                      </div>
-                    )}
-
-                    {mobileTab === 'PORTFOLIO' && (
-                      <div style={{ flex: 1, background: T.surface }}>
-                        <PortfolioPanel prices={prices} portfolio={portfolio} cash={cash} />
-                      </div>
-                    )}
-
-                    {mobileTab === 'AI' && (
+                    {mobileSubTab === 'AI' && (
                       <div style={{ flex: 1, background: T.surface }}>
                         <ChatPanel symbol={selected} price={currentPrice} changePct={currentChangePct} />
-                      </div>
-                    )}
-
-                    {mobileTab === 'ACCOUNT' && (
-                      <div style={{ flex: 1, background: T.surface }}>
-                        <AccountPanel currentUser={currentUser} />
                       </div>
                     )}
                   </div>
@@ -1396,17 +2173,17 @@ export default function App() {
                   {/* Bottom Navigation Bar */}
                   <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
                     {TABS.map(tab => (
-                      <button key={tab} onClick={() => setMobileTab(tab)} style={{
+                      <button key={tab} onClick={() => setView(tab)} style={{
                         flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
                         background: 'transparent',
-                        color: mobileTab === tab ? (tab === 'AI' ? T.accentAlt : tab === 'ACCOUNT' ? T.accentAlt : T.accent) : T.textDim,
+                        color: view === tab ? T.accent : T.textDim,
                         fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
-                        fontFamily: "'IBM Plex Mono', monospace",
+                        fontFamily: "'Inter', sans-serif",
                         transition: 'all 0.2s',
-                        borderTop: `2px solid ${mobileTab === tab ? (tab === 'AI' ? T.accentAlt : tab === 'ACCOUNT' ? T.accentAlt : T.accent) : 'transparent'}`,
+                        borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
                         marginTop: -1
                       }}>
-                        {tab === 'AI' ? '✦ AI' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'ACCOUNT' ? '🛡️ SEC' : tab}
+                        {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'PERFORMANCE' ? '📊 PERF' : '🛡️ SEC'}
                       </button>
                     ))}
                   </div>
@@ -1416,7 +2193,7 @@ export default function App() {
                 <>
                   {/* LEFT — Watchlist */}
                   <div style={{ width: 190, flexShrink: 0, borderRight: `1px solid ${T.border}`, background: T.surface, overflow: 'hidden' }}>
-                    <WatchlistPanel prices={prices} selected={selected} onSelect={setSelected} />
+                    <WatchlistPanel prices={prices} selected={selected} onSelect={setSelected} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
                   </div>
 
                   {/* CENTER — Chart */}
@@ -1429,7 +2206,7 @@ export default function App() {
                           borderRadius: 5, cursor: 'pointer', fontSize: 10, fontWeight: 700,
                           background: ivIdx === i ? T.blueDim : 'transparent',
                           color: ivIdx === i ? T.accent : T.textMid,
-                          fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em',
+                          fontFamily: "'Inter', sans-serif", letterSpacing: '0.06em',
                           transition: 'all 0.15s',
                         }}>{intv.label}</button>
                       ))}
@@ -1451,7 +2228,7 @@ export default function App() {
                             borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
                             background: active ? T.accentDim : 'transparent',
                             color: active ? T.accentAlt : T.textDim,
-                            fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.04em',
+                            fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em',
                             transition: 'all 0.15s',
                           }}>{label}</button>
                         );
@@ -1463,14 +2240,69 @@ export default function App() {
                     </div>
 
                     {/* Chart */}
-                    <CandleChart 
-                      key={`${selected}-${INTERVALS[ivIdx].interval}-${INTERVALS[ivIdx].range}-${indicators.rsi}-${indicators.macd}`} 
-                      symbol={selected} 
-                      interval={INTERVALS[ivIdx].interval} 
-                      range={INTERVALS[ivIdx].range} 
-                      indicators={indicators} 
-                      livePrice={prices[selected]}
-                    />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                      <CandleChart 
+                        key={`${selected}-${INTERVALS[ivIdx].interval}-${INTERVALS[ivIdx].range}-${indicators.rsi}-${indicators.macd}`} 
+                        symbol={selected} 
+                        interval={INTERVALS[ivIdx].interval} 
+                        range={INTERVALS[ivIdx].range} 
+                        indicators={indicators} 
+                        livePrice={prices[selected]}
+                        markers={tradeMarkers[selected] || []}
+                        onLastBarUpdate={handleLastBarUpdate}
+                      />
+                    </div>
+
+                    {/* Embedded AI Analyst Card */}
+                    <div style={{
+                      margin: '0 16px 16px',
+                      background: T.panel,
+                      border: `1px solid ${T.border}`,
+                      borderRadius: 8,
+                      padding: '12px 16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      flexShrink: 0
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: T.accentAlt }}>
+                          💡 AI QUANT ANALYST: {selected.replace('.NS', '')}
+                        </div>
+                        {aiRecommendationLoading && (
+                          <span style={{ display: 'inline-block', width: 10, height: 10, border: `1.5px solid ${T.border}`, borderTopColor: T.accentAlt, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: T.text, lineHeight: 1.5 }}>
+                        {aiRecommendationLoading ? (
+                          <span style={{ color: T.textDim }}>Running technical scan and generating insights...</span>
+                        ) : (
+                          aiRecommendation || "Select a ticker from the watchlist to fetch a quick technical recommendation."
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setView('PREDICTIONS')}
+                        style={{
+                          marginTop: 4,
+                          alignSelf: 'flex-start',
+                          padding: '4px 10px',
+                          background: 'rgba(245, 200, 66, 0.08)',
+                          border: `1px solid ${T.gold}30`,
+                          borderRadius: 5,
+                          color: T.gold,
+                          fontSize: 9,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          fontFamily: "'Inter', sans-serif",
+                          letterSpacing: '0.04em',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.15)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.08)'}
+                      >
+                        🔮 LOG SYSTEM PREDICTION
+                      </button>
+                    </div>
                   </div>
 
                   {/* RIGHT — Tabbed panel */}
@@ -1484,18 +2316,26 @@ export default function App() {
                           borderBottom: `2px solid ${rightTab === tab ? (tab === 'AI' ? T.accentAlt : T.accent) : 'transparent'}`,
                           color: rightTab === tab ? T.text : T.textDim,
                           fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
-                          fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
-                          boxShadow: rightTab === tab && tab === 'AI' ? `0 2px 12px ${T.accentGlow}` : 'none',
+                          fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
                         }}>
                           {tab === 'AI' ? '✦ AI' : tab}
                         </button>
                       ))}
                     </div>
                     {/* Tab content */}
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                      {rightTab === 'ORDER'     && <OrderPanel symbol={selected} price={currentPrice} cash={cash} openOrders={openOrders} onExecuteOrder={handleExecuteOrder} onCancelOrder={handleCancelOrder} />}
-                      {rightTab === 'PORTFOLIO' && <PortfolioPanel prices={prices} portfolio={portfolio} cash={cash} />}
-                      {rightTab === 'AI'        && <ChatPanel symbol={selected} price={currentPrice} changePct={currentChangePct} />}
+                    <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      {rightTab === 'ORDER' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                          <div style={{ flex: '1 1 50%', overflowY: 'auto', minHeight: 0 }}>
+                            <OrderPanel symbol={selected} price={currentPrice} cash={cash} openOrders={openOrders} onExecuteOrder={handleExecuteOrder} onCancelOrder={handleCancelOrder} priceAlerts={priceAlerts} onAddAlert={handleAddAlert} onDeleteAlert={handleDeleteAlert} />
+                          </div>
+                          <div style={{ flex: '1 1 50%', minHeight: 0 }}>
+                            <OrderBookPanel symbol={selected} price={currentPrice} />
+                          </div>
+                        </div>
+                      )}
+                      {rightTab === 'PORTFOLIO' && <div style={{ flex: 1, overflow: 'hidden' }}><PortfolioPanel prices={prices} portfolio={portfolio} cash={cash} /></div>}
+                      {rightTab === 'AI'        && <div style={{ flex: 1, overflow: 'hidden' }}><ChatPanel symbol={selected} price={currentPrice} changePct={currentChangePct} /></div>}
                     </div>
                   </div>
                 </>

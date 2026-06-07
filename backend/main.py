@@ -14,7 +14,6 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from dotenv import load_dotenv
 
-import yfinance as yf
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -33,7 +32,20 @@ load_dotenv()
 
 ADMIN_KEY   = os.getenv("ADMIN_KEY", "change-me")
 APP_PASSWORD = os.getenv("APP_PASSWORD", "apextrade123")
-SECRET_KEY  = os.getenv("SECRET_KEY", "insecure-default")
+SECRET_KEY  = os.getenv("SECRET_KEY")
+
+# Security Hardening: Generate a secure random key in production if not configured
+if not SECRET_KEY:
+    if os.getenv("RENDER") or os.getenv("PORT"):
+        import secrets
+        SECRET_KEY = secrets.token_hex(32)
+    else:
+        SECRET_KEY = "insecure-default-dev"
+
+# Production check for default app password
+if APP_PASSWORD == "apextrade123" and (os.getenv("RENDER") or os.getenv("PORT")):
+    print("[SECURITY WARNING] Default APP_PASSWORD is in use in production! Please set APP_PASSWORD in environment config.")
+
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -282,28 +294,21 @@ def get_history(
 @app.get("/api/search")
 def search_symbols(q: str = Query(..., min_length=1, description="Search query")):
     """
-    Quick symbol search. yfinance doesn't have a real search API,
-    so we validate by attempting to fetch the ticker's fast_info.
-    Replace this with a real search API (e.g. Alpaca, Finnhub) for production.
+    Search symbols against the Upstox static instrument list.
     """
-    symbol = q.upper().strip()
-    try:
-        ticker = yf.Ticker(symbol)
-        info = ticker.fast_info
-        price = getattr(info, "last_price", None)
-        if price is None:
-            return {"results": []}
+    symbol = q.upper().strip().replace(".NS", "")
+    key = upstox_feed.get_instrument_key(symbol)
+    if key:
         return {
             "results": [
                 {
-                    "symbol": symbol,
-                    "name": getattr(info, "currency", symbol),
-                    "type": "Equity",
+                    "symbol": symbol + ".NS",
+                    "name": symbol,
+                    "type": "NSE Equity",
                 }
             ]
         }
-    except Exception:
-        return {"results": []}
+    return {"results": []}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -418,9 +423,8 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
             knowledge_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "trading_knowledge.txt"))
             if os.path.exists(knowledge_path):
                 try:
-                    with open(knowledge_path, "r", encoding="utf-8") as kf:
-                        # Limit context size to avoid token limit issues, take first 40000 chars
-                        knowledge_content = kf.read(40000)
+                    # Limit context size to allow the entire codebase blueprint and PDF manuals (up to 140000 chars)
+                    knowledge_content = kf.read(140000)
                 except Exception:
                     pass
 
@@ -538,7 +542,7 @@ SEED_PRICES = {
     'ICICIBANK.NS': 1290.0,
     'SBIN.NS': 845.0,
     'BAJFINANCE.NS': 7200.0,
-    'TMPV.NS': 385.0,
+    'TATAMOTORS.NS': 960.0,
     'WIPRO.NS': 490.0,
     'AXISBANK.NS': 1190.0,
 }
@@ -585,85 +589,19 @@ async def fetch_live_quotes_loop():
                     for sym in watchlist_symbols:
                         quote = quotes.get(sym)
                         if quote:
-                            LIVE_PRICES_CACHE[sym] = {
+                            data = {
                                 "price": quote["price"],
                                 "prev_close": quote["prev_close"],
                                 "timestamp": int(time.time() * 1000)
                             }
-                # Sleep for 1 second for true live ticks when Upstox is active
-                sleep_time = 1
-                
-            elif sig_engine.TWELVE_DATA_KEY:
-                # Twelve Data bulk quote fetch
-                clean_syms = [s.replace(".NS", "").replace(".BO", "") for s in watchlist_symbols]
-                url = f"https://api.twelvedata.com/quote?symbol={','.join(clean_syms)}&exchange=NSE&apikey={sig_engine.TWELVE_DATA_KEY}"
-                
-                r = await loop.run_in_executor(
-                    _crawl_executor,
-                    functools.partial(requests.get, url, timeout=10)
-                )
-                data = r.json()
-                
-                is_dict = all(sym in data for sym in clean_syms if sym in data)
-                for sym in watchlist_symbols:
-                    try:
-                        clean = sym.replace(".NS", "").replace(".BO", "")
-                        sym_data = None
-                        if is_dict:
-                            sym_data = data.get(clean)
-                        elif len(watchlist_symbols) == 1:
-                            sym_data = data
-                            
-                        if sym_data and sym_data.get("status") != "error":
-                            price = float(sym_data.get("price") or 0.0)
-                            prev_close = float(sym_data.get("previous_close") or price)
-                            if price > 0:
-                                LIVE_PRICES_CACHE[sym] = {
-                                    "price": price,
-                                    "prev_close": prev_close,
-                                    "timestamp": int(time.time() * 1000)
-                                }
-                    except Exception:
-                        pass
-                sleep_time = 10
-                
+                            LIVE_PRICES_CACHE[sym] = data
+                            # Also cache clean key for easier frontend lookup
+                            clean_sym = sym.replace(".NS", "").replace(".BO", "")
+                            LIVE_PRICES_CACHE[clean_sym] = data
+                # Sleep for 2 seconds when Upstox is active to fetch ticks
+                sleep_time = 2
             else:
-                # yfinance fallback bulk download
-                df = await loop.run_in_executor(
-                    _crawl_executor,
-                    functools.partial(
-                        yf.download, 
-                        tickers=" ".join(watchlist_symbols), 
-                        period="1d", 
-                        interval="1m", 
-                        auto_adjust=True, 
-                        progress=False
-                    )
-                )
-                
-                if df is not None and not df.empty:
-                    is_multi = isinstance(df.columns, pd.MultiIndex)
-                    for sym in watchlist_symbols:
-                        try:
-                            if is_multi:
-                                close_col = ('Close', sym)
-                                open_col  = ('Open', sym)
-                            else:
-                                close_col = 'Close'
-                                open_col  = 'Open'
-                                
-                            if (is_multi and close_col in df.columns) or (not is_multi and close_col in df.columns):
-                                prices_series = df[close_col].dropna()
-                                if not prices_series.empty:
-                                    last_price = float(prices_series.iloc[-1])
-                                    first_price = float(df[open_col].dropna().iloc[0]) if open_col in df.columns else last_price
-                                    LIVE_PRICES_CACHE[sym] = {
-                                        "price": last_price,
-                                        "prev_close": first_price,
-                                        "timestamp": int(time.time() * 1000)
-                                    }
-                        except Exception:
-                            pass
+                print("[live quotes] Upstox not authorized — no live prices")
                 sleep_time = 10
         except Exception as e:
             print(f"[fetch_live_quotes_loop] Error: {e}")
@@ -845,7 +783,7 @@ async def startup_event():
 async def websocket_prices(
     websocket: WebSocket,
     token: str = Query(None),
-    symbols: str = "RELIANCE.NS,TCS.NS,HDFCBANK.NS,INFY.NS,ICICIBANK.NS,SBIN.NS,BAJFINANCE.NS,TMPV.NS,WIPRO.NS,AXISBANK.NS"
+    symbols: str = "RELIANCE.NS,TCS.NS,HDFCBANK.NS,INFY.NS,ICICIBANK.NS,SBIN.NS,BAJFINANCE.NS,TATAMOTORS.NS,WIPRO.NS,AXISBANK.NS"
 ):
     await websocket.accept()
     if not token or token not in ACTIVE_SESSIONS:
@@ -945,6 +883,10 @@ def _simulate_tick(last_price: float) -> float:
 class CapitalRequest(BaseModel):
     capital: float
     interval: str = "5m"
+    risk_level: str = "Medium"
+    market_segment: str = "NSE"
+    trading_style: str = "Intraday Momentum"
+    max_recommendations: int = 5
 
 
 @app.post("/api/allocate")
@@ -970,7 +912,15 @@ async def allocate_capital(req: CapitalRequest, request: Request, _=Depends(requ
         signals = await asyncio.wait_for(
             loop.run_in_executor(
                 _executor,
-                functools.partial(sig_engine.run_scan, target_symbols),
+                functools.partial(
+                    sig_engine.run_scan,
+                    target_symbols,
+                    req.interval,
+                    req.trading_style,
+                    req.risk_level,
+                    req.market_segment,
+                    req.capital
+                ),
             ),
             timeout=150
         )
@@ -991,8 +941,35 @@ async def allocate_capital(req: CapitalRequest, request: Request, _=Depends(requ
             "entry_price": s.get("price", s.get("entry", s.get("entry_price", 0))),
         })
 
-    plan = capital_allocator.allocate(req.capital, normalised)
+    plan = capital_allocator.allocate(
+        req.capital,
+        normalised,
+        style=req.trading_style,
+        risk=req.risk_level,
+        max_recommendations=req.max_recommendations
+    )
     plan["all_signals"] = normalised
+
+    # Log generated recommendations in predictions_history database
+    for pos in plan.get("positions", []):
+        try:
+            pred_data = {
+                "symbol": pos["symbol"],
+                "prediction_type": "UP",  # all allocator signals are BUY opportunities
+                "entry_price": pos["entry_price"],
+                "target_price": pos["target1"],
+                "stop_loss": pos["stop_loss"],
+                "confidence_score": pos["confidence"],
+                "rsi": pos.get("rsi"),
+                "macd": pos.get("macd_hist"),
+                "adx": pos.get("adx"),
+                "status": "PENDING",
+                "reason": ", ".join(pos.get("reasons", []))
+            }
+            db.add_prediction(pred_data)
+        except Exception as e:
+            print(f"[api/allocate] Error archiving recommendation for {pos['symbol']}: {e}")
+
     return plan
 
 
@@ -1013,6 +990,13 @@ async def allocate_capital_quick(req: CapitalRequest, request: Request, _=Depend
     quick_signals = []
     for entry in sig_engine.NSE_WATCHLIST:
         sym   = entry["symbol"]
+        
+        # Apply segment filter
+        if req.market_segment == "BSE" and not sym.endswith(".BO"):
+            continue
+        elif req.market_segment == "F&O" and sym not in ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "SBIN.NS"]:
+            continue
+
         cached = LIVE_PRICES_CACHE.get(sym)
         if not cached:
             continue
@@ -1025,17 +1009,302 @@ async def allocate_capital_quick(req: CapitalRequest, request: Request, _=Depend
             "entry":      price,
             "entry_price": price,
             "target":     round(price * 1.025, 2),
+            "target1":    round(price * 1.025, 2),
+            "target2":    round(price * 1.045, 2),
             "stop_loss":  round(price * 0.985, 2),
             "confidence": 60,
             "atr":        round(price * 0.012, 2),
             "rr_ratio":   1.67,
+            "rsi":        50,
+            "macd_hist":  0.0,
+            "adx":        20,
+            "reasons":    ["Cached Live Price Signal"],
+            "sector_strength": "Medium",
+            "expected_move_pct": 2.5,
         })
 
     if not quick_signals:
         # Cache not warm yet — fall back to full scan
         return await allocate_capital(req)
 
-    plan = capital_allocator.allocate(req.capital, quick_signals)
+    plan = capital_allocator.allocate(
+        req.capital,
+        quick_signals,
+        style=req.trading_style,
+        risk=req.risk_level,
+        max_recommendations=req.max_recommendations
+    )
     plan["all_signals"] = quick_signals
     plan["note"] = "Quick allocation using cached prices — run /api/allocate for a full fresh scan."
+
+    # Log generated recommendations in predictions_history database
+    for pos in plan.get("positions", []):
+        try:
+            pred_data = {
+                "symbol": pos["symbol"],
+                "prediction_type": "UP",
+                "entry_price": pos["entry_price"],
+                "target_price": pos["target1"],
+                "stop_loss": pos["stop_loss"],
+                "confidence_score": pos["confidence"],
+                "rsi": pos.get("rsi"),
+                "macd": pos.get("macd_hist"),
+                "adx": pos.get("adx"),
+                "status": "PENDING",
+                "reason": ", ".join(pos.get("reasons", []))
+            }
+            db.add_prediction(pred_data)
+        except Exception as e:
+            print(f"[api/allocate/quick] Error archiving recommendation for {pos['symbol']}: {e}")
+
     return plan
+
+
+# ── Trade Journal API ────────────────────────────────────────────────────────
+
+class JournalEntryCreate(BaseModel):
+    symbol: str
+    direction: str
+    entry_price: float
+    exit_price: Optional[float] = None
+    qty: int
+    entry_date: Optional[str] = None
+    reason: Optional[str] = ""
+    emotion: Optional[str] = "Calm"
+    status: Optional[str] = "OPEN"
+    pnl: Optional[float] = None
+
+@app.post("/api/journal")
+@limiter.limit("10/minute")
+async def create_journal(entry: JournalEntryCreate, request: Request, _=Depends(require_session)):
+    try:
+        row_id = db.add_journal_entry(entry.dict())
+        return {"status": "success", "id": row_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/journal")
+async def list_journal(request: Request, _=Depends(require_session)):
+    try:
+        return db.get_journal_entries()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Journal entry not found")
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Predictions Tracking API ──────────────────────────────────────────────────
+
+class PredictionCreate(BaseModel):
+    symbol: str
+    prediction_type: str  # 'UP' or 'DOWN'
+    entry_price: float
+    target_price: float
+    stop_loss: float
+    confidence_score: int
+    rsi: Optional[float] = None
+    macd: Optional[float] = None
+    adx: Optional[float] = None
+    reason: Optional[str] = ""
+
+class PredictionResolve(BaseModel):
+    actual_outcome: float
+    status: str  # 'CORRECT' or 'INCORRECT' or 'FLAT'
+
+
+@app.post("/api/predictions")
+async def create_prediction(pred: PredictionCreate, request: Request, _=Depends(require_session)):
+    try:
+        row_id = db.add_prediction(pred.dict())
+        return {"status": "success", "id": row_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/predictions")
+async def list_predictions(request: Request, _=Depends(require_session)):
+    try:
+        return db.get_predictions()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/predictions/{pred_id}/resolve")
+async def resolve_prediction_route(pred_id: int, req: PredictionResolve, request: Request, _=Depends(require_session)):
+    try:
+        success = db.resolve_prediction(pred_id, req.actual_outcome, req.status)
+        if not success:
+            raise HTTPException(status_code=404, detail="Prediction not found")
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/predictions/{pred_id}")
+async def delete_prediction_route(pred_id: int, request: Request, _=Depends(require_session)):
+    try:
+        success = db.delete_prediction(pred_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Prediction not found")
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/predictions/stats")
+async def get_prediction_stats(request: Request, _=Depends(require_session)):
+    try:
+        preds = db.get_predictions()
+        resolved = [p for p in preds if p["status"] != "PENDING"]
+        correct = [p for p in resolved if p["status"] == "CORRECT"]
+        
+        win_rate = round((len(correct) / len(resolved)) * 100, 1) if len(resolved) > 0 else 0.0
+        
+        # Calculate Mean Absolute Error (MAE) between target and actual resolved price
+        total_error = 0.0
+        for p in resolved:
+            actual = p.get("actual_outcome")
+            target = p.get("target_price")
+            if actual is not None and target is not None:
+                total_error += abs(target - actual)
+        avg_error = round(total_error / len(resolved), 2) if len(resolved) > 0 else 0.0
+        
+        # Best and worst sectors
+        SECTORS_MAP = {
+            'RELIANCE.NS': 'Energy', 'TCS.NS': 'IT', 'HDFCBANK.NS': 'Banking',
+            'INFY.NS': 'IT', 'ICICIBANK.NS': 'Banking', 'SBIN.NS': 'Banking',
+            'BAJFINANCE.NS': 'Banking', 'TATAMOTORS.NS': 'Auto', 'WIPRO.NS': 'IT',
+            'AXISBANK.NS': 'Banking'
+        }
+        
+        sector_wins = {}
+        sector_totals = {}
+        for p in resolved:
+            sec = SECTORS_MAP.get(p['symbol'], 'Other')
+            sector_totals[sec] = sector_totals.get(sec, 0) + 1
+            if p['status'] == 'CORRECT':
+                sector_wins[sec] = sector_wins.get(sec, 0) + 1
+                
+        best_sector = "None"
+        best_rate = -1.0
+        worst_sector = "None"
+        worst_rate = 101.0
+        
+        for sec, total in sector_totals.items():
+            rate = (sector_wins.get(sec, 0) / total) * 100
+            if rate > best_rate:
+                best_rate = rate
+                best_sector = f"{sec} ({rate:.0f}%)"
+            if rate < worst_rate:
+                worst_rate = rate
+                worst_sector = f"{sec} ({rate:.0f}%)"
+                
+        # outcomes list for sparkline (last 20 resolved outcomes)
+        recent_outcomes = [p["status"] == "CORRECT" for p in resolved[:20]]
+        
+        # Average confidence of predictions
+        avg_conf = round(sum(p["confidence_score"] for p in preds) / len(preds), 1) if len(preds) > 0 else 0.0
+        
+        return {
+            "total_predictions": len(preds),
+            "resolved_predictions": len(resolved),
+            "win_rate": win_rate,
+            "avg_error": avg_error,
+            "best_sector": best_sector if best_rate >= 0 else "N/A",
+            "worst_sector": worst_sector if worst_rate <= 100 else "N/A",
+            "recent_outcomes": recent_outcomes,
+            "avg_confidence": avg_conf
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/market_brief")
+async def get_market_brief(request: Request, _=Depends(require_session)):
+    try:
+        # Get latest indicators via scan
+        try:
+            signals = sig_engine.run_scan()
+        except Exception:
+            signals = []
+            
+        buys = [s for s in signals if s.get("signal") in ("BUY", "WEAK BUY")]
+        sentiment_pct = int(len(buys) / len(signals) * 100) if signals else 50
+        
+        # Find best Opportunities
+        top_ops = [s for s in signals if s.get("signal") in ("BUY", "SELL", "WEAK BUY", "WEAK SELL")]
+        top_ops.sort(key=lambda x: -x.get("confidence", 0))
+        
+        # Nifty overall trend based on watchlist sentiment
+        if sentiment_pct >= 60:
+            trend_bias = "BULLISH"
+            heuristic_brief = "NSE watchlist indicators show broad buying conviction. Major components are holding short-term support lines (EMA9/VWAP) with expanding volume flow, signaling solid upside momentum."
+        elif sentiment_pct <= 40:
+            trend_bias = "BEARISH"
+            heuristic_brief = "Bearish pressures dominate short-term structures. Heavyweight components are trading below daily VWAP averages with negative MACD histogram momentum, recommending caution."
+        else:
+            trend_bias = "CONSOLIDATION"
+            heuristic_brief = "Sideways consolidation range observed. Low trend strength (ADX under 20) with prices clustering near middle Bollinger Band levels. Favor range-bound mean-reversion tactics."
+            
+        briefing_text = heuristic_brief
+        
+        # Try to generate using Gemini if available
+        if _genai_client and signals:
+            try:
+                opp_summary = "\n".join(
+                    f"- {s['symbol'].replace('.NS','')}: {s['signal']} (Conf: {s['confidence']}%, Price: ₹{s['price']:.1f}, Reasoning: {s['reasoning']})"
+                    for s in signals[:5]
+                )
+                prompt = (
+                    f"You are a professional quantitative research strategist. Based on the NSE stock watchlist technical "
+                    f"indicators below, write a 1-paragraph market overview briefing (max 90 words) summarizing nifty trend bias, "
+                    f"overall sentiment levels, and top options. Avoid direct financial advice. Keep it concise, do not start with introductory text.\n\n"
+                    f"--- WATCHLIST SCAN CONTEXT ---\n"
+                    f"{opp_summary}\n"
+                    f"-------------------------------\n\n"
+                    f"Actionable quantitative analysis:"
+                )
+                response = _genai_client.models.generate_content(
+                    model="gemini-2.0-flash",
+                    contents=prompt,
+                )
+                gemini_text = response.text.strip()
+                if gemini_text:
+                    briefing_text = gemini_text
+            except Exception:
+                pass # Fall back to heuristic
+                
+        return {
+            "nifty_trend": trend_bias,
+            "market_sentiment_pct": sentiment_pct,
+            "top_opportunities": [
+                {
+                    "symbol": s["symbol"].replace('.NS', ''),
+                    "name": s["name"],
+                    "signal": s["signal"],
+                    "confidence": s["confidence"],
+                    "price": s["price"]
+                }
+                for s in top_ops[:3]
+            ],
+            "risk_events": [
+                "RBI Monetary Policy Committee Rate Announcement (Upcoming)",
+                "US Core CPI inflation data report (Scheduled release)",
+                "Nifty Index Weekly Options Expiry (Thursday)",
+                "Federal Reserve Open Market Committee Interest Rate decision"
+            ],
+            "briefing_text": briefing_text
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

@@ -34,7 +34,7 @@ STATIC_MAP = {
     "BAJFINANCE": "NSE_EQ|INE296A01032",
     "WIPRO":      "NSE_EQ|INE075A01022",
     "AXISBANK":   "NSE_EQ|INE238A01034",
-    "TMPV":       "NSE_EQ|INE155A01022",
+    "TATAMOTORS": "NSE_EQ|INE155A01022",
     "MARUTI":     "NSE_EQ|INE585B01010",
     "SUNPHARMA":  "NSE_EQ|INE044A01036",
     "ADANIENT":   "NSE_EQ|INE423A01024",
@@ -51,6 +51,16 @@ _DYNAMIC_MAP = {}
 # Load token at module import
 def load_token() -> Optional[str]:
     global access_token
+    # Try DB first (survives Render deploys)
+    try:
+        import db
+        token = db.get_upstox_token()
+        if token:
+            access_token = token
+            return token
+    except Exception:
+        pass
+    # Fallback: file (local dev only)
     if os.path.exists(TOKEN_FILE):
         try:
             with open(TOKEN_FILE, "r") as f:
@@ -79,14 +89,21 @@ def get_login_url(state: str = "") -> str:
 def save_token(token: str, details: dict = None):
     global access_token
     access_token = token
-    payload = {"access_token": token, "updated_at": time.time()}
-    if details:
-        payload.update(details)
+    # Save to DB (persists on Render)
     try:
+        import db
+        db.save_upstox_token(token, details or {})
+    except Exception as e:
+        print(f"[Upstox] DB save failed: {e}")
+    # Also save to file for local dev
+    try:
+        payload = {"access_token": token, "updated_at": time.time()}
+        if details:
+            payload.update(details)
         with open(TOKEN_FILE, "w") as f:
             json.dump(payload, f, indent=4)
-    except Exception as e:
-        print(f"[Upstox Feed] Error saving token: {e}")
+    except Exception:
+        pass
 
 def exchange_code_for_token(code: str) -> Optional[dict]:
     url = "https://api.upstox.com/v2/login/authorization/token"

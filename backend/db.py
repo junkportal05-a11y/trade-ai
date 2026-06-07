@@ -6,6 +6,7 @@ Zero external setup: uses a local SQLite file at backend/trading_platform.db
 
 import sqlite3
 import os
+import json
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -40,6 +41,40 @@ def init_db():
                 exit_price  REAL,
                 exit_at     TEXT,
                 pnl_pct     REAL
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS trade_journal (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol      TEXT    NOT NULL,
+                direction   TEXT    NOT NULL,
+                entry_price REAL    NOT NULL,
+                exit_price  REAL,
+                qty         INTEGER NOT NULL,
+                entry_date  TEXT    NOT NULL,
+                reason      TEXT,
+                emotion     TEXT,
+                status      TEXT    NOT NULL DEFAULT 'OPEN',
+                pnl         REAL
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS predictions_history (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol           TEXT    NOT NULL,
+                prediction_date  TEXT    NOT NULL,
+                prediction_type  TEXT    NOT NULL,
+                entry_price      REAL    NOT NULL,
+                target_price     REAL    NOT NULL,
+                stop_loss        REAL    NOT NULL,
+                confidence_score INTEGER NOT NULL,
+                rsi              REAL,
+                macd             REAL,
+                adx              REAL,
+                actual_outcome   REAL,
+                status           TEXT    NOT NULL DEFAULT 'PENDING',
+                reason           TEXT,
+                resolved_at      TEXT
             )
         """)
         
@@ -262,6 +297,95 @@ def clear_history():
         c.commit()
 
 
+def add_journal_entry(entry: dict) -> int:
+    with _conn() as c:
+        now = _now_ist()
+        cur = c.execute(
+            """INSERT INTO trade_journal 
+               (symbol, direction, entry_price, exit_price, qty, entry_date, reason, emotion, status, pnl)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                entry["symbol"].upper(),
+                entry["direction"].upper(),
+                float(entry["entry_price"]),
+                float(entry["exit_price"]) if entry.get("exit_price") else None,
+                int(entry["qty"]),
+                entry.get("entry_date", now),
+                entry.get("reason", ""),
+                entry.get("emotion", "Calm"),
+                entry.get("status", "OPEN"),
+                float(entry["pnl"]) if entry.get("pnl") is not None else None
+            )
+        )
+        c.commit()
+        return cur.lastrowid
+
+
+def get_journal_entries() -> list:
+    with _conn() as c:
+        rows = c.execute("SELECT * FROM trade_journal ORDER BY entry_date DESC").fetchall()
+        return [dict(r) for r in rows]
+
+
+def delete_journal_entry(entry_id: int) -> bool:
+    with _conn() as c:
+        cur = c.execute("DELETE FROM trade_journal WHERE id=?", (entry_id,))
+        c.commit()
+        return cur.rowcount > 0
+
+
+def add_prediction(pred: dict) -> int:
+    with _conn() as c:
+        now = _now_ist()
+        cur = c.execute(
+            """INSERT INTO predictions_history 
+               (symbol, prediction_date, prediction_type, entry_price, target_price, stop_loss, confidence_score, rsi, macd, adx, status, reason)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                pred["symbol"].upper(),
+                pred.get("prediction_date", now),
+                pred["prediction_type"].upper(),
+                float(pred["entry_price"]),
+                float(pred["target_price"]),
+                float(pred["stop_loss"]),
+                int(pred["confidence_score"]),
+                float(pred["rsi"]) if pred.get("rsi") is not None else None,
+                float(pred["macd"]) if pred.get("macd") is not None else None,
+                float(pred["adx"]) if pred.get("adx") is not None else None,
+                pred.get("status", "PENDING").upper(),
+                pred.get("reason", "")
+            )
+        )
+        c.commit()
+        return cur.lastrowid
+
+
+def get_predictions() -> list:
+    with _conn() as c:
+        rows = c.execute("SELECT * FROM predictions_history ORDER BY prediction_date DESC").fetchall()
+        return [dict(r) for r in rows]
+
+
+def resolve_prediction(pred_id: int, actual_outcome: float, status: str) -> bool:
+    with _conn() as c:
+        now = _now_ist()
+        cur = c.execute(
+            """UPDATE predictions_history 
+               SET actual_outcome=?, status=?, resolved_at=? 
+               WHERE id=?""",
+            (actual_outcome, status.upper(), now, pred_id)
+        )
+        c.commit()
+        return cur.rowcount > 0
+
+
+def delete_prediction(pred_id: int) -> bool:
+    with _conn() as c:
+        cur = c.execute("DELETE FROM predictions_history WHERE id=?", (pred_id,))
+        c.commit()
+        return cur.rowcount > 0
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _now_ist() -> str:
@@ -277,3 +401,31 @@ def _calc_pnl(signal_type: str, entry: float, exit_price: float) -> float:
         return round(((exit_price - entry) / entry) * 100, 2)
     else:
         return round(((entry - exit_price) / entry) * 100, 2)
+
+
+def save_upstox_token(token: str, raw: dict = None):
+    with _conn() as c:
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_at TEXT
+            )
+        """)
+        c.execute("""
+            INSERT OR REPLACE INTO app_settings (key, value, updated_at)
+            VALUES ('upstox_token', ?, ?)
+        """, (json.dumps({"access_token": token, **(raw or {})}), _now_ist()))
+        c.commit()
+
+def get_upstox_token() -> Optional[str]:
+    try:
+        with _conn() as c:
+            c.execute("CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT)")
+            row = c.execute("SELECT value FROM app_settings WHERE key='upstox_token'").fetchone()
+            if row:
+                data = json.loads(row["value"])
+                return data.get("access_token")
+    except Exception:
+        pass
+    return None
