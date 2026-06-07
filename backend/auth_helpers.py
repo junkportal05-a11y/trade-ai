@@ -31,12 +31,12 @@ def is_bcrypt_hash(value: str) -> bool:
 USER_REGISTRY = {}
 
 # 1. Admin account initialization
-raw_pass_admin = os.getenv("PASS_ADMIN")
+raw_pass_admin = (os.getenv("PASS_ADMIN") or "").strip() or (os.getenv("APP_PASSWORD") or "").strip()
 if not raw_pass_admin:
     # Fallback to a secure random temporary password printed to terminal console
     temp_pass = secrets.token_urlsafe(16)
     print("\n" + "="*80)
-    print(" [SECURITY WARNING] PASS_ADMIN is not configured in .env!")
+    print(" [SECURITY WARNING] PASS_ADMIN / APP_PASSWORD is not configured in .env!")
     print(f" Generated a secure temporary session password for 'apex_head_quant':")
     print(f" {temp_pass}")
     print("="*80 + "\n")
