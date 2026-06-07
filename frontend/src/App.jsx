@@ -728,7 +728,7 @@ function PortfolioPanel({ prices, portfolio, cash }) {
 }
 
 // ── Order Entry Panel ─────────────────────────────────────────────────────────
-function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelOrder, priceAlerts = [], onAddAlert, onDeleteAlert }) {
+function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelOrder, priceAlerts = [], onAddAlert, onDeleteAlert, hideLists = false }) {
   const [side, setSide]     = useState('buy');
   const [qty, setQty]       = useState('');
   const [type, setType]     = useState('market');
@@ -838,7 +838,7 @@ function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelO
       </button>
 
       {/* Open Limit Orders List */}
-      {openOrders && openOrders.length > 0 && (
+      {!hideLists && openOrders && openOrders.length > 0 && (
         <div style={{ marginTop: 10, borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
           <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: T.textMid, marginBottom: 6 }}>
             OPEN LIMIT ORDERS ({openOrders.length})
@@ -948,7 +948,7 @@ function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelO
         </div>
 
         {/* List of active alerts for this symbol */}
-        {priceAlerts && priceAlerts.filter(a => a.symbol === symbol).length > 0 && (
+        {!hideLists && priceAlerts && priceAlerts.filter(a => a.symbol === symbol).length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
             {priceAlerts.filter(a => a.symbol === symbol).map(a => (
               <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.bg, border: `1px solid ${T.border}`, padding: '4px 8px', borderRadius: 4, fontSize: 9, fontFamily: "'IBM Plex Mono', monospace" }}>
@@ -1255,6 +1255,307 @@ function Header({ symbol, connected, view, onViewChange, isMobile, onLogout }) {
   );
 }
 
+// ── Bottom Console Tray (desktop-friendly) ───────────────────────────────────
+function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, priceAlerts, onDeleteAlert, aiRecommendation, aiRecommendationLoading, selected, onExecuteOrder, onViewChange }) {
+  const [consoleTab, setConsoleTab] = useState('POSITIONS'); // 'POSITIONS', 'ORDERS', 'ALERTS', 'AI'
+
+  const totalStockValue = portfolio.reduce((sum, pos) => {
+    const price = prices[pos.symbol]?.price ?? SEED_PRICES[pos.symbol] ?? pos.avgCost;
+    return sum + (price * pos.shares);
+  }, 0);
+  const netWorth = totalStockValue + cash;
+
+  return (
+    <div style={{ height: 220, borderTop: `1px solid ${T.border}`, background: T.surface, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
+      {/* Console Header */}
+      <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, padding: '0 16px', height: 38 }}>
+        <div style={{ display: 'flex', gap: 2 }}>
+          {[['POSITIONS', '💼 POSITIONS'], ['ORDERS', '⏳ OPEN ORDERS'], ['ALERTS', '🔔 PRICE ALERTS'], ['AI', '💡 AI ANALYST']].map(([tab, label]) => (
+            <button
+              key={tab}
+              onClick={() => setConsoleTab(tab)}
+              style={{
+                padding: '0 12px',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: consoleTab === tab ? T.accent : T.textMid,
+                fontSize: 9.5,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                fontFamily: "'Inter', sans-serif",
+                borderBottom: `2px solid ${consoleTab === tab ? T.accent : 'transparent'}`,
+                height: 38,
+                transition: 'all 0.15s'
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Small stats on the right side of header */}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 16, fontSize: 10, fontFamily: "'IBM Plex Mono', monospace" }}>
+          <div>
+            <span style={{ color: T.textDim }}>NET WORTH:</span> <strong style={{ color: '#fff' }}>₹{fmt(netWorth)}</strong>
+          </div>
+          <div>
+            <span style={{ color: T.textDim }}>CASH:</span> <strong style={{ color: T.blue }}>₹{fmt(cash)}</strong>
+          </div>
+        </div>
+      </div>
+
+      {/* Console Body */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', position: 'relative' }}>
+        {consoleTab === 'POSITIONS' && (
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {portfolio.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: T.textDim, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace" }}>
+                NO ACTIVE POSITIONS HELD
+              </div>
+            ) : (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ color: T.textDim, borderBottom: `1px solid ${T.border}` }}>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>SYMBOL</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>SHARES</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>AVG COST</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>LAST PRICE</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>MARKET VALUE</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>P&L</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700, textAlign: 'right' }}>ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {portfolio.map(pos => {
+                      const price = prices[pos.symbol]?.price ?? SEED_PRICES[pos.symbol] ?? pos.avgCost;
+                      const value = price * pos.shares;
+                      const cost = pos.avgCost * pos.shares;
+                      const pnl = value - cost;
+                      const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
+                      return (
+                        <tr key={pos.symbol} style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '8px 0', fontWeight: 700, color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{pos.symbol.replace('.NS', '')}</td>
+                          <td style={{ padding: '8px 0', fontFamily: "'IBM Plex Mono', monospace" }}>{pos.shares}</td>
+                          <td style={{ padding: '8px 0', fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(pos.avgCost)}</td>
+                          <td style={{ padding: '8px 0', fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(price)}</td>
+                          <td style={{ padding: '8px 0', fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(value)}</td>
+                          <td style={{ padding: '8px 0', color: clr(pnl), fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace" }}>
+                            {sign(pnl)}₹{fmt(Math.abs(pnl))} ({sign(pnlPct)}{fmt(pnlPct, 2)}%)
+                          </td>
+                          <td style={{ padding: '8px 0', textAlign: 'right' }}>
+                            <button
+                              onClick={() => {
+                                onExecuteOrder({
+                                  side: 'sell',
+                                  symbol: pos.symbol,
+                                  type: 'market',
+                                  qty: pos.shares.toString(),
+                                  price: price
+                                });
+                              }}
+                              style={{
+                                padding: '3px 8px',
+                                background: 'rgba(255, 61, 90, 0.06)',
+                                border: `1px solid rgba(255, 61, 90, 0.25)`,
+                                borderRadius: 4,
+                                color: T.red,
+                                fontSize: 9,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                fontFamily: "'Inter', sans-serif",
+                                transition: 'all 0.15s'
+                              }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.background = 'rgba(255, 61, 90, 0.12)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 61, 90, 0.4)';
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.background = 'rgba(255, 61, 90, 0.06)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 61, 90, 0.25)';
+                              }}
+                            >
+                              MARKET SELL CLOSE
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {consoleTab === 'ORDERS' && (
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {openOrders.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: T.textDim, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace" }}>
+                NO OPEN LIMIT ORDERS
+              </div>
+            ) : (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ color: T.textDim, borderBottom: `1px solid ${T.border}` }}>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>SIDE</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>SYMBOL</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>QTY</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>LIMIT PRICE</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>ORDER TYPE</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700, textAlign: 'right' }}>ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {openOrders.map(o => (
+                      <tr key={o.id} style={{ borderBottom: `1px solid ${T.border}` }}>
+                        <td style={{ padding: '8px 0', fontWeight: 700, color: o.side === 'buy' ? T.green : T.red, fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {o.side.toUpperCase()}
+                        </td>
+                        <td style={{ padding: '8px 0', fontWeight: 700, color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{o.symbol.replace('.NS', '')}</td>
+                        <td style={{ padding: '8px 0', fontFamily: "'IBM Plex Mono', monospace" }}>{o.qty}</td>
+                        <td style={{ padding: '8px 0', fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(o.limitPrice)}</td>
+                        <td style={{ padding: '8px 0', color: T.textMid }}>LIMIT (PAPER)</td>
+                        <td style={{ padding: '8px 0', textAlign: 'right' }}>
+                          <button
+                            onClick={() => onCancelOrder(o.id)}
+                            style={{
+                              padding: '3px 8px',
+                              background: 'rgba(255, 61, 90, 0.06)',
+                              border: `1px solid rgba(255, 61, 90, 0.25)`,
+                              borderRadius: 4,
+                              color: T.red,
+                              fontSize: 9,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              fontFamily: "'Inter', sans-serif"
+                            }}
+                          >
+                            CANCEL ORDER
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {consoleTab === 'ALERTS' && (
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {priceAlerts.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: T.textDim, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace" }}>
+                NO ACTIVE PRICE ALERTS
+              </div>
+            ) : (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ color: T.textDim, borderBottom: `1px solid ${T.border}` }}>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>SYMBOL</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>TRIGGER CONDITION</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>TARGET LEVEL</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700 }}>LAST PRICE</th>
+                      <th style={{ paddingBottom: 6, fontWeight: 700, textAlign: 'right' }}>ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {priceAlerts.map(a => {
+                      const price = prices[a.symbol]?.price ?? SEED_PRICES[a.symbol] ?? 0;
+                      return (
+                        <tr key={a.id} style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '8px 0', fontWeight: 700, color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{a.symbol.replace('.NS', '')}</td>
+                          <td style={{ padding: '8px 0', color: a.condition === 'above' ? T.green : T.red }}>
+                            {a.condition === 'above' ? 'Crosses Above (≥)' : 'Drops Below (≤)'}
+                          </td>
+                          <td style={{ padding: '8px 0', fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(a.targetPrice, 1)}</td>
+                          <td style={{ padding: '8px 0', fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(price)}</td>
+                          <td style={{ padding: '8px 0', textAlign: 'right' }}>
+                            <button
+                              onClick={() => onDeleteAlert(a.id)}
+                              style={{
+                                padding: '3px 8px',
+                                background: 'rgba(255, 61, 90, 0.06)',
+                                border: `1px solid rgba(255, 61, 90, 0.25)`,
+                                borderRadius: 4,
+                                color: T.red,
+                                fontSize: 9,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                fontFamily: "'Inter', sans-serif"
+                              }}
+                            >
+                              REMOVE
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {consoleTab === 'AI' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, height: '100%', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 4 }}>
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: T.accentAlt, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>💡</span> AI QUANT ANALYST: {selected.replace('.NS', '')}
+              </div>
+              {aiRecommendationLoading && (
+                <span style={{ display: 'inline-block', width: 10, height: 10, border: `1.5px solid ${T.border}`, borderTopColor: T.accentAlt, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+              )}
+            </div>
+            <div style={{ fontSize: 11.5, color: T.text, lineHeight: 1.5, overflowY: 'auto', flex: 1, paddingRight: 4 }}>
+              {aiRecommendationLoading ? (
+                <span style={{ color: T.textDim }}>Running technical scan and generating insights...</span>
+              ) : (
+                aiRecommendation || "Select a ticker from the watchlist to fetch a quick technical recommendation."
+              )}
+            </div>
+            {!aiRecommendationLoading && aiRecommendation && (
+              <button
+                onClick={() => onViewChange('PREDICTIONS')}
+                style={{
+                  alignSelf: 'flex-start',
+                  padding: '3px 8px',
+                  background: 'rgba(245, 200, 66, 0.06)',
+                  border: `1px solid rgba(245, 200, 66, 0.25)`,
+                  borderRadius: 5,
+                  color: T.gold,
+                  fontSize: 9,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontFamily: "'Inter', sans-serif",
+                  letterSpacing: '0.04em',
+                  transition: 'all 0.2s',
+                  marginTop: 4
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(245, 200, 66, 0.12)';
+                  e.currentTarget.style.borderColor = 'rgba(245, 200, 66, 0.4)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(245, 200, 66, 0.06)';
+                  e.currentTarget.style.borderColor = 'rgba(245, 200, 66, 0.25)';
+                }}
+              >
+                🔮 LOG SYSTEM PREDICTION
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Bottom Tab Bar (mobile-friendly) ─────────────────────────────────────────
 const TABS = ['HOME', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'ACCOUNT'];
 
@@ -1273,7 +1574,7 @@ export default function App() {
   const [view, setView]         = useState('HOME');   // 'HOME' is default now
   const [selected, setSelected] = useState('RELIANCE.NS');
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
-  const [rightTab, setRightTab] = useState('ORDER');
+  const [rightTab, setRightTab] = useState('TRADE');
   
   // Server warming/cold start splash page state
   const [serverWarming, setServerWarming] = useState(() => localStorage.getItem('apex_splash_shown') === null);
@@ -2200,7 +2501,7 @@ export default function App() {
                     <WatchlistPanel prices={prices} selected={selected} onSelect={setSelected} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
                   </div>
 
-                  {/* CENTER — Chart */}
+                  {/* CENTER — Chart and Bottom Console */}
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.bg }}>
                     {/* Interval picker & Indicator Toggles */}
                     <div style={{ padding: '8px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6, background: T.surface, flexWrap: 'wrap' }}>
@@ -2257,89 +2558,57 @@ export default function App() {
                       />
                     </div>
 
-                    {/* Embedded AI Analyst Card */}
-                    <div style={{
-                      margin: '0 16px 16px',
-                      background: T.panel,
-                      border: `1px solid ${T.border}`,
-                      borderRadius: 8,
-                      padding: '12px 16px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6,
-                      flexShrink: 0
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: T.accentAlt }}>
-                          💡 AI QUANT ANALYST: {selected.replace('.NS', '')}
-                        </div>
-                        {aiRecommendationLoading && (
-                          <span style={{ display: 'inline-block', width: 10, height: 10, border: `1.5px solid ${T.border}`, borderTopColor: T.accentAlt, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-                        )}
-                      </div>
-                      <div style={{ fontSize: 11.5, color: T.text, lineHeight: 1.5 }}>
-                        {aiRecommendationLoading ? (
-                          <span style={{ color: T.textDim }}>Running technical scan and generating insights...</span>
-                        ) : (
-                          aiRecommendation || "Select a ticker from the watchlist to fetch a quick technical recommendation."
-                        )}
-                      </div>
-                      <button
-                        onClick={() => setView('PREDICTIONS')}
-                        style={{
-                          marginTop: 4,
-                          alignSelf: 'flex-start',
-                          padding: '4px 10px',
-                          background: 'rgba(245, 200, 66, 0.08)',
-                          border: `1px solid ${T.gold}30`,
-                          borderRadius: 5,
-                          color: T.gold,
-                          fontSize: 9,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          fontFamily: "'Inter', sans-serif",
-                          letterSpacing: '0.04em',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.15)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.08)'}
-                      >
-                        🔮 LOG SYSTEM PREDICTION
-                      </button>
-                    </div>
+                    {/* Bottom Console Tray */}
+                    <BottomConsole 
+                      prices={prices} 
+                      portfolio={portfolio} 
+                      cash={cash} 
+                      openOrders={openOrders} 
+                      onCancelOrder={handleCancelOrder} 
+                      priceAlerts={priceAlerts} 
+                      onDeleteAlert={handleDeleteAlert}
+                      aiRecommendation={aiRecommendation}
+                      aiRecommendationLoading={aiRecommendationLoading}
+                      selected={selected}
+                      onExecuteOrder={handleExecuteOrder}
+                      onViewChange={setView}
+                    />
                   </div>
 
                   {/* RIGHT — Tabbed panel */}
                   <div style={{ width: 280, flexShrink: 0, borderLeft: `1px solid ${T.border}`, background: T.surface, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     {/* Tab header */}
                     <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}`, flexShrink: 0, background: T.panelAlt }}>
-                      {['ORDER', 'PORTFOLIO', 'AI'].map(tab => (
+                      {['TRADE', 'ORDER BOOK', 'AI CHAT'].map(tab => (
                         <button key={tab} onClick={() => setRightTab(tab)} style={{
                           flex: 1, padding: '11px 4px', border: 'none', cursor: 'pointer',
                           background: 'transparent',
-                          borderBottom: `2px solid ${rightTab === tab ? (tab === 'AI' ? T.accentAlt : T.accent) : 'transparent'}`,
+                          borderBottom: `2px solid ${rightTab === tab ? (tab === 'AI CHAT' ? T.accentAlt : T.accent) : 'transparent'}`,
                           color: rightTab === tab ? T.text : T.textDim,
-                          fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+                          fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
                           fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
                         }}>
-                          {tab === 'AI' ? '✦ AI' : tab}
+                          {tab}
                         </button>
                       ))}
                     </div>
                     {/* Tab content */}
                     <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                      {rightTab === 'ORDER' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                          <div style={{ flex: '1 1 50%', overflowY: 'auto', minHeight: 0 }}>
-                            <OrderPanel symbol={selected} price={currentPrice} cash={cash} openOrders={openOrders} onExecuteOrder={handleExecuteOrder} onCancelOrder={handleCancelOrder} priceAlerts={priceAlerts} onAddAlert={handleAddAlert} onDeleteAlert={handleDeleteAlert} />
-                          </div>
-                          <div style={{ flex: '1 1 50%', minHeight: 0 }}>
-                            <OrderBookPanel symbol={selected} price={currentPrice} />
-                          </div>
+                      {rightTab === 'TRADE' && (
+                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                          <OrderPanel symbol={selected} price={currentPrice} cash={cash} openOrders={openOrders} onExecuteOrder={handleExecuteOrder} onCancelOrder={handleCancelOrder} priceAlerts={priceAlerts} onAddAlert={handleAddAlert} onDeleteAlert={handleDeleteAlert} hideLists={true} />
                         </div>
                       )}
-                      {rightTab === 'PORTFOLIO' && <div style={{ flex: 1, overflow: 'hidden' }}><PortfolioPanel prices={prices} portfolio={portfolio} cash={cash} /></div>}
-                      {rightTab === 'AI'        && <div style={{ flex: 1, overflow: 'hidden' }}><ChatPanel symbol={selected} price={currentPrice} changePct={currentChangePct} /></div>}
+                      {rightTab === 'ORDER BOOK' && (
+                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                          <OrderBookPanel symbol={selected} price={currentPrice} />
+                        </div>
+                      )}
+                      {rightTab === 'AI CHAT' && (
+                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                          <ChatPanel symbol={selected} price={currentPrice} changePct={currentChangePct} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>
