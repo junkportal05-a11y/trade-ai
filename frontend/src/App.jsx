@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createChart, CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
-import { useHistory, useQuote, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
+import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
 import SignalsPanel from './SignalsPanel';
 import PerformancePanel from './PerformancePanel';
 import IntroSplash from './IntroSplash';
@@ -1131,12 +1131,17 @@ function ChatPanel({ symbol, price, changePct }) {
 }
 
 // ── Header ─────────────────────────────────────────────────────────────────────────────
-function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, cash, stockValue, totalPnl, totalPct }) {
+function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, cash, stockValue, totalPnl, totalPct, selectedSymbol, prices }) {
   const [clock, setClock] = useState(() => new Date().toLocaleTimeString('en-IN', { hour12: true }));
   useEffect(() => {
     const t = setInterval(() => setClock(new Date().toLocaleTimeString('en-IN', { hour12: true })), 1000);
     return () => clearInterval(t);
   }, []);
+
+  const p = prices[selectedSymbol];
+  const price = p?.price ?? SEED_PRICES[selectedSymbol] ?? 0;
+  const pct = p?.changePct ?? 0;
+  const isUp = pct >= 0;
 
   return (
     <div style={{ padding: '0 16px', height: 54, display: 'flex', alignItems: 'center', gap: 16, borderBottom: `1px solid ${T.border}`, background: T.surface, flexShrink: 0 }}>
@@ -1165,6 +1170,32 @@ function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, c
       )}
 
       <div style={{ width: 1, height: 22, background: T.border, flexShrink: 0 }} />
+
+      {/* Active Symbol Price Quote — Display ONLY on Chart View */}
+      {!isMobile && view === 'CHART' && selectedSymbol && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0, flexShrink: 0 }}>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, color: T.textMid, letterSpacing: '0.06em' }}>
+              {selectedSymbol.replace('.NS', '')}
+            </span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 18, fontWeight: 700, color: T.text, letterSpacing: '-0.02em' }}>
+              ₹{fmt(price)}
+            </span>
+            <span style={{
+              fontSize: 10,
+              color: clr(pct),
+              background: isUp ? T.greenDim : T.redDim,
+              border: `1px solid ${isUp ? T.greenGlow : T.redGlow}`,
+              padding: '1px 6px',
+              borderRadius: 4,
+              fontFamily: "'IBM Plex Mono', monospace"
+            }}>
+              {sign(pct)}{fmt(pct, 2)}%
+            </span>
+          </div>
+          <div style={{ width: 1, height: 22, background: T.border, flexShrink: 0 }} />
+        </>
+      )}
 
       {/* Account Balances Summary */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
@@ -1265,8 +1296,7 @@ function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, c
 }
 
 // ── Bottom Console Tray (desktop-friendly) ───────────────────────────────────
-function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, priceAlerts, onDeleteAlert, aiRecommendation, aiRecommendationLoading, selected, onExecuteOrder, onViewChange }) {
-  const [consoleTab, setConsoleTab] = useState('POSITIONS'); // 'POSITIONS', 'ORDERS', 'ALERTS', 'AI'
+function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, priceAlerts, onDeleteAlert, aiRecommendation, aiRecommendationLoading, selected, onExecuteOrder, onViewChange, consoleTab, setConsoleTab, onRefreshAnalyst }) {
 
   const totalStockValue = portfolio.reduce((sum, pos) => {
     const price = prices[pos.symbol]?.price ?? SEED_PRICES[pos.symbol] ?? pos.avgCost;
@@ -1529,34 +1559,62 @@ function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, pri
               )}
             </div>
             {!aiRecommendationLoading && aiRecommendation && (
-              <button
-                onClick={() => onViewChange('PREDICTIONS')}
-                style={{
-                  alignSelf: 'flex-start',
-                  padding: '3px 8px',
-                  background: 'rgba(245, 200, 66, 0.06)',
-                  border: `1px solid rgba(245, 200, 66, 0.25)`,
-                  borderRadius: 5,
-                  color: T.gold,
-                  fontSize: 9,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  fontFamily: "'Inter', sans-serif",
-                  letterSpacing: '0.04em',
-                  transition: 'all 0.2s',
-                  marginTop: 4
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = 'rgba(245, 200, 66, 0.12)';
-                  e.currentTarget.style.borderColor = 'rgba(245, 200, 66, 0.4)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'rgba(245, 200, 66, 0.06)';
-                  e.currentTarget.style.borderColor = 'rgba(245, 200, 66, 0.25)';
-                }}
-              >
-                🔮 LOG SYSTEM PREDICTION
-              </button>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button
+                  onClick={() => onViewChange('PREDICTIONS')}
+                  style={{
+                    padding: '3px 8px',
+                    background: 'rgba(245, 200, 66, 0.06)',
+                    border: `1px solid rgba(245, 200, 66, 0.25)`,
+                    borderRadius: 5,
+                    color: T.gold,
+                    fontSize: 9,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontFamily: "'Inter', sans-serif",
+                    letterSpacing: '0.04em',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(245, 200, 66, 0.12)';
+                    e.currentTarget.style.borderColor = 'rgba(245, 200, 66, 0.4)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(245, 200, 66, 0.06)';
+                    e.currentTarget.style.borderColor = 'rgba(245, 200, 66, 0.25)';
+                  }}
+                >
+                  🔮 LOG SYSTEM PREDICTION
+                </button>
+                {onRefreshAnalyst && (
+                  <button
+                    onClick={onRefreshAnalyst}
+                    style={{
+                      padding: '3px 8px',
+                      background: 'rgba(77, 166, 255, 0.06)',
+                      border: `1px solid rgba(77, 166, 255, 0.25)`,
+                      borderRadius: 5,
+                      color: T.blue,
+                      fontSize: 9,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontFamily: "'Inter', sans-serif",
+                      letterSpacing: '0.04em',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(77, 166, 255, 0.12)';
+                      e.currentTarget.style.borderColor = 'rgba(77, 166, 255, 0.4)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(77, 166, 255, 0.06)';
+                      e.currentTarget.style.borderColor = 'rgba(77, 166, 255, 0.25)';
+                    }}
+                  >
+                    🔄 REFRESH
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -1591,12 +1649,7 @@ export default function App() {
   // Paper Trading State
   const [portfolio, setPortfolio] = useState(() => {
     const saved = localStorage.getItem('apex_portfolio');
-    return saved ? JSON.parse(saved) : [
-      { symbol: 'RELIANCE.NS', shares: 10, avgCost: 2750 },
-      { symbol: 'TCS.NS',      shares: 5,  avgCost: 3850 },
-      { symbol: 'HDFCBANK.NS', shares: 15, avgCost: 1650 },
-      { symbol: 'INFY.NS',     shares: 20, avgCost: 1500 },
-    ];
+    return saved ? JSON.parse(saved) : []; // Default is empty portfolio: no stocks
   });
   const [cash, setCash] = useState(() => {
     const saved = localStorage.getItem('apex_cash');
@@ -1636,11 +1689,65 @@ export default function App() {
   // Mobile layout sub-tab for Chart page
   const [mobileSubTab, setMobileSubTab] = useState('CHART');
 
+  // Console active tab state
+  const [consoleTab, setConsoleTab] = useState('POSITIONS');
+
   // Price alerts state
   const [priceAlerts, setPriceAlerts] = useState(() => {
     const saved = localStorage.getItem('apex_price_alerts');
     return saved ? JSON.parse(saved) : [];
   });
+
+  // Reference for prices to prevent unnecessary re-fetches in AI effects
+  const pricesRef = useRef(prices);
+  useEffect(() => {
+    pricesRef.current = prices;
+  }, [prices]);
+
+  // App-level Cache for Daily Market Briefing & Stats
+  const [marketBrief, setMarketBrief] = useState(null);
+  const [loadingBrief, setLoadingBrief] = useState(true);
+  const [predictionStats, setPredictionStats] = useState(null);
+  const [refreshAnalystToken, setRefreshAnalystToken] = useState(0);
+
+  const fetchMarketBrief = useCallback(() => {
+    if (!loggedIn) return;
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    const token = sessionStorage.getItem('apt_token') || '';
+    setLoadingBrief(true);
+    fetch(`${API_BASE}/api/market_brief`, {
+      headers: { 'X-Session-Token': token }
+    })
+    .then(res => res.ok ? res.json() : Promise.reject())
+    .then(data => {
+      setMarketBrief(data);
+      setLoadingBrief(false);
+    })
+    .catch(() => {
+      setLoadingBrief(false);
+    });
+  }, [loggedIn]);
+
+  const fetchPredictionStats = useCallback(() => {
+    if (!loggedIn) return;
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    const token = sessionStorage.getItem('apt_token') || '';
+    fetch(`${API_BASE}/api/predictions/stats`, {
+      headers: { 'X-Session-Token': token }
+    })
+    .then(res => res.ok ? res.json() : Promise.reject())
+    .then(data => {
+      setPredictionStats(data);
+    })
+    .catch(() => {});
+  }, [loggedIn]);
+
+  useEffect(() => {
+    if (loggedIn) {
+      fetchMarketBrief();
+      fetchPredictionStats();
+    }
+  }, [loggedIn, fetchMarketBrief, fetchPredictionStats]);
 
   // Watchlist favorites state
   const [favorites, setFavorites] = useState(() => {
@@ -1655,8 +1762,12 @@ export default function App() {
   // Toast notifications state
   const [toasts, setToasts] = useState([]);
 
-  // Signals state (loaded on mount for HomePanel)
-  const [signals, setSignals] = useState([]);
+  // Signals state (pre-seeded fallback, fresh scan manually triggered in Signals tab)
+  const [signals, setSignals] = useState([
+    { symbol: 'RELIANCE.NS', name: 'Reliance', signal: 'BUY', confidence: 88, rr_ratio: 2.5, reasoning: 'RSI oversold trigger on daily candle chart. Volume spike supports reversal.' },
+    { symbol: 'TCS.NS', name: 'TCS', signal: 'BUY', confidence: 75, rr_ratio: 1.8, reasoning: 'Moving average convergence crossover signals strong bullish momentum.' },
+    { symbol: 'INFY.NS', name: 'Infosys', signal: 'SELL', confidence: 82, rr_ratio: 2.1, reasoning: 'Overbought indicator breach with high overhead volume block.' }
+  ]);
 
   const showToast = useCallback((message, type = 'success') => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -1721,10 +1832,13 @@ export default function App() {
   }, [loggedIn]);
 
   useEffect(() => {
+    if (!loggedIn) return;
     fetchPendingPredictions();
-    const interval = setInterval(fetchPendingPredictions, 10000); // refresh pending list every 10s
-    return () => clearInterval(interval);
-  }, [fetchPendingPredictions]);
+    if (view === 'PREDICTIONS') {
+      const interval = setInterval(fetchPendingPredictions, 60000); // refresh pending list every 60s when on Predictions view
+      return () => clearInterval(interval);
+    }
+  }, [fetchPendingPredictions, loggedIn, view]);
 
   // Tick Matching Resolution Engine
   useEffect(() => {
@@ -1792,40 +1906,11 @@ export default function App() {
     });
   }, [prices, pendingPredictions, loggedIn, showToast]);
 
-  // Load signals for HomePanel
-  useEffect(() => {
-    if (!loggedIn) return;
-    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-    fetch(`${API_BASE}/api/allocate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Session-Token': sessionStorage.getItem('apt_token') || ''
-      },
-      body: JSON.stringify({ capital: cash })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data && data.all_signals && data.all_signals.length > 0) {
-        setSignals(data.all_signals);
-      } else {
-        throw new Error("Empty signals");
-      }
-    })
-    .catch(() => {
-      // Fallback signals generator
-      const mockSignals = [
-        { symbol: 'RELIANCE.NS', name: 'Reliance', signal: 'BUY', confidence: 88, rr_ratio: 2.5, reasoning: 'RSI oversold trigger on daily candle chart. Volume spike supports reversal.' },
-        { symbol: 'TCS.NS', name: 'TCS', signal: 'BUY', confidence: 75, rr_ratio: 1.8, reasoning: 'Moving average convergence crossover signals strong bullish momentum.' },
-        { symbol: 'INFY.NS', name: 'Infosys', signal: 'SELL', confidence: 82, rr_ratio: 2.1, reasoning: 'Overbought indicator breach with high overhead volume block.' }
-      ];
-      setSignals(mockSignals);
-    });
-  }, [loggedIn]);
+
 
   // Embedded AI Analyst Recommendation Fetch Effect
   useEffect(() => {
-    if (!selected || !loggedIn) return;
+    if (!selected || !loggedIn || view !== 'CHART') return;
     let active = true;
     setAiRecommendationLoading(true);
     setAiRecommendation('');
@@ -1834,8 +1919,9 @@ export default function App() {
       try {
         const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
         const cleanedSymbol = selected.replace('.NS', '');
-        const livePrice = prices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
-        const pct = prices[selected]?.changePct ?? 0;
+        const currentPrices = pricesRef.current || {};
+        const livePrice = currentPrices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
+        const pct = currentPrices[selected]?.changePct ?? 0;
         
         const res = await fetch(`${API_BASE}/api/chat`, {
           method: 'POST',
@@ -1857,7 +1943,8 @@ export default function App() {
         }
       } catch (err) {
         if (active) {
-          const livePrice = prices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
+          const currentPrices = pricesRef.current || {};
+          const livePrice = currentPrices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
           setAiRecommendation(`Support pivot found around ₹${(livePrice * 0.97).toFixed(1)} with overhead resistance at ₹${(livePrice * 1.03).toFixed(1)}.`);
         }
       } finally {
@@ -1869,7 +1956,7 @@ export default function App() {
       active = false;
       clearTimeout(timer);
     };
-  }, [selected, loggedIn, prices]);
+  }, [selected, loggedIn, view, refreshAnalystToken]); // Removed 'prices' dependency
 
   // Price Alerts Engine Effect
   useEffect(() => {
@@ -2232,6 +2319,8 @@ export default function App() {
           stockValue={totalStockValue}
           totalPnl={totalPnl}
           totalPct={totalPct}
+          selectedSymbol={selected}
+          prices={prices}
         />
 
         {/* Main layout */}
@@ -2249,6 +2338,14 @@ export default function App() {
                 signals={signals}
                 priceAlerts={priceAlerts} 
                 onDeleteAlert={handleDeleteAlert} 
+                brief={marketBrief}
+                loadingBrief={loadingBrief}
+                stats={predictionStats}
+                onRefreshBrief={fetchMarketBrief}
+                onUpdateBalances={(newCash, newPortfolio) => {
+                  setCash(newCash);
+                  setPortfolio(newPortfolio);
+                }}
               />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -2463,28 +2560,49 @@ export default function App() {
                               aiRecommendation || "Select a ticker from the watchlist to fetch a quick technical recommendation."
                             )}
                           </div>
-                          <button
-                            onClick={() => setView('PREDICTIONS')}
-                            style={{
-                              marginTop: 4,
-                              alignSelf: 'flex-start',
-                              padding: '3px 8px',
-                              background: 'rgba(245, 200, 66, 0.08)',
-                              border: `1px solid ${T.gold}30`,
-                              borderRadius: 5,
-                              color: T.gold,
-                              fontSize: 9,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              fontFamily: "'Inter', sans-serif",
-                              letterSpacing: '0.04em',
-                              transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.15)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.08)'}
-                          >
-                            🔮 LOG SYSTEM PREDICTION
-                          </button>
+                          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                            <button
+                              onClick={() => setView('PREDICTIONS')}
+                              style={{
+                                padding: '3px 8px',
+                                background: 'rgba(245, 200, 66, 0.08)',
+                                border: `1px solid ${T.gold}30`,
+                                borderRadius: 5,
+                                color: T.gold,
+                                fontSize: 9,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                fontFamily: "'Inter', sans-serif",
+                                letterSpacing: '0.04em',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.15)'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.08)'}
+                            >
+                              🔮 LOG PREDICTION
+                            </button>
+                            <button
+                              onClick={() => setRefreshAnalystToken(prev => prev + 1)}
+                              disabled={aiRecommendationLoading}
+                              style={{
+                                padding: '3px 8px',
+                                background: 'rgba(77, 166, 255, 0.08)',
+                                border: `1px solid ${T.blue}30`,
+                                borderRadius: 5,
+                                color: T.blue,
+                                fontSize: 9,
+                                fontWeight: 700,
+                                cursor: aiRecommendationLoading ? 'not-allowed' : 'pointer',
+                                fontFamily: "'Inter', sans-serif",
+                                letterSpacing: '0.04em',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseEnter={e => !aiRecommendationLoading && (e.currentTarget.style.background = 'rgba(77, 166, 255, 0.15)')}
+                              onMouseLeave={e => !aiRecommendationLoading && (e.currentTarget.style.background = 'rgba(77, 166, 255, 0.08)')}
+                            >
+                              🔄 REFRESH
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -2604,6 +2722,9 @@ export default function App() {
                       selected={selected}
                       onExecuteOrder={handleExecuteOrder}
                       onViewChange={setView}
+                      consoleTab={consoleTab}
+                      setConsoleTab={setConsoleTab}
+                      onRefreshAnalyst={() => setRefreshAnalystToken(prev => prev + 1)}
                     />
                   </div>
 

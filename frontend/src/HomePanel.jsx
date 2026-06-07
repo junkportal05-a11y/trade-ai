@@ -28,37 +28,78 @@ const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
 const sign = (v) => v > 0 ? '+' : '';
 
-export default function HomePanel({ prices, portfolio, cash, onViewChange, onSelectSymbol, signals = [], priceAlerts = [], onDeleteAlert }) {
-  const [brief, setBrief] = useState(null);
-  const [stats, setStats] = useState(null);
-  const [loadingBrief, setLoadingBrief] = useState(true);
+const DEFAULT_WATCHLIST = [
+  { symbol: 'RELIANCE.NS', name: 'Reliance', sector: 'Energy' },
+  { symbol: 'TCS.NS',      name: 'TCS', sector: 'IT' },
+  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank', sector: 'Banking' },
+  { symbol: 'INFY.NS',     name: 'Infosys', sector: 'IT' },
+  { symbol: 'ICICIBANK.NS',name: 'ICICI Bank', sector: 'Banking' },
+  { symbol: 'SBIN.NS',     name: 'SBI', sector: 'Banking' },
+  { symbol: 'BAJFINANCE.NS',name: 'Bajaj Fin', sector: 'Banking' },
+  { symbol: 'TATAMOTORS.NS',name: 'Tata Motors', sector: 'Auto' },
+  { symbol: 'WIPRO.NS',    name: 'Wipro', sector: 'IT' },
+  { symbol: 'AXISBANK.NS', name: 'Axis Bank', sector: 'Banking' },
+];
 
-  useEffect(() => {
-    const token = sessionStorage.getItem('apt_token') || '';
+export default function HomePanel({ 
+  prices, 
+  portfolio, 
+  cash, 
+  onViewChange, 
+  onSelectSymbol, 
+  signals = [], 
+  priceAlerts = [], 
+  onDeleteAlert, 
+  brief, 
+  loadingBrief, 
+  stats, 
+  onRefreshBrief, 
+  onUpdateBalances 
+}) {
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [tempCash, setTempCash] = useState(cash);
+  const [tempPortfolio, setTempPortfolio] = useState([]);
+  const [newHoldingSymbol, setNewHoldingSymbol] = useState('RELIANCE.NS');
+  const [newHoldingShares, setNewHoldingShares] = useState('');
+  const [newHoldingAvgCost, setNewHoldingAvgCost] = useState('');
+
+  const handleOpenEditModal = () => {
+    setTempCash(cash);
+    setTempPortfolio(portfolio.map(p => ({ ...p })));
+    setShowEditModal(true);
+  };
+
+  const handleAddHolding = () => {
+    const shares = parseFloat(newHoldingShares);
+    const cost = parseFloat(newHoldingAvgCost);
+    if (!newHoldingSymbol || isNaN(shares) || shares <= 0 || isNaN(cost) || cost <= 0) return;
     
-    // Fetch market brief
-    fetch(`${BASE}/api/market_brief`, {
-      headers: { 'X-Session-Token': token }
-    })
-    .then(res => res.ok ? res.json() : Promise.reject())
-    .then(data => {
-      setBrief(data);
-      setLoadingBrief(false);
-    })
-    .catch(() => {
-      setLoadingBrief(false);
-    });
+    const idx = tempPortfolio.findIndex(p => p.symbol === newHoldingSymbol);
+    if (idx >= 0) {
+      const updated = [...tempPortfolio];
+      const newTotalShares = updated[idx].shares + shares;
+      const newAvgCost = ((updated[idx].avgCost * updated[idx].shares) + (cost * shares)) / newTotalShares;
+      updated[idx] = { symbol: newHoldingSymbol, shares: newTotalShares, avgCost: Math.round(newAvgCost * 100) / 100 };
+      setTempPortfolio(updated);
+    } else {
+      setTempPortfolio(prev => [...prev, { symbol: newHoldingSymbol, shares, avgCost: cost }]);
+    }
+    setNewHoldingShares('');
+    setNewHoldingAvgCost('');
+  };
 
-    // Fetch prediction stats
-    fetch(`${BASE}/api/predictions/stats`, {
-      headers: { 'X-Session-Token': token }
-    })
-    .then(res => res.ok ? res.json() : Promise.reject())
-    .then(data => {
-      setStats(data);
-    })
-    .catch(() => {});
-  }, []);
+  const handleRemoveHolding = (symbol) => {
+    setTempPortfolio(prev => prev.filter(p => p.symbol !== symbol));
+  };
+
+  const handleSaveBalances = () => {
+    const nextCash = parseFloat(tempCash);
+    if (isNaN(nextCash) || nextCash < 0) return;
+    if (onUpdateBalances) {
+      onUpdateBalances(nextCash, tempPortfolio);
+    }
+    setShowEditModal(false);
+  };
   
   // Calculate Portfolio Value
   const { stockValue, totalValue, totalPnl, totalPct } = useMemo(() => {
@@ -176,7 +217,27 @@ export default function HomePanel({ prices, portfolio, cash, onViewChange, onSel
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: T.accentAlt, display: 'flex', alignItems: 'center', gap: 6 }}>
             <span>🧠</span> AI DAILY MARKET BRIEFING
           </div>
-          <span style={{ fontSize: 9, color: T.textDim, ...mono }}>GENERATED DAILY AT MARKET OPEN</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {onRefreshBrief && (
+              <button 
+                onClick={onRefreshBrief} 
+                disabled={loadingBrief}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: T.accent,
+                  fontSize: 9,
+                  fontWeight: 700,
+                  cursor: loadingBrief ? 'not-allowed' : 'pointer',
+                  letterSpacing: '0.04em',
+                  padding: 0
+                }}
+              >
+                {loadingBrief ? '⏳ REFRESHING...' : '🔄 REFRESH'}
+              </button>
+            )}
+            <span style={{ fontSize: 9, color: T.textDim, ...mono }}>GENERATED DAILY AT MARKET OPEN</span>
+          </div>
         </div>
         
         {loadingBrief ? (
@@ -266,13 +327,43 @@ export default function HomePanel({ prices, portfolio, cash, onViewChange, onSel
         {/* Card 1: Net Worth Overview */}
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 8 }}>PORTFOLIO BALANCES</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', letterSpacing: '-0.03em', ...mono }}>₹{fmt(totalValue)}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid }}>PORTFOLIO BALANCES</span>
+              <button 
+                onClick={handleOpenEditModal}
+                style={{
+                  background: 'rgba(123, 108, 255, 0.08)',
+                  border: `1px solid ${T.accent}40`,
+                  borderRadius: 4,
+                  padding: '2px 8px',
+                  color: T.accent,
+                  fontSize: 9,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  letterSpacing: '0.04em'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(123, 108, 255, 0.15)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(123, 108, 255, 0.08)'}
+              >
+                ✏️ ADJUST BALANCE
+              </button>
+            </div>
+            <div 
+              onClick={handleOpenEditModal}
+              title="Click to adjust Available Cash or add mock positions"
+              style={{ fontSize: 28, fontWeight: 800, color: '#fff', letterSpacing: '-0.03em', cursor: 'pointer', display: 'inline-block', transition: 'color 0.2s', ...mono }}
+              onMouseEnter={e => e.currentTarget.style.color = T.accent}
+              onMouseLeave={e => e.currentTarget.style.color = '#fff'}
+            >
+              ₹{fmt(totalValue)}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
               <span style={{ fontSize: 11, color: totalPnl >= 0 ? T.green : T.red, fontWeight: 700, ...mono }}>
                 {sign(totalPnl)}₹{fmt(Math.abs(totalPnl))} ({sign(totalPct)}{fmt(totalPct, 2)}%)
               </span>
               <span style={{ fontSize: 10, color: T.textDim }}>Total P&L</span>
+              <span style={{ fontSize: 8, color: T.textMid, marginLeft: 8, fontStyle: 'italic', cursor: 'pointer' }} onClick={handleOpenEditModal}>(Click balance to edit)</span>
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, borderTop: `1px solid ${T.border}`, paddingTop: 16, marginTop: 20 }}>
@@ -495,6 +586,272 @@ export default function HomePanel({ prices, portfolio, cash, onViewChange, onSel
         </div>
 
       </div>
+
+      {/* Edit Balance Modal */}
+      {showEditModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(8, 10, 15, 0.8)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999999,
+          padding: 24,
+        }}>
+          <div style={{
+            background: T.surface,
+            border: `1px solid ${T.borderHi}`,
+            borderRadius: 12,
+            width: '100%',
+            maxWidth: 500,
+            maxHeight: '85vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.7)'
+          }}>
+            {/* Modal Header */}
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.panelAlt }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '0.04em' }}>⚙️ MANAGE ACCOUNT BALANCE</span>
+              <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', fontSize: 16 }}>×</button>
+            </div>
+            
+            {/* Modal Body */}
+            <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Cash Input */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 9, fontWeight: 700, color: T.textMid }}>AVAILABLE CASH (₹)</label>
+                <input 
+                  type="number" 
+                  value={tempCash} 
+                  onChange={e => setTempCash(e.target.value)} 
+                  style={{
+                    background: T.bg, 
+                    border: `1px solid ${T.border}`, 
+                    borderRadius: 6, 
+                    padding: '8px 12px', 
+                    color: '#fff', 
+                    fontSize: 12, 
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* Holdings List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 9, fontWeight: 700, color: T.textMid }}>STOCK HOLDINGS</label>
+                <div style={{ border: `1px solid ${T.border}`, borderRadius: 6, background: T.panelAlt, overflow: 'hidden' }}>
+                  {tempPortfolio.length === 0 ? (
+                    <div style={{ padding: '12px 14px', fontSize: 11, color: T.textDim, textAlign: 'center' }}>No stock holdings. Add one below.</div>
+                  ) : (
+                    <div style={{ maxHeight: 150, overflowY: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.textDim, fontSize: 9 }}>
+                            <th style={{ padding: '6px 10px' }}>SYMBOL</th>
+                            <th style={{ padding: '6px 10px' }}>SHARES</th>
+                            <th style={{ padding: '6px 10px' }}>AVG COST</th>
+                            <th style={{ padding: '6px 10px', textAlign: 'right' }}>ACTION</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tempPortfolio.map((item, idx) => (
+                            <tr key={item.symbol} style={{ borderBottom: idx < tempPortfolio.length - 1 ? `1px solid ${T.border}` : 'none', color: T.text }}>
+                              <td style={{ padding: '8px 10px', fontWeight: 600 }}>{item.symbol.replace('.NS', '')}</td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <input 
+                                  type="number" 
+                                  value={item.shares} 
+                                  onChange={e => {
+                                    const val = parseFloat(e.target.value);
+                                    const updated = [...tempPortfolio];
+                                    updated[idx].shares = isNaN(val) ? '' : val;
+                                    setTempPortfolio(updated);
+                                  }}
+                                  style={{
+                                    width: 70,
+                                    background: T.bg,
+                                    border: `1px solid ${T.border}`,
+                                    borderRadius: 4,
+                                    color: '#fff',
+                                    fontSize: 10,
+                                    padding: '2px 4px',
+                                    fontFamily: "'IBM Plex Mono', monospace"
+                                  }}
+                                />
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <input 
+                                  type="number" 
+                                  value={item.avgCost} 
+                                  onChange={e => {
+                                    const val = parseFloat(e.target.value);
+                                    const updated = [...tempPortfolio];
+                                    updated[idx].avgCost = isNaN(val) ? '' : val;
+                                    setTempPortfolio(updated);
+                                  }}
+                                  style={{
+                                    width: 80,
+                                    background: T.bg,
+                                    border: `1px solid ${T.border}`,
+                                    borderRadius: 4,
+                                    color: '#fff',
+                                    fontSize: 10,
+                                    padding: '2px 4px',
+                                    fontFamily: "'IBM Plex Mono', monospace"
+                                  }}
+                                />
+                              </td>
+                              <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                                <button 
+                                  onClick={() => handleRemoveHolding(item.symbol)}
+                                  style={{ background: 'none', border: 'none', color: T.red, cursor: 'pointer', fontSize: 10, fontWeight: 700 }}
+                                >
+                                  REMOVE
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Add Holding Form */}
+              <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: T.accentAlt }}>➕ ADD NEW STOCK POSITION</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: 8, color: T.textMid }}>SYMBOL</label>
+                    <select 
+                      value={newHoldingSymbol} 
+                      onChange={e => setNewHoldingSymbol(e.target.value)}
+                      style={{
+                        background: T.bg,
+                        border: `1px solid ${T.border}`,
+                        borderRadius: 6,
+                        color: '#fff',
+                        fontSize: 11,
+                        padding: '6px 8px',
+                        outline: 'none'
+                      }}
+                    >
+                      {DEFAULT_WATCHLIST.map(w => (
+                        <option key={w.symbol} value={w.symbol}>{w.symbol.replace('.NS', '')}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: 8, color: T.textMid }}>SHARES</label>
+                    <input 
+                      type="number" 
+                      placeholder="e.g. 10" 
+                      value={newHoldingShares} 
+                      onChange={e => setNewHoldingShares(e.target.value)}
+                      style={{
+                        background: T.bg,
+                        border: `1px solid ${T.border}`,
+                        borderRadius: 6,
+                        color: '#fff',
+                        fontSize: 11,
+                        padding: '6px 8px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: 8, color: T.textMid }}>AVG COST (₹)</label>
+                    <input 
+                      type="number" 
+                      placeholder="e.g. 2750" 
+                      value={newHoldingAvgCost} 
+                      onChange={e => setNewHoldingAvgCost(e.target.value)}
+                      style={{
+                        background: T.bg,
+                        border: `1px solid ${T.border}`,
+                        borderRadius: 6,
+                        color: '#fff',
+                        fontSize: 11,
+                        padding: '6px 8px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+                <button 
+                  onClick={handleAddHolding}
+                  style={{
+                    background: 'rgba(0, 229, 168, 0.08)',
+                    border: `1px solid ${T.green}40`,
+                    borderRadius: 6,
+                    padding: '6px 0',
+                    color: T.green,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    marginTop: 4
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(0, 229, 168, 0.15)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(0, 229, 168, 0.08)'}
+                >
+                  ADD TO PORTFOLIO
+                </button>
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div style={{ padding: '12px 20px', borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'flex-end', gap: 10, background: T.panelAlt }}>
+              <button 
+                onClick={() => setShowEditModal(false)}
+                style={{
+                  background: 'transparent',
+                  border: `1px solid ${T.borderHi}`,
+                  borderRadius: 6,
+                  padding: '6px 14px',
+                  color: T.textMid,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = T.textDim}
+                onMouseLeave={e => e.currentTarget.style.borderColor = T.borderHi}
+              >
+                CANCEL
+              </button>
+              <button 
+                onClick={handleSaveBalances}
+                style={{
+                  background: T.accent,
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '6px 14px',
+                  color: '#fff',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#6c5ce7'}
+                onMouseLeave={e => e.currentTarget.style.background = T.accent}
+              >
+                SAVE CHANGES
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
