@@ -46,15 +46,16 @@ const STATUS_META = {
 };
 
 const WATCHLIST_STOCKS = [
-  { symbol: 'RELIANCE.NS', name: 'Reliance Industries' },
-  { symbol: 'TCS.NS', name: 'TCS' },
-  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank' },
-  { symbol: 'INFY.NS', name: 'Infosys' },
-  { symbol: 'ICICIBANK.NS', name: 'ICICI Bank' },
-  { symbol: 'SBIN.NS', name: 'State Bank of India' },
-  { symbol: 'TATAMOTORS.NS', name: 'Tata Motors' },
-  { symbol: 'WIPRO.NS', name: 'Wipro' },
-  { symbol: 'AXISBANK.NS', name: 'Axis Bank' }
+  { symbol: 'HAL.NS', name: 'HAL' },
+  { symbol: 'BEL.NS', name: 'BEL' },
+  { symbol: 'RVNL.NS', name: 'RVNL' },
+  { symbol: 'IREDA.NS', name: 'IREDA' },
+  { symbol: 'HUDCO.NS', name: 'HUDCO' },
+  { symbol: 'COALINDIA.NS', name: 'Coal India' },
+  { symbol: 'NHPC.NS', name: 'NHPC' },
+  { symbol: 'ADANIPORTS.NS', name: 'Adani Ports' },
+  { symbol: 'TATAPOWER.NS', name: 'Tata Power' },
+  { symbol: 'BHEL.NS', name: 'BHEL' }
 ];
 
 function StatusBadge({ status }) {
@@ -276,7 +277,7 @@ export default function PerformancePanel() {
   const [resetting, setResetting] = useState(false);
 
   // Historical Backtesting Sandbox State
-  const [backtestSymbol, setBacktestSymbol]   = useState('RELIANCE.NS');
+  const [backtestSymbol, setBacktestSymbol]   = useState('HAL.NS');
   const [backtestRange, setBacktestRange]     = useState('3mo');
   const [backtestCap, setBacktestCap]         = useState('10000');
   const [backtestStopAtr, setBacktestStopAtr]   = useState(3.0); // Optimized default
@@ -291,7 +292,7 @@ export default function PerformancePanel() {
 
   // Trade Journal State
   const [journalEntries, setJournalEntries] = useState([]);
-  const [jSymbol, setJSymbol] = useState('RELIANCE.NS');
+  const [jSymbol, setJSymbol] = useState('HAL.NS');
   const [jDir, setJDir] = useState('BUY');
   const [jPrice, setJPrice] = useState('');
   const [jQty, setJQty] = useState('');

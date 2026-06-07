@@ -1,7 +1,7 @@
 """
-db.py — SQLite signal history & backtesting engine
-====================================================
-Zero external setup: uses a local SQLite file at backend/trading_platform.db
+db.py — Dynamic SQLite/PostgreSQL (Supabase) Database Adapter
+===========================================================
+Supports local SQLite fallback and remote PostgreSQL / Supabase in production.
 """
 
 import sqlite3
@@ -11,12 +11,155 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "trading_platform.db")
+DATABASE_URL = os.getenv("DATABASE_URL")
+IS_POSTGRES = bool(DATABASE_URL)
+
+if IS_POSTGRES:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+
+class RowWrapper:
+    def __init__(self, data_dict, data_tuple):
+        self.data_dict = data_dict
+        self.data_tuple = data_tuple
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self.data_tuple[key]
+        return self.data_dict[key]
+
+    def keys(self):
+        return self.data_dict.keys()
+
+    def get(self, key, default=None):
+        return self.data_dict.get(key, default)
+
+    def __iter__(self):
+        return iter(self.data_dict)
+
+class DBConnection:
+    def __init__(self):
+        self.conn = None
+        self.cursor_obj = None
+        self._lastrowid = None
+
+    def __enter__(self):
+        if IS_POSTGRES:
+            self.conn = psycopg2.connect(DATABASE_URL)
+            self.cursor_obj = self.conn.cursor(cursor_factory=RealDictCursor)
+        else:
+            self.conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            self.conn.row_factory = sqlite3.Row
+            self.cursor_obj = self.conn.cursor()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            if self.conn:
+                self.conn.rollback()
+        else:
+            # commit will be called explicitly in write methods, but auto-commit on success is standard
+            pass
+        if self.cursor_obj:
+            self.cursor_obj.close()
+        if self.conn:
+            self.conn.close()
+
+    def commit(self):
+        if self.conn:
+            self.conn.commit()
+
+    def cursor(self):
+        return self
+
+    def execute(self, query, params=None):
+        self._lastrowid = None
+        
+        # Adapt SQL for PostgreSQL
+        if IS_POSTGRES:
+            query = query.replace("?", "%s")
+            query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+            
+            # Translate SQLite PRAGMA table_info to standard ANSI SQL
+            if "PRAGMA table_info" in query:
+                parts = query.split("table_info(")
+                if len(parts) > 1:
+                    tname = parts[1].replace(")", "").strip()
+                    query = f"""
+                        SELECT 0 as cid, column_name as name, data_type as type, 
+                               CASE WHEN is_nullable = 'NO' THEN 1 ELSE 0 END as notnull, 
+                               column_default as dflt_value, 0 as pk 
+                        FROM information_schema.columns 
+                        WHERE table_name = '{tname}'
+                    """
+            
+            # Translate SQLite INSERT OR REPLACE
+            if "INSERT OR REPLACE INTO app_settings" in query:
+                query = """
+                    INSERT INTO app_settings (key, value, updated_at) 
+                    VALUES (%s, %s, %s) 
+                    ON CONFLICT (key) 
+                    DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
+                """
+                
+            # Append RETURNING id to INSERT queries to get lastrowid
+            stripped_upper = query.strip().upper()
+            if stripped_upper.startswith("INSERT INTO") and "RETURNING" not in stripped_upper:
+                if "APP_SETTINGS" not in stripped_upper:
+                    query += " RETURNING id"
+
+        # Execute query
+        if params:
+            self.cursor_obj.execute(query, params)
+        else:
+            self.cursor_obj.execute(query)
+
+        # Retrieve last inserted ID if applicable
+        if IS_POSTGRES:
+            stripped_upper = query.strip().upper()
+            if stripped_upper.startswith("INSERT INTO") and "RETURNING ID" in stripped_upper:
+                try:
+                    res = self.cursor_obj.fetchone()
+                    if res:
+                        if isinstance(res, dict):
+                            self._lastrowid = res.get("id") or res.get("ID")
+                        else:
+                            self._lastrowid = res[0]
+                except Exception:
+                    pass
+        else:
+            self._lastrowid = self.cursor_obj.lastrowid
+
+        return self
+
+    def fetchall(self):
+        rows = self.cursor_obj.fetchall()
+        if IS_POSTGRES:
+            return [RowWrapper(dict(r), tuple(r.values())) for r in rows]
+        else:
+            return rows
+
+    def fetchone(self):
+        row = self.cursor_obj.fetchone()
+        if not row:
+            return None
+        if IS_POSTGRES:
+            return RowWrapper(dict(row), tuple(row.values()))
+        else:
+            return row
+
+    @property
+    def lastrowid(self):
+        return self._lastrowid
+
+    @property
+    def rowcount(self):
+        return self.cursor_obj.rowcount
 
 
 def _conn():
-    c = sqlite3.connect(DB_PATH, check_same_thread=False)
-    c.row_factory = sqlite3.Row
-    return c
+    return DBConnection()
+
 
 
 def init_db():
@@ -176,6 +319,10 @@ def update_signal(id: int, status: str, exit_price: float, pnl_pct: float):
             (status, exit_price, _now_ist(), pnl_pct, id),
         )
         c.commit()
+
+# Alias for compatibility with main.py references
+update_signal_status = update_signal
+
 
 
 def expire_old_intraday():

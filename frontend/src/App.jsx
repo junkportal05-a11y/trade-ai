@@ -44,23 +44,23 @@ const T = {
 
 // ── NSE Watchlist ────────────────────────────────────────────────────────────────
 const DEFAULT_WATCHLIST = [
-  { symbol: 'RELIANCE.NS', name: 'Reliance', sector: 'Energy' },
-  { symbol: 'TCS.NS',      name: 'TCS', sector: 'IT' },
-  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank', sector: 'Banking' },
-  { symbol: 'INFY.NS',     name: 'Infosys', sector: 'IT' },
-  { symbol: 'ICICIBANK.NS',name: 'ICICI Bank', sector: 'Banking' },
-  { symbol: 'SBIN.NS',     name: 'SBI', sector: 'Banking' },
-  { symbol: 'BAJFINANCE.NS',name: 'Bajaj Fin', sector: 'Banking' },
-  { symbol: 'TATAMOTORS.NS',name: 'Tata Motors', sector: 'Auto' },
-  { symbol: 'WIPRO.NS',    name: 'Wipro', sector: 'IT' },
-  { symbol: 'AXISBANK.NS', name: 'Axis Bank', sector: 'Banking' },
+  { symbol: 'HAL.NS',        name: 'HAL',            sector: 'Defence' },
+  { symbol: 'BEL.NS',        name: 'BEL',            sector: 'Defence' },
+  { symbol: 'RVNL.NS',       name: 'RVNL',           sector: 'Railways' },
+  { symbol: 'IREDA.NS',      name: 'IREDA',          sector: 'Green Energy' },
+  { symbol: 'HUDCO.NS',      name: 'HUDCO',          sector: 'Finance' },
+  { symbol: 'COALINDIA.NS',  name: 'Coal India',     sector: 'Energy' },
+  { symbol: 'NHPC.NS',       name: 'NHPC',           sector: 'Power' },
+  { symbol: 'ADANIPORTS.NS', name: 'Adani Ports',    sector: 'Infrastructure' },
+  { symbol: 'TATAPOWER.NS',  name: 'Tata Power',     sector: 'Power' },
+  { symbol: 'BHEL.NS',       name: 'BHEL',           sector: 'Capital Goods' },
 ];
 
 const SEED_PRICES = {
-  'RELIANCE.NS': 2920, 'TCS.NS': 4100, 'HDFCBANK.NS': 1780,
-  'INFY.NS': 1650, 'ICICIBANK.NS': 1290, 'SBIN.NS': 845,
-  'BAJFINANCE.NS': 7200, 'TATAMOTORS.NS': 960, 'WIPRO.NS': 490,
-  'AXISBANK.NS': 1190,
+  'HAL.NS': 4550, 'BEL.NS': 295, 'RVNL.NS': 385,
+  'IREDA.NS': 185, 'HUDCO.NS': 275, 'COALINDIA.NS': 485,
+  'NHPC.NS': 95, 'ADANIPORTS.NS': 1405, 'TATAPOWER.NS': 445,
+  'BHEL.NS': 305
 };
 
 const INTERVALS = [
@@ -73,10 +73,9 @@ const INTERVALS = [
 ];
 
 const PORTFOLIO = [
-  { symbol: 'RELIANCE.NS', shares: 10, avgCost: 2750 },
-  { symbol: 'TCS.NS',      shares: 5,  avgCost: 3850 },
-  { symbol: 'HDFCBANK.NS', shares: 15, avgCost: 1650 },
-  { symbol: 'INFY.NS',     shares: 20, avgCost: 1500 },
+  { symbol: 'HAL.NS',  shares: 5,  avgCost: 4400 },
+  { symbol: 'BEL.NS',  shares: 50, avgCost: 280 },
+  { symbol: 'RVNL.NS', shares: 40, avgCost: 350 },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1631,6 +1630,16 @@ export default function App() {
   // Security Authentication Gate
   const [loggedIn, setLoggedIn] = useState(() => sessionStorage.getItem('apt_token') !== null);
   const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('apex_user') || 'apex_head_quant');
+  const [userRole, setUserRole] = useState(() => localStorage.getItem('apex_role') || 'Master Quant / Administrator');
+  const [userClearance, setUserClearance] = useState(() => localStorage.getItem('apex_clearance') || 'LEVEL_4_ROOT');
+
+  const handleLogout = useCallback(() => {
+    sessionStorage.removeItem('apt_token');
+    localStorage.removeItem('apex_user');
+    localStorage.removeItem('apex_role');
+    localStorage.removeItem('apex_clearance');
+    setLoggedIn(false);
+  }, []);
 
   // Warm up backend in the background as soon as the app mounts (during login screen presentation)
   useEffect(() => {
@@ -1639,7 +1648,7 @@ export default function App() {
   }, []);
 
   const [view, setView]         = useState('HOME');   // 'HOME' is default now
-  const [selected, setSelected] = useState('RELIANCE.NS');
+  const [selected, setSelected] = useState('HAL.NS');
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
   const [rightTab, setRightTab] = useState('TRADE');
   
@@ -1752,7 +1761,7 @@ export default function App() {
   // Watchlist favorites state
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('apex_favorites');
-    return saved ? JSON.parse(saved) : ['RELIANCE.NS', 'TCS.NS'];
+    return saved ? JSON.parse(saved) : ['HAL.NS', 'BEL.NS'];
   });
 
   // AI Analyst embedded card states
@@ -1764,9 +1773,9 @@ export default function App() {
 
   // Signals state (pre-seeded fallback, fresh scan manually triggered in Signals tab)
   const [signals, setSignals] = useState([
-    { symbol: 'RELIANCE.NS', name: 'Reliance', signal: 'BUY', confidence: 88, rr_ratio: 2.5, reasoning: 'RSI oversold trigger on daily candle chart. Volume spike supports reversal.' },
-    { symbol: 'TCS.NS', name: 'TCS', signal: 'BUY', confidence: 75, rr_ratio: 1.8, reasoning: 'Moving average convergence crossover signals strong bullish momentum.' },
-    { symbol: 'INFY.NS', name: 'Infosys', signal: 'SELL', confidence: 82, rr_ratio: 2.1, reasoning: 'Overbought indicator breach with high overhead volume block.' }
+    { symbol: 'HAL.NS', name: 'HAL', signal: 'BUY', confidence: 88, rr_ratio: 2.5, reasoning: 'RSI oversold trigger on daily candle chart. Volume spike supports reversal.' },
+    { symbol: 'BEL.NS', name: 'BEL', signal: 'BUY', confidence: 75, rr_ratio: 1.8, reasoning: 'Moving average convergence crossover signals strong bullish momentum.' },
+    { symbol: 'RVNL.NS', name: 'RVNL', signal: 'BUY', confidence: 82, rr_ratio: 2.1, reasoning: 'Breakout patterns on high volume confirmation.' }
   ]);
 
   const showToast = useCallback((message, type = 'success') => {
@@ -2230,8 +2239,22 @@ export default function App() {
     localStorage.setItem('apex_splash_shown', 'true');
   }, []);
 
+
+
   if (!loggedIn) {
-    return <LoginScreen onLogin={(user) => { setLoggedIn(true); setCurrentUser(user); localStorage.setItem('apex_user', user); }} />;
+    return (
+      <LoginScreen 
+        onLogin={(user, role, clearance) => { 
+          setLoggedIn(true); 
+          setCurrentUser(user); 
+          setUserRole(role || 'Authorized Guest'); 
+          setUserClearance(clearance || 'LEVEL_1_GUEST'); 
+          localStorage.setItem('apex_user', user); 
+          localStorage.setItem('apex_role', role || 'Authorized Guest'); 
+          localStorage.setItem('apex_clearance', clearance || 'LEVEL_1_GUEST'); 
+        }} 
+      />
+    );
   }
 
   return (
@@ -2313,7 +2336,7 @@ export default function App() {
           view={view} 
           onViewChange={setView} 
           isMobile={isMobile} 
-          onLogout={() => { setLoggedIn(false); sessionStorage.removeItem('apt_token'); localStorage.removeItem('apex_user'); }} 
+          onLogout={handleLogout}
           netWorth={netWorth}
           cash={cash}
           stockValue={totalStockValue}
@@ -2328,7 +2351,7 @@ export default function App() {
 
           {view === 'HOME' ? (
             /* HOME VIEW — full width */
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
               <HomePanel 
                 prices={prices} 
                 portfolio={portfolio} 
@@ -2368,7 +2391,7 @@ export default function App() {
             </div>
           ) : view === 'SIGNALS' ? (
             /* SIGNALS VIEW — full width */
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
               <SignalsPanel onSelectSymbol={handleSignalSelect} selectedSymbol={selected} prices={prices} />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -2391,7 +2414,7 @@ export default function App() {
             </div>
           ) : view === 'PREDICTIONS' ? (
             /* PREDICTIONS VIEW — full width */
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
               <PredictionsPanel prices={prices} selectedSymbol={selected} onSelectSymbol={setSelected} onViewChange={setView} />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -2414,7 +2437,7 @@ export default function App() {
             </div>
           ) : view === 'PERFORMANCE' ? (
             /* PERFORMANCE VIEW — full width */
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
               <PerformancePanel />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -2437,8 +2460,12 @@ export default function App() {
             </div>
           ) : view === 'ACCOUNT' ? (
             /* ACCOUNT VIEW — full width */
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-              <AccountPanel currentUser={currentUser} />
+            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              <AccountPanel 
+                currentUser={currentUser} 
+                userRole={userRole} 
+                userClearance={userClearance} 
+              />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
                   {TABS.map(tab => (
@@ -2462,7 +2489,7 @@ export default function App() {
             <>
               {isMobile ? (
                 /* MOBILE VIEW — Single column with bottom tabs and top sub-tabs for Chart view */
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.bg }}>
+                <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.bg }}>
                   {/* Content Area */}
                   <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
                     {/* Sub-tab switcher */}
@@ -2645,7 +2672,7 @@ export default function App() {
                 </div>
               ) : (
                 /* DESKTOP VIEW — 3 Columns */
-                <>
+                <div className="panel-transition" style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
                   {/* LEFT — Watchlist */}
                   <div style={{ width: 190, flexShrink: 0, borderRight: `1px solid ${T.border}`, background: T.surface, overflow: 'hidden' }}>
                     <WatchlistPanel prices={prices} selected={selected} onSelect={setSelected} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
@@ -2764,7 +2791,7 @@ export default function App() {
                       )}
                     </div>
                   </div>
-                </>
+                </div>
               )}
             </>
           )}

@@ -31,7 +31,7 @@ def run_historical_backtest(
         if df is None or len(df) < 30:
             return {"error": f"Insufficient historical data fetched for {symbol}."}
 
-        # Flatten multi-level columns if returned by yfinance
+        # Flatten multi-level columns if returned by provider
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
 

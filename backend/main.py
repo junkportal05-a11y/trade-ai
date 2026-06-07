@@ -1,5 +1,5 @@
 """
-Trading Platform Backend - FastAPI + yfinance
+Trading Platform Backend - FastAPI
 Run with: uvicorn main:app --reload --port 8000
 """
 
@@ -30,21 +30,6 @@ from backtest_routes import backtest_router
 
 load_dotenv()
 
-ADMIN_KEY   = os.getenv("ADMIN_KEY", "change-me")
-APP_PASSWORD = os.getenv("APP_PASSWORD", "apextrade123")
-SECRET_KEY  = os.getenv("SECRET_KEY")
-
-# Security Hardening: Generate a secure random key in production if not configured
-if not SECRET_KEY:
-    if os.getenv("RENDER") or os.getenv("PORT"):
-        import secrets
-        SECRET_KEY = secrets.token_hex(32)
-    else:
-        SECRET_KEY = "insecure-default-dev"
-
-# Production check for default app password
-if APP_PASSWORD == "apextrade123" and (os.getenv("RENDER") or os.getenv("PORT")):
-    print("[SECURITY WARNING] Default APP_PASSWORD is in use in production! Please set APP_PASSWORD in environment config.")
 
 
 limiter = Limiter(key_func=get_remote_address)
@@ -74,8 +59,8 @@ from auth_helpers import (
     ACTIVE_SESSIONS,
     SESSION_TTL,
     ADMIN_KEY,
-    APP_PASSWORD,
-    USER_REGISTRY
+    USER_REGISTRY,
+    authenticate_user
 )
 
 # Optional Gemini AI integration (google-genai SDK)
@@ -103,8 +88,8 @@ class LoginRequest(BaseModel):
 @limiter.limit("10/minute")
 async def login(req: LoginRequest, request: Request):
     u = req.username.strip()
-    user_obj = USER_REGISTRY.get(u)
-    if not user_obj or user_obj['pass'] != req.password:
+    user_obj = authenticate_user(u, req.password)
+    if not user_obj:
         raise HTTPException(status_code=401, detail="Invalid username or password")
     token = create_session(u)
     return {
@@ -340,7 +325,7 @@ async def get_signals(
     else:
         watchlist = sig_engine.NSE_WATCHLIST
 
-    # Run analysis concurrently in thread pool (yfinance is blocking I/O)
+    # Run analysis concurrently in thread pool (scanning is blocking I/O)
     import functools
     try:
         results = await asyncio.wait_for(
@@ -424,7 +409,22 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
             if os.path.exists(knowledge_path):
                 try:
                     # Limit context size to allow the entire codebase blueprint and PDF manuals (up to 140000 chars)
-                    knowledge_content = kf.read(140000)
+                    with open(knowledge_path, "r", encoding="utf-8") as kf:
+                        knowledge_content = kf.read(140000)
+                except Exception:
+                    pass
+
+            # Fetch NewsAPI headlines for viewed symbol
+            news_context = ""
+            if symbol and symbol != "the market":
+                try:
+                    import news_feed
+                    articles = news_feed.fetch_ticker_news(symbol)
+                    if articles:
+                        news_context = "--- LATEST NEWS CONTEXT ---\n"
+                        for art in articles[:3]:  # Top 3 headlines
+                            news_context += f"• {art.get('title')} (Published: {art.get('publishedAt')[:10]})\n"
+                        news_context += "---------------------------\n\n"
                 except Exception:
                     pass
 
@@ -435,6 +435,7 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
                 f"--- KNOWLEDGE BASE EXTRACTS ---\n"
                 f"{knowledge_content}\n"
                 f"-------------------------------\n\n"
+                f"{news_context}"
                 f"Active Context: The user is currently viewing {symbol}"
                 + (f" trading at ₹{price:.2f}" if price else "")
                 + (f" ({chg_pct:+.2f}% today)" if chg_pct is not None else "")
@@ -584,18 +585,18 @@ def is_nse_market_open() -> bool:
     return start_minutes <= minutes_since_midnight <= end_minutes
 
 
-# Fallback seed prices for Indian stocks if yfinance fails
+# Fallback seed prices for Indian stocks if provider feed fails
 SEED_PRICES = {
-    'RELIANCE.NS': 2920.0,
-    'TCS.NS': 4100.0,
-    'HDFCBANK.NS': 1780.0,
-    'INFY.NS': 1650.0,
-    'ICICIBANK.NS': 1290.0,
-    'SBIN.NS': 845.0,
-    'BAJFINANCE.NS': 7200.0,
-    'TATAMOTORS.NS': 960.0,
-    'WIPRO.NS': 490.0,
-    'AXISBANK.NS': 1190.0,
+    'HAL.NS': 4550.0,
+    'BEL.NS': 295.0,
+    'RVNL.NS': 385.0,
+    'IREDA.NS': 185.0,
+    'HUDCO.NS': 275.0,
+    'COALINDIA.NS': 485.0,
+    'NHPC.NS': 95.0,
+    'ADANIPORTS.NS': 1405.0,
+    'TATAPOWER.NS': 445.0,
+    'BHEL.NS': 305.0,
 }
 
 # Live prices cache seeded initially with baseline seed prices
@@ -834,7 +835,7 @@ async def startup_event():
 async def websocket_prices(
     websocket: WebSocket,
     token: str = Query(None),
-    symbols: str = "RELIANCE.NS,TCS.NS,HDFCBANK.NS,INFY.NS,ICICIBANK.NS,SBIN.NS,BAJFINANCE.NS,TATAMOTORS.NS,WIPRO.NS,AXISBANK.NS"
+    symbols: str = "HAL.NS,BEL.NS,RVNL.NS,IREDA.NS,HUDCO.NS,COALINDIA.NS,NHPC.NS,ADANIPORTS.NS,TATAPOWER.NS,BHEL.NS"
 ):
     await websocket.accept()
     if not token or token not in ACTIVE_SESSIONS:
@@ -1045,7 +1046,7 @@ async def allocate_capital_quick(req: CapitalRequest, request: Request, _=Depend
         # Apply segment filter
         if req.market_segment == "BSE" and not sym.endswith(".BO"):
             continue
-        elif req.market_segment == "F&O" and sym not in ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "SBIN.NS"]:
+        elif req.market_segment == "F&O" and sym not in ["HAL.NS", "BEL.NS", "RVNL.NS", "COALINDIA.NS", "ADANIPORTS.NS", "TATAPOWER.NS", "BHEL.NS"]:
             continue
 
         cached = LIVE_PRICES_CACHE.get(sym)
@@ -1232,10 +1233,10 @@ async def get_prediction_stats(request: Request, _=Depends(require_session)):
         
         # Best and worst sectors
         SECTORS_MAP = {
-            'RELIANCE.NS': 'Energy', 'TCS.NS': 'IT', 'HDFCBANK.NS': 'Banking',
-            'INFY.NS': 'IT', 'ICICIBANK.NS': 'Banking', 'SBIN.NS': 'Banking',
-            'BAJFINANCE.NS': 'Banking', 'TATAMOTORS.NS': 'Auto', 'WIPRO.NS': 'IT',
-            'AXISBANK.NS': 'Banking'
+            'HAL.NS': 'Defence', 'BEL.NS': 'Defence', 'RVNL.NS': 'Railways',
+            'IREDA.NS': 'Green Energy', 'HUDCO.NS': 'Finance', 'COALINDIA.NS': 'Energy',
+            'NHPC.NS': 'Power', 'ADANIPORTS.NS': 'Infrastructure', 'TATAPOWER.NS': 'Power',
+            'BHEL.NS': 'Capital Goods'
         }
         
         sector_wins = {}
