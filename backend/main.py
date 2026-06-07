@@ -464,7 +464,58 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
     price_str = f"₹{price:,.2f}" if price else "current levels"
     chg_str   = f"{chg_pct:+.2f}%" if chg_pct is not None else "unchanged"
 
-    if any(w in msg_lower for w in ["buy", "long", "bullish", "upside"]):
+    # ── Custom Knowledge Base Heuristic Matches ──────────────────────────────
+    if "hammer" in msg_lower:
+        reply = (
+            "**Hammer Candlestick** — A bullish reversal candlestick pattern forming during a downtrend. "
+            "It has a small body at the top of the price range and a long lower shadow (at least 2x the body length), "
+            "representing strong price rejection at lows. A confirmation candle closing above the hammer's body validates the reversal setup. "
+            "*(Local fallback response - set GEMINI_API_KEY for full AI mentoring)*"
+        )
+    elif "doji" in msg_lower:
+        reply = (
+            "**Doji Candlestick** — A candlestick representing market equilibrium and indecision (virtually equal open and close). "
+            "dragonfly Doji signals bullish rejection of lows, while Gravestone Doji signals bearish rejection of highs. Reversals "
+            "require confirmation on the subsequent candle. "
+            "*(Local fallback response - set GEMINI_API_KEY for full AI mentoring)*"
+        )
+    elif "engulfing" in msg_lower:
+        reply = (
+            "**Engulfing Pattern** — A powerful two-candle reversal signal. A Bullish Engulfing pattern features a large green "
+            "candle that completely wraps the previous red candle's body, indicating buyers have taken control. Bearish Engulfing is the opposite. "
+            "*(Local fallback response - set GEMINI_API_KEY for full AI mentoring)*"
+        )
+    elif any(w in msg_lower for w in ["candlestick", "candle", "pattern"]):
+        reply = (
+            "**Candlestick Patterns** — Visual maps of price history. Key structures like Hammers, Dojis, and Engulfing lines "
+            "signal potential trend reversals. Seek confluence with major support/resistance levels and check volume expansion for validation. "
+            "*(Local fallback response - set GEMINI_API_KEY for full AI mentoring)*"
+        )
+    elif "rsi" in msg_lower:
+        reply = (
+            "**RSI (Relative Strength Index)** — A momentum oscillator measuring the speed and change of price moves from 0 to 100. "
+            "Traditionally, values above 70 indicate overbought conditions (pullback warning) and values below 30 indicate oversold setups. "
+            "*(Local fallback response - set GEMINI_API_KEY for full AI mentoring)*"
+        )
+    elif "macd" in msg_lower:
+        reply = (
+            "**MACD (Moving Average Convergence Divergence)** — A trend-following momentum indicator. Crossover of the MACD line "
+            "above the signal line suggests bullish momentum; crossover below warns of bearish acceleration. Divergence from price indicates reversals. "
+            "*(Local fallback response - set GEMINI_API_KEY for full AI mentoring)*"
+        )
+    elif any(w in msg_lower for w in ["ema", "sma", "moving average"]):
+        reply = (
+            "**Moving Averages** — Trend following tools. Simple Moving Average (SMA) tracks equal weights, while Exponential Moving Average (EMA) "
+            "prioritizes recent prices for faster responses. Watch for crossover triggers (e.g. 9 EMA crossing 21 EMA) to confirm trend shifts. "
+            "*(Local fallback response - set GEMINI_API_KEY for full AI mentoring)*"
+        )
+    elif any(w in msg_lower for w in ["stop", "sl", "risk", "size", "sizing", "capital", "money"]):
+        reply = (
+            "**Risk Management Policy** — Limit risk to 1-2% of total capital per trade. Calculate your position size dynamically: "
+            "Position Size = (Capital * Risk %) / (Entry Price - Stop Loss Price). Place stop losses below recent swing lows or moving average lines. "
+            "*(Local fallback response - set GEMINI_API_KEY for full AI mentoring)*"
+        )
+    elif any(w in msg_lower for w in ["buy", "long", "bullish", "upside"]):
         reply = (
             f"**{symbol} Bull Case** — At {price_str} ({chg_str} today), "
             f"consider accumulating on dips to key support. Watch for volume "
