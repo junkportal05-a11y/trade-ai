@@ -1278,6 +1278,39 @@ export default function App() {
   // Server warming/cold start splash page state
   const [serverWarming, setServerWarming] = useState(() => localStorage.getItem('apex_splash_shown') === null);
 
+  // Paper Trading State
+  const [portfolio, setPortfolio] = useState(() => {
+    const saved = localStorage.getItem('apex_portfolio');
+    return saved ? JSON.parse(saved) : [
+      { symbol: 'RELIANCE.NS', shares: 10, avgCost: 2750 },
+      { symbol: 'TCS.NS',      shares: 5,  avgCost: 3850 },
+      { symbol: 'HDFCBANK.NS', shares: 15, avgCost: 1650 },
+      { symbol: 'INFY.NS',     shares: 20, avgCost: 1500 },
+    ];
+  });
+  const [cash, setCash] = useState(() => {
+    const saved = localStorage.getItem('apex_cash');
+    return saved ? parseFloat(saved) : 1000000; // Starting cash: ₹10,00,000 (10 Lakhs)
+  });
+  const [openOrders, setOpenOrders] = useState([]);
+
+  useEffect(() => {
+    localStorage.setItem('apex_portfolio', JSON.stringify(portfolio));
+  }, [portfolio]);
+
+  useEffect(() => {
+    localStorage.setItem('apex_cash', cash.toString());
+  }, [cash]);
+
+  // Chart markers for executed paper trades
+  const [tradeMarkers, setTradeMarkers] = useState({});
+
+  const symbols = DEFAULT_WATCHLIST.map(w => w.symbol);
+  const { prices, connected } = useLivePrices(symbols);
+  const iv = INTERVALS[ivIdx];
+  const currentPrice     = prices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
+  const currentChangePct = prices[selected]?.changePct ?? 0;
+
   // Mobile layout sub-tab for Chart page
   const [mobileSubTab, setMobileSubTab] = useState('CHART');
 
@@ -1571,32 +1604,7 @@ export default function App() {
     macd: false,
   });
 
-  // Paper Trading State
-  const [portfolio, setPortfolio] = useState(() => {
-    const saved = localStorage.getItem('apex_portfolio');
-    return saved ? JSON.parse(saved) : [
-      { symbol: 'RELIANCE.NS', shares: 10, avgCost: 2750 },
-      { symbol: 'TCS.NS',      shares: 5,  avgCost: 3850 },
-      { symbol: 'HDFCBANK.NS', shares: 15, avgCost: 1650 },
-      { symbol: 'INFY.NS',     shares: 20, avgCost: 1500 },
-    ];
-  });
-  const [cash, setCash] = useState(() => {
-    const saved = localStorage.getItem('apex_cash');
-    return saved ? parseFloat(saved) : 1000000; // Starting cash: ₹10,00,000 (10 Lakhs)
-  });
-  const [openOrders, setOpenOrders] = useState([]);
 
-  useEffect(() => {
-    localStorage.setItem('apex_portfolio', JSON.stringify(portfolio));
-  }, [portfolio]);
-
-  useEffect(() => {
-    localStorage.setItem('apex_cash', cash.toString());
-  }, [cash]);
-
-  // Chart markers for executed paper trades
-  const [tradeMarkers, setTradeMarkers] = useState({});
   const lastBarTimeRef = useRef(null);
 
   const handleLastBarUpdate = useCallback((time) => {
@@ -1641,11 +1649,7 @@ export default function App() {
     }));
   }, [selected, ivIdx, getCurrentBarTime]);
 
-  const symbols = DEFAULT_WATCHLIST.map(w => w.symbol);
-  const { prices, connected } = useLivePrices(symbols);
-  const iv = INTERVALS[ivIdx];
-  const currentPrice     = prices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
-  const currentChangePct = prices[selected]?.changePct ?? 0;
+
 
   // Execute market/limit orders
   const handleExecuteOrder = (order) => {
