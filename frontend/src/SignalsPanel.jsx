@@ -85,13 +85,13 @@ function generateFallbackSignals() {
     { symbol: 'INFY.NS', name: 'Infosys', sector: 'IT' },
     { symbol: 'ICICIBANK.NS', name: 'ICICI Bank', sector: 'Banking' },
     { symbol: 'SBIN.NS', name: 'State Bank of India', sector: 'Banking' },
-    { symbol: 'TMPV.NS', name: 'Tata Motors (TMPV)', sector: 'Auto' },
+    { symbol: 'TATAMOTORS.NS', name: 'Tata Motors', sector: 'Auto' },
     { symbol: 'WIPRO.NS', name: 'Wipro', sector: 'IT' },
     { symbol: 'AXISBANK.NS', name: 'Axis Bank', sector: 'Banking' }
   ];
   const signals = ['BUY', 'WEAK BUY', 'HOLD', 'WEAK SELL', 'SELL'];
   return watchlist.map((item, idx) => {
-    const price = [2920, 4100, 1780, 1650, 1290, 845, 385, 490, 1190][idx] || 500;
+    const price = [2920, 4100, 1780, 1650, 1290, 845, 960, 490, 1190][idx] || 500;
     const signal = signals[(idx + 2) % signals.length];
     const confidence = 50 + ((idx * 8) % 43);
     let target, stop;

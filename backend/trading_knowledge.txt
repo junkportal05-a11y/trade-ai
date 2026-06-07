@@ -1,13 +1,297 @@
-# ApexTrade AI Mentor Knowledge Base
+# ApexTrade AI Mentor System & Trading Knowledge Base
 
-This file contains extracted knowledge from the user-provided trading guides and PDFs.
-Use this information to answer trading questions, explain strategies, and mentor users.
+This file is a unified context document containing the complete platform codebase blueprint followed by extracted trading guides.
 
-## SOURCE DOCUMENT: candlesticks (1).pdf
+## APEXTRADE TECHNICAL CODEBASE BLUEPRINT
+
+This section documents the filenames, functions, signatures, classes, components, and docstrings of the application code.
+
+
+### File: backend/signals.py
+
+ - Function: def _to_twelve(symbol)
+     No docstring.
+ - Function: def _to_yf(symbol)
+     No docstring.
+ - Function: def map_interval(interval)
+     No docstring.
+ - Function: def period_to_outputsize(period, interval)
+     No docstring.
+ - Function: def parse_twelve_data_candles(data)
+     Docstring: Parse Twelve Data time_series response into a standard OHLCV DataFrame.
+Returns None if data is invalid or empty.
+ - Function: def batch_download(symbols, interval, outputsize)
+     Docstring: Download OHLCV for multiple symbols in a SINGLE Twelve Data API call.
+Uses only 1 credit per symbol (same as individual calls) but in one request.
+
+Returns: { "SYMBOL:NSE": DataFrame, ... }
+ - Function: def populate_batch_cache(symbols, interval, outputsize)
+     Docstring: Run a batch download and populate _BATCH_CANDLE_CACHE.
+Call this ONCE before starting worker threads in run_scan().
+ - Function: def download_market_data_df(symbol, period, interval)
+     Docstring: Fetch OHLCV DataFrame for a symbol.
+Priority:
+  1. Check batch cache (populated by populate_batch_cache or individual fetch)
+  2. Upstox API v2 call (if authorized)
+  3. Twelve Data individual call (if API key set)
+  4. yfinance fallback
+ - Function: def get_symbol_quote(symbol)
+     Docstring: Get current price + change for a symbol.
+Returns: { price, change, change_pct, volume, name }
+ - Function: def _ema(series, span)
+     No docstring.
+ - Function: def _rsi(close, period)
+     No docstring.
+ - Function: def _macd(close, fast, slow, signal)
+     No docstring.
+ - Function: def _bbands(close, period, std_dev)
+     No docstring.
+ - Function: def _atr(high, low, close, period)
+     No docstring.
+ - Function: def _adx(high, low, close, period)
+     No docstring.
+ - Function: def _stochastic(high, low, close, k, d)
+     No docstring.
+ - Function: def _obv(close, volume)
+     No docstring.
+ - Function: def _vwap(high, low, close, volume)
+     No docstring.
+ - Function: def _supertrend(high, low, close, period, multiplier)
+     No docstring.
+ - Function: def is_nse_market_open()
+     Docstring: Checks if the NSE market is currently open.
+NSE market is open Monday-Friday, 9:15 AM to 3:30 PM IST.
+IST is UTC + 5:30.
+ - Function: def _download_market_data(symbol, period, interval)
+     No docstring.
+ - Function: def analyse_symbol(symbol, name, sector)
+     Docstring: Download market data for a symbol and calculate advanced signals using pandas-ta.
+If market is open, runs intraday 5m scan.
+If market is closed, runs daily 1d overnight scan.
+ - Function: def run_scan(symbols, interval)
+     Docstring: Scan watchlist and return signals sorted by conviction/confidence.
+Uses batch download so only 1-2 Twelve Data API calls for entire scan.
+
+========================================
+
+### File: backend/main.py
+
+ - Class: class LoginRequest
+ - Function: def root()
+     No docstring.
+ - Function: def keep_alive()
+     Docstring: Keep-alive endpoint to prevent Render free tier cold starts.
+Configure a free cron-job (e.g., via cron-job.org) targeting this endpoint
+to run every 10 minutes between 9:10 AM and 3:40 PM IST, Monday to Friday.
+ - Function: def get_quote(symbol)
+     No docstring.
+ - Function: def upstox_authorize(state)
+     No docstring.
+ - Function: def upstox_callback(code, state)
+     No docstring.
+ - Function: def upstox_status()
+     No docstring.
+ - Function: def get_history(symbol, interval, range)
+     Docstring: Returns OHLCV candlestick bars ready for TradingView Lightweight Charts.
+
+Lightweight Charts expects:
+  { time: 'YYYY-MM-DD' | unix_timestamp, open, high, low, close, volume }
+ - Function: def search_symbols(q)
+     Docstring: Quick symbol search. yfinance doesn't have a real search API,
+so we validate by attempting to fetch the ticker's fast_info.
+Replace this with a real search API (e.g. Alpaca, Finnhub) for production.
+ - Class: class ChatMessage
+ - Class: class ChatRequest
+ - Function: def is_nse_market_open()
+     Docstring: NSE market is open Monday-Friday, 9:15 AM to 3:30 PM IST.
+IST is UTC + 5:30.
+ - Function: def reconcile_pending_signals()
+     Docstring: Checks all PENDING signals in the database against the latest prices in LIVE_PRICES_CACHE.
+Marks targets/stops as hit, and expires old intraday trades.
+ - Function: def _simulate_tick(last_price)
+     Docstring: Micro random-walk tick. Replace the body of this function with a real
+feed (Alpaca stream, Polygon WebSocket, etc.) and this endpoint needs
+zero other changes.
+ - Class: class CapitalRequest
+
+========================================
+
+### File: backend/upstox_feed.py
+
+ - Function: def load_token()
+     No docstring.
+ - Function: def is_authorized()
+     No docstring.
+ - Function: def get_login_url(state)
+     No docstring.
+ - Function: def save_token(token, details)
+     No docstring.
+ - Function: def exchange_code_for_token(code)
+     No docstring.
+ - Function: def get_instrument_key(symbol)
+     No docstring.
+ - Function: def get_historical_candles(symbol, period_or_range, interval)
+     No docstring.
+ - Function: def get_live_quotes(symbols)
+     No docstring.
+
+========================================
+
+### File: backend/backtest_engine.py
+
+ - Function: def run_historical_backtest(symbol, period_range, initial_capital, stop_atr, target_atr, entry_score, risk_pct, early_exit)
+     Docstring: Runs a historical strategy backtest on Daily (1D) bars with configurable risk/target and early exit thresholds.
+
+========================================
+
+### File: backend/capital_allocator.py
+
+ - Function: def get_target_universe(capital)
+     Docstring: Returns a list of {symbol, name, sector} dicts matched to capital size.
+Small capital → cheap volatile stocks | Large capital → full universe.
+ - Function: def generate_mentor_advice(sig, actual_cost, pot_loss, capital, rr)
+     No docstring.
+ - Function: def allocate(capital, signals)
+     Docstring: Build a high-return allocation plan targeting 10-20% on invested capital.
+
+Key differences from standard allocator:
+1. Score = confidence × ATR% (prefer HIGH VOLATILITY stocks)
+2. Target = 10-15% gain on position (not ATR × 2)
+3. Stop  = 4-5% loss max (wider stop for volatile stocks)
+4. Min profit target per position = 8% of amount invested
+5. Filter out stocks where max profit < 8% of invested amount
+
+========================================
+
+### File: backend/db.py
+
+ - Function: def _conn()
+     No docstring.
+ - Function: def init_db()
+     No docstring.
+ - Function: def add_signal(sig)
+     Docstring: Insert a new pending signal.
+If a PENDING signal already exists for this symbol in the same direction,
+skip (avoid duplicates). If direction reversed, close the old one first.
+Returns the new row id, or None if skipped.
+ - Function: def get_pending_signals()
+     No docstring.
+ - Function: def update_signal(id, status, exit_price, pnl_pct)
+     No docstring.
+ - Function: def expire_old_intraday()
+     Docstring: Mark intraday PENDING signals older than today as EXPIRED at 15:30 IST.
+ - Function: def get_stats()
+     No docstring.
+ - Function: def get_history(limit, symbol, status)
+     No docstring.
+ - Function: def clear_history()
+     No docstring.
+ - Function: def _now_ist()
+     No docstring.
+ - Function: def _calc_pnl(signal_type, entry, exit_price)
+     No docstring.
+
+========================================
+
+### File: backend/auth_helpers.py
+
+ - Function: def require_admin(x_admin_key)
+     No docstring.
+ - Function: def create_session(username)
+     No docstring.
+ - Function: def require_session(x_session_token)
+     No docstring.
+ - Function: def cleanup_sessions()
+     No docstring.
+
+========================================
+
+### File: frontend/src/App.jsx
+
+ - Component/Function: function CandleChart(
+ - Component/Function: function TickerBar(
+ - Component/Function: function WatchlistPanel(
+ - Component/Function: function PortfolioPanel(
+ - Component/Function: function OrderPanel(
+ - Component/Function: function ChatPanel(
+ - Component/Function: const send = useCallback(async () =>
+ - Component/Function: const [clock, setClock] = useState(() => new Date().toLocaleTimeString('en-IN',
+ - Component/Function: export default function App()
+ - Component/Function: const [loggedIn, setLoggedIn] = useState(() => sessionStorage.getItem('apt_token') !== null);
+ - Component/Function: const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('apex_user') || 'apex_head_quant');
+ - Component/Function: const handleResize = () => setIsMobile(window.innerWidth <= 800);
+ - Component/Function: const handleLastBarUpdate = useCallback((time) =>
+ - Component/Function: const getCurrentBarTime = useCallback((interval) =>
+ - Component/Function: const addTradeMarker = useCallback((sym, side, qty, execPrice) =>
+ - Component/Function: const handleExecuteOrder = (order) =>
+ - Component/Function: const handleCancelOrder = (id) =>
+ - Component/Function: const handleSignalSelect = (symbol) =>
+ - Component/Function: const handleWokenUp = useCallback(() =>
+ - Component/Function: function calcEMA(data, period)
+ - Component/Function: function calcBollingerBands(data, period = 20, multiplier = 2)
+ - Component/Function: function calcRSI(data, period = 14)
+ - Component/Function: function calcMACD(data, fast = 12, slow = 26, signal = 9)
+
+========================================
+
+### File: frontend/src/SignalsPanel.jsx
+
+ - Component/Function: function ConfBar(
+ - Component/Function: function FilterBar(
+ - Component/Function: export default function SignalsPanel(
+ - Component/Function: const runScanAndAllocate = useCallback(async () =>
+
+========================================
+
+### File: frontend/src/PerformancePanel.jsx
+
+ - Component/Function: function WinBar(
+ - Component/Function: function EquityChart(
+ - Component/Function: const handleMouseMove = (e) =>
+ - Component/Function: const handleMouseLeave = () =>
+ - Component/Function: export default function PerformancePanel()
+ - Component/Function: const load = useCallback(async () =>
+ - Component/Function: const handleRunBacktest = async () =>
+
+========================================
+
+### File: frontend/src/OrderBookPanel.jsx
+
+ - Component/Function: export default function OrderBookPanel(
+
+========================================
+
+### File: frontend/src/AccountPanel.jsx
+
+ - Component/Function: export default function AccountPanel(
+ - Component/Function: const [sessionHash] = useState(() => Math.random().toString(36).substring(2, 10).toUpperCase());
+ - Component/Function: const [loginTime] = useState(() => new Date().toLocaleTimeString('en-IN',
+ - Component/Function: const curUserObj = USER_REGISTRY.find(u => u.username === currentUser) ||
+
+========================================
+
+### File: frontend/src/LoginScreen.jsx
+
+ - Component/Function: export default function LoginScreen(
+ - Component/Function: const handleSubmit = async (e) =>
+
+========================================
+
+### File: frontend/src/IntroSplash.jsx
+
+
+========================================
+
+
+##################################################
+
+## APEXTRADE EDUCATION & STRATEGY MANUALS
+
+### SOURCE MANUAL: candlesticks (1).pdf
 
 Total Pages: 15
 
-### [Page 2 / 15]
+#### [Manual: candlesticks (1).pdf - Page 2 / 15]
 Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
 WHAT IS A CANDLESTICK?
 A candlestick depicts the battle between Bulls (buyers) and
@@ -28,7 +312,7 @@ determine market direction and identify optimal entry and
 exit points that could help you execute profitable returns
 consistently in your trades.
 
-### [Page 3 / 15]
+#### [Manual: candlesticks (1).pdf - Page 3 / 15]
 Understanding the Language
 of the Market
 Bulls, Bears, buyers, sellers…is anyone else confused? Don’t
@@ -50,7 +334,7 @@ be referring to Bullish as light-colored candlesticks and
 Bearish as dark-colored candlesticks.
 Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
 
-### [Page 4 / 15]
+#### [Manual: candlesticks (1).pdf - Page 4 / 15]
 BEARISH BULLISH
 Long ﬁlled candlesticks
 indicate that the Bears
@@ -74,7 +358,7 @@ indicate buying pressure. Filled candlesticks, where the close is
 less than the open, indicate selling pressure.
 Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
 
-### [Page 5 / 15]
+#### [Manual: candlesticks (1).pdf - Page 5 / 15]
 BULLISH
 Bullish candlesticks indicate the
 market is moving in an upward
@@ -100,7 +384,7 @@ small wicks means one group is in control of the market
 for that particular time period.
 Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
 
-### [Page 6 / 15]
+#### [Manual: candlesticks (1).pdf - Page 6 / 15]
 Openingprice of thebearishcandle
 Openingprice of thebearishcandle
 Buy at theopening of thenext candle.
@@ -135,7 +419,7 @@ it meets the criteria of the Bullish
 Morning Star.
 Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
 
-### [Page 7 / 15]
+#### [Manual: candlesticks (1).pdf - Page 7 / 15]
 Long WicksSmallBodies
 Buy at the opening of the next candle.
 60%
@@ -162,7 +446,7 @@ Facebook, LinkedIn, Telegram or Twitter pages and we’ll do
 our best to answer them as quickly as possible!
 Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
 
-### [Page 8 / 15]
+#### [Manual: candlesticks (1).pdf - Page 8 / 15]
 Can you spot the bullish candlestick formations?
 Identify formations A, B & C. Answers provided upside-down under the chart. No peeking!
 Like what you’re reading? Of course you do! But why limit
@@ -176,7 +460,7 @@ APPLY IT
 A. BULLISH MORNING STAR | B. BULLISH ENGULFING CANDLE | C. BULLISH TWEEZER BOTTOM
 Get More Trading Tips
 
-### [Page 9 / 15]
+#### [Manual: candlesticks (1).pdf - Page 9 / 15]
 BEARISH
 Bearish candlesticks indicate the
 market is moving in a downward
@@ -197,7 +481,7 @@ Here are a few of bearish formations that frequently pop up
 on the charts (see next page).
 Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
 
-### [Page 10 / 15]
+#### [Manual: candlesticks (1).pdf - Page 10 / 15]
 Opening priceof thebullishcandle
 Openingprice of thebullishcandle
 Sell attheopeningof thenextcandle.
@@ -231,7 +515,7 @@ order approximately 15 pips beyond
 the HIGHS of the wicks.
 Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
 
-### [Page 11 / 15]
+#### [Manual: candlesticks (1).pdf - Page 11 / 15]
 LongWicksSmallBodies
 Opening price of thebullishcandle
 60%
@@ -264,7 +548,7 @@ Facebook, LinkedIn, Telegram or Twitter pages and we’ll do
 our best to answer them as quickly as possible!
 Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
 
-### [Page 12 / 15]
+#### [Manual: candlesticks (1).pdf - Page 12 / 15]
 APPLY IT
 Get More Trading Tips
 Identify formations A, B & C. Answers provided upside-down under the chart. No peeking!
@@ -276,7 +560,7 @@ in action!
 Can you spot the bearish candlestick formations?
 A. BEARISH EVENING STAR | B. BEARISH ENGULFING CANDLE | C. BEARISH TWEEZER TOP
 
-### [Page 13 / 15]
+#### [Manual: candlesticks (1).pdf - Page 13 / 15]
 So What Did You Learn?
 Other than you are going to be one heck of a trader!
 Here’s a quick overview to tie everything together:
@@ -296,7 +580,7 @@ determine that an
 upward movement
 is taking place.
 
-### [Page 14 / 15]
+#### [Manual: candlesticks (1).pdf - Page 14 / 15]
 This tells you to trade that upward
 movement in an uptrend.
 On the other hand, Bearish
@@ -323,7 +607,7 @@ trading results, come to one of our upcoming workshops and
 see how these candlesticks play out in action.
 Copyright ©2023 Metaverse Trading Academy | www.metaversetradingacademy.in
 
-### [Page 15 / 15]
+#### [Manual: candlesticks (1).pdf - Page 15 / 15]
 That’s our vision. Often referred to as MTA, Metaverse Trading
 Academy, is a financial education and training company
 based in Rajkot, India. We provide education to beginner,
@@ -358,11 +642,11 @@ for more information.
 
 ---
 
-## SOURCE DOCUMENT: mentor (1).pdf
+### SOURCE MANUAL: mentor (1).pdf
 
 Total Pages: 6
 
-### [Page 2 / 6]
+#### [Manual: mentor (1).pdf - Page 2 / 6]
 Is your trade setup below 60-70% success ratio?
 Do you still want to be a part of 90% looser traders as per SEBI
 or 10% successful traders?
@@ -387,7 +671,7 @@ questions from the masters of markets in trading you came to
 right place Metaverse trading academy.
 Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in Page -1
 
-### [Page 3 / 6]
+#### [Manual: mentor (1).pdf - Page 3 / 6]
 At Metaverse Trading academy If you want to come in for a trading
 call this is not the right place. Here we deliver self-sufficient traders
 who are capable to give calls rather than taking call from others in
@@ -413,7 +697,7 @@ progress on week ends with case to case basis analysis apart from
 every day online community trading with Ace traders.
 Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in Page -2
 
-### [Page 4 / 6]
+#### [Manual: mentor (1).pdf - Page 4 / 6]
 Any person can show on a rewind screen using any nature
 indicators take a position on either side of markets. But can they
 do the same while the market is functional on live basis?
@@ -437,7 +721,7 @@ Trading academy. Along with the same a personal attention will be
 provided to help you understand basics on regular basis.
 Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in Page -3
 
-### [Page 5 / 6]
+#### [Manual: mentor (1).pdf - Page 5 / 6]
 A fully evolved trader who can read and interprets any global
 charts confidently.
 Identify and expand your core strength of trading in markets
@@ -464,7 +748,7 @@ What do we achieve finally?
 Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in
 Page -4
 
-### [Page 6 / 6]
+#### [Manual: mentor (1).pdf - Page 6 / 6]
 Do you still want to know more about our Metaverse trading
 academy we would invite you all for a Demo class on every
 Thursday as a Town hall meeting.
@@ -477,11 +761,11 @@ JOIN US TODAY!
 
 ---
 
-## SOURCE DOCUMENT: pdfebook.pdf
+### SOURCE MANUAL: pdfebook.pdf
 
 Total Pages: 51
 
-### [Page 1 / 51]
+#### [Manual: pdfebook.pdf - Page 1 / 51]
 Join Now
 A Trading Ebook
 Identifying Chart Patterns
@@ -489,7 +773,7 @@ with Technical Analysis
 Join Our Telegram for FREE
 https://telegram.me/metaverse
 
-### [Page 7 / 51]
+#### [Manual: pdfebook.pdf - Page 7 / 51]
 1
 TechnicalAnalysisWebinarSeries
 Getting Started with Technical Analysis
@@ -504,7 +788,7 @@ Managing Risk with Technical Analysis
 Identifying Chart Patterns with Technical Analysis
 Use charts and learn chart patterns through specific examples of
 
-### [Page 8 / 51]
+#### [Manual: pdfebook.pdf - Page 8 / 51]
 3
 BROKERAGE: TECHNICAL ANALYSIS
 Techniques for
@@ -513,7 +797,7 @@ Construction UnderstandingPatterns andTheir Limits
 of CommonChart Patterns
 Agenda
 
-### [Page 10 / 51]
+#### [Manual: pdfebook.pdf - Page 10 / 51]
 5
 BROKERAGE: TECHNICAL ANALYSIS
 Defining Patterns
@@ -524,7 +808,7 @@ Defining Patterns
 Patterns are fractal, meaning that they can be seen in any charting
 •A pattern is not complete or activated until an actual breakout occurs
 
-### [Page 11 / 51]
+#### [Manual: pdfebook.pdf - Page 11 / 51]
 6
 BROKERAGE: TECHNICAL ANALYSIS
 The Limits of Patterns
@@ -540,7 +824,7 @@ Stick with original price targets of patterns after conditions have
 changed
 • Believe “market lore,” technical and fundamental, without evidence
 
-### [Page 13 / 51]
+#### [Manual: pdfebook.pdf - Page 13 / 51]
 8
 BROKERAGE: TECHNICAL ANALYSIS
 Techniques for Trading Patterns
@@ -549,7 +833,7 @@ Techniques for Trading Patterns
 •Protective Stops
 •Retracements
 
-### [Page 14 / 51]
+#### [Manual: pdfebook.pdf - Page 14 / 51]
 9
 BROKERAGE: TECHNICAL ANALYSIS
 Breakouts
@@ -562,7 +846,7 @@ Resistance
 Price
 Breakout
 
-### [Page 15 / 51]
+#### [Manual: pdfebook.pdf - Page 15 / 51]
 10
 BROKERAGE: TECHNICAL ANALYSIS
 Confirmation Filters
@@ -579,7 +863,7 @@ Intrabar
 Confirmation
 Filters
 
-### [Page 16 / 51]
+#### [Manual: pdfebook.pdf - Page 16 / 51]
 11
 BROKERAGE: TECHNICAL ANALYSIS
 Entry Stops
@@ -590,7 +874,7 @@ breaks out.
 Resistance Breakout
 Trend Line Breakout
 
-### [Page 17 / 51]
+#### [Manual: pdfebook.pdf - Page 17 / 51]
 12
 BROKERAGE: TECHNICAL ANALYSIS
 False and Failed Breakouts
@@ -610,7 +894,7 @@ False Breakout (return
 through breakout level)
 Breakout
 
-### [Page 18 / 51]
+#### [Manual: pdfebook.pdf - Page 18 / 51]
 13
 BROKERAGE: TECHNICAL ANALYSIS
 Protective Stops
@@ -628,7 +912,7 @@ Resistance Line
 Protective Stop
 Breakout
 
-### [Page 19 / 51]
+#### [Manual: pdfebook.pdf - Page 19 / 51]
 14
 BROKERAGE: TECHNICAL ANALYSIS
 Trading False Breakouts Using Protective Stops
@@ -653,7 +937,7 @@ from stop and reverse
 False Breakout short entry stop
 Protective sell stop and sell
 
-### [Page 20 / 51]
+#### [Manual: pdfebook.pdf - Page 20 / 51]
 15
 BROKERAGE: TECHNICAL ANALYSIS
 Retracements
@@ -671,7 +955,7 @@ Throwback (on breakout up)
 Trend Line Breakout
 Retracement (pullback)
 
-### [Page 22 / 51]
+#### [Manual: pdfebook.pdf - Page 22 / 51]
 17
 BROKERAGE: TECHNICAL ANALYSIS
 Common Chart Patterns
@@ -720,7 +1004,7 @@ Pipe Bottom
 Narrow Range
 Other
 
-### [Page 23 / 51]
+#### [Manual: pdfebook.pdf - Page 23 / 51]
 18
 Entry
 Breakout
@@ -751,7 +1035,7 @@ then subtracting the amount from the breakout price to the
 downside.
 Calculate target price:
 
-### [Page 24 / 51]
+#### [Manual: pdfebook.pdf - Page 24 / 51]
 19
 Entry
 Breakout
@@ -779,7 +1063,7 @@ Double Bottom
 (breakout up)
 Calculate target price:
 
-### [Page 25 / 51]
+#### [Manual: pdfebook.pdf - Page 25 / 51]
 20
 Entry Breakout
 Pullback
@@ -805,7 +1089,7 @@ Triple Top
 Top
 Calculate target price:
 
-### [Page 26 / 51]
+#### [Manual: pdfebook.pdf - Page 26 / 51]
 21
 Entry Breakout
 Throwback
@@ -839,7 +1123,7 @@ Bottom
 Breakout
 Calculate target price:
 
-### [Page 27 / 51]
+#### [Manual: pdfebook.pdf - Page 27 / 51]
 22
 Entry
 Shortfall
@@ -878,7 +1162,7 @@ Support Zone
 Calculate target price:
 Take the height from the resistance line to the support line. Then
 
-### [Page 28 / 51]
+#### [Manual: pdfebook.pdf - Page 28 / 51]
 23
 Entry
 Breakout
@@ -915,7 +1199,7 @@ Symmetrical Triangle
 (breakout up)
 Calculate target price:
 
-### [Page 29 / 51]
+#### [Manual: pdfebook.pdf - Page 29 / 51]
 24
 Entry
 Breakout
@@ -952,7 +1236,7 @@ Ascending Triangle
 (breakout down)
 Calculate target price:
 
-### [Page 30 / 51]
+#### [Manual: pdfebook.pdf - Page 30 / 51]
 25
 Entry
 Breakout
@@ -984,7 +1268,7 @@ Descending Triangle
 Support line
 Calculate target price:
 
-### [Page 31 / 51]
+#### [Manual: pdfebook.pdf - Page 31 / 51]
 26
 Climax
 Breakout
@@ -1015,7 +1299,7 @@ Entry
 Calculate target price:
 nd
 
-### [Page 32 / 51]
+#### [Manual: pdfebook.pdf - Page 32 / 51]
 27
 BROKERAGE: TECHNICAL ANALYSIS
 Head and Shoulders: Top
@@ -1044,7 +1328,7 @@ Right Shoulder
 Breakout
 Left Shoulder
 
-### [Page 33 / 51]
+#### [Manual: pdfebook.pdf - Page 33 / 51]
 28
 Entry
 Left Shoulder
@@ -1069,7 +1353,7 @@ Head
 Right
 Shoulder
 
-### [Page 34 / 51]
+#### [Manual: pdfebook.pdf - Page 34 / 51]
 29
 Entry
 Lip
@@ -1104,7 +1388,7 @@ Rounding Bottom
 (breakout up)
 Breakout
 
-### [Page 35 / 51]
+#### [Manual: pdfebook.pdf - Page 35 / 51]
 30
 nd
 BROKERAGE: TECHNICAL ANALYSIS
@@ -1119,7 +1403,7 @@ Triangle
 Wedge
 Wedge
 
-### [Page 36 / 51]
+#### [Manual: pdfebook.pdf - Page 36 / 51]
 31
 BROKERAGE: TECHNICAL ANALYSIS
 Best Multi-Bar Patterns
@@ -1138,7 +1422,7 @@ Shoulders top
 Island Reversal
 •
 
-### [Page 37 / 51]
+#### [Manual: pdfebook.pdf - Page 37 / 51]
 32
 BROKERAGE: TECHNICAL ANALYSIS
 General Information about a Candlestick
@@ -1153,7 +1437,7 @@ show the best performance, and vice versa for downward reversal patterns in a lo
 Be careful not to act on a perceived candle pattern until the pattern
 has formed and is activated by a breakout in a certain direction
 
-### [Page 38 / 51]
+#### [Manual: pdfebook.pdf - Page 38 / 51]
 33
 BROKERAGE: TECHNICAL ANALYSIS
 Doji
@@ -1172,11 +1456,11 @@ Doji
 
 ---
 
-## SOURCE DOCUMENT: SL Guide (1).pdf
+### SOURCE MANUAL: SL Guide (1).pdf
 
 Total Pages: 7
 
-### [Page 2 / 7]
+#### [Manual: SL Guide (1).pdf - Page 2 / 7]
 Stop loss is a risk management tool used by traders and investors
 in financial markets, particularly in stock trading and other asset
 classes. Its importance and ideas revolve around limiting potential
@@ -1193,7 +1477,7 @@ preserving your trading capital. They prevent you from losing
 more money than you can afford, ensuring that you live to trade
 another day. This is vital for long-term success in the markets.
 
-### [Page 3 / 7]
+#### [Manual: SL Guide (1).pdf - Page 3 / 7]
 Rajkot (HQ) , Ahmedabad, Surat
 3. Emotional Control: Setting a stop loss in advance helps to
 control emotions like fear and greed. It prevents impulsive
@@ -1209,7 +1493,7 @@ specific price level is breached. For example, a stop order can be
 used to trigger a buy order when a stock reaches a certain price.
 Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in
 
-### [Page 4 / 7]
+#### [Manual: SL Guide (1).pdf - Page 4 / 7]
 2. Support and Resistance: Set stop loss levels just below key
 support levels or just above key resistance levels. This helps you
 avoid losses in case the market breaks against your position.
@@ -1225,7 +1509,7 @@ Rajkot (HQ) , Ahmedabad, Surat
 IDEAS FOR USING STOP LOSS:
 Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in
 
-### [Page 5 / 7]
+#### [Manual: SL Guide (1).pdf - Page 5 / 7]
 Rajkot (HQ) , Ahmedabad, Surat
 \
 4. Volatility-Based Stop Loss: Adjust your stop loss based on the
@@ -1249,7 +1533,7 @@ specific approach to using stop loss should be tailored to your
 trading strategy and risk tolerance.
 Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in
 
-### [Page 6 / 7]
+#### [Manual: SL Guide (1).pdf - Page 6 / 7]
 2
 3
 1
@@ -1268,7 +1552,7 @@ Rajkot (HQ) , Ahmedabad, Surat
 JOIN TELEGRAM
 Copyright ©2023 Metaverse Trading Academy | metaversetradingacademy.in
 
-### [Page 7 / 7]
+#### [Manual: SL Guide (1).pdf - Page 7 / 7]
 That’s our vision. Often referred to as Metaverse Trading
 academy, is a financial education and training company
 based in Rajkot, Gujarat. We provide education to beginner,
@@ -1297,11 +1581,11 @@ METAVERSE TRADING ACADEMY
 
 ---
 
-## SOURCE DOCUMENT: The Ai Trader.pdf
+### SOURCE MANUAL: The Ai Trader.pdf
 
 Total Pages: 65
 
-### [Page 1 / 65]
+#### [Manual: The Ai Trader.pdf - Page 1 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 QUANTIFIED  EDGE
@@ -1311,7 +1595,7 @@ ChatGPT  &  Python  in  Real  Markets
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 3 / 65]
+#### [Manual: The Ai Trader.pdf - Page 3 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 01 CHAPTER
@@ -1362,7 +1646,7 @@ inference   Practical  Rule  for  GPT-4V  Chart  Use Use  GPT-4V  for  HIGH-LEVE
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 5 / 65]
+#### [Manual: The Ai Trader.pdf - Page 5 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 Hallucination  risk  is  highest  when  you  ask  ChatGPT  to:
@@ -1380,7 +1664,7 @@ Chapter  1  Takeaway Every  subsequent  chapter  in  this  eBook  is  written  w
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 7 / 65]
+#### [Manual: The Ai Trader.pdf - Page 7 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 You  are  a  professional  market  structure  analyst.  You  never  give  a  directional  bias  before  completing  a  full  structural  analysis.  When  answering,  use  this  reasoning  chain:  (1)  Identify  the  dominant  timeframe  trend,  (2)  Identify  the  current  market  structure  phase,  (3)  Identify  key  liquidity  zones  above  and  below  current  price,  (4)  State  what  price  would  need  to  do  to  confirm  each  bias,  (5)  Only  then  state  your  conclusion.
@@ -1396,7 +1680,7 @@ The  system  instruction  prevents  premature  bias.  The  reasoning  chain  ens
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 9 / 65]
+#### [Manual: The Ai Trader.pdf - Page 9 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 SYSTEM  INSTRUCTION
@@ -1417,7 +1701,7 @@ EXPECTED  OUTPUT  STRUCTURE
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 11 / 65]
+#### [Manual: The Ai Trader.pdf - Page 11 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 recovered  inside  Asia  range  and  is  holding  above  Asia  low  =  buy-side  pressure.[NY  OPEN  IMPLICATION]  High  probability  NY  open  continues  London's  recovery.  Watch  for  NY  open  above  Asia  high  (1.0842)  to  confirm  bull  case.  Target:  next  clean  high  at  [user  to  supply  HTF  level].[INVALIDATION]  If  NY  open  sells  off  and  breaks  below  London  low  (1.0812),  manipulation  failed  —  reassess.
@@ -1438,7 +1722,7 @@ SYSTEM  INSTRUCTION
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 13 / 65]
+#### [Manual: The Ai Trader.pdf - Page 13 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 1.2700  with  tight  stop  below  SH2.  Conservative:  wait  for  HL  formation  and  confirmation.
@@ -1459,7 +1743,7 @@ You  are  an  institutional  order  flow  analyst  specialising  in  liquidity  
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 15 / 65]
+#### [Manual: The Ai Trader.pdf - Page 15 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 Prompts  11-15:  Post-Trade  Analysis
@@ -1480,7 +1764,7 @@ Losing  trade:  Short  GBP/USD  at  1.2720  (HTF  resistance).  Stop  1.2745,  T
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 17 / 65]
+#### [Manual: The Ai Trader.pdf - Page 17 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 WHY  IT  WORKS
@@ -1501,7 +1785,7 @@ USER  MESSAGE
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 19 / 65]
+#### [Manual: The Ai Trader.pdf - Page 19 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 Free-form  journal  entries  are  gold  mines  of  self-knowledge  that  most  traders  never  mine.  This  prompt  transforms  raw  emotional  notes  into  structured  performance  data  without  requiring  the  trader  to  write  in  a  specific  format.
@@ -1521,7 +1805,7 @@ USER  MESSAGE
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 21 / 65]
+#### [Manual: The Ai Trader.pdf - Page 21 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 Prompt  20  —  Cognitive  Bias  Challenger
@@ -1543,7 +1827,7 @@ EXPECTED  OUTPUT  STRUCTURE
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 23 / 65]
+#### [Manual: The Ai Trader.pdf - Page 23 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 Prompt  23  —  Trade  Plan  Generator
@@ -1564,14 +1848,14 @@ EXPECTED  OUTPUT  STRUCTURE
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 25 / 65]
+#### [Manual: The Ai Trader.pdf - Page 25 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 The  improvement  workshop  prompt  is  most  valuable  when  used  monthly.  It  requires  specific  data  (not  just  'it's  not  working')  and  produces  testable  hypotheses  rather  than  generic  advice  —  which  is  the  professional  standard  for  strategy  development.
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 27 / 65]
+#### [Manual: The Ai Trader.pdf - Page 27 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 System:  "You  are  a  market  structure  quality  analyst.  When  I  describe  a  potential  BOS,
@@ -1622,7 +1906,7 @@ INVALID Inside  prior  candle  range,  no  structural  significance,  noise  on 
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 29 / 65]
+#### [Manual: The Ai Trader.pdf - Page 29 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 Key  statistical  reality:  FVGs  are  filled  —  meaning  price  returns  to  trade  within  them  —  approximately
@@ -1666,7 +1950,7 @@ Trading  FVGs  Professionally The  edge  in  FVG  trading  is  not  in  'price  
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 31 / 65]
+#### [Manual: The Ai Trader.pdf - Page 31 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 Professional  usage:
@@ -1743,7 +2027,7 @@ Elongated  single  distribution Trend  day  —  one  timeframe  auction.  Do  n
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 33 / 65]
+#### [Manual: The Ai Trader.pdf - Page 33 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 Characteristics:  Two-timeframe  auction.  Market  tests  both  extremes  and  closes  in  the  middle.  Neither
@@ -1786,7 +2070,7 @@ AI  Output  (using  Prompt  1  template):
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 35 / 65]
+#### [Manual: The Ai Trader.pdf - Page 35 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 A  poor  high  or  poor  low  has  multiple  TPOs  at  the  extreme  —  meaning  the  market  spent  time  there
@@ -1862,7 +2146,7 @@ Platforms  that  can  export  profile  data  in  text-compatible  formats:
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 37 / 65]
+#### [Manual: The Ai Trader.pdf - Page 37 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 05 CHAPTER
@@ -1922,7 +2206,7 @@ Explain  the  institutional  logic 'Why  would  institutions  buy  with  negativ
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 39 / 65]
+#### [Manual: The Ai Trader.pdf - Page 39 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 5.4   Exporting  Footprint  Data  for  AI  Analysis
@@ -1964,7 +2248,7 @@ DOM/Level  2 Current  resting  orders  at  prices Describe  notable  bid/ask  st
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 41 / 65]
+#### [Manual: The Ai Trader.pdf - Page 41 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 import  pandas  as  pd
@@ -2011,7 +2295,7 @@ print(f'Error:  {csv_path}  not  found.')
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 43 / 65]
+#### [Manual: The Ai Trader.pdf - Page 43 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 def  run_backtest(
@@ -2060,7 +2344,7 @@ avg_loss  =  abs(losses['result'].mean())  if  len(losses)  >  0  else  0
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 45 / 65]
+#### [Manual: The Ai Trader.pdf - Page 45 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 4.  Target:  2R  from  entry
@@ -2072,7 +2356,7 @@ only.' 27.  Ask  for  an  explanation  separately  if  needed:  'Now  explain  w
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 47 / 65]
+#### [Manual: The Ai Trader.pdf - Page 47 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 WHY  IT  WORKS
@@ -2165,7 +2449,7 @@ Disposition  Effect  Calculation If  your  average  winner  is  1.2R  but  your 
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 49 / 65]
+#### [Manual: The Ai Trader.pdf - Page 49 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 just  look  similar?[DECISION]  If  you  cannot  answer  all  four  questions  with  'yes',  'normal',  and  a  fully  qualifying  setup  description  —  do  not  enter.
@@ -2324,7 +2608,7 @@ win.
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 51 / 65]
+#### [Manual: The Ai Trader.pdf - Page 51 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 08 CHAPTER
@@ -2371,7 +2655,7 @@ NQ  long  setup  at  4H  OB  (18,220-18,240).  Weekly  bullish.  4H  uptrend  in
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 53 / 65]
+#### [Manual: The Ai Trader.pdf - Page 53 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 1H  close  at  18,310.  Did  not  scale  out  at  18,320  (half-target)  as  planned  —  held  for  full  target  instead.  In  retrospect,  the  hold  was  correct.
@@ -2396,7 +2680,7 @@ SYSTEM  INSTRUCTION
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 55 / 65]
+#### [Manual: The Ai Trader.pdf - Page 55 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 NQ  short  from  sweep  play,  -1R.  Setup  was  valid  (equal  highs  sweep,  1H  rejection).  Loss  caused  by  surprise  ISM  data  release.  I  did  not  check  the  economic  calendar  before  entering.  There  was  a  medium-impact  event  at  15:00  EST  —  45  minutes  after  my  entry  at  14:15  EST.
@@ -2420,7 +2704,7 @@ SYSTEM  INSTRUCTION
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 57 / 65]
+#### [Manual: The Ai Trader.pdf - Page 57 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 09 CHAPTER
@@ -2496,7 +2780,7 @@ session.
 ©  2025  Quantified  Edge   |
 Page
 
-### [Page 59 / 65]
+#### [Manual: The Ai Trader.pdf - Page 59 / 65]
 Quantified  Edge
 Metaverse  Trading  Academy
 9.4   Weekly  Review  (30-45  minutes,  on  Friday  or  weekend)  40.  Export  your  journal  as  CSV  (Prompt  15  input  format) 41.  Run  Prompt  15  (Weekly  Edge  Review)  —  AI  calculates  your  weekly  statistics 42.  Run  Prompt  21  (Expectancy  Calculator)  if  you  have  20+  trades  in  the  period 43.  Review  any  flagged  rule  violations  —  pattern  or  one-off? 44.  Update  your  strategy  rules  document  if  any  legitimate  rule  changes  are  warranted  (not
@@ -2508,11 +2792,11 @@ Page
 
 ---
 
-## SOURCE DOCUMENT: THE CANDLE STICK BIBLE.pdf
+### SOURCE MANUAL: THE CANDLE STICK BIBLE.pdf
 
 Total Pages: 168
 
-### [Page 6 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 6 / 168]
 6
 THE CANDLESTICK TRADING BIBLE
 Overview
@@ -2543,7 +2827,7 @@ In this section you will learn how trade the market using four price
 action trading strategies:
 -The pin bar strategy
 
-### [Page 11 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 11 / 168]
 11
 THE CANDLESTICK TRADING BIBLE
 What is a candlestick?
@@ -2561,7 +2845,7 @@ bearish which indicates that the market is falling in this session.
 Bearish candles are always displayed as black candlesticks. But this is
 not a rule.
 
-### [Page 16 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 16 / 168]
 16
 THE CANDLESTICK TRADING BIBLE
 The engulfing bar candlestick pattern
@@ -2578,7 +2862,7 @@ This is how a bearish  engulfing bar pattern looks like on your charts,
 this candlestick pattern gives us valuable information about bulls and
 bears in the market.
 
-### [Page 21 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 21 / 168]
 21
 THE CANDLESTICK TRADING BIBLE
 The chart above shows how the market changed direction after the
@@ -2594,7 +2878,7 @@ higher or lower.
 When it is found at the bottom or at the top of a trend, it is considered
 as a sign that a prior trend is losing its strengths.
 
-### [Page 26 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 26 / 168]
 26
 THE CANDLESTICK TRADING BIBLE
 The image above illustrates a perfect gravestone Doji. This pattern
@@ -2611,7 +2895,7 @@ The formation of this candlestick pattern indicates that buyers are no
 longer in control of the market. For this pattern to be reliable, it must
 occur near a resistance level.
 
-### [Page 31 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 31 / 168]
 31
 THE CANDLESTICK TRADING BIBLE
 The evening star pattern
@@ -2625,7 +2909,7 @@ it can be a Doji or any other candlestick.
 pattern is the bearish version of the morning star pattern. See the
 example below:
 
-### [Page 36 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 36 / 168]
 36
 THE CANDLESTICK TRADING BIBLE
 created, you will be able to predict the market direction with high
@@ -2633,7 +2917,7 @@ accuracy.
 We will talk about how to trade this pattern and how to filter this signal
 in the next chapters.
 
-### [Page 41 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 41 / 168]
 41
 THE CANDLESTICK TRADING BIBLE
 As you see the smaller body is totally covered by the previous mother
@@ -2650,14 +2934,14 @@ And if it is occurred at the top of an uptrend or at the bottom of a
 downtrend, it is considered as a trend reversal signal.
 Look at another example below:
 
-### [Page 46 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 46 / 168]
 46
 THE CANDLESTICK TRADING BIBLE
 Because if you can understand why it was formed, you will understand
 what happened in the market, and you can easily predict the future
 movement of price.
 
-### [Page 51 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 51 / 168]
 51
 THE CANDLESTICK TRADING BIBLE
 The market structure
@@ -2682,7 +2966,7 @@ higher highs and higher low in an up -trending market, and lower high
 and lower low in a down trending market.
 See the example below:
 
-### [Page 56 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 56 / 168]
 56
 THE CANDLESTICK TRADING BIBLE
 The illustration above shows a downtrend market, as you can see the
@@ -2698,7 +2982,7 @@ the impulsive move to enter the market in the right time with
 professional traders, and avoid being tr apped by the retracement
 move?
 
-### [Page 61 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 61 / 168]
 61
 THE CANDLESTICK TRADING BIBLE
 How to draw trend lines?
@@ -2716,7 +3000,7 @@ See an example of how to draw trend lines in a downtrend market.
 As you can see the market respects the trend line, and when price
 approach it, the market reverse and continue in the same direction.
 
-### [Page 66 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 66 / 168]
 66
 THE CANDLESTICK TRADING BIBLE
 As you can see the market was trading between support and resistance
@@ -2732,7 +3016,7 @@ The pullback is another chance to join the trend for traders who didn’t
 enter in the breakout.
 See the example below:
 
-### [Page 71 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 71 / 168]
 71
 THE CANDLESTICK TRADING BIBLE
 -The market structure: the weekly analysis will help you identify if the
@@ -2761,7 +3045,7 @@ method and what is going to happen if you don’t look at the bigger
 time frame before switching to your primary chart.
 Look at the illustration below:
 
-### [Page 76 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 76 / 168]
 76
 THE CANDLESTICK TRADING BIBLE
 The daily chart above confirms our weekly analysis, as you can see;
@@ -2771,7 +3055,7 @@ formation of an inside bar false breakout.
 This is a clear indication of a trend change.
 See what happened next:
 
-### [Page 81 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 81 / 168]
 81
 THE CANDLESTICK TRADING BIBLE
 The pin bar candlestick pattern strategy
@@ -2793,7 +3077,7 @@ On the other hand, a bearish pin bars with black real bodies are more
 important than the ones with white real bodies.
 See how pin bars look like below:
 
-### [Page 86 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 86 / 168]
 86
 THE CANDLESTICK TRADING BIBLE
 If the formation of this candlestick occurs near a resistanc e level, it
@@ -2801,7 +3085,7 @@ indicates that the bears reject prices, and prevent the bulls from
 breaking this level. So, this means that sellers are willing to push the
 market downward. See the chart below:
 
-### [Page 91 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 91 / 168]
 91
 THE CANDLESTICK TRADING BIBLE
 The 4-hour chart above illustrates how the 21 -moving average could
@@ -2812,7 +3096,7 @@ The pin bar signal is clear on the chart, because the trend is bullish, the
 price action setup has a bullish anatomy as well, and the rejection from
 the 21-moving average is a confirmation signal to buy the market.
 
-### [Page 96 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 96 / 168]
 96
 THE CANDLESTICK TRADING BIBLE
 Trading pin bars with confluence
@@ -2844,7 +3128,7 @@ a very important factor of confluence in trending markets.
 Fibonacci retracement tool : I use the 61% and 50 % Fibonacci
 retracement to find the most powerful areas in the market.
 
-### [Page 101 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 101 / 168]
 101
 THE CANDLESTICK TRADING BIBLE
 The formation of the pin bar near the resistance level indicates that
@@ -2866,7 +3150,7 @@ retracement level which is considered to be one of the most powerful
 key levels in the market.
 Look at the chart below to see what happened next:
 
-### [Page 106 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 106 / 168]
 106
 THE CANDLESTICK TRADING BIBLE
 The figure above illustrates a range-bound market, the price broke out
@@ -2892,7 +3176,7 @@ prices are rejected from major key levels and from the bands, this is a
 confirmation that the market will bounce from these levels.
 See an example below:
 
-### [Page 111 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 111 / 168]
 111
 THE CANDLESTICK TRADING BIBLE
 According to Steve Nison, the father of modern candlestick charting,
@@ -2903,7 +3187,7 @@ reversal pattern:
 body is entirely engulfed by the second one.
 3- The second real body is the opposite of the first real body.
 
-### [Page 121 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 121 / 168]
 121
 THE CANDLESTICK TRADING BIBLE
 In the example above, the engulfing bar price action signal matches up
@@ -2917,7 +3201,7 @@ trading from better price levels, as a result, you will put as many
 probabilities in your favor as possible, and that will allow you to
 become one of the most successful traders.
 
-### [Page 126 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 126 / 168]
 126
 THE CANDLESTICK TRADING BIBLE
 Let me give you an example, when you are driving your car, you don’t
@@ -2938,7 +3222,7 @@ trading. You have to know how to differentiate between sideways and
 choppy markets.
 See the illustration below about choppy markets:
 
-### [Page 131 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 131 / 168]
 131
 THE CANDLESTICK TRADING BIBLE
 See another example of these areas:
@@ -2948,14 +3232,14 @@ demand areas is that big players put their pending orders there, when
 the market approaches these zones, we see a crazy move from these
 levels.
 
-### [Page 136 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 136 / 168]
 136
 THE CANDLESTICK TRADING BIBLE
 No matter how smart you are, you have to think always in term of
 probabilities, bear in mind that you can experience series of losing
 trades, and if you risk too much money, you will not survive longer.
 
-### [Page 141 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 141 / 168]
 141
 THE CANDLESTICK TRADING BIBLE
 As it is illustrated above, the market is trending down; the formation
@@ -2970,7 +3254,7 @@ placed above the mother candle. Your profit target is the next support
 level.
 See another example below:
 
-### [Page 146 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 146 / 168]
 146
 THE CANDLESTICK TRADING BIBLE
 Tips on trading the inside bar price action setups
@@ -3001,7 +3285,7 @@ that your signal is located in a key level in the market.
 Trading with  confluence means combining different signals to make
 the best trading decision.
 
-### [Page 151 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 151 / 168]
 151
 THE CANDLESTICK TRADING BIBLE
 Inside Bars false breakouts trading examples
@@ -3017,7 +3301,7 @@ trending market:
 As you see in the chart above, the market was trending down, that
 indicates that sellers are in control of the market, so if you decide to
 
-### [Page 156 / 168]
+#### [Manual: THE CANDLE STICK BIBLE.pdf - Page 156 / 168]
 156
 THE CANDLESTICK TRADING BIBLE
 As you can see, the price moved higher, pulled back to reach our key

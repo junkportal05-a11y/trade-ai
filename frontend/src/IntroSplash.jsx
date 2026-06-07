@@ -260,8 +260,9 @@ export default function IntroSplash({ onWokenUp }) {
         <div style={{
           width: '100%',
           height: '140px',
-          background: T.panel,
-          border: `1px solid ${T.border}`,
+          background: 'rgba(17, 21, 32, 0.7)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(123, 108, 255, 0.25)',
           borderRadius: 8,
           padding: '12px 14px',
           display: 'flex',

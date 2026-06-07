@@ -11,16 +11,6 @@ import numpy as np
 import requests
 from signals import download_market_data_df
 
-# Set up browser session for yfinance
-_YF_SESSION = requests.Session()
-_YF_SESSION.headers.update({
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
-})
-
 def run_historical_backtest(
     symbol: str, 
     period_range: str = "6mo", 

@@ -52,7 +52,7 @@ const WATCHLIST_STOCKS = [
   { symbol: 'INFY.NS', name: 'Infosys' },
   { symbol: 'ICICIBANK.NS', name: 'ICICI Bank' },
   { symbol: 'SBIN.NS', name: 'State Bank of India' },
-  { symbol: 'TMPV.NS', name: 'Tata Motors (TMPV)' },
+  { symbol: 'TATAMOTORS.NS', name: 'Tata Motors' },
   { symbol: 'WIPRO.NS', name: 'Wipro' },
   { symbol: 'AXISBANK.NS', name: 'Axis Bank' }
 ];
@@ -289,6 +289,86 @@ export default function PerformancePanel() {
   const [backtestLoading, setBacktestLoading] = useState(false);
   const [backtestError, setBacktestError]     = useState(null);
 
+  // Trade Journal State
+  const [journalEntries, setJournalEntries] = useState([]);
+  const [jSymbol, setJSymbol] = useState('RELIANCE.NS');
+  const [jDir, setJDir] = useState('BUY');
+  const [jPrice, setJPrice] = useState('');
+  const [jQty, setJQty] = useState('');
+  const [jReason, setJReason] = useState('');
+  const [jEmotion, setJEmotion] = useState('Calm');
+  const [jSubmitting, setJSubmitting] = useState(false);
+
+  const fetchJournal = useCallback(async () => {
+    try {
+      const headers = { 'X-Session-Token': sessionStorage.getItem('apt_token') || '' };
+      const res = await fetch(`${BASE}/api/journal`, { headers });
+      if (res.ok) {
+        setJournalEntries(await res.json());
+      }
+    } catch (e) {
+      console.error("Failed to load journal:", e);
+    }
+  }, []);
+
+  const handleCreateJournal = async (e) => {
+    e.preventDefault();
+    const price = parseFloat(jPrice);
+    const qty = parseInt(jQty);
+    if (!jSymbol || isNaN(price) || isNaN(qty) || qty <= 0 || price <= 0) {
+      alert("Please fill in all journal fields correctly!");
+      return;
+    }
+    setJSubmitting(true);
+    try {
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-Session-Token': sessionStorage.getItem('apt_token') || ''
+      };
+      const entry = {
+        symbol: jSymbol,
+        direction: jDir,
+        entry_price: price,
+        qty: qty,
+        reason: jReason,
+        emotion: jEmotion,
+        status: 'OPEN'
+      };
+      const res = await fetch(`${BASE}/api/journal`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(entry)
+      });
+      if (res.ok) {
+        setJPrice('');
+        setJQty('');
+        setJReason('');
+        setJEmotion('Calm');
+        await fetchJournal();
+      }
+    } catch (e) {
+      console.error("Failed to log journal:", e);
+    } finally {
+      setJSubmitting(false);
+    }
+  };
+
+  const handleDeleteJournal = async (id) => {
+    if (!confirm("Are you sure you want to delete this journal entry?")) return;
+    try {
+      const headers = { 'X-Session-Token': sessionStorage.getItem('apt_token') || '' };
+      const res = await fetch(`${BASE}/api/journal/${id}`, {
+        method: 'DELETE',
+        headers
+      });
+      if (res.ok) {
+        await fetchJournal();
+      }
+    } catch (e) {
+      console.error("Failed to delete journal entry:", e);
+    }
+  };
+
   const load = useCallback(async () => {
     try {
       const headers = { 'X-Session-Token': sessionStorage.getItem('apt_token') || '' };
@@ -301,12 +381,13 @@ export default function PerformancePanel() {
         const d = await hRes.json();
         setHistory(d.history || []);
       }
+      fetchJournal();
     } catch {
       // backend offline
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchJournal]);
 
   useEffect(() => {
     load();
@@ -830,6 +911,125 @@ export default function PerformancePanel() {
                   <StatusBadge status={row.status} />
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* ── SECTION 3: PERSISTENT TRADING JOURNAL ── */}
+          <div style={{ marginTop: 32, borderTop: `1px solid ${T.border}`, paddingTop: 24 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: T.accent, letterSpacing: '0.04em', marginBottom: 16 }}>
+              📓 PERSISTENT TRADING JOURNAL
+            </h3>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24 }}>
+              
+              {/* Left Column: Form */}
+              <form onSubmit={handleCreateJournal} style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10, padding: 18, display: 'flex', flexDirection: 'column', gap: 14, height: 'fit-content' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: T.textMid, borderBottom: `1px solid ${T.border}`, paddingBottom: 8, marginBottom: 4 }}>
+                  LOG A NEW TRANSACTION
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <label style={{ fontSize: 9, color: T.textDim }}>SYMBOL</label>
+                    <select value={jSymbol} onChange={e => setJSymbol(e.target.value)} style={{ background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 6, color: T.text, padding: 6, fontSize: 11, outline: 'none' }}>
+                      {WATCHLIST_STOCKS.map(s => (
+                        <option key={s.symbol} value={s.symbol}>{s.symbol.replace('.NS','')}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <label style={{ fontSize: 9, color: T.textDim }}>DIRECTION</label>
+                    <select value={jDir} onChange={e => setJDir(e.target.value)} style={{ background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 6, color: T.text, padding: 6, fontSize: 11, outline: 'none' }}>
+                      <option value="BUY">BUY (LONG)</option>
+                      <option value="SELL">SELL (SHORT)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <label style={{ fontSize: 9, color: T.textDim }}>ENTRY PRICE (₹)</label>
+                    <input type="number" step="0.01" value={jPrice} onChange={e => setJPrice(e.target.value)} placeholder="0.00" style={{ background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 6, color: T.text, padding: '5px 8px', fontSize: 11, outline: 'none' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <label style={{ fontSize: 9, color: T.textDim }}>QUANTITY</label>
+                    <input type="number" value={jQty} onChange={e => setJQty(e.target.value)} placeholder="Shares..." style={{ background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 6, color: T.text, padding: '5px 8px', fontSize: 11, outline: 'none' }} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <label style={{ fontSize: 9, color: T.textDim }}>EMOTIONAL STATE</label>
+                  <select value={jEmotion} onChange={e => setJEmotion(e.target.value)} style={{ background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 6, color: T.text, padding: 6, fontSize: 11, outline: 'none' }}>
+                    <option value="Calm">Calm & Objective</option>
+                    <option value="Greedy">Greedy / FOMO</option>
+                    <option value="Fearful">Fearful / Anxious</option>
+                    <option value="Excited">Excited / Impulsive</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <label style={{ fontSize: 9, color: T.textDim }}>TRADE RATIONALE (REASON)</label>
+                  <textarea rows="3" value={jReason} onChange={e => setJReason(e.target.value)} placeholder="Explain technical confirmation, support levels, pattern details..." style={{ background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 6, color: T.text, padding: '6px 8px', fontSize: 11, outline: 'none', resize: 'none', fontFamily: 'inherit' }} />
+                </div>
+
+                <button type="submit" disabled={jSubmitting} style={{ background: T.accent, border: 'none', borderRadius: 6, color: '#fff', padding: 10, fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', marginTop: 4 }}>
+                  {jSubmitting ? 'LOGGING...' : '📝 SAVE TO JOURNAL'}
+                </button>
+              </form>
+
+              {/* Right Column: Logs List */}
+              <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 320 }}>
+                <div style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}`, background: T.panelAlt, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: T.textMid }}>JOURNALED TRANSACTIONS LOG ({journalEntries.length})</span>
+                  <span style={{ fontSize: 8, color: T.textDim }}>PERSISTENT SQLite STORAGE</span>
+                </div>
+                
+                <div style={{ flex: 1, overflowY: 'auto', maxHeight: 380 }}>
+                  {journalEntries.length === 0 ? (
+                    <div style={{ padding: 40, textAlign: 'center', color: T.textDim, fontSize: 11 }}>
+                      No journaled trades yet. Log your first transaction using the form on the left.
+                    </div>
+                  ) : (
+                    journalEntries.map(entry => (
+                      <div key={entry.id} style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', ...mono }}>{entry.symbol}</span>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: entry.direction === 'BUY' ? T.green : T.red, background: entry.direction === 'BUY' ? T.greenDim : T.redDim, padding: '1px 5px', borderRadius: 3 }}>
+                              {entry.direction}
+                            </span>
+                            <span style={{ fontSize: 9, color: T.textDim, ...mono }}>{entry.entry_date.split(' ')[0]}</span>
+                          </div>
+                          {entry.reason && (
+                            <div style={{ fontSize: 11, color: T.textMid, lineHeight: 1.4, margin: '4px 0' }}>
+                              &ldquo;{entry.reason}&rdquo;
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: 12, fontSize: 10 }}>
+                            <span style={{ color: T.textDim }}>Size: <span style={{ color: T.text, fontWeight: 600 }}>{entry.qty}</span></span>
+                            <span style={{ color: T.textDim }}>Price: <span style={{ color: T.text, fontWeight: 600 }}>₹{fmt(entry.entry_price)}</span></span>
+                            <span style={{ color: T.textDim }}>Emotion: <span style={{ 
+                              color: entry.emotion === 'Greedy' ? T.gold : entry.emotion === 'Fearful' ? T.red : entry.emotion === 'Excited' ? T.blue : T.green,
+                              fontWeight: 600 
+                            }}>{entry.emotion}</span></span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <button
+                            onClick={() => handleDeleteJournal(entry.id)}
+                            style={{ background: 'rgba(255,61,90,0.05)', border: `1px solid rgba(255,61,90,0.2)`, borderRadius: 4, color: T.red, padding: '4px 8px', fontSize: 9, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s' }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,61,90,0.15)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,61,90,0.05)'}
+                          >
+                            DELETE
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
             </div>
           </div>
         </>

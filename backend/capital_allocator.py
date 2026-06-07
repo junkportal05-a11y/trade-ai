@@ -61,7 +61,7 @@ HIGH_VOLATILITY_UNIVERSE = {
     "MID": [
         {"symbol": "ADANIENT.NS",    "name": "Adani Enterprises",  "sector": "Conglomerate"},
         {"symbol": "ADANIPORTS.NS",  "name": "Adani Ports",        "sector": "Infrastructure"},
-        {"symbol": "TMPV.NS",        "name": "Tata Motors (TMPV)", "sector": "Auto"},
+        {"symbol": "TATAMOTORS.NS",  "name": "Tata Motors",        "sector": "Auto"},
         {"symbol": "JSWSTEEL.NS",    "name": "JSW Steel",          "sector": "Metals"},
         {"symbol": "SBIN.NS",        "name": "SBI",               "sector": "Banking"},
         {"symbol": "AXISBANK.NS",    "name": "Axis Bank",          "sector": "Banking"},
@@ -158,7 +158,7 @@ def generate_mentor_advice(sig: dict, actual_cost: float, pot_loss: float, capit
     return advice
 
 
-def allocate(capital: float, signals: list) -> dict:
+def allocate(capital: float, signals: list, style: str = "Intraday Momentum", risk: str = "Medium", max_recommendations: int = 5) -> dict:
     """
     Build a high-return allocation plan targeting 10-20% on invested capital.
 
@@ -212,6 +212,15 @@ def allocate(capital: float, signals: list) -> dict:
         risk_pct           = 0.025
         max_per_stock      = 0.25
         min_profit_target  = capital * 0.015
+
+    # Adjust risk_pct based on risk level
+    if risk == "Low":
+        risk_pct = risk_pct * 0.7
+    elif risk == "High":
+        risk_pct = risk_pct * 1.3
+
+    # Cap max positions by user specified max_recommendations
+    max_positions = max(1, min(max_positions, max_recommendations))
 
     deployable = capital * (1 - cash_buffer)
 
@@ -283,7 +292,9 @@ def allocate(capital: float, signals: list) -> dict:
     for sig in candidates:
         entry  = sig["entry"]
         stop   = sig["stop_loss"]
-        target = sig["target"]
+        
+        target1 = sig.get("target1") or sig.get("target") or (entry * 1.03)
+        target2 = sig.get("target2") or round(target1 * 1.05, 2)
 
         weight       = sig["_score"] / total_score
         raw_alloc    = deployable * weight
@@ -291,66 +302,83 @@ def allocate(capital: float, signals: list) -> dict:
         remaining    = deployable - deployed
 
         budget = min(capped_alloc, remaining)
-        if budget < entry:
-            continue  # can't even buy 1 share
+        # Allow fractional shares down to 0.01 shares
+        if budget < entry * 0.01:
+            continue
 
         # Position sizing: risk-based
         risk_per_share  = abs(entry - stop)
         max_risk_money  = capital * risk_pct
-        shares_by_cap   = math.floor(budget / entry)
-        shares_by_risk  = math.floor(max_risk_money / risk_per_share) if risk_per_share > 0 else shares_by_cap
+        
+        # Support fractional shares (2 decimal places) for high-precision capital allocation
+        shares_by_cap   = round(budget / entry, 2)
+        shares_by_risk  = round(max_risk_money / risk_per_share, 2) if risk_per_share > 0 else shares_by_cap
         shares          = min(shares_by_risk, shares_by_cap)
 
         # Recheck affordability
-        while shares * entry > remaining and shares > 0:
-            shares -= 1
-        if shares == 0:
+        if shares * entry > remaining:
+            shares = round(remaining / entry, 2)
+        if shares < 0.01:
             continue
 
-        actual_cost    = round(shares * entry, 2)
-        pot_profit     = round(shares * (target - entry), 2)
-        pot_loss       = round(shares * (entry - stop), 2)
-        rr             = round((target - entry) / (entry - stop), 2) if (entry - stop) > 0 else 0
-        profit_on_inv  = round((pot_profit / actual_cost) * 100, 2)  # % return on this position
-        profit_on_cap  = round((pot_profit / capital) * 100, 2)       # % return on total capital
+        actual_cost     = round(shares * entry, 2)
+        pot_profit      = round(shares * (target1 - entry), 2)
+        pot_profit_high = round(shares * (target2 - entry), 2)
+        pot_loss        = round(shares * (entry - stop), 2)
+        rr              = round((target1 - entry) / (entry - stop), 2) if (entry - stop) > 0 else 0
+        profit_on_inv   = round((pot_profit / actual_cost) * 100, 2) if actual_cost > 0 else 0
+        profit_on_cap   = round((pot_profit / capital) * 100, 2)
 
         # Skip if profit is too small relative to capital — no point
         if pot_profit < min_profit_target:
             # Try to bump shares to hit minimum
-            needed_shares = math.ceil(min_profit_target / (target - entry)) if (target - entry) > 0 else shares
+            needed_shares = round(min_profit_target / (target1 - entry), 2) if (target1 - entry) > 0 else shares
             if needed_shares * entry <= remaining and (needed_shares * risk_per_share) <= max_risk_money:
-                shares        = needed_shares
-                actual_cost   = round(shares * entry, 2)
-                pot_profit    = round(shares * (target - entry), 2)
-                pot_loss      = round(shares * (entry - stop), 2)
-                profit_on_inv = round((pot_profit / actual_cost) * 100, 2)
-                profit_on_cap = round((pot_profit / capital) * 100, 2)
-            # if still can't hit, include anyway — 1 share is better than nothing
+                shares          = needed_shares
+                actual_cost     = round(shares * entry, 2)
+                pot_profit      = round(shares * (target1 - entry), 2)
+                pot_profit_high = round(shares * (target2 - entry), 2)
+                pot_loss        = round(shares * (entry - stop), 2)
+                profit_on_inv   = round((pot_profit / actual_cost) * 100, 2) if actual_cost > 0 else 0
+                profit_on_cap   = round((pot_profit / capital) * 100, 2)
 
         advice = generate_mentor_advice(sig, actual_cost, pot_loss, capital, rr)
+
+        qty_label = f"{shares} Shares" if shares >= 1 else f"{shares:.2f} Shares"
+        estimated_profit = f"₹{pot_profit:.0f} - ₹{pot_profit_high:.0f}"
 
         positions.append({
             "symbol":            sig.get("symbol", ""),
             "direction":         "BUY",
             "confidence":        sig["confidence"],
             "entry_price":       round(entry, 2),
-            "target":            round(target, 2),
+            "target":            round(target1, 2),
+            "target1":           round(target1, 2),
+            "target2":           round(target2, 2),
             "stop_loss":         round(stop, 2),
             "rr_ratio":          rr,
             "shares":            shares,
+            "quantity":          shares,
+            "quantity_label":    qty_label,
             "amount_invested":   actual_cost,
             "allocation_pct":    round((actual_cost / capital) * 100, 1),
             "potential_profit":  pot_profit,
+            "potential_profit_high": pot_profit_high,
             "potential_loss":    pot_loss,
-            "profit_on_invested": profit_on_inv,   # % gain on money deployed
-            "profit_on_capital":  profit_on_cap,   # % gain on total capital
+            "profit_on_invested": profit_on_inv,
+            "profit_on_capital":  profit_on_cap,
             "atr":               round(sig.get("atr", 0), 2),
             "atr_pct":           sig.get("atr_pct", 0),
             "profit_pct":        sig.get("profit_pct", 0),
             "rsi":               round(sig.get("rsi", 0), 1),
+            "macd_hist":         round(sig.get("macd_hist", 0), 4),
+            "adx":               round(sig.get("adx", 0), 2),
             "vwap":              round(sig.get("vwap", 0), 2),
             "vol_surge":         round(sig.get("vol_surge", 1), 2),
             "reasons":           sig.get("reasons", [])[:4],
+            "sector_strength":   sig.get("sector_strength", "Medium"),
+            "expected_move_pct": sig.get("expected_move_pct", round(abs(target1 - entry) / entry * 100, 2)),
+            "estimated_profit":  estimated_profit,
             "mentor_advice":     advice,
         })
         deployed += actual_cost

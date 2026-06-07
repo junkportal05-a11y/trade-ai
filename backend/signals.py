@@ -21,172 +21,20 @@ Supports Market Hours Gating:
 
 import os
 import time
-import httpx
 import pandas as pd
 import numpy as np
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 import upstox_feed
 
-# ── API Config ────────────────────────────────────────────────────────────────
-TWELVE_DATA_KEY = os.getenv("TWELVE_DATA_KEY", "")
-TWELVE_BASE     = "https://api.twelvedata.com"
-
 # ── Batch cache — populated once per scan, read by worker threads ─────────────
 _BATCH_CANDLE_CACHE: dict[str, pd.DataFrame] = {}
 _CACHE_TIMESTAMP: dict[str, float] = {}
 CACHE_TTL = 300  # 5 minutes
 
-# ── NSE symbol map — Twelve Data uses different symbol format ─────────────────
-# Twelve Data needs "RELIANCE:NSE" not "RELIANCE.NS"
-def _to_twelve(symbol: str) -> str:
-    return symbol.replace(".NS", ":NSE").replace(".BO", ":BSE")
-
-def _to_yf(symbol: str) -> str:
-    return symbol.replace(":NSE", ".NS").replace(":BSE", ".BO")
-
-# ── Interval mapping ──────────────────────────────────────────────────────────
-INTERVAL_MAP = {
-    "1m":  "1min",  "2m":  "2min",  "5m":  "5min",
-    "15m": "15min", "30m": "30min", "1h":  "1h",
-    "1d":  "1day",  "1wk": "1week", "1mo": "1month",
-}
-
-def map_interval(interval: str) -> str:
-    return INTERVAL_MAP.get(interval, "5min")
-
-# ── Period → outputsize (number of bars) ─────────────────────────────────────
-PERIOD_BARS = {
-    "1d": 78,    # ~78 x 5min bars in one NSE session
-    "5d": 390,
-    "1mo": 500,
-    "3mo": 500,
-    "6mo": 500,
-    "1y":  365,
-    "2y":  500,
-    "5y":  500,
-    "max": 500,
-}
-
-def period_to_outputsize(period: str, interval: str) -> int:
-    if interval in ("1day", "1week", "1month"):
-        return PERIOD_BARS.get(period, 365)
-    return PERIOD_BARS.get(period, 390)
-
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PARSE TWELVE DATA RESPONSE → pandas DataFrame
-# ══════════════════════════════════════════════════════════════════════════════
-
-def parse_twelve_data_candles(data: dict) -> Optional[pd.DataFrame]:
-    """
-    Parse Twelve Data time_series response into a standard OHLCV DataFrame.
-    Returns None if data is invalid or empty.
-    """
-    if not data or data.get("status") == "error":
-        return None
-    values = data.get("values")
-    if not values:
-        return None
-
-    try:
-        df = pd.DataFrame(values)
-        df.rename(columns={
-            "datetime": "Date",
-            "open":     "Open",
-            "high":     "High",
-            "low":      "Low",
-            "close":    "Close",
-            "volume":   "Volume",
-        }, inplace=True)
-
-        for col in ["Open", "High", "Low", "Close"]:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-        df["Volume"] = pd.to_numeric(df["Volume"], errors="coerce").fillna(0)
-
-        df["Date"] = pd.to_datetime(df["Date"])
-        df.set_index("Date", inplace=True)
-        df.sort_index(inplace=True)
-        df.dropna(subset=["Open","High","Low","Close"], inplace=True)
-
-        return df
-    except Exception as e:
-        print(f"[parse_twelve_data_candles] Error: {e}")
-        return None
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  BATCH DOWNLOAD — 1 API call for ALL symbols at once
-# ══════════════════════════════════════════════════════════════════════════════
-
-def batch_download(symbols: list, interval: str = "5min", outputsize: int = 390) -> dict:
-    """
-    Download OHLCV for multiple symbols in a SINGLE Twelve Data API call.
-    Uses only 1 credit per symbol (same as individual calls) but in one request.
-
-    Returns: { "SYMBOL:NSE": DataFrame, ... }
-    """
-    if not TWELVE_DATA_KEY:
-        return {}
-
-    twelve_symbols = [_to_twelve(s) for s in symbols]
-    symbol_str = ",".join(twelve_symbols)
-
-    try:
-        r = httpx.get(
-            f"{TWELVE_BASE}/time_series",
-            params={
-                "symbol":     symbol_str,
-                "interval":   interval,
-                "outputsize": outputsize,
-                "apikey":     TWELVE_DATA_KEY,
-                "format":     "JSON",
-            },
-            timeout=20,
-        )
-        r.raise_for_status()
-        data = r.json()
-    except Exception as e:
-        print(f"[batch_download] HTTP error: {e}")
-        return {}
-
-    results = {}
-
-    # Single symbol response has different structure than multi-symbol
-    if len(twelve_symbols) == 1:
-        sym = twelve_symbols[0]
-        df = parse_twelve_data_candles(data)
-        if df is not None:
-            results[sym] = df
-    else:
-        for sym in twelve_symbols:
-            sym_data = data.get(sym)
-            if sym_data:
-                df = parse_twelve_data_candles(sym_data)
-                if df is not None:
-                    results[sym] = df
-
-    return results
-
-
-def populate_batch_cache(symbols: list, interval: str, outputsize: int = 390):
-    """
-    Run a batch download and populate _BATCH_CANDLE_CACHE.
-    Call this ONCE before starting worker threads in run_scan().
-    """
-    global _BATCH_CANDLE_CACHE, _CACHE_TIMESTAMP
-    print(f"[TwelveData] Batch downloading {len(symbols)} symbols at {interval}...")
-    results = batch_download(symbols, interval, outputsize)
-    now = time.time()
-    for sym_key, df in results.items():
-        cache_key = f"{sym_key}_{interval}"
-        _BATCH_CANDLE_CACHE[cache_key] = df
-        _CACHE_TIMESTAMP[cache_key]    = now
-    print(f"[TwelveData] Cached {len(results)}/{len(symbols)} symbols successfully")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  UNIFIED DATA FETCHER — used by all scan functions
+#  UNIFIED DATA FETCHER — Upstox ONLY
 # ══════════════════════════════════════════════════════════════════════════════
 
 def download_market_data_df(
@@ -195,24 +43,19 @@ def download_market_data_df(
     interval: str = "5m",
 ) -> Optional[pd.DataFrame]:
     """
-    Fetch OHLCV DataFrame for a symbol.
-    Priority:
-      1. Check batch cache (populated by populate_batch_cache or individual fetch)
-      2. Upstox API v2 call (if authorized)
-      3. Twelve Data individual call (if API key set)
-      4. yfinance fallback
+    Fetch OHLCV data — Upstox ONLY. No fallbacks.
+    If Upstox is not authorized or returns no data, returns None.
     """
-    twelve_sym  = _to_twelve(symbol)
-    cache_key = f"{twelve_sym}_{interval}"
+    cache_key = f"{symbol}_{interval}"
 
-    # ── 1. Check batch cache ───────────────────────────────────────────────
+    # Check cache first
     cached = _BATCH_CANDLE_CACHE.get(cache_key)
     if cached is not None:
         age = time.time() - _CACHE_TIMESTAMP.get(cache_key, 0)
         if age < CACHE_TTL:
             return cached
 
-    # ── 2. Upstox API v2 call (if authorized) ──────────────────────────────
+    # Upstox only
     if upstox_feed.is_authorized():
         try:
             df = upstox_feed.get_historical_candles(symbol, period, interval)
@@ -220,63 +63,13 @@ def download_market_data_df(
                 _BATCH_CANDLE_CACHE[cache_key] = df
                 _CACHE_TIMESTAMP[cache_key]    = time.time()
                 return df
+            print(f"[signals] Upstox returned no data for {symbol}")
         except Exception as e:
-            print(f"[Upstox Candles] Fetch failed for {symbol}: {e}")
-
-    # ── 3. Twelve Data individual call ────────────────────────────────────
-    if TWELVE_DATA_KEY:
-        try:
-            td_interval = map_interval(interval)
-            outputsize = period_to_outputsize(period, td_interval)
-            r = httpx.get(
-                f"{TWELVE_BASE}/time_series",
-                params={
-                    "symbol":     twelve_sym,
-                    "interval":   td_interval,
-                    "outputsize": outputsize,
-                    "apikey":     TWELVE_DATA_KEY,
-                    "format":     "JSON",
-                },
-                timeout=15,
-            )
-            r.raise_for_status()
-            df = parse_twelve_data_candles(r.json())
-            if df is not None and not df.empty:
-                _BATCH_CANDLE_CACHE[cache_key] = df
-                _CACHE_TIMESTAMP[cache_key]    = time.time()
-                return df
-        except Exception as e:
-            print(f"[TwelveData] Individual fetch failed for {symbol}: {e}")
-
-    # ── 4. yfinance fallback ───────────────────────────────────────────────
-    print(f"[yfinance fallback] Fetching {symbol}")
-    try:
-        import yfinance as yf
-        import requests
-        yf_session = requests.Session()
-        yf_session.headers.update({
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/124.0.0.0 Safari/537.36"
-            )
-        })
-        yf_sym = _to_yf(symbol) if ":" in symbol else symbol
-        df = yf.download(
-            yf_sym, period=period, interval=interval,
-            auto_adjust=True, progress=False, session=yf_session
-        )
-        if df is not None and not df.empty:
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
-            df.dropna(inplace=True)
-            _BATCH_CANDLE_CACHE[cache_key] = df
-            _CACHE_TIMESTAMP[cache_key]    = time.time()
-            return df
-    except Exception as e:
-        print(f"[yfinance] Fallback failed for {symbol}: {e}")
-
-    return None
+            print(f"[signals] Upstox fetch error for {symbol}: {e}")
+        return None
+    else:
+        print(f"[signals] Upstox not authorized. Go to ACCOUNT panel to connect.")
+        return None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -285,10 +78,8 @@ def download_market_data_df(
 
 def get_symbol_quote(symbol: str) -> Optional[dict]:
     """
-    Get current price + change for a symbol.
-    Returns: { price, change, change_pct, volume, name }
+    Get current price + change for a symbol — Upstox ONLY.
     """
-    # ── Upstox Quote ───────────────────────────────────────────────────────
     if upstox_feed.is_authorized():
         try:
             quotes = upstox_feed.get_live_quotes([symbol])
@@ -296,70 +87,9 @@ def get_symbol_quote(symbol: str) -> Optional[dict]:
                 return quotes[symbol]
         except Exception as e:
             print(f"[Upstox quote] Failed for {symbol}: {e}")
-
-    twelve_sym = _to_twelve(symbol)
-
-    # ── Twelve Data quote ──────────────────────────────────────────────────
-    if TWELVE_DATA_KEY:
-        try:
-            r = httpx.get(
-                f"{TWELVE_BASE}/quote",
-                params={
-                    "symbol": twelve_sym,
-                    "apikey": TWELVE_DATA_KEY,
-                },
-                timeout=10,
-            )
-            r.raise_for_status()
-            data = r.json()
-            if data.get("status") != "error" and "close" in data:
-                price      = float(data.get("close", 0))
-                prev_close = float(data.get("previous_close", price))
-                change     = price - prev_close
-                change_pct = (change / prev_close * 100) if prev_close else 0
-                return {
-                    "symbol":     symbol,
-                    "name":       data.get("name", symbol),
-                    "price":      round(price, 2),
-                    "change":     round(change, 2),
-                    "change_pct": round(change_pct, 2),
-                    "volume":     int(data.get("volume", 0)),
-                    "high":       float(data.get("high", 0)),
-                    "low":        float(data.get("low", 0)),
-                    "open":       float(data.get("open", 0)),
-                    "prev_close": round(prev_close, 2),
-                    "source":     "twelve_data",
-                    "sector":     "NSE Stock",
-                }
-        except Exception as e:
-            print(f"[TwelveData quote] Failed for {symbol}: {e}")
-
-    # ── yfinance fallback ──────────────────────────────────────────────────
-    try:
-        import yfinance as yf
-        yf_sym = _to_yf(symbol) if ":" in symbol else symbol
-        t      = yf.Ticker(yf_sym)
-        fi     = t.fast_info
-        price  = float(getattr(fi, "last_price", 0) or 0)
-        prev   = float(getattr(fi, "previous_close", price) or price)
-        change = price - prev
-        return {
-            "symbol":     symbol,
-            "name":       symbol,
-            "price":      round(price, 2),
-            "change":     round(change, 2),
-            "change_pct": round((change / prev * 100) if prev else 0, 2),
-            "volume":     int(getattr(fi, "three_month_average_volume", 0) or 0),
-            "open":       price,
-            "high":       price,
-            "low":        price,
-            "prev_close": prev,
-            "source":     "yfinance",
-            "sector":     "NSE Stock",
-        }
-    except Exception as e:
-        print(f"[yfinance quote] Failed for {symbol}: {e}")
-        return None
+    else:
+        print(f"[Upstox quote] Upstox not authorized.")
+    return None
 
 
 
@@ -457,7 +187,7 @@ NSE_WATCHLIST = [
     {"symbol": "BAJFINANCE.NS",  "name": "Bajaj Finance",        "sector": "Finance"},
     {"symbol": "WIPRO.NS",       "name": "Wipro",                "sector": "IT"},
     {"symbol": "AXISBANK.NS",    "name": "Axis Bank",            "sector": "Banking"},
-    {"symbol": "TMPV.NS",        "name": "Tata Motors (TMPV)",   "sector": "Auto"},
+    {"symbol": "TATAMOTORS.NS",  "name": "Tata Motors",          "sector": "Auto"},
     {"symbol": "MARUTI.NS",      "name": "Maruti Suzuki",        "sector": "Auto"},
     {"symbol": "SUNPHARMA.NS",   "name": "Sun Pharma",           "sector": "Pharma"},
     {"symbol": "ADANIENT.NS",    "name": "Adani Enterprises",    "sector": "Conglomerate"},
@@ -493,9 +223,59 @@ def _download_market_data(symbol: str, period: str, interval: str) -> Optional[p
     return download_market_data_df(symbol, period, interval)
 
 
+# ── Future Learning Feedback Weights ──────────────────────────────────────────
+
+def get_learned_weights() -> dict:
+    """
+    Analyzes historical prediction outcomes to adjust scoring weights dynamically.
+    Returns weight multipliers for technical, volume, sector, momentum, and market scores.
+    """
+    default_weights = {
+        "technical": 1.0,
+        "volume": 1.0,
+        "sector": 1.0,
+        "momentum": 1.0,
+        "market": 1.0
+    }
+    try:
+        # Avoid circular imports
+        import db
+        preds = db.get_predictions()
+        resolved = [p for p in preds if p.get("status") in ("CORRECT", "INCORRECT")]
+        if len(resolved) < 5:
+            return default_weights
+        
+        correct_count = sum(1 for p in resolved if p["status"] == "CORRECT")
+        base_success_rate = correct_count / len(resolved)
+        
+        tech_success = []
+        vol_success = []
+        
+        for p in resolved:
+            reason_str = p.get("reason", "").upper()
+            is_correct = p["status"] == "CORRECT"
+            
+            if any(k in reason_str for k in ["RSI", "MACD", "EMA", "SUPERTREND"]):
+                tech_success.append(1 if is_correct else 0)
+            if "VOL" in reason_str or "VOLUME" in reason_str:
+                vol_success.append(1 if is_correct else 0)
+                
+        weights = default_weights.copy()
+        if tech_success:
+            tech_rate = sum(tech_success) / len(tech_success)
+            weights["technical"] = round(max(0.5, min(2.0, tech_rate / (base_success_rate or 0.5))), 2)
+        if vol_success:
+            vol_rate = sum(vol_success) / len(vol_success)
+            weights["volume"] = round(max(0.5, min(2.0, vol_rate / (base_success_rate or 0.5))), 2)
+            
+        return weights
+    except Exception:
+        return default_weights
+
+
 # ── Core Signal Calculation ───────────────────────────────────────────────────
 
-def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
+def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday Momentum", risk: str = "Medium", segment: str = "NSE", capital: float = 1000.0) -> Optional[dict]:
     """
     Download market data for a symbol and calculate advanced signals using pandas-ta.
     If market is open, runs intraday 5m scan.
@@ -689,7 +469,6 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
         bb_mid_v   = float(df["BBM_20_2.0"].iloc[-1])
         atr_val    = float(df["ATRr_14"].iloc[-1])
         
-        # New indicators
         supert_val = float(df["SUPERT_7_3.0"].iloc[-1])
         supert_dir = float(df["SUPERTd_7_3.0"].iloc[-1])
         adx_val    = float(df["ADX_14"].iloc[-1])
@@ -712,32 +491,29 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
         vwap_diff_pct = (price - vwap_val) / vwap_val * 100
         if price > vwap_val * 1.002:
             score += 2
-            reasons_bull.append(f"Price {abs(vwap_diff_pct):.1f}% above VWAP ₹{vwap_val:.1f}")
+            reasons_bull.append(f"Price above VWAP ₹{vwap_val:.1f}")
         elif price < vwap_val * 0.998:
             score -= 2
-            reasons_bear.append(f"Price {abs(vwap_diff_pct):.1f}% below VWAP ₹{vwap_val:.1f}")
+            reasons_bear.append(f"Price below VWAP ₹{vwap_val:.1f}")
 
         # 2. RSI Overbought/Oversold
         if 45 <= rsi_val <= 65:
             score += 1
-            reasons_bull.append(f"RSI {rsi_val:.0f} — stable bullish momentum")
+            reasons_bull.append(f"RSI {rsi_val:.0f} stable momentum")
         elif rsi_val > 70:
             score -= 2
-            reasons_bear.append(f"RSI {rsi_val:.0f} — overbought risk")
+            reasons_bear.append(f"RSI {rsi_val:.0f} overbought")
         elif rsi_val < 35:
             score += 2
-            reasons_bull.append(f"RSI {rsi_val:.0f} — oversold bounce candidate")
-        elif rsi_val < 45:
-            score -= 1
-            reasons_bear.append(f"RSI {rsi_val:.0f} — weak price momentum")
+            reasons_bull.append(f"RSI {rsi_val:.0f} oversold")
 
         # 3. MACD Histogram and Signal Line Crossover
         if hist_val > 0 and hist_val > hist_prev:
             score += 2
-            reasons_bull.append("MACD histogram expanding bullishly")
+            reasons_bull.append("MACD histogram bullish momentum")
         elif hist_val < 0 and hist_val < hist_prev:
             score -= 2
-            reasons_bear.append("MACD histogram expanding bearishly")
+            reasons_bear.append("MACD histogram bearish momentum")
 
         if macd_val > sig_val and df["MACD_12_26_9"].iloc[-2] <= df["MACDs_12_26_9"].iloc[-2]:
             score += 2
@@ -749,19 +525,19 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
         # 4. EMA 9/21 Trend Structure
         if ema9_val > ema21_val:
             score += 1
-            reasons_bull.append("Uptrend (EMA 9 > EMA 21)")
+            reasons_bull.append("Bullish EMA crossover")
         else:
             score -= 1
-            reasons_bear.append("Downtrend (EMA 9 < EMA 21)")
+            reasons_bear.append("Bearish EMA structure")
 
         # 5. Bollinger Bands
         pct_b = (price - bb_lo) / (bb_up - bb_lo) if (bb_up - bb_lo) > 0 else 0.5
         if pct_b > 0.85:
             score -= 1
-            reasons_bear.append(f"Price near upper BBand (B% {pct_b:.0%})")
+            reasons_bear.append("Price near upper Bollinger Band")
         elif pct_b < 0.15:
             score += 1
-            reasons_bull.append(f"Price near lower BBand (B% {pct_b:.0%})")
+            reasons_bull.append("Price near lower Bollinger Band")
 
         # 6. Supertrend (Strong Weight)
         if supert_dir == 1:
@@ -772,64 +548,47 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
             reasons_bear.append("Supertrend Bearish")
 
         # 7. ADX Trend Strength Modifier
-        if adx_val > 40:
+        if adx_val > 25:
             if score > 0:
                 score += 2
-                reasons_bull.append(f"Very Strong Trend (ADX {adx_val:.1f})")
+                reasons_bull.append(f"Strong Trend ADX {adx_val:.0f}")
             elif score < 0:
                 score -= 2
-                reasons_bear.append(f"Very Strong Trend (ADX {adx_val:.1f})")
-        elif adx_val > 25:
-            if score > 0:
-                score += 1
-                reasons_bull.append(f"Strong Trend (ADX {adx_val:.1f})")
-            elif score < 0:
-                score -= 1
-                reasons_bear.append(f"Strong Trend (ADX {adx_val:.1f})")
+                reasons_bear.append(f"Strong Trend ADX {adx_val:.0f}")
         elif adx_val < 15:
-            score = 0  # completely skip signal
-            reasons_bear.append(f"Choppy sideways market (ADX {adx_val:.1f} < 15)")
-            reasons_bull.append(f"Choppy sideways market (ADX {adx_val:.1f} < 15)")
-        elif adx_val < 20:
-            score = int(score * 0.7)  # 30% penalty
-            reasons_bear.append(f"Weak sideways market (ADX {adx_val:.1f} < 20)")
+            score = 0
+            reasons_bear.append("ADX flat consolidation")
 
         # 7.5 Macro Trend Alignment (Multi-Timeframe Analysis)
         if macro_bullish is not None:
             if macro_bullish:
                 if score > 0:
                     score += 3
-                    reasons_bull.insert(0, "Macro Trend Aligned (Daily Bullish)")
-                elif score < 0:
-                    score += 1 # Cushion the drop
-                    reasons_bear.append("Counter-trend Intraday (Macro is Bullish)")
+                    reasons_bull.insert(0, "Daily Macro Bullish")
             else:
                 if score < 0:
                     score -= 3
-                    reasons_bear.insert(0, "Macro Trend Aligned (Daily Bearish)")
-                elif score > 0:
-                    score -= 2 # Penalize intraday buy in daily downtrend
-                    reasons_bull.append("Counter-trend Intraday (Macro is Bearish)")
+                    reasons_bear.insert(0, "Daily Macro Bearish")
 
         # 8. Stochastic Crossovers
         if stoch_k < 20 and stoch_k > stoch_d and df["STOCHk_14_3_3"].iloc[-2] <= df["STOCHd_14_3_3"].iloc[-2]:
             score += 1
-            reasons_bull.append("Stochastic oversold golden cross")
+            reasons_bull.append("Stochastic golden cross")
         elif stoch_k > 80 and stoch_k < stoch_d and df["STOCHk_14_3_3"].iloc[-2] >= df["STOCHd_14_3_3"].iloc[-2]:
             score -= 1
-            reasons_bear.append("Stochastic overbought death cross")
+            reasons_bear.append("Stochastic death cross")
 
         # 9. OBV Volume Flow
         if obv_val > obv_prev:
             score += 1
-            reasons_bull.append("OBV volume accumulation")
+            reasons_bull.append("OBV Accumulation")
         elif obv_val < obv_prev:
             score -= 1
-            reasons_bear.append("OBV volume distribution")
+            reasons_bear.append("OBV Distribution")
 
-        # 9.5 Candlestick Pattern Recognition (Based on Candlestick Bible)
+        # 9.5 Candlestick Pattern Recognition
+        has_candle = False
         try:
-            # Check latest bar details
             latest_open  = float(df["Open"].iloc[-1])
             latest_high  = float(df["High"].iloc[-1])
             latest_low   = float(df["Low"].iloc[-1])
@@ -842,172 +601,155 @@ def analyse_symbol(symbol: str, name: str, sector: str) -> Optional[dict]:
             upper_wick = (latest_high - max(latest_open, latest_close))
             lower_wick = (min(latest_open, latest_close) - latest_low)
             
-            # 1. Hammer (Bullish reversal pattern)
-            # Body is small, lower wick is at least 2x body size, little to no upper wick
+            # Hammer
             if lower_wick > (2 * body) and upper_wick < (0.1 * candle_range) and body > (0.05 * candle_range):
                 if vol_r >= 1.5:
                     score += 3
-                    reasons_bull.append(f"Candlestick: Bullish Hammer detected (vol surge {vol_r:.1f}x)")
-                else:
-                    reasons_bull.append(f"Candlestick: Hammer detected but rejected (low volume {vol_r:.1f}x)")
-                
-            # 2. Shooting Star (Bearish reversal pattern)
-            # Body is small, upper wick is at least 2x body size, little to no lower wick
+                    reasons_bull.append("Bullish Hammer Candle")
+                    has_candle = True
+            # Shooting Star
             elif upper_wick > (2 * body) and lower_wick < (0.1 * candle_range) and body > (0.05 * candle_range):
                 if vol_r >= 1.5:
                     score -= 3
-                    reasons_bear.append(f"Candlestick: Bearish Shooting Star detected (vol surge {vol_r:.1f}x)")
-                else:
-                    reasons_bear.append(f"Candlestick: Shooting Star rejected (low volume {vol_r:.1f}x)")
-                
-            # 3. Engulfing Patterns
-            else:
-                # Bullish Engulfing: previous candle was bearish, current candle is bullish and its body fully engulfs the previous body
-                if latest_close > latest_open and prev_close < prev_open:
-                    if latest_close >= prev_open and latest_open <= prev_close:
-                        if vol_r >= 1.5:
-                            score += 3
-                            reasons_bull.append(f"Candlestick: Bullish Engulfing pattern (vol surge {vol_r:.1f}x)")
-                        else:
-                            reasons_bull.append(f"Candlestick: Engulfing pattern rejected (low volume {vol_r:.1f}x)")
-                # Bearish Engulfing: previous candle was bullish, current candle is bearish and its body fully engulfs the previous body
-                elif latest_close < latest_open and prev_close > prev_open:
-                    if latest_close <= prev_open and latest_open >= prev_close:
-                        if vol_r >= 1.5:
-                            score -= 3
-                            reasons_bear.append(f"Candlestick: Bearish Engulfing pattern (vol surge {vol_r:.1f}x)")
-                        else:
-                            reasons_bear.append(f"Candlestick: Engulfing pattern rejected (low volume {vol_r:.1f}x)")
-                        
-            # 4. Marubozu (Strong momentum indicator)
-            # Body represents >90% of the entire range
-            if body / candle_range > 0.90:
-                if latest_close > latest_open:
-                    if vol_r >= 1.5:
-                        score += 2
-                        reasons_bull.append(f"Candlestick: Bullish Marubozu (Extreme buying force, vol surge {vol_r:.1f}x)")
-                    else:
-                        reasons_bull.append(f"Candlestick: Bullish Marubozu rejected (low volume {vol_r:.1f}x)")
-                else:
-                    if vol_r >= 1.5:
-                        score -= 2
-                        reasons_bear.append(f"Candlestick: Bearish Marubozu (Extreme selling force, vol surge {vol_r:.1f}x)")
-                    else:
-                        reasons_bear.append(f"Candlestick: Bearish Marubozu rejected (low volume {vol_r:.1f}x)")
+                    reasons_bear.append("Bearish Shooting Star Candle")
+                    has_candle = True
+            # Engulfing
+            elif latest_close > latest_open and prev_close < prev_open and latest_close >= prev_open and latest_open <= prev_close:
+                if vol_r >= 1.5:
+                    score += 3
+                    reasons_bull.append("Bullish Engulfing Candle")
+                    has_candle = True
+            elif latest_close < latest_open and prev_close > prev_open and latest_close <= prev_open and latest_open >= prev_close:
+                if vol_r >= 1.5:
+                    score -= 3
+                    reasons_bear.append("Bearish Engulfing Candle")
+                    has_candle = True
         except Exception:
             pass
 
         # 10. Volume Confirmation
         if vol_r >= 1.5:
             score += 1 if score > 0 else -1
-            label = "bull" if score > 0 else "bear"
-            reasons_bull.append(f"Vol surge {vol_r:.1f}x — {label} force") if score > 0 else \
-            reasons_bear.append(f"Vol surge {vol_r:.1f}x — {label} force")
+            reasons_bull.append("Volume confirmation") if score > 0 else reasons_bear.append("Volume pressure confirmation")
         elif vol_r < 0.7:
             score = int(score * 0.7)
-            reasons_bear.append("Low volume conviction")
+            reasons_bear.append("Low volume breakout conviction")
 
-        # ── Define Signal Output ──────────────────────────────────────────────
-        if score >= 7:
-            signal    = "BUY"
-            confidence = min(95, 60 + score * 3)
-        elif score <= -7:
-            signal    = "SELL"
-            confidence = min(95, 60 + abs(score) * 3)
-        elif score >= 4:
-            signal    = "WEAK BUY"
-            confidence = 40 + score * 4
-        elif score <= -4:
-            signal    = "WEAK SELL"
-            confidence = 40 + abs(score) * 4
-        else:
-            signal    = "HOLD"
-            confidence = 50
+        # ── Define Component Scores (Max 20 each) ──
+        # 1. Market Score
+        nifty_bias_score = 10 if macro_bullish else 4
+        macro_align_score = 10 if macro_bullish else 2
+        market_score = min(20, nifty_bias_score + macro_align_score)
 
-        # 11. Volatility Clustering Boost
-        atr_pct = (atr_val / price) * 100
-        if atr_pct > 2.5 and vol_r > 1.8:
-            confidence = min(95, confidence * 1.3)
-            if score > 0:
-                reasons_bull.insert(0, f"Volatility Clustering Boost (ATR% {atr_pct:.1f})")
-            elif score < 0:
-                reasons_bear.insert(0, f"Volatility Clustering Boost (ATR% {atr_pct:.1f})")
+        # 2. Tech Score
+        vwap_score = 4 if price > vwap_val * 1.002 else 0 if price < vwap_val * 0.998 else 2
+        ema_score = 4 if ema9_val > ema21_val else 0
+        bb_score = 4 if 0.15 <= pct_b <= 0.85 else 0
+        adx_score = 4 if adx_val > 25 else 2
+        stoch_score = 4 if 20 <= stoch_k <= 80 else 1
+        tech_score = min(20, vwap_score + ema_score + bb_score + adx_score + stoch_score)
 
-        # ── Set Target & Stop Levels via ATR & Macro Alignment ────────────────
-        is_trend_following = (signal in ("BUY", "WEAK BUY") and macro_bullish) or (signal in ("SELL", "WEAK SELL") and macro_bullish is False)
+        # 3. Volume Score
+        rel_vol_score = 10 if vol_r >= 1.5 else 7 if vol_r >= 1.0 else 4 if vol_r >= 0.7 else 1
+        obv_score = 10 if obv_val > obv_prev else 2
+        volume_score = min(20, rel_vol_score + obv_score)
+
+        # 4. Momentum Score
+        macd_momentum = 6 if hist_val > 0 and hist_val > hist_prev else 2
+        supert_momentum = 6 if supert_dir == 1 else 0
+        candle_score = 8 if has_candle else 2
+        momentum_score = min(20, macd_momentum + supert_momentum + candle_score)
+
+        # ── Set Target & Stop Levels via Style & Risk ──
+        risk_mult = 0.8 if risk == "Low" else 1.4 if risk == "High" else 1.0
         
-        atr_target_mult = 2.0 if is_trend_following else 1.5
-        atr_stop_mult = 3.0 if is_trend_following else 2.5
-        
-        atr_target = atr_val * atr_target_mult
-        atr_stop = atr_val * atr_stop_mult
+        if style == "Scalping":
+            atr_target1 = 1.0 * atr_val * risk_mult
+            atr_target2 = 1.6 * atr_val * risk_mult
+            atr_stop = 1.0 * atr_val * risk_mult
+        elif style == "Breakout":
+            atr_target1 = 2.5 * atr_val * risk_mult
+            atr_target2 = 4.0 * atr_val * risk_mult
+            atr_stop = 2.0 * atr_val * risk_mult
+        elif style == "Swing":
+            atr_target1 = 4.0 * atr_val * risk_mult
+            atr_target2 = 6.0 * atr_val * risk_mult
+            atr_stop = 3.0 * atr_val * risk_mult
+        else: # Intraday Momentum
+            atr_target1 = 2.0 * atr_val * risk_mult
+            atr_target2 = 3.0 * atr_val * risk_mult
+            atr_stop = 2.0 * atr_val * risk_mult
 
-        if signal in ("BUY", "WEAK BUY"):
-            entry  = round(price, 2)
-            target = round(price + atr_target, 2)
-            stop   = round(price - atr_stop, 2)
-            risk   = round(price - stop, 2)
-            reward = round(target - price, 2)
-        elif signal in ("SELL", "WEAK SELL"):
-            entry  = round(price, 2)
-            target = round(price - atr_target, 2)
-            stop   = round(price + atr_stop, 2)
-            risk   = round(stop - price, 2)
-            reward = round(price - target, 2)
+        is_buy = score >= 0
+        if is_buy:
+            entry = round(price, 2)
+            target1 = round(price + atr_target1, 2)
+            target2 = round(price + atr_target2, 2)
+            stop = round(price - atr_stop, 2)
+            risk_amount = round(price - stop, 2)
+            reward = round(target1 - price, 2)
         else:
-            entry  = round(price, 2)
-            target = round(price + atr_val, 2)
-            stop   = round(price - atr_val, 2)
-            risk   = round(atr_val, 2)
-            reward = round(atr_val, 2)
+            entry = round(price, 2)
+            target1 = round(price - atr_target1, 2)
+            target2 = round(price - atr_target2, 2)
+            stop = round(price + atr_stop, 2)
+            risk_amount = round(stop - price, 2)
+            reward = round(price - target1, 2)
 
-        rr_ratio = round(reward / risk, 2) if risk > 0 else 1.0
-        target_pct = round((target - price) / price * 100, 2)
+        rr_ratio = round(reward / risk_amount, 2) if risk_amount > 0 else 1.0
+        target_pct = round((target1 - price) / price * 100, 2)
 
-        # reasoning output (join top 4 signals)
         all_reasons = reasons_bull + reasons_bear
         reasoning = " | ".join(all_reasons[:4])
 
         return {
-            "symbol":       symbol,
-            "name":         name,
-            "sector":       sector,
-            "signal":       signal,
-            "confidence":   round(confidence),
-            "score":        score,
-            "price":        entry,
-            "entry":        entry,
-            "target":       target,
-            "stop_loss":    stop,
-            "target_pct":   target_pct,
-            "risk":         risk,
-            "reward":       reward,
-            "rr_ratio":     rr_ratio,
-            "rsi":          round(rsi_val, 1),
-            "macd_hist":    round(hist_val, 4),
-            "vwap":         round(vwap_val, 2),
-            "ema9":         round(ema9_val, 2),
-            "ema21":        round(ema21_val, 2),
-            "bb_upper":     round(bb_up, 2),
-            "bb_lower":     round(bb_lo, 2),
-            "vol_ratio":    round(vol_r, 2),
-            "atr":          round(atr_val, 2),
-            "supertrend":   round(supert_val, 2),
+            "symbol":         symbol,
+            "name":           name,
+            "sector":         sector,
+            "signal":         "HOLD", # Evaluated in pass 2
+            "confidence":     50,     # Evaluated in pass 2
+            "score":          score,
+            "price":          entry,
+            "entry":          entry,
+            "target":         target1,
+            "target1":        target1,
+            "target2":        target2,
+            "stop_loss":      stop,
+            "target_pct":     target_pct,
+            "risk":           risk_amount,
+            "reward":         reward,
+            "rr_ratio":       rr_ratio,
+            "rsi":            round(rsi_val, 1),
+            "macd_hist":      round(hist_val, 4),
+            "vwap":           round(vwap_val, 2),
+            "ema9":           round(ema9_val, 2),
+            "ema21":          round(ema21_val, 2),
+            "bb_upper":       round(bb_up, 2),
+            "bb_lower":       round(bb_lo, 2),
+            "vol_ratio":      round(vol_r, 2),
+            "atr":            round(atr_val, 2),
+            "supertrend":     round(supert_val, 2),
             "supertrend_dir": int(supert_dir),
-            "adx":          round(adx_val, 2),
-            "stoch_k":      round(stoch_k, 2),
-            "obv":          round(obv_val, 2),
-            "scan_type":    scan_type,
-            "reasoning":    reasoning,
-            "reasons":      all_reasons,
-            "scanned_at":   datetime.utcnow().isoformat() + "Z",
+            "adx":            round(adx_val, 2),
+            "stoch_k":        round(stoch_k, 2),
+            "obv":            round(obv_val, 2),
+            "scan_type":      scan_type,
+            "reasoning":      reasoning,
+            "reasons":        all_reasons,
+            "scanned_at":     datetime.utcnow().isoformat() + "Z",
+            
+            # Sub-scores
+            "_market_score":   market_score,
+            "_tech_score":     tech_score,
+            "_volume_score":   volume_score,
+            "_momentum_score": momentum_score,
         }
 
     except Exception:
         return None
 
 
-def run_scan(symbols: Optional[list] = None, interval: str = "5m") -> list:
+def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: str = "Intraday Momentum", risk: str = "Medium", segment: str = "NSE", capital: float = 1000.0) -> list:
     """
     Scan watchlist and return signals sorted by conviction/confidence.
     Uses batch download so only 1-2 Twelve Data API calls for entire scan.
@@ -1017,16 +759,9 @@ def run_scan(symbols: Optional[list] = None, interval: str = "5m") -> list:
     watchlist = symbols or NSE_WATCHLIST
     symbol_strs = [s["symbol"] if isinstance(s, dict) else s for s in watchlist]
 
-    td_interval  = map_interval(interval)
-    daily_intv   = "1day"
-    outputsize   = period_to_outputsize("5d", td_interval)
 
-    # ── Pre-fetch ALL symbols in 2 batch calls (intraday + daily) ─────────
-    if TWELVE_DATA_KEY:
-        populate_batch_cache(symbol_strs, td_interval, outputsize)
-        populate_batch_cache(symbol_strs, daily_intv,  365)
 
-    # ── Worker: analyse single symbol ─────────────────────────────────────
+    # ── Worker: analyse single symbol (Pass 1) ─────────────────────────────
     def analyse_one(item) -> Optional[dict]:
         if isinstance(item, dict):
             sym = item["symbol"]
@@ -1037,25 +772,139 @@ def run_scan(symbols: Optional[list] = None, interval: str = "5m") -> list:
             name = item
             sector = "NSE Stock"
 
-        df       = download_market_data_df(sym, "5d",  interval)
-        df_daily = download_market_data_df(sym, "1y",  "1d")
+        # Apply segment filter
+        if segment == "BSE" and not sym.endswith(".BO"):
+            return None
+        elif segment == "F&O" and sym not in ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "SBIN.NS"]:
+            return None
+
+        df = download_market_data_df(sym, "5d", interval)
         if df is None or len(df) < 30:
             return None
-        return analyse_symbol(sym, name, sector)
+        return analyse_symbol(sym, name, sector, style=style, risk=risk, segment=segment, capital=capital)
 
-    results = []
+    first_pass_results = []
     with ThreadPoolExecutor(max_workers=8) as ex:
         futures = {ex.submit(analyse_one, item): item for item in watchlist}
         for f in futures:
             try:
-                result = f.result()
-                if result:
-                    results.append(result)
+                res = f.result()
+                if res:
+                    first_pass_results.append(res)
             except Exception as e:
                 item = futures[f]
                 sym_label = item["symbol"] if isinstance(item, dict) else item
                 print(f"[run_scan] Error for {sym_label}: {e}")
 
+    if not first_pass_results:
+        return []
+
+    # ── Pass 2: Calculate Sector Averages and finalize Confidence scores ──
+    sector_groups = {}
+    for r in first_pass_results:
+        sec = r["sector"]
+        if sec not in sector_groups:
+            sector_groups[sec] = []
+        sector_groups[sec].append(r["_tech_score"] + r["_momentum_score"])
+
+    sector_scores = {}
+    for sec, vals in sector_groups.items():
+        avg_val = sum(vals) / len(vals)
+        sector_scores[sec] = round(avg_val / 2.0, 1)
+
+    weights = get_learned_weights()
+    results = []
+
+    for r in first_pass_results:
+        sec = r["sector"]
+        sector_score = sector_scores.get(sec, 10.0)
+        
+        # Calculate final confidence score (0-100)
+        weighted_sum = (
+            r["_tech_score"] * weights["technical"] +
+            r["_volume_score"] * weights["volume"] +
+            sector_score * weights["sector"] +
+            r["_momentum_score"] * weights["momentum"] +
+            r["_market_score"] * weights["market"]
+        )
+        max_possible = (
+            20 * weights["technical"] +
+            20 * weights["volume"] +
+            20 * weights["sector"] +
+            20 * weights["momentum"] +
+            20 * weights["market"]
+        )
+        
+        confidence = round((weighted_sum / max_possible) * 100) if max_possible > 0 else 50
+        confidence = min(100, max(0, confidence))
+
+        # Sector strength label
+        if sector_score >= 14:
+            sec_strength = "Strong"
+        elif sector_score >= 7:
+            sec_strength = "Medium"
+        else:
+            sec_strength = "Weak"
+
+        # Pricing and PnL expectations
+        entry = r["entry"]
+        target1 = r["target1"]
+        target2 = r["target2"]
+        stop = r["stop_loss"]
+
+        # Expected Move %
+        expected_move_pct = round(abs(target1 - entry) / entry * 100, 2)
+
+        # Quantity and expected profit range
+        qty = round(capital / entry, 2)
+        qty_label = f"{qty} Shares" if qty >= 1 else f"{qty:.2f} Shares"
+        
+        est_profit_low = round(qty * abs(target1 - entry), 2)
+        est_profit_high = round(qty * abs(target2 - entry), 2)
+        estimated_profit = f"₹{est_profit_low:.0f} - ₹{est_profit_high:.0f}"
+
+        r["confidence"] = confidence
+        r["sector_strength"] = sec_strength
+        r["expected_move_pct"] = expected_move_pct
+        r["estimated_profit"] = estimated_profit
+        r["quantity"] = qty
+        r["quantity_label"] = qty_label
+
+        # ── Define Signal Output ──
+        score = r["score"]
+        if confidence >= 72 and score >= 4:
+            sig = "BUY"
+        elif confidence >= 55 and score >= 2:
+            sig = "WEAK BUY"
+        elif confidence <= 28 and score <= -4:
+            sig = "SELL"
+        elif confidence <= 42 and score <= -2:
+            sig = "WEAK SELL"
+        else:
+            sig = "HOLD"
+
+        # ── Stock Selection Rules (Reject Weak Setups) ──
+        # 1. Volume confirmation
+        if r["vol_ratio"] < 1.0:
+            sig = "HOLD"
+        # 2. Trend alignment
+        if r["adx"] < 15:
+            sig = "HOLD"
+        # 3. Risk-to-reward ratio
+        if r["rr_ratio"] < 1.5:
+            sig = "HOLD"
+        # 4. Sector support
+        if sec_strength == "Weak":
+            sig = "HOLD"
+        # 5. Trading style alignment: Breakout requires ADX > 25
+        if style == "Breakout" and r["adx"] < 25:
+            sig = "HOLD"
+
+        r["signal"] = sig
+        r["direction"] = sig
+        results.append(r)
+
+    # Sort results
     order = {"BUY": 0, "WEAK BUY": 1, "HOLD": 2, "WEAK SELL": 3, "SELL": 4}
     results.sort(key=lambda x: (order.get(x["signal"], 5), -x["confidence"]))
     return results
