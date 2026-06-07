@@ -161,9 +161,12 @@ export function useLivePrices(symbols = []) {
 
           if (event.code === 4001) {
             console.warn("[WebSocket] Connection closed with code 4001: Session unauthorized/expired.");
+            const hadToken = !!sessionStorage.getItem('apt_token');
             sessionStorage.removeItem('apt_token');
             localStorage.removeItem('apex_user');
-            window.location.reload();
+            if (hadToken) {
+              window.location.reload();
+            }
             return;
           }
 

@@ -29,7 +29,7 @@ export default function LoginScreen({ onLogin }) {
     setError('');
     
     const u = username.trim();
-    const p = password;
+    const p = password.trim();
     if (!u || !p) {
       setError("Please fill in all security fields.");
       return;
@@ -46,7 +46,12 @@ export default function LoginScreen({ onLogin }) {
       });
       
       if (!res.ok) {
-        throw new Error("AUTHENTICATION FAILED: Invalid credentials.");
+        let errMessage = "AUTHENTICATION FAILED: Invalid credentials.";
+        try {
+          const errData = await res.json();
+          if (errData && errData.detail) errMessage = "ERROR: " + errData.detail;
+        } catch (e) {}
+        throw new Error(errMessage);
       }
       
       const data = await res.json();
