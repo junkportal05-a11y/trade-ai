@@ -16,3 +16,7 @@ backend/trading_platform.db
 changes.txt
 apex_codebase.txt
 .vercel
+
+# Agent Skills & Cache
+.agents/
+.system_generated/
