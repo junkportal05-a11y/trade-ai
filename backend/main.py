@@ -40,7 +40,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:5173,http://localhost:3000,https://trade-ai-beta.vercel.app"
+    "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,https://trade-ai-beta.vercel.app"
 ).split(",")
 
 app.add_middleware(
@@ -88,9 +88,13 @@ class LoginRequest(BaseModel):
 @limiter.limit("10/minute")
 async def login(req: LoginRequest, request: Request):
     u = req.username.strip()
+    print(f"[LOGIN DEBUG] Request received! username='{u}', password_length={len(req.password)}")
     user_obj = authenticate_user(u, req.password)
     if not user_obj:
+        print(f"[LOGIN DEBUG] Failed authentication. Target hash exists? {u in USER_REGISTRY}")
         raise HTTPException(status_code=401, detail="Invalid username or password")
+    
+    print(f"[LOGIN DEBUG] Success! Generating token.")
     token = create_session(u)
     return {
         "token": token,
