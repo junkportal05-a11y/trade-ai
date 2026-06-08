@@ -269,7 +269,7 @@ function EquityChart({ data }) {
   );
 }
 
-export default function PerformancePanel() {
+export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }) {
   const [stats,   setStats]   = useState(null);
   const [history, setHistory] = useState([]);
   const [filter,  setFilter]  = useState('ALL');
@@ -688,34 +688,36 @@ export default function PerformancePanel() {
               <div style={{ fontSize: 9, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace", marginBottom: 6 }}>
                 SIMULATED TRADES LOG ({backtestResult.trades.length})
               </div>
-              <div style={{ maxHeight: '180px', overflowY: 'auto', border: `1px solid ${T.border}`, borderRadius: 8 }}>
-                {/* Headers */}
-                <div style={{ display: 'grid', gridTemplateColumns: '70px 140px 65px 65px 75px 130px', padding: '6px 14px', borderBottom: `1px solid ${T.border}`, fontSize: 7.5, color: T.textDim, ...mono, letterSpacing: '0.08em' }}>
-                  <span>TRADE DATES</span>
-                  <span>EXIT STATUS</span>
-                  <span>BUY PRICE</span>
-                  <span>SELL PRICE</span>
-                  <span>TRADE P&L</span>
-                  <span>EXIT REASON</span>
+              <div style={{ maxHeight: '180px', overflowY: 'auto', border: `1px solid ${T.border}`, borderRadius: 8, overflowX: 'auto' }}>
+                <div style={{ minWidth: '550px' }}>
+                  {/* Headers */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '70px 140px 65px 65px 75px 130px', padding: '6px 14px', borderBottom: `1px solid ${T.border}`, fontSize: 7.5, color: T.textDim, ...mono, letterSpacing: '0.08em' }}>
+                    <span>TRADE DATES</span>
+                    <span>EXIT STATUS</span>
+                    <span>BUY PRICE</span>
+                    <span>SELL PRICE</span>
+                    <span>TRADE P&L</span>
+                    <span>EXIT REASON</span>
+                  </div>
+                  {/* Rows */}
+                  {backtestResult.trades.length === 0 ? (
+                    <div style={{ padding: 20, textAlign: 'center', fontSize: 10, color: T.textDim, ...mono }}>No trades executed during this timeframe.</div>
+                  ) : (
+                    backtestResult.trades.map((t, index) => (
+                      <div key={index} style={{ display: 'grid', gridTemplateColumns: '70px 140px 65px 65px 75px 130px', padding: '8px 14px', borderBottom: index === backtestResult.trades.length - 1 ? 'none' : `1px solid ${T.border}`, fontSize: 10, ...mono, color: T.textMid }}>
+                        <span style={{ fontSize: 9 }}>{t.entry_date}</span>
+                        <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <span style={{ width: 4, height: 4, borderRadius: '50%', background: t.pnl > 0 ? T.green : t.pnl < 0 ? T.red : T.textDim }} />
+                          <span style={{ fontSize: 8.5, fontWeight: 700, color: t.pnl > 0 ? T.green : t.pnl < 0 ? T.red : T.textMid }}>{t.status}</span>
+                        </span>
+                        <span>₹{fmt(t.entry_price, 1)}</span>
+                        <span>₹{fmt(t.exit_price, 1)}</span>
+                        <span style={{ color: clr(t.pnl), fontWeight: 700 }}>{t.pnl_pct > 0 ? '+' : ''}{t.pnl_pct}%</span>
+                        <span style={{ fontSize: 9, color: T.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.reason}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
-                {/* Rows */}
-                {backtestResult.trades.length === 0 ? (
-                  <div style={{ padding: 20, textAlign: 'center', fontSize: 10, color: T.textDim, ...mono }}>No trades executed during this timeframe.</div>
-                ) : (
-                  backtestResult.trades.map((t, index) => (
-                    <div key={index} style={{ display: 'grid', gridTemplateColumns: '70px 140px 65px 65px 75px 130px', padding: '8px 14px', borderBottom: index === backtestResult.trades.length - 1 ? 'none' : `1px solid ${T.border}`, fontSize: 10, ...mono, color: T.textMid }}>
-                      <span style={{ fontSize: 9 }}>{t.entry_date}</span>
-                      <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <span style={{ width: 4, height: 4, borderRadius: '50%', background: t.pnl > 0 ? T.green : t.pnl < 0 ? T.red : T.textDim }} />
-                        <span style={{ fontSize: 8.5, fontWeight: 700, color: t.pnl > 0 ? T.green : t.pnl < 0 ? T.red : T.textMid }}>{t.status}</span>
-                      </span>
-                      <span>₹{fmt(t.entry_price, 1)}</span>
-                      <span>₹{fmt(t.exit_price, 1)}</span>
-                      <span style={{ color: clr(t.pnl), fontWeight: 700 }}>{t.pnl_pct > 0 ? '+' : ''}{t.pnl_pct}%</span>
-                      <span style={{ fontSize: 9, color: T.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.reason}</span>
-                    </div>
-                  ))
-                )}
               </div>
             </div>
           </div>
@@ -777,7 +779,7 @@ export default function PerformancePanel() {
           </div>
 
           {/* Breakdown charts */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
             {/* By sector */}
             <div style={{ background: T.panel, border: `1px solid ${T.border}`,
               borderRadius: 10, padding: '16px 20px' }}>
@@ -833,85 +835,87 @@ export default function PerformancePanel() {
           </div>
 
           {/* Signal history table */}
-          <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10 }}>
-            {/* Table header */}
-            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${T.border}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
-                color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>
-                SIGNAL LOG ({filtered.length})
-              </span>
-              {/* Filter tabs */}
-              <div style={{ display: 'flex', gap: 4 }}>
-                {['ALL','PENDING','HIT_TARGET','HIT_STOP','EXPIRED','CLOSED'].map(f => (
-                  <button key={f} onClick={() => setFilter(f)} style={{
-                    padding: '3px 10px', borderRadius: 4, border: 'none',
-                    background: filter === f ? T.accentDim : 'transparent',
-                    color: filter === f ? T.accent : T.textDim,
-                    fontSize: 8, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em',
-                    transition: 'all 0.15s',
-                  }}>{f === 'ALL' ? 'ALL' : (STATUS_META[f]?.label || f)}</button>
+          <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10, overflowX: 'auto' }}>
+            <div style={{ minWidth: '750px' }}>
+              {/* Table header */}
+              <div style={{ padding: '14px 20px', borderBottom: `1px solid ${T.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
+                  color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>
+                  SIGNAL LOG ({filtered.length})
+                </span>
+                {/* Filter tabs */}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {['ALL','PENDING','HIT_TARGET','HIT_STOP','EXPIRED','CLOSED'].map(f => (
+                    <button key={f} onClick={() => setFilter(f)} style={{
+                      padding: '3px 10px', borderRadius: 4, border: 'none',
+                      background: filter === f ? T.accentDim : 'transparent',
+                      color: filter === f ? T.accent : T.textDim,
+                      fontSize: 8, fontWeight: 700, cursor: 'pointer',
+                      fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em',
+                      transition: 'all 0.15s',
+                    }}>{f === 'ALL' ? 'ALL' : (STATUS_META[f]?.label || f)}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Column headers */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '90px 80px 70px 80px 80px 80px 70px 80px 100px',
+                padding: '8px 20px', borderBottom: `1px solid ${T.border}`,
+                fontSize: 8, color: T.textDim, letterSpacing: '0.1em',
+                fontFamily: "'IBM Plex Mono', monospace",
+              }}>
+                {['SYMBOL','DIRECTION','CONF','ENTRY','TARGET','STOP','EXIT','P&L','STATUS'].map(h => (
+                  <span key={h}>{h}</span>
                 ))}
               </div>
-            </div>
 
-            {/* Column headers */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '90px 80px 70px 80px 80px 80px 70px 80px 100px',
-              padding: '8px 20px', borderBottom: `1px solid ${T.border}`,
-              fontSize: 8, color: T.textDim, letterSpacing: '0.1em',
-              fontFamily: "'IBM Plex Mono', monospace",
-            }}>
-              {['SYMBOL','DIRECTION','CONF','ENTRY','TARGET','STOP','EXIT','P&L','STATUS'].map(h => (
-                <span key={h}>{h}</span>
-              ))}
-            </div>
-
-            {/* Rows */}
-            <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-              {filtered.length === 0 ? (
-                <div style={{ padding: '30px 20px', textAlign: 'center',
-                  color: T.textDim, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace" }}>
-                  NO SIGNALS MATCH THIS FILTER
-                </div>
-              ) : filtered.map(row => (
-                <div key={row.id} style={{
-                  display: 'grid',
-                  gridTemplateColumns: '90px 80px 70px 80px 80px 80px 70px 80px 100px',
-                  padding: '10px 20px',
-                  borderBottom: `1px solid ${T.border}`,
-                  fontSize: 11,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  transition: 'background 0.1s',
-                  cursor: 'default',
-                }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{ color: T.text, fontWeight: 700, fontSize: 11 }}>
-                    {row.symbol.replace('.NS','')}
-                  </span>
-                  <span style={{ color: row.signal_type.includes('BUY') ? T.green : T.red,
-                    fontSize: 10, fontWeight: 700 }}>
-                    {row.signal_type}
-                  </span>
-                  <span style={{ color: row.confidence >= 70 ? T.green : row.confidence >= 55 ? T.gold : T.textMid }}>
-                    {row.confidence}%
-                  </span>
-                  <span style={{ color: T.textMid }}>₹{row.entry_price?.toFixed(1)}</span>
-                  <span style={{ color: T.green }}>₹{row.target?.toFixed(1)}</span>
-                  <span style={{ color: T.red }}>₹{row.stop_loss?.toFixed(1)}</span>
-                  <span style={{ color: T.textMid }}>
-                    {row.exit_price ? `₹${row.exit_price.toFixed(1)}` : '—'}
-                  </span>
-                  <span style={{ color: clr(row.pnl_pct), fontWeight: row.pnl_pct ? 700 : 400 }}>
-                    {row.pnl_pct != null ? pct(row.pnl_pct) : '—'}
-                  </span>
-                  <StatusBadge status={row.status} />
-                </div>
-              ))}
+              {/* Rows */}
+              <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                {filtered.length === 0 ? (
+                  <div style={{ padding: '30px 20px', textAlign: 'center',
+                    color: T.textDim, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace" }}>
+                    NO SIGNALS MATCH THIS FILTER
+                  </div>
+                ) : filtered.map(row => (
+                  <div key={row.id} style={{
+                    display: 'grid',
+                    gridTemplateColumns: '90px 80px 70px 80px 80px 80px 70px 80px 100px',
+                    padding: '10px 20px',
+                    borderBottom: `1px solid ${T.border}`,
+                    fontSize: 11,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    transition: 'background 0.1s',
+                    cursor: 'default',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ color: T.text, fontWeight: 700, fontSize: 11 }}>
+                      {row.symbol.replace('.NS','')}
+                    </span>
+                    <span style={{ color: row.signal_type.includes('BUY') ? T.green : T.red,
+                      fontSize: 10, fontWeight: 700 }}>
+                      {row.signal_type}
+                    </span>
+                    <span style={{ color: row.confidence >= 70 ? T.green : row.confidence >= 55 ? T.gold : T.textMid }}>
+                      {row.confidence}%
+                    </span>
+                    <span style={{ color: T.textMid }}>₹{row.entry_price?.toFixed(1)}</span>
+                    <span style={{ color: T.green }}>₹{row.target?.toFixed(1)}</span>
+                    <span style={{ color: T.red }}>₹{row.stop_loss?.toFixed(1)}</span>
+                    <span style={{ color: T.textMid }}>
+                      {row.exit_price ? `₹${row.exit_price.toFixed(1)}` : '—'}
+                    </span>
+                    <span style={{ color: clr(row.pnl_pct), fontWeight: row.pnl_pct ? 700 : 400 }}>
+                      {row.pnl_pct != null ? pct(row.pnl_pct) : '—'}
+                    </span>
+                    <StatusBadge status={row.status} />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -921,7 +925,7 @@ export default function PerformancePanel() {
               📓 PERSISTENT TRADING JOURNAL
             </h3>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: 24 }}>
               
               {/* Left Column: Form */}
               <form onSubmit={handleCreateJournal} style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10, padding: 18, display: 'flex', flexDirection: 'column', gap: 14, height: 'fit-content' }}>
