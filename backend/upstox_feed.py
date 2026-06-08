@@ -214,7 +214,7 @@ def get_historical_candles(symbol: str, period_or_range: str, interval: str) -> 
     
     if is_daily_or_longer:
         if period_or_range == "1mo":
-            days_back = 30
+            days_back = 90  # Fetch 90 days to ensure enough bars (~60 trading days) for indicator warm-up
         elif period_or_range == "3mo":
             days_back = 90
         elif period_or_range == "6mo":
