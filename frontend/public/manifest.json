@@ -1,0 +1,59 @@
+{
+  "name": "ApexTrade — NSE Intraday Signals",
+  "short_name": "ApexTrade",
+  "description": "Real-time NSE intraday trading signals, capital allocation, and market analysis",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#080a0f",
+  "background_color": "#080a0f",
+  "categories": ["finance", "business"],
+  "lang": "en-IN",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "ApexTrade Trading Terminal"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Signals",
+      "short_name": "Signals",
+      "description": "View today's NSE intraday signals",
+      "url": "/?view=signals",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Allocate Capital",
+      "short_name": "Allocate",
+      "description": "Get stock allocation for your capital",
+      "url": "/?view=allocate",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
