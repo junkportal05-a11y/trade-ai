@@ -2392,7 +2392,7 @@ export default function App() {
           ) : view === 'SIGNALS' ? (
             /* SIGNALS VIEW — full width */
             <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-              <SignalsPanel onSelectSymbol={handleSignalSelect} selectedSymbol={selected} prices={prices} />
+              <SignalsPanel onSelectSymbol={handleSignalSelect} selectedSymbol={selected} prices={prices} cash={cash} />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
                   {TABS.map(tab => (

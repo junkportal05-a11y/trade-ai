@@ -628,8 +628,8 @@ function FilterBar({ filter, onFilter, count }) {
   );
 }
 
-export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices }) {
-  const [capital, setCapital]   = useState('10000');
+export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, cash }) {
+  const [capital, setCapital]   = useState(cash ? String(cash) : '10000');
   const [selectedStyle, setSelectedStyle] = useState('Intraday Momentum');
   const [plan, setPlan]         = useState(null);
   const [loading, setLoading]   = useState(false);
