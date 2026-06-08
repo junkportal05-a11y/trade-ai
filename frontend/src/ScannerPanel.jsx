@@ -438,7 +438,7 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
 /* ═══════════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════════════════════ */
-export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices }) {
+export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, cash }) {
   /* ── Signal state ─────────────────────────────────────────────────────────── */
   const [signals, setSignals]     = useState([]);
   const [loading, setLoading]     = useState(false);
@@ -449,7 +449,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices })
   const abortRef = useRef(null);
 
   /* ── Capital / allocation state ───────────────────────────────────────────── */
-  const [capital, setCapital]     = useState('');
+  const [capital, setCapital]     = useState(cash ? String(cash) : '');
   const [allocPlan, setAllocPlan] = useState(null);
   const [allocLoading, setAllocLoading] = useState(false);
   const [allocElapsed, setAllocElapsed] = useState(0);
