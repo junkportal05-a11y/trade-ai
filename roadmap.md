@@ -16,7 +16,7 @@ All planned features organized by priority. Checkboxes are updated as items are 
 ## 🟡 High Value — This Week
 
 - [x] Migrate SQLite → Supabase PostgreSQL (Completed)
-- [ ] Add 30 more high-volatility NSE stocks to watchlist
+- [x] Add 30 more high-volatility NSE stocks to watchlist (Completed)
 - [ ] PWA install support (`manifest.json` + service worker)
 - [x] Fix mobile layout — 3-column breaks on screens < 768px (Completed)
 - [ ] Cache AI chat recommendations per symbol (currently re-fetches every symbol switch)
