@@ -32,7 +32,13 @@ const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', 
 
 const WATCHLIST = [
   'HAL.NS', 'BEL.NS', 'RVNL.NS', 'IREDA.NS', 'HUDCO.NS',
-  'COALINDIA.NS', 'NHPC.NS', 'ADANIPORTS.NS', 'TATAPOWER.NS', 'BHEL.NS'
+  'COALINDIA.NS', 'NHPC.NS', 'ADANIPORTS.NS', 'TATAPOWER.NS', 'BHEL.NS',
+  'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS',
+  'SBIN.NS', 'TATAMOTORS.NS', 'BHARTIARTEL.NS', 'ITC.NS', 'LT.NS',
+  'ADANIENT.NS', 'ADANIPOWER.NS', 'IRFC.NS', 'PFC.NS', 'REC.NS',
+  'ZOMATO.NS', 'TATASTEEL.NS', 'SAIL.NS', 'WIPRO.NS', 'JIOFIN.NS',
+  'SJVN.NS', 'GMRINFRA.NS', 'NBCC.NS', 'JINDALSTEL.NS', 'JSWSTEEL.NS',
+  'HINDALCO.NS', 'BPCL.NS', 'IOC.NS', 'ONGC.NS', 'NTPC.NS'
 ];
 
 export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS', onSelectSymbol, onViewChange }) {
