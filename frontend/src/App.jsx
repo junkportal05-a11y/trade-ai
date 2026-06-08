@@ -2003,11 +2003,11 @@ export default function App() {
 
 
   // Mobile Responsiveness State
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 800);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 960);
   const [mobileTab, setMobileTab] = useState('CHART'); // 'WATCHLIST' | 'CHART' | 'SIGNALS' | 'ORDER' | 'PORTFOLIO' | 'AI'
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 800);
+    const handleResize = () => setIsMobile(window.innerWidth <= 960);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -2438,7 +2438,7 @@ export default function App() {
           ) : view === 'PERFORMANCE' ? (
             /* PERFORMANCE VIEW — full width */
             <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-              <PerformancePanel />
+              <PerformancePanel isMobile={isMobile} />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
                   {TABS.map(tab => (
