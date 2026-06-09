@@ -867,6 +867,108 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
           </div>
         )}
 
+        {!plan && !loading && !error && (
+          <div style={{
+            background: T.panel,
+            border: `1px solid ${T.border}`,
+            borderRadius: 12,
+            padding: '36px 24px',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 16,
+            maxWidth: 580,
+            margin: '32px auto',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          }}>
+            <div style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: 'rgba(77, 166, 255, 0.08)',
+              border: `1px solid rgba(77, 166, 255, 0.2)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 22,
+              animation: 'pulse 2s infinite'
+            }}>
+              📡
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.05em' }}>
+                QUANT SCANNER READY
+              </h3>
+              <p style={{ fontSize: 10.5, color: T.textMid, lineHeight: 1.6, maxWidth: 420, margin: '0 auto' }}>
+                Analyze the market universe in real-time. Enter your available trading capital above to calculate optimized position sizes and risk parameters.
+              </p>
+            </div>
+
+            <div style={{
+              width: '100%',
+              maxWidth: 420,
+              background: T.surface,
+              border: `1px solid ${T.border}`,
+              borderRadius: 8,
+              padding: '12px 16px',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8
+            }}>
+              <div style={{ fontSize: 8.5, color: T.textDim, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.08em' }}>
+                CORE SCANNING ENGINES
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ color: T.green, fontSize: 10 }}>✓</span>
+                <span style={{ fontSize: 10, color: T.textMid }}>
+                  <strong>Technical Indicators:</strong> Real-time checks for EMA crossovers, ADX choppiness gating, and RSI extremes.
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ color: T.green, fontSize: 10 }}>✓</span>
+                <span style={{ fontSize: 10, color: T.textMid }}>
+                  <strong>Price Action (PDF SMC):</strong> Verification of Engulfing patterns, Hammers, structural Break of Structure (BOS), and Change of Character (CHoCH).
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ color: T.green, fontSize: 10 }}>✓</span>
+                <span style={{ fontSize: 10, color: T.textMid }}>
+                  <strong>Risk Control:</strong> Dynamic ATR-based Stop Loss buffers and custom 1-2% capital exposure limits.
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={runScanAndAllocate}
+              className="smooth-button"
+              style={{
+                padding: '10px 24px',
+                borderRadius: 8,
+                border: 'none',
+                background: T.accent,
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: 11,
+                letterSpacing: '0.08em',
+                cursor: 'pointer',
+                fontFamily: "'IBM Plex Mono', monospace",
+                boxShadow: `0 4px 14px ${T.accent}40`,
+                transition: 'all 0.2s'
+              }}
+            >
+              RUN MARKET SCAN
+            </button>
+            
+            <p style={{ fontSize: 8.5, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>
+              *Scans analyze high-volatility NSE listings and run in 5-15 seconds.
+            </p>
+          </div>
+        )}
+
         {plan && !loading && (
           <>
             {/* Portfolio target allocation profit header */}
