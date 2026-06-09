@@ -497,7 +497,7 @@ function TickerBar({ prices }) {
       {/* fade edges */}
       <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 40, background: `linear-gradient(90deg,${T.surface},transparent)`, zIndex: 1, pointerEvents: 'none' }} />
       <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 40, background: `linear-gradient(270deg,${T.surface},transparent)`, zIndex: 1, pointerEvents: 'none' }} />
-      <div style={{ display: 'flex', gap: 0, padding: '0 40px', animation: 'marquee 50s linear infinite', whiteSpace: 'nowrap' }}>
+      <div style={{ display: 'flex', gap: 0, padding: '0 40px', animation: 'marquee 120s linear infinite', whiteSpace: 'nowrap' }}>
         {[...symbols, ...symbols].map((sym, i) => {
           const p = prices[sym];
           const price = p?.price ?? SEED_PRICES[sym] ?? 0;
