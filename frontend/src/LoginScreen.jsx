@@ -38,7 +38,7 @@ export default function LoginScreen({ onLogin }) {
     setLoading(true);
 
     try {
-      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const BASE_URL = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
       const res = await fetch(`${BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

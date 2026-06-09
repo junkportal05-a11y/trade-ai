@@ -1072,7 +1072,7 @@ function ChatPanel({ symbol, price, changePct }) {
     setMsgs(m => [...m, { role: 'user', text: userMsg }]);
     setBusy(true);
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: {
@@ -1683,7 +1683,7 @@ export default function App() {
 
   // Warm up backend in the background as soon as the app mounts (during login screen presentation)
   useEffect(() => {
-    const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    const BASE_URL = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
     fetch(`${BASE_URL}/`).catch(() => {});
   }, []);
 
@@ -1761,7 +1761,7 @@ export default function App() {
 
   const fetchMarketBrief = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
     const token = sessionStorage.getItem('apt_token') || '';
     setLoadingBrief(true);
     fetch(`${API_BASE}/api/market_brief`, {
@@ -1779,7 +1779,7 @@ export default function App() {
 
   const fetchPredictionStats = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
     const token = sessionStorage.getItem('apt_token') || '';
     fetch(`${API_BASE}/api/predictions/stats`, {
       headers: { 'X-Session-Token': token }
@@ -1869,7 +1869,7 @@ export default function App() {
     if (!loggedIn) return;
     try {
       const token = sessionStorage.getItem('apt_token') || '';
-      const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
       const res = await fetch(`${API_BASE}/api/predictions`, {
         headers: { 'X-Session-Token': token }
       });
@@ -1895,7 +1895,7 @@ export default function App() {
   useEffect(() => {
     if (!loggedIn || pendingPredictions.length === 0) return;
 
-    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
 
     pendingPredictions.forEach(async (pred) => {
       if (resolvingIds.current.has(pred.id)) return;
@@ -1978,7 +1978,7 @@ export default function App() {
     
     const timer = setTimeout(async () => {
       try {
-        const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+        const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
         const cleanedSymbol = selected.replace('.NS', '');
         const currentPrices = pricesRef.current || {};
         const livePrice = currentPrices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
