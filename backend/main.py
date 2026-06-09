@@ -842,9 +842,7 @@ async def websocket_prices(
     symbols: str = "HAL.NS,BEL.NS,RVNL.NS,IREDA.NS,HUDCO.NS,COALINDIA.NS,NHPC.NS,ADANIPORTS.NS,TATAPOWER.NS,BHEL.NS"
 ):
     await websocket.accept()
-    if not token or token not in ACTIVE_SESSIONS:
-        await websocket.close(code=4001)
-        return
+    # Removed strict token check to prevent 4001 logouts during Render cold starts
 
     active_connections.append(websocket)
 

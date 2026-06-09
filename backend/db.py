@@ -561,8 +561,8 @@ def save_upstox_token(token: str, raw: dict = None):
         """)
         c.execute("""
             INSERT OR REPLACE INTO app_settings (key, value, updated_at)
-            VALUES ('upstox_token', ?, ?)
-        """, (json.dumps({"access_token": token, **(raw or {})}), _now_ist()))
+            VALUES (?, ?, ?)
+        """, ('upstox_token', json.dumps({"access_token": token, **(raw or {})}), _now_ist()))
         c.commit()
 
 def get_upstox_token() -> Optional[str]:
