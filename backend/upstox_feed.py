@@ -186,24 +186,34 @@ def get_historical_candles(symbol: str, period_or_range: str, interval: str) -> 
     # Upstox supports: 1minute, 5minute, 10minute, 15minute, 30minute, 60minute, day, week, month
     if interval in ("1m", "1min", "1minute"):
         mapped_int = "1minute"
+        resample_rule = None
     elif interval in ("5m", "5min", "5minute"):
-        mapped_int = "5minute"
+        mapped_int = "1minute"
+        resample_rule = "5min"
     elif interval in ("10m", "10min", "10minute"):
-        mapped_int = "10minute"
+        mapped_int = "1minute"
+        resample_rule = "10min"
     elif interval in ("15m", "15min", "15minute"):
-        mapped_int = "15minute"
+        mapped_int = "1minute"
+        resample_rule = "15min"
     elif interval in ("30m", "30min", "30minute"):
         mapped_int = "30minute"
+        resample_rule = None
     elif interval in ("1h", "60m", "60min", "60minute", "1hour"):
-        mapped_int = "60minute"
+        mapped_int = "1minute"
+        resample_rule = "60min"
     elif interval in ("1d", "day", "1day"):
         mapped_int = "day"
+        resample_rule = None
     elif interval in ("1wk", "week", "1week", "wk"):
         mapped_int = "week"
+        resample_rule = None
     elif interval in ("1mo", "month", "1month", "mo"):
         mapped_int = "month"
+        resample_rule = None
     else:
         mapped_int = "day"
+        resample_rule = None
     
     # Calculate date range
     to_dt = datetime.now(timezone.utc)
@@ -270,6 +280,17 @@ def get_historical_candles(symbol: str, period_or_range: str, interval: str) -> 
                     "Close": float,
                     "Volume": float
                 })
+                
+                if resample_rule:
+                    df = df.resample(resample_rule).agg({
+                        "Open": "first",
+                        "High": "max",
+                        "Low": "min",
+                        "Close": "last",
+                        "Volume": "sum",
+                        "OI": "last"
+                    }).dropna(subset=["Open"])
+                    
                 return df
         print(f"[Upstox Candles] Fetch failed ({r.status_code}): {r.text}")
     except Exception as e:
