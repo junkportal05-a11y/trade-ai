@@ -1807,6 +1807,8 @@ export default function App() {
   // AI Analyst embedded card states
   const [aiRecommendation, setAiRecommendation] = useState('');
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
+  const aiRecommendationCache = useRef({});
+  const lastRefreshRef = useRef(0);
 
   // Toast notifications state
   const [toasts, setToasts] = useState([]);
@@ -1960,6 +1962,16 @@ export default function App() {
   // Embedded AI Analyst Recommendation Fetch Effect
   useEffect(() => {
     if (!selected || !loggedIn || view !== 'CHART') return;
+
+    const isManualRefresh = refreshAnalystToken !== lastRefreshRef.current;
+    lastRefreshRef.current = refreshAnalystToken;
+
+    if (aiRecommendationCache.current[selected] && !isManualRefresh) {
+      setAiRecommendation(aiRecommendationCache.current[selected]);
+      setAiRecommendationLoading(false);
+      return;
+    }
+
     let active = true;
     setAiRecommendationLoading(true);
     setAiRecommendation('');
@@ -1987,14 +1999,19 @@ export default function App() {
         if (res.ok && active) {
           const data = await res.json();
           setAiRecommendation(data.reply);
+          aiRecommendationCache.current[selected] = data.reply;
         } else if (active) {
-          setAiRecommendation(`RSI and moving averages suggest neutral-to-bullish momentum for ${cleanedSymbol}. Set key support levels at ₹${(livePrice * 0.98).toFixed(1)}.`);
+          const fallbackVal = `RSI and moving averages suggest neutral-to-bullish momentum for ${cleanedSymbol}. Set key support levels at ₹${(livePrice * 0.98).toFixed(1)}.`;
+          setAiRecommendation(fallbackVal);
+          aiRecommendationCache.current[selected] = fallbackVal;
         }
       } catch (err) {
         if (active) {
           const currentPrices = pricesRef.current || {};
           const livePrice = currentPrices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
-          setAiRecommendation(`Support pivot found around ₹${(livePrice * 0.97).toFixed(1)} with overhead resistance at ₹${(livePrice * 1.03).toFixed(1)}.`);
+          const fallbackVal = `Support pivot found around ₹${(livePrice * 0.97).toFixed(1)} with overhead resistance at ₹${(livePrice * 1.03).toFixed(1)}.`;
+          setAiRecommendation(fallbackVal);
+          aiRecommendationCache.current[selected] = fallbackVal;
         }
       } finally {
         if (active) setAiRecommendationLoading(false);
