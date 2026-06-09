@@ -53,17 +53,10 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
         if (res.ok) {
           const data = await res.json();
           setUpstoxStatus(data);
-        } else {
-          setUpstoxStatus({
-            authorized: false,
-            api_key_configured: false,
-            redirect_uri_configured: false,
-            updated_at: null,
-            user_name: null
-          });
         }
       } catch (e) {
         console.error("Failed to fetch Upstox status:", e);
+      } finally {
         setUpstoxStatus({
           authorized: false,
           api_key_configured: false,
@@ -71,7 +64,6 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
           updated_at: null,
           user_name: null
         });
-      } finally {
         setLoadingStatus(false);
       }
     };
