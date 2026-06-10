@@ -48,7 +48,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "X-Session-Token", "X-Admin-Key"],
 )
 
 from auth_helpers import (
@@ -88,13 +88,10 @@ class LoginRequest(BaseModel):
 @limiter.limit("10/minute")
 async def login(req: LoginRequest, request: Request):
     u = req.username.strip()
-    print(f"[LOGIN DEBUG] Request received! username='{u}', password_length={len(req.password)}")
     user_obj = authenticate_user(u, req.password)
     if not user_obj:
-        print(f"[LOGIN DEBUG] Failed authentication. Target hash exists? {u in USER_REGISTRY}")
         raise HTTPException(status_code=401, detail="Invalid username or password")
     
-    print(f"[LOGIN DEBUG] Success! Generating token.")
     token = create_session(u)
     return {
         "token": token,
@@ -842,7 +839,15 @@ async def websocket_prices(
     symbols: str = "HAL.NS,BEL.NS,RVNL.NS,IREDA.NS,HUDCO.NS,COALINDIA.NS,NHPC.NS,ADANIPORTS.NS,TATAPOWER.NS,BHEL.NS"
 ):
     await websocket.accept()
-    # Removed strict token check to prevent 4001 logouts during Render cold starts
+
+    # Validate session token — soft check (warn but allow during cold starts)
+    if token and token.startswith("apt_"):
+        if token not in ACTIVE_SESSIONS:
+            import logging
+            logging.warning(f"[WS] Token not found in active sessions (may be stale after restart)")
+    elif not token:
+        import logging
+        logging.warning("[WS] No token provided — anonymous WebSocket connection")
 
     active_connections.append(websocket)
 

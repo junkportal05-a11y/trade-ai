@@ -125,7 +125,7 @@ const clr  = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
 const sign = (v) => v > 0 ? '+' : '';
 
 // ── Candlestick Chart (with volume and indicators) ────────────────────────
-function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate }) {
+function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [] }) {
   const mainContainerRef = useRef();
   const rsiContainerRef = useRef();
   const macdContainerRef = useRef();
@@ -190,6 +190,14 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     candleSeries.setData(bars);
     candleSeriesRef.current = candleSeries;
 
+    mainChart.subscribeClick((param) => {
+      if (!param.point || !drawMode) return;
+      const price = candleSeries.coordinateToPrice(param.point.y);
+      if (price !== null && onDrawComplete) {
+        onDrawComplete({ price, type: drawMode, id: Date.now() });
+      }
+    });
+
     // Volume histogram on main chart
     const volSeries = mainChart.addSeries(HistogramSeries, {
       priceFormat:  { type: 'volume' },
@@ -250,6 +258,18 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       bbMidSeries.setData(bbData.middle);
       bbDownSeries.setData(bbData.lower);
     }
+
+    // Custom Drawing Lines
+    customLines.forEach(line => {
+      candleSeries.createPriceLine({
+        price: line.price,
+        color: line.type === 'SUPPORT' ? T.green : T.red,
+        lineWidth: 2,
+        lineStyle: 1, // solid
+        axisLabelVisible: true,
+        title: line.type === 'SUPPORT' ? 'SUP' : 'RES',
+      });
+    });
 
     const targets = [];
 
@@ -1189,17 +1209,17 @@ function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, c
         ◈ APEXTRADE
       </div>
 
-      {/* View switcher — CHART | SIGNALS | PREDICTIONS | PERFORMANCE | ACCOUNT (Hidden on Mobile) */}
+      {/* View switcher — CHART | SIGNALS | PREDICTIONS | PERFORMANCE | JOURNAL | ACCOUNT (Hidden on Mobile) */}
       {!isMobile && (
         <div style={{ display: 'flex', background: T.bg, borderRadius: 6, padding: 2, border: `1px solid ${T.border}`, flexShrink: 0 }}>
-          {[['HOME', '🏠'], ['CHART', '📈'], ['SIGNALS', '📡'], ['PREDICTIONS', '🔮 PREDICT'], ['PERFORMANCE', '📊'], ['ACCOUNT', '🛡️ SECURITY']].map(([v, icon]) => (
+          {[['HOME', '🏠'], ['CHART', '📈'], ['SIGNALS', '📡'], ['PREDICTIONS', '🔮 PREDICT'], ['PERFORMANCE', '📊'], ['JOURNAL', '📓'], ['ACCOUNT', '🛡️ SECURITY']].map(([v, icon]) => (
             <button key={v} onClick={() => onViewChange(v)} style={{
               padding: '4px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
               background: view === v 
-                ? (v === 'SIGNALS' ? T.accentDim : v === 'PERFORMANCE' ? T.greenDim : v === 'ACCOUNT' ? T.accentDim : v === 'PREDICTIONS' ? T.goldDim : T.blueDim) 
+                ? (v === 'SIGNALS' ? T.accentDim : v === 'PERFORMANCE' ? T.greenDim : v === 'ACCOUNT' ? T.accentDim : v === 'PREDICTIONS' ? T.goldDim : v === 'JOURNAL' ? T.blueDim : T.blueDim) 
                 : 'transparent',
               color: view === v 
-                ? (v === 'SIGNALS' ? T.accentAlt : v === 'PERFORMANCE' ? T.green : v === 'ACCOUNT' ? T.accentAlt : v === 'PREDICTIONS' ? T.gold : T.accent) 
+                ? (v === 'SIGNALS' ? T.accentAlt : v === 'PERFORMANCE' ? T.green : v === 'ACCOUNT' ? T.accentAlt : v === 'PREDICTIONS' ? T.gold : v === 'JOURNAL' ? T.blue : T.accent) 
                 : T.textDim,
               fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
               fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
@@ -1663,7 +1683,7 @@ function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, pri
 }
 
 // ── Bottom Tab Bar (mobile-friendly) ─────────────────────────────────────────
-const TABS = ['HOME', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'ACCOUNT'];
+const TABS = ['HOME', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
@@ -1691,6 +1711,17 @@ export default function App() {
   const [selected, setSelected] = useState('HAL.NS');
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
   const [rightTab, setRightTab] = useState('TRADE');
+  
+  const [drawMode, setDrawMode] = useState(null); // 'SUPPORT' | 'RESISTANCE' | null
+  const [chartLines, setChartLines] = useState({}); // { 'AAPL.NS': [{price, type, id}] }
+  
+  const handleDrawComplete = useCallback((line) => {
+    setChartLines(prev => ({
+      ...prev,
+      [selected]: [...(prev[selected] || []), line]
+    }));
+    setDrawMode(null); // auto-turn off drawing mode after 1 click
+  }, [selected]);
   
   // Server warming/cold start splash page state
   const [serverWarming, setServerWarming] = useState(() => localStorage.getItem('apex_splash_shown') === null);
@@ -1728,6 +1759,70 @@ export default function App() {
     return sum + (price * pos.shares);
   }, 0);
   const netWorth = totalStockValue + cash;
+
+  // ── Keyboard Shortcuts ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'b' || e.key === 'B') {
+        setView('HOME');
+      } else if (e.key === 's' || e.key === 'S') {
+        setView('HOME');
+      } else if (e.key >= '1' && e.key <= '6') {
+        const idx = parseInt(e.key) - 1;
+        if (idx < INTERVALS.length) {
+          setIvIdx(idx);
+          setView('CHART');
+        }
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        const currentIndex = DEFAULT_WATCHLIST.findIndex(w => w.symbol === selected);
+        const nextIndex = (currentIndex + 1) % DEFAULT_WATCHLIST.length;
+        setSelected(DEFAULT_WATCHLIST[nextIndex].symbol);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selected]);
+
+  // ── Morning Brief ───────────────────────────────────────────────────────────
+  const [showBriefModal, setShowBriefModal] = useState(false);
+  const [morningSignals, setMorningSignals] = useState([]);
+  
+  useEffect(() => {
+    const checkMorningBrief = () => {
+      const now = new Date();
+      const istTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+      const hours = istTime.getHours();
+      const minutes = istTime.getMinutes();
+      
+      const todayStr = istTime.toDateString();
+      const lastShown = localStorage.getItem('last_morning_brief');
+      
+      if (lastShown !== todayStr && (hours > 9 || (hours === 9 && minutes >= 15))) {
+        // Market is open or opened already today
+        const token = sessionStorage.getItem('apt_token') || '';
+        fetch(`${import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com"}/api/scan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Session-Token': token },
+          body: JSON.stringify({ symbols: DEFAULT_WATCHLIST.map(w=>w.symbol), interval: '15m', capital: cash })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.signals) {
+            setMorningSignals(data.signals.slice(0, 3));
+            setShowBriefModal(true);
+            localStorage.setItem('last_morning_brief', todayStr);
+          }
+        }).catch(err => console.error("Morning brief scan failed", err));
+      }
+    };
+    
+    checkMorningBrief();
+    const t = setInterval(checkMorningBrief, 60000);
+    return () => clearInterval(t);
+  }, [cash]);
 
   const totalCost = portfolio.reduce((sum, pos) => {
     return sum + (pos.avgCost * pos.shares);
@@ -2440,7 +2535,7 @@ export default function App() {
                       borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
                       marginTop: -1
                     }}>
-                      {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'PERFORMANCE' ? '📊 PERF' : '🛡️ SEC'}
+                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
                     </button>
                   ))}
                 </div>
@@ -2463,7 +2558,7 @@ export default function App() {
                       borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
                       marginTop: -1
                     }}>
-                      {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'PERFORMANCE' ? '📊 PERF' : '🛡️ SEC'}
+                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
                     </button>
                   ))}
                 </div>
@@ -2486,7 +2581,7 @@ export default function App() {
                       borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
                       marginTop: -1
                     }}>
-                      {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'PERFORMANCE' ? '📊 PERF' : '🛡️ SEC'}
+                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
                     </button>
                   ))}
                 </div>
@@ -2509,7 +2604,30 @@ export default function App() {
                       borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
                       marginTop: -1
                     }}>
-                      {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'PERFORMANCE' ? '📊 PERF' : '🛡️ SEC'}
+                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : view === 'JOURNAL' ? (
+            /* JOURNAL VIEW — full width */
+            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              <JournalPanel />
+              {isMobile && (
+                <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                  {TABS.map(tab => (
+                    <button key={tab} onClick={() => setView(tab)} style={{
+                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
+                      background: 'transparent',
+                      color: view === tab ? T.accent : T.textDim,
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                      fontFamily: "'Inter', sans-serif",
+                      transition: 'all 0.2s',
+                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
+                      marginTop: -1
+                    }}>
+                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
                     </button>
                   ))}
                 </div>
@@ -2536,7 +2654,7 @@ export default function App() {
                       borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
                       marginTop: -1
                     }}>
-                      {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'PERFORMANCE' ? '📊 PERF' : '🛡️ SEC'}
+                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
                     </button>
                   ))}
                 </div>
@@ -2603,6 +2721,24 @@ export default function App() {
                               }}>{label}</button>
                             );
                           })}
+                          
+                          <div style={{ width: 1, height: 16, background: T.border, margin: '0 4px', flexShrink: 0 }} />
+                          
+                          <button onClick={() => setDrawMode(drawMode === 'SUPPORT' ? null : 'SUPPORT')} style={{
+                            padding: '4px 8px', border: `1px solid ${drawMode === 'SUPPORT' ? T.green : T.border}`,
+                            borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
+                            background: drawMode === 'SUPPORT' ? T.greenDim : 'transparent',
+                            color: drawMode === 'SUPPORT' ? T.green : T.textDim,
+                            fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
+                          }}>DRAW SUPPORT</button>
+                          
+                          <button onClick={() => setDrawMode(drawMode === 'RESISTANCE' ? null : 'RESISTANCE')} style={{
+                            padding: '4px 8px', border: `1px solid ${drawMode === 'RESISTANCE' ? T.red : T.border}`,
+                            borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
+                            background: drawMode === 'RESISTANCE' ? T.redDim : 'transparent',
+                            color: drawMode === 'RESISTANCE' ? T.red : T.textDim,
+                            fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
+                          }}>DRAW RESIST</button>
                         </div>
                         {/* Chart */}
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -2615,6 +2751,9 @@ export default function App() {
                             livePrice={prices[selected]}
                             markers={tradeMarkers[selected] || []}
                             onLastBarUpdate={handleLastBarUpdate}
+                            drawMode={drawMode}
+                            onDrawComplete={handleDrawComplete}
+                            customLines={chartLines[selected] || []}
                           />
                         </div>
                         {/* Embedded AI Analyst Card */}
@@ -2853,6 +2992,37 @@ export default function App() {
             </>
           )}
         </div>
+        
+        {/* Morning Brief Modal */}
+        {showBriefModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}>
+            <div style={{ background: T.surface, padding: 30, borderRadius: 12, border: `1px solid ${T.accent}`, width: '100%', maxWidth: 500, display: 'flex', flexDirection: 'column', gap: 20, boxShadow: `0 0 40px ${T.accentDim}` }}>
+              <div>
+                <h2 style={{ margin: 0, color: T.text, fontFamily: "'IBM Plex Mono', monospace", fontSize: 18 }}>🌅 MORNING MARKET BRIEF</h2>
+                <div style={{ color: T.textMid, fontSize: 12, marginTop: 4 }}>Top 3 algorithmic signals for today's open.</div>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {morningSignals.length === 0 ? (
+                  <div style={{ color: T.textMid, fontSize: 13, textAlign: 'center', padding: 20 }}>No high-confidence signals found at open.</div>
+                ) : morningSignals.map((s, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: 16, background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 8 }}>
+                    <div>
+                      <div style={{ color: T.text, fontWeight: 'bold', fontFamily: "'IBM Plex Mono', monospace" }}>{s.symbol}</div>
+                      <div style={{ color: s.action === 'BUY' ? T.green : T.red, fontSize: 12, fontWeight: 'bold' }}>{s.action} @ ₹{fmt(s.current_price)}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ color: T.textMid, fontSize: 11 }}>Target: <span style={{color: T.text}}>₹{fmt(s.target)}</span></div>
+                      <div style={{ color: T.textMid, fontSize: 11 }}>Stop: <span style={{color: T.text}}>₹{fmt(s.stop_loss)}</span></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <button onClick={() => setShowBriefModal(false)} style={{ background: T.accent, color: '#fff', border: 'none', padding: '12px', borderRadius: 6, fontWeight: 'bold', cursor: 'pointer', fontFamily: "'IBM Plex Mono', monospace", marginTop: 10 }}>ACKNOWLEDGE</button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

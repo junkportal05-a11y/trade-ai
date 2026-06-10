@@ -641,24 +641,57 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
   );
 }
 
-function FilterBar({ filter, onFilter, count }) {
+function FilterBar({ filter, onFilter, count, sectorFilter, onSectorFilter, minConf, onMinConf, minRR, onMinRR, availableSectors }) {
   const filters = ['ALL', 'BUY', 'WEAK BUY', 'HOLD', 'WEAK SELL', 'SELL'];
   return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '10px 16px', borderBottom: `1px solid ${T.border}`, alignItems: 'center' }}>
-      {filters.map(f => {
-        const cfg = f === 'ALL' ? { color: T.accent, bg: T.accentDim } : (SIGNAL_CFG[f] || { color: T.textMid, bg: 'transparent' });
-        const active = filter === f;
-        return (
-          <button key={f} className="smooth-button" onClick={() => onFilter(f)} style={{
-            padding: '4px 10px', borderRadius: 4, border: `1px solid ${active ? cfg.color + '60' : T.border}`,
-            background: active ? cfg.bg : 'transparent', color: active ? cfg.color : T.textDim,
-            fontSize: 9, fontWeight: 700, cursor: 'pointer', ...mono, letterSpacing: '0.06em',
-            transition: 'all 0.15s',
-          }}>
-            {f === 'ALL' ? `ALL (${count})` : f}
-          </button>
-        );
-      })}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 16px', borderBottom: `1px solid ${T.border}` }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        {filters.map(f => {
+          const cfg = f === 'ALL' ? { color: T.accent, bg: T.accentDim } : (SIGNAL_CFG[f] || { color: T.textMid, bg: 'transparent' });
+          const active = filter === f;
+          return (
+            <button key={f} className="smooth-button" onClick={() => onFilter(f)} style={{
+              padding: '4px 10px', borderRadius: 4, border: `1px solid ${active ? cfg.color + '60' : T.border}`,
+              background: active ? cfg.bg : 'transparent', color: active ? cfg.color : T.textDim,
+              fontSize: 9, fontWeight: 700, cursor: 'pointer', ...mono, letterSpacing: '0.06em',
+              transition: 'all 0.15s',
+            }}>
+              {f === 'ALL' ? `ALL (${count})` : f}
+            </button>
+          );
+        })}
+      </div>
+      
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 9, color: T.textMid, ...mono }}>SECTOR:</span>
+          <select value={sectorFilter} onChange={e => onSectorFilter(e.target.value)} style={{ padding: '2px 6px', fontSize: 10, ...mono, background: T.bg, color: T.text, border: `1px solid ${T.borderHi}`, borderRadius: 4 }}>
+            <option value="ALL">ALL SECTORS</option>
+            {availableSectors.map(sec => <option key={sec} value={sec}>{sec.toUpperCase()}</option>)}
+          </select>
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 9, color: T.textMid, ...mono }}>MIN CONF:</span>
+          <select value={minConf} onChange={e => onMinConf(parseInt(e.target.value))} style={{ padding: '2px 6px', fontSize: 10, ...mono, background: T.bg, color: T.text, border: `1px solid ${T.borderHi}`, borderRadius: 4 }}>
+            <option value={0}>ANY %</option>
+            <option value={60}>&gt; 60%</option>
+            <option value={75}>&gt; 75%</option>
+            <option value={85}>&gt; 85%</option>
+            <option value={95}>&gt; 95%</option>
+          </select>
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 9, color: T.textMid, ...mono }}>MIN R:R:</span>
+          <select value={minRR} onChange={e => onMinRR(parseFloat(e.target.value))} style={{ padding: '2px 6px', fontSize: 10, ...mono, background: T.bg, color: T.text, border: `1px solid ${T.borderHi}`, borderRadius: 4 }}>
+            <option value={0}>ANY R:R</option>
+            <option value={1.5}>&gt; 1:1.5</option>
+            <option value={2.0}>&gt; 1:2.0</option>
+            <option value={3.0}>&gt; 1:3.0</option>
+          </select>
+        </div>
+      </div>
     </div>
   );
 }
@@ -671,6 +704,9 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
   const [elapsed, setElapsed]   = useState(0);
   const [error, setError]       = useState(null);
   const [filter, setFilter]     = useState('ALL');
+  const [sectorFilter, setSectorFilter] = useState('ALL');
+  const [minConf, setMinConf]   = useState(0);
+  const [minRR, setMinRR]       = useState(0);
   const [nextScan, setNextScan] = useState(null);
   const timerRef = useRef(null);
   const abortRef = useRef(null);
@@ -750,7 +786,21 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
 
   const displayAmt = parseFloat(capital.replace(/,/g, '')) || 0;
   const signals = plan?.all_signals || [];
-  const filtered = filter === 'ALL' ? signals : signals.filter(s => s.signal === filter);
+  
+  const availableSectors = [...new Set(signals.map(s => s.sector || 'Unknown'))].sort();
+  
+  const filtered = signals.filter(s => {
+    if (filter !== 'ALL' && s.signal !== filter) return false;
+    if (sectorFilter !== 'ALL' && (s.sector || 'Unknown') !== sectorFilter) return false;
+    if (s.confidence < minConf) return false;
+    
+    const rr = (s.target && s.stop_loss && s.current_price && Math.abs(s.current_price - s.stop_loss) > 0) 
+      ? Math.abs((s.target - s.current_price) / (s.current_price - s.stop_loss)) 
+      : 0;
+      
+    if (rr < minRR) return false;
+    return true;
+  });
 
   const buys  = signals.filter(s => s.signal === 'BUY' || s.signal === 'WEAK BUY').length;
   const sells = signals.filter(s => s.signal === 'SELL' || s.signal === 'WEAK SELL').length;
@@ -1012,7 +1062,13 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
             </div>
 
             {/* Filter Bar */}
-            <FilterBar filter={filter} onFilter={setFilter} count={filtered.length} />
+            <FilterBar 
+              filter={filter} onFilter={setFilter} count={filtered.length} 
+              sectorFilter={sectorFilter} onSectorFilter={setSectorFilter}
+              minConf={minConf} onMinConf={setMinConf}
+              minRR={minRR} onMinRR={setMinRR}
+              availableSectors={availableSectors}
+            />
 
             {/* List of cards */}
             {filtered.length === 0 ? (
