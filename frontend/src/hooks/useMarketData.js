@@ -36,7 +36,10 @@ export function useQuote(symbol) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${BASE_URL}/api/quote?symbol=${symbol}`);
+      const token = sessionStorage.getItem('apt_token') || '';
+      const res = await fetch(`${BASE_URL}/api/quote?symbol=${symbol}`, {
+        headers: { "X-Session-Token": token }
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData(await res.json());
     } catch (e) {
@@ -68,8 +71,11 @@ export function useHistory(symbol, { interval = "1d", range = "3mo", seedPrice =
       setLoading(true);
       setError(null);
       try {
+        const token = sessionStorage.getItem('apt_token') || '';
         const url = `${BASE_URL}/api/history?symbol=${symbol}&interval=${interval}&range=${range}`;
-        const res = await fetch(url);
+        const res = await fetch(url, {
+          headers: { "X-Session-Token": token }
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         if (!cancelled) {
