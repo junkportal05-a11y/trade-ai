@@ -1707,7 +1707,14 @@ export default function App() {
     fetch(`${BASE_URL}/`).catch(() => {});
   }, []);
 
-  const [view, setView]         = useState('HOME');   // 'HOME' is default now
+  const [view, setView]         = useState(() => {
+    const pathname = window.location.pathname.toLowerCase();
+    if (pathname.includes('/account') || pathname.endsWith('account')) {
+      return 'ACCOUNT';
+    }
+    return 'HOME';
+  });   // 'HOME' is default now, but routing-aware
+
   const [selected, setSelected] = useState('HAL.NS');
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
   const [rightTab, setRightTab] = useState('TRADE');
