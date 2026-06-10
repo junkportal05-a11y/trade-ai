@@ -511,6 +511,11 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
             <span style={{ fontSize: 9, color: T.textDim, background: T.surface, padding: '2px 6px', borderRadius: 3, border: `1px solid ${T.border}` }}>
               {sig.sector}
             </span>
+            {sig.top_pattern && (
+              <span style={{ fontSize: 9, color: T.gold, background: T.goldDim, padding: '2px 6px', borderRadius: 3, border: `1px solid ${T.gold}40`, ...mono, fontWeight: 700 }}>
+                📊 {sig.top_pattern}
+              </span>
+            )}
           </div>
           <div style={{ fontSize: 10, color: T.textDim, marginTop: 2 }}>{sig.name}</div>
         </div>
