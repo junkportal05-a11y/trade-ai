@@ -363,6 +363,66 @@ async def get_signals(
     }
 
 
+class ScanRequest(BaseModel):
+    symbols: List[str]
+    interval: str = "15m"
+    capital: float = 100000.0
+    trading_style: str = "Intraday Momentum"
+    risk_level: str = "Medium"
+    market_segment: str = "NSE"
+
+
+@app.post("/api/scan")
+@limiter.limit("5/minute")
+async def post_scan(
+    req: ScanRequest,
+    request: Request,
+    _=Depends(require_session)
+):
+    """
+    Scans a list of symbols and returns ranked intraday signals (POST alternative).
+    """
+    loop = asyncio.get_event_loop()
+    
+    # Map raw symbol strings to NSE_WATCHLIST structure
+    wl_map = {w["symbol"]: w for w in sig_engine.NSE_WATCHLIST}
+    watchlist = [wl_map.get(s.upper(), {"symbol": s.upper(), "name": s.upper().replace(".NS", ""), "sector": "NSE"}) for s in req.symbols]
+
+    import functools
+    try:
+        results = await asyncio.wait_for(
+            loop.run_in_executor(
+                _executor,
+                functools.partial(
+                    sig_engine.run_scan, 
+                    watchlist,
+                    req.interval,
+                    req.trading_style,
+                    req.risk_level,
+                    req.market_segment,
+                    req.capital
+                ),
+            ),
+            timeout=85
+        )
+    except asyncio.TimeoutError:
+        return {
+            "error": "Scan took too long (backend cold start)",
+            "total": 0,
+            "signals": [],
+            "message": "First scan on free tier takes 2 min. Try again in 30s when backend is warm."
+        }
+
+    return {
+        "market":      "NSE",
+        "type":        "intraday",
+        "scan_time":   datetime.utcnow().isoformat() + "Z",
+        "total":       len(results),
+        "signals":     results,
+        "disclaimer":  "Algorithmic signals only — not financial advice. Always apply your own judgement and risk management.",
+    }
+
+
 @app.get("/api/signal/{symbol}")
 async def get_signal_single(symbol: str):
     """
