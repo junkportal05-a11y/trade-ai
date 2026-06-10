@@ -105,7 +105,7 @@ def save_token(token: str, details: dict = None):
     except Exception:
         pass
 
-def exchange_code_for_token(code: str) -> Optional[dict]:
+def exchange_code_for_token(code: str, redirect_uri: Optional[str] = None) -> Optional[dict]:
     url = "https://api.upstox.com/v2/login/authorization/token"
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -115,7 +115,7 @@ def exchange_code_for_token(code: str) -> Optional[dict]:
         "code":          code,
         "client_id":     UPSTOX_API_KEY,
         "client_secret": UPSTOX_SECRET_KEY,
-        "redirect_uri":  UPSTOX_REDIRECT_URI,
+        "redirect_uri":  redirect_uri or UPSTOX_REDIRECT_URI,
         "grant_type":    "authorization_code"
     }
     try:

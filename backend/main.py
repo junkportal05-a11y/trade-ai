@@ -169,15 +169,20 @@ def upstox_authorize(state: Optional[str] = Query(None)):
 
 
 @app.get("/api/upstox/callback")
-def upstox_callback(code: str = Query(...), state: Optional[str] = Query(None)):
-    res = upstox_feed.exchange_code_for_token(code)
+def upstox_callback(request: Request, code: str = Query(...), state: Optional[str] = Query(None)):
+    # Reconstruct the exact redirect_uri used for this request to avoid OAuth mismatch
+    redirect_uri = str(request.url).split("?")[0]
+    if upstox_feed.UPSTOX_REDIRECT_URI.startswith("https://") and redirect_uri.startswith("http://"):
+        redirect_uri = redirect_uri.replace("http://", "https://")
+        
+    res = upstox_feed.exchange_code_for_token(code, redirect_uri=redirect_uri)
     if not res:
         raise HTTPException(status_code=400, detail="Failed to exchange authorization code for access token")
     
     redirect_target = state or ""
     if not redirect_target:
-        redirect_uri = upstox_feed.UPSTOX_REDIRECT_URI
-        if "localhost" in redirect_uri:
+        redirect_uri_conf = upstox_feed.UPSTOX_REDIRECT_URI
+        if "localhost" in redirect_uri_conf:
             redirect_target = "http://localhost:5173/account"
         else:
             redirect_target = "https://trade-ai-beta.vercel.app/account"
@@ -196,8 +201,8 @@ def upstox_callback(code: str = Query(...), state: Optional[str] = Query(None)):
     return RedirectResponse(redirect_target)
 
 @app.get("/auth/callback")
-def upstox_callback_alias(code: str = Query(...), state: Optional[str] = Query(None)):
-    return upstox_callback(code=code, state=state)
+def upstox_callback_alias(request: Request, code: str = Query(...), state: Optional[str] = Query(None)):
+    return upstox_callback(request=request, code=code, state=state)
 
 
 @app.get("/api/upstox/status")
