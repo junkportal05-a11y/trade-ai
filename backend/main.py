@@ -195,6 +195,10 @@ def upstox_callback(code: str = Query(...), state: Optional[str] = Query(None)):
         
     return RedirectResponse(redirect_target)
 
+@app.get("/auth/callback")
+def upstox_callback_alias(code: str = Query(...), state: Optional[str] = Query(None)):
+    return upstox_callback(code=code, state=state)
+
 
 @app.get("/api/upstox/status")
 def upstox_status():
