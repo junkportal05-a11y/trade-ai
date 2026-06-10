@@ -1001,7 +1001,7 @@ def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: str = 
         return analyse_symbol(sym, name, sector, style=style, risk=risk, segment=segment, capital=capital)
 
     first_pass_results = []
-    with ThreadPoolExecutor(max_workers=8) as ex:
+    with ThreadPoolExecutor(max_workers=3) as ex:
         futures = {ex.submit(analyse_one, item): item for item in watchlist}
         for f in futures:
             try:

@@ -310,7 +310,7 @@ def search_symbols(q: str = Query(..., min_length=1, description="Search query")
 #  NSE INTRADAY SIGNAL ENDPOINTS
 # ══════════════════════════════════════════════════════════════════════════════
 
-_executor = ThreadPoolExecutor(max_workers=8)
+_executor = ThreadPoolExecutor(max_workers=2)
 
 
 @app.get("/api/signals")
@@ -343,7 +343,7 @@ async def get_signals(
                 _executor,
                 functools.partial(sig_engine.run_scan, watchlist),
             ),
-            timeout=150
+            timeout=85
         )
     except asyncio.TimeoutError:
         return {
