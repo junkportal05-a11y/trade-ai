@@ -970,8 +970,7 @@ async def auto_scan_loop():
 
             if valid_signals:
                 db.add_signals_batch(valid_signals)
-                    db.add_signal(sig)
-                    
+                for sig in valid_signals:
                     # Also log to predictions_history for the learning engine feedback loop
                     try:
                         vwap_dist = ((sig["price"] - sig["vwap"]) / sig["vwap"] * 100) if sig.get("vwap") else 0.0
