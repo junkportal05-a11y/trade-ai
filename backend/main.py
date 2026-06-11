@@ -68,14 +68,11 @@ app.add_middleware(
 )
 
 from auth_helpers import (
-    require_admin,
     require_session,
     create_session,
     cleanup_sessions,
     ACTIVE_SESSIONS,
     SESSION_TTL,
-    ADMIN_KEY,
-    USER_REGISTRY,
     authenticate_user,
 )
 
@@ -390,7 +387,7 @@ def get_history(
         }
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -451,7 +448,6 @@ async def get_signals(
         watchlist = sig_engine.NSE_WATCHLIST
 
     # Run analysis concurrently in thread pool (scanning is blocking I/O)
-    import functools
 
     try:
         results = await asyncio.wait_for(
@@ -505,7 +501,6 @@ async def post_scan(
     wl_map = {w["symbol"]: w for w in sig_engine.NSE_WATCHLIST}
     watchlist = [wl_map.get(s.upper(), {"symbol": s.upper(), "name": s.upper().replace(".NS", ""), "sector": "NSE"}) for s in req.symbols]
 
-    import functools
     try:
         results = await asyncio.wait_for(
             sig_engine.run_scan(
@@ -811,9 +806,6 @@ async def fetch_live_quotes_loop():
     Background crawler task that runs every 10 seconds to fetch the latest
     quotes for all watchlisted NSE stocks and updates LIVE_PRICES_CACHE.
     """
-    import functools
-    import requests
-    import pandas as pd
 
     watchlist_symbols = [w["symbol"] for w in sig_engine.NSE_WATCHLIST]
 
@@ -1040,7 +1032,6 @@ async def auto_scan_loop():
       - Market CLOSED → scan every 60 min for overnight signals
     Also reconciles pending signals and predictions against LIVE_PRICES_CACHE every cycle.
     """
-    import functools
 
     loop = asyncio.get_event_loop()
 
@@ -1176,7 +1167,7 @@ async def websocket_prices(
             import logging
 
             logging.warning(
-                f"[WS] Token not found in active sessions (may be stale after restart)"
+                "[WS] Token not found in active sessions (may be stale after restart)"
             )
     elif not token:
         import logging
@@ -1312,7 +1303,6 @@ async def allocate_capital(
     if req.capital < 500:
         raise HTTPException(status_code=400, detail="Minimum capital is ₹500")
 
-    import functools
 
     loop = asyncio.get_event_loop()
 
@@ -1514,7 +1504,7 @@ async def create_journal(
     try:
         row_id = db.add_journal_entry(entry.dict())
         return {"status": "success", "id": row_id}
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -1522,7 +1512,7 @@ async def create_journal(
 async def list_journal(request: Request, _=Depends(require_session)):
     try:
         return db.get_journal_entries()
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.delete("/api/journal/{entry_id}")
@@ -1534,7 +1524,7 @@ async def delete_journal_entry(entry_id: int, request: Request, _=Depends(requir
         return {"status": "success"}
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -1561,14 +1551,13 @@ class PredictionResolve(BaseModel):
 
 @app.post("/api/predictions")
 @limiter.limit("20/minute")
-async def create_prediction(pred: PredictionCreate, request: Request, _=Depends(require_session)):
 async def create_prediction(
     pred: PredictionCreate, request: Request, _=Depends(require_session)
 ):
     try:
         row_id = db.add_prediction(pred.dict())
         return {"status": "success", "id": row_id}
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -1576,7 +1565,7 @@ async def create_prediction(
 async def list_predictions(request: Request, _=Depends(require_session)):
     try:
         return db.get_predictions()
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -1591,7 +1580,7 @@ async def resolve_prediction_route(
         return {"status": "success"}
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -1606,7 +1595,7 @@ async def delete_prediction_route(
         return {"status": "success"}
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -1762,7 +1751,7 @@ async def get_prediction_stats(request: Request, _=Depends(require_session)):
             "avg_confidence": avg_conf,
             "pattern_success_rates": pattern_success_rates
         }
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -1846,5 +1835,5 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
             ],
             "briefing_text": briefing_text,
         }
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
