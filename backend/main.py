@@ -843,12 +843,16 @@ async def auto_scan_loop():
             )
 
             # Log BUY / SELL signals with confidence >= 60
+            valid_signals = []
             for sig in results:
                 if sig.get("signal") in ("BUY", "SELL") and sig.get("confidence", 0) >= 60:
                     sig["direction"]  = sig["signal"]
                     sig["entry"]      = sig.get("price",      sig.get("entry", 0))
                     sig["scan_type"]  = scan_type
-                    db.add_signal(sig)
+                    valid_signals.append(sig)
+
+            if valid_signals:
+                db.add_signals_batch(valid_signals)
 
             # ── 2. Reconcile pending signals vs live prices ──────────────────
             pending = db.get_pending_signals()

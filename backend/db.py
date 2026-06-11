@@ -576,3 +576,103 @@ def get_upstox_token() -> Optional[str]:
     except Exception:
         pass
     return None
+
+
+def add_signals_batch(signals: list[dict]) -> None:
+    """
+    Batch insert new pending signals.
+    Filters out duplicates or closes reversed signals just like add_signal,
+    but executed in a single transaction for efficiency.
+    """
+    if not signals:
+        return
+
+    now = _now_ist()
+    symbols = [sig["symbol"] for sig in signals]
+
+    with _conn() as c:
+        # 1. Fetch existing PENDING signals for the given symbols
+        if IS_POSTGRES:
+            placeholders = ",".join(["%s"] * len(symbols))
+        else:
+            placeholders = ",".join(["?"] * len(symbols))
+        existing_rows = c.execute(
+            f"SELECT id, symbol, signal_type, entry_price FROM signals_history WHERE status='PENDING' AND symbol IN ({placeholders})",
+            symbols
+        ).fetchall()
+
+        existing_map = {r["symbol"]: r for r in existing_rows}
+
+        insert_data = []
+        update_data = []
+
+        for sig in signals:
+            symbol = sig["symbol"]
+            existing = existing_map.get(symbol)
+
+            if existing:
+                same_dir = (
+                    ("BUY" in existing["signal_type"]) == ("BUY" in sig.get("signal_type", sig.get("direction", "")))
+                )
+                if same_dir:
+                    continue  # Already tracking this direction
+                # Opposite signal — close the old one
+                sig_entry_price = sig.get("entry_price", sig.get("entry", 0))
+                pnl = _calc_pnl(existing["signal_type"], existing["entry_price"], sig_entry_price)
+                update_data.append((
+                    sig_entry_price,
+                    now,
+                    pnl,
+                    existing["id"]
+                ))
+
+            # Prepare insertion
+            insert_data.append((
+                symbol,
+                sig.get("name", symbol),
+                sig.get("sector", "NSE"),
+                sig["direction"],
+                sig["confidence"],
+                sig.get("bull_score", 0) if "BUY" in sig["direction"] else sig.get("bear_score", 0),
+                sig.get("entry", 0),
+                sig.get("target", 0),
+                sig.get("stop_loss", 0),
+                sig.get("rr_ratio", 0),
+                sig.get("atr", 0),
+                now,
+                sig.get("scan_type", "INTRADAY"),
+            ))
+
+        # 2. Execute updates (closing opposite directions)
+        if update_data:
+            if IS_POSTGRES:
+                update_query = """UPDATE signals_history
+                   SET status='CLOSED', exit_price=%s, exit_at=%s,
+                       pnl_pct=%s
+                   WHERE id=%s"""
+            else:
+                update_query = """UPDATE signals_history
+                   SET status='CLOSED', exit_price=?, exit_at=?,
+                       pnl_pct=?
+                   WHERE id=?"""
+
+            c.cursor_obj.executemany(update_query, update_data)
+
+        # 3. Execute inserts
+        if insert_data:
+            if IS_POSTGRES:
+                query = """INSERT INTO signals_history
+                   (symbol, name, sector, signal_type, confidence, score,
+                    entry_price, target, stop_loss, rr_ratio, atr,
+                    scanned_at, scan_type)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+            else:
+                query = """INSERT INTO signals_history
+                   (symbol, name, sector, signal_type, confidence, score,
+                    entry_price, target, stop_loss, rr_ratio, atr,
+                    scanned_at, scan_type)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"""
+
+            c.cursor_obj.executemany(query, insert_data)
+
+        c.commit()
