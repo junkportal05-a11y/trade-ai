@@ -8,7 +8,6 @@ import math
 from datetime import datetime, timezone
 import pandas as pd
 import numpy as np
-import requests
 from signals import download_market_data_df
 
 def run_historical_backtest(
