@@ -42,10 +42,20 @@ export default function LoginScreen({ onLogin }) {
   React.useEffect(() => {
     let cancelled = false;
     const wake = async () => {
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 5; i++) {
         try {
-          const r = await fetch(BASE_URL + "/", { method: "GET", signal: getTimeoutSignal(10000) });
-          if (r.ok && !cancelled) { setServerReady(true); setWaking(false); return; }
+          // Use mode: 'no-cors' to bypass CORS blocks on raw waker hit
+          const r = await fetch(BASE_URL + "/", { 
+            method: "GET", 
+            mode: "no-cors",
+            signal: getTimeoutSignal(10000) 
+          });
+          // Any non-throwing response (including opaque 0) means server is active and reachable
+          if (r && !cancelled) { 
+            setServerReady(true); 
+            setWaking(false); 
+            return; 
+          }
         } catch (_) { /* server still waking */ }
         if (!cancelled) await new Promise(ok => setTimeout(ok, 2000 * (i + 1)));
       }
@@ -340,6 +350,20 @@ export default function LoginScreen({ onLogin }) {
               </>
             ) : "DECRYPT & ENTER TERMINAL"}
           </button>
+          
+          {/* Target backend URL display (debugging context) */}
+          <div style={{
+            fontSize: 7.5,
+            color: T.textDim,
+            textAlign: 'center',
+            marginTop: 4,
+            ...mono,
+            opacity: 0.6,
+            letterSpacing: '0.04em',
+            wordBreak: 'break-all'
+          }}>
+            NODE_ADDR: {BASE_URL}
+          </div>
         </form>
       </div>
 
