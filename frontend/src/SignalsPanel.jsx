@@ -742,10 +742,10 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
     setError(null);
     try {
       const res = await fetch(`${BASE}/api/allocate`, {
+        credentials: 'include',
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Session-Token': sessionStorage.getItem('apt_token') || ''
         },
         body: JSON.stringify({ 
           capital: amt,
@@ -754,7 +754,7 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
         signal: abortRef.current.signal,
       });
       if (res.status === 401) {
-        sessionStorage.removeItem('apt_token');
+        localStorage.removeItem('is_logged_in');
         localStorage.removeItem('apex_user');
         window.location.reload();
         return;

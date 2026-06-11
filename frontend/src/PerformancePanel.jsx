@@ -332,8 +332,7 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
 
   const fetchJournal = useCallback(async () => {
     try {
-      const headers = { 'X-Session-Token': sessionStorage.getItem('apt_token') || '' };
-      const res = await fetch(`${BASE}/api/journal`, { headers });
+      const res = await fetch(`${BASE}/api/journal`, { credentials: 'include', headers: {} });
       if (res.ok) {
         setJournalEntries(await res.json());
       }
@@ -354,7 +353,6 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
     try {
       const headers = {
         'Content-Type': 'application/json',
-        'X-Session-Token': sessionStorage.getItem('apt_token') || ''
       };
       const entry = {
         symbol: jSymbol,
@@ -366,6 +364,7 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
         status: 'OPEN'
       };
       const res = await fetch(`${BASE}/api/journal`, {
+        credentials: 'include',
         method: 'POST',
         headers,
         body: JSON.stringify(entry)
@@ -387,11 +386,7 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
   const handleDeleteJournal = async (id) => {
     if (!confirm("Are you sure you want to delete this journal entry?")) return;
     try {
-      const headers = { 'X-Session-Token': sessionStorage.getItem('apt_token') || '' };
-      const res = await fetch(`${BASE}/api/journal/${id}`, {
-        method: 'DELETE',
-        headers
-      });
+      const res = await fetch(`${BASE}/api/journal/${id}`, { credentials: 'include', method: 'DELETE', headers: {} });
       if (res.ok) {
         await fetchJournal();
       }
@@ -402,10 +397,9 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
 
   const load = useCallback(async () => {
     try {
-      const headers = { 'X-Session-Token': sessionStorage.getItem('apt_token') || '' };
       const [sRes, hRes] = await Promise.all([
-        fetch(`${BASE}/api/backtest/stats`, { headers }),
-        fetch(`${BASE}/api/backtest/history?limit=200`, { headers }),
+        fetch(`${BASE}/api/backtest/stats`, { credentials: 'include', headers: {} }),
+        fetch(`${BASE}/api/backtest/history?limit=200`, { credentials: 'include', headers: {} }),
       ]);
       if (sRes.ok) setStats(await sRes.json());
       if (hRes.ok) {
@@ -431,6 +425,7 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
     setResetting(true);
     try {
       await fetch(`${BASE}/api/backtest/reset`, {
+        credentials: 'include',
         method: 'POST',
         headers: { 'X-Admin-Key': 'apextrade_admin_2024_secure' }
       });
@@ -454,7 +449,8 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
     try {
       const query = `symbol=${backtestSymbol}&range=${backtestRange}&capital=${capitalAmt}&stop_atr=${backtestStopAtr}&target_atr=${backtestTargetAtr}&entry_score=${backtestEntryScore}&risk_pct=${backtestRiskPct}&early_exit=${backtestEarlyExit}`;
       const res = await fetch(`${BASE}/api/backtest/run?${query}`, {
-        headers: { 'X-Session-Token': sessionStorage.getItem('apt_token') || '' }
+        credentials: 'include',
+        headers: { }
       });
       if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
       const data = await res.json();
