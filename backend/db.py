@@ -246,7 +246,88 @@ def init_db():
                 holding_time_minutes    REAL,
                 pnl_pct                 REAL,
                 pnl_inr                 REAL,
-                resolution_reason       TEXT
+                resolution_reason       TEXT,
+                trade_quality_score     REAL,
+                regime_score            REAL,
+                sector_score            REAL,
+                volume_score            REAL,
+                rs_score                REAL,
+                signal_time             TEXT,
+                order_time              TEXT,
+                fill_time               TEXT,
+                fill_price              REAL,
+                slippage_pct            REAL
+            )
+        """)
+        
+        # Phase Omega Tables
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS portfolio_state (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                current_equity      REAL NOT NULL DEFAULT 0.0,
+                peak_equity         REAL NOT NULL DEFAULT 0.0,
+                daily_equity        REAL NOT NULL DEFAULT 0.0,
+                sector_exposure     TEXT,
+                active_positions    TEXT,
+                last_updated        TEXT
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS strategy_health (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                setup_type      TEXT UNIQUE NOT NULL,
+                lifetime_pf     REAL DEFAULT 0.0,
+                last_30_pf      REAL DEFAULT 0.0,
+                last_90_pf      REAL DEFAULT 0.0,
+                status          TEXT DEFAULT 'ACTIVE'
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS confidence_calibration (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                band                TEXT NOT NULL,
+                regime              TEXT NOT NULL,
+                predicted_win_rate  REAL DEFAULT 0.0,
+                actual_win_rate     REAL DEFAULT 0.0,
+                calibration_error   REAL DEFAULT 0.0,
+                UNIQUE(band, regime)
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS daily_governance_reports (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                report_date         TEXT NOT NULL,
+                pf                  REAL,
+                ev                  REAL,
+                drawdown            REAL,
+                regime              TEXT,
+                best_strategy       TEXT,
+                worst_strategy      TEXT,
+                calibration_error   REAL,
+                kill_switch_events  INTEGER,
+                exposure_violations INTEGER
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS risk_settings (
+                id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+                daily_loss_limit        REAL DEFAULT -3.0,
+                daily_drawdown_limit    REAL DEFAULT -4.0,
+                max_consecutive_losses  INTEGER DEFAULT 5
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS rejected_signals (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol              TEXT NOT NULL,
+                rejection_category  TEXT NOT NULL,
+                rejection_reason    TEXT NOT NULL,
+                signal_price        REAL,
+                target_price        REAL,
+                stop_loss           REAL,
+                status              TEXT DEFAULT 'PENDING',
+                scanned_at          TEXT NOT NULL,
+                market_regime       TEXT
             )
         """)
 
@@ -296,7 +377,17 @@ def init_db():
             ("holding_time_minutes", "REAL"),
             ("pnl_pct", "REAL"),
             ("pnl_inr", "REAL"),
-            ("resolution_reason", "TEXT")
+            ("resolution_reason", "TEXT"),
+            ("trade_quality_score", "REAL"),
+            ("regime_score", "REAL"),
+            ("sector_score", "REAL"),
+            ("volume_score", "REAL"),
+            ("rs_score", "REAL"),
+            ("signal_time", "TEXT"),
+            ("order_time", "TEXT"),
+            ("fill_time", "TEXT"),
+            ("fill_price", "REAL"),
+            ("slippage_pct", "REAL")
         ]
         for col_name, col_type in pred_migrations:
             if col_name not in pred_columns:
