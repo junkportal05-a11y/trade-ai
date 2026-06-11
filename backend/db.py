@@ -18,6 +18,7 @@ if IS_POSTGRES:
     import psycopg2
     from psycopg2.extras import RealDictCursor
 
+
 class RowWrapper:
     def __init__(self, data_dict, data_tuple):
         self.data_dict = data_dict
@@ -36,6 +37,7 @@ class RowWrapper:
 
     def __iter__(self):
         return iter(self.data_dict)
+
 
 class DBConnection:
     def __init__(self):
@@ -74,12 +76,14 @@ class DBConnection:
 
     def execute(self, query, params=None):
         self._lastrowid = None
-        
+
         # Adapt SQL for PostgreSQL
         if IS_POSTGRES:
             query = query.replace("?", "%s")
-            query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
-            
+            query = query.replace(
+                "INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY"
+            )
+
             # Translate SQLite PRAGMA table_info to standard ANSI SQL
             if "PRAGMA table_info" in query:
                 parts = query.split("table_info(")
@@ -92,7 +96,7 @@ class DBConnection:
                         FROM information_schema.columns 
                         WHERE table_name = '{tname}'
                     """
-            
+
             # Translate SQLite INSERT OR REPLACE
             if "INSERT OR REPLACE INTO app_settings" in query:
                 query = """
@@ -101,10 +105,13 @@ class DBConnection:
                     ON CONFLICT (key) 
                     DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
                 """
-                
+
             # Append RETURNING id to INSERT queries to get lastrowid
             stripped_upper = query.strip().upper()
-            if stripped_upper.startswith("INSERT INTO") and "RETURNING" not in stripped_upper:
+            if (
+                stripped_upper.startswith("INSERT INTO")
+                and "RETURNING" not in stripped_upper
+            ):
                 if "APP_SETTINGS" not in stripped_upper:
                     query += " RETURNING id"
 
@@ -117,7 +124,10 @@ class DBConnection:
         # Retrieve last inserted ID if applicable
         if IS_POSTGRES:
             stripped_upper = query.strip().upper()
-            if stripped_upper.startswith("INSERT INTO") and "RETURNING ID" in stripped_upper:
+            if (
+                stripped_upper.startswith("INSERT INTO")
+                and "RETURNING ID" in stripped_upper
+            ):
                 try:
                     res = self.cursor_obj.fetchone()
                     if res:
@@ -159,7 +169,6 @@ class DBConnection:
 
 def _conn():
     return DBConnection()
-
 
 
 def init_db():
@@ -220,21 +229,25 @@ def init_db():
                 resolved_at      TEXT
             )
         """)
-        
+
         # Self-healing migration for existing databases:
         # Check if columns exist and add them if missing
         cursor = c.cursor()
         cursor.execute("PRAGMA table_info(signals_history)")
         columns = [row[1] for row in cursor.fetchall()]
-        
+
         if "rr_ratio" not in columns:
             try:
-                c.execute("ALTER TABLE signals_history ADD COLUMN rr_ratio REAL NOT NULL DEFAULT 0")
+                c.execute(
+                    "ALTER TABLE signals_history ADD COLUMN rr_ratio REAL NOT NULL DEFAULT 0"
+                )
             except Exception:
                 pass
         if "atr" not in columns:
             try:
-                c.execute("ALTER TABLE signals_history ADD COLUMN atr REAL NOT NULL DEFAULT 0")
+                c.execute(
+                    "ALTER TABLE signals_history ADD COLUMN atr REAL NOT NULL DEFAULT 0"
+                )
             except Exception:
                 pass
         c.commit()
@@ -251,14 +264,14 @@ def add_signal(sig: dict) -> Optional[int]:
         # Check for existing pending signal for this symbol
         existing = c.execute(
             "SELECT id, signal_type FROM signals_history WHERE symbol=? AND status='PENDING'",
-            (sig["symbol"],)
+            (sig["symbol"],),
         ).fetchone()
 
         now = _now_ist()
 
         if existing:
-            same_dir = (
-                ("BUY" in existing["signal_type"]) == ("BUY" in sig["signal_type"])
+            same_dir = ("BUY" in existing["signal_type"]) == (
+                "BUY" in sig["signal_type"]
             )
             if same_dir:
                 return None  # Already tracking this direction
@@ -271,7 +284,9 @@ def add_signal(sig: dict) -> Optional[int]:
                 (
                     sig["entry_price"],
                     now,
-                    _calc_pnl(existing["signal_type"], sig["entry_price"], sig["entry_price"]),
+                    _calc_pnl(
+                        existing["signal_type"], sig["entry_price"], sig["entry_price"]
+                    ),
                     existing["id"],
                 ),
             )
@@ -288,7 +303,9 @@ def add_signal(sig: dict) -> Optional[int]:
                 sig.get("sector", "NSE"),
                 sig["direction"],
                 sig["confidence"],
-                sig.get("bull_score", 0) if "BUY" in sig["direction"] else sig.get("bear_score", 0),
+                sig.get("bull_score", 0)
+                if "BUY" in sig["direction"]
+                else sig.get("bear_score", 0),
                 sig["entry"],
                 sig["target"],
                 sig["stop_loss"],
@@ -320,9 +337,9 @@ def update_signal(id: int, status: str, exit_price: float, pnl_pct: float):
         )
         c.commit()
 
+
 # Alias for compatibility with main.py references
 update_signal_status = update_signal
-
 
 
 def expire_old_intraday():
@@ -381,7 +398,9 @@ def get_stats() -> dict:
                 "sector": r["sector"],
                 "total": r["total"],
                 "wins": r["wins"],
-                "win_rate": round((r["wins"] / r["total"]) * 100, 1) if r["total"] > 0 else 0,
+                "win_rate": round((r["wins"] / r["total"]) * 100, 1)
+                if r["total"] > 0
+                else 0,
             }
             for r in sector_rows
         ]
@@ -401,7 +420,9 @@ def get_stats() -> dict:
                 "direction": "BUY" if "BUY" in r["signal_type"] else "SELL",
                 "total": r["total"],
                 "wins": r["wins"],
-                "win_rate": round((r["wins"] / r["total"]) * 100, 1) if r["total"] > 0 else 0,
+                "win_rate": round((r["wins"] / r["total"]) * 100, 1)
+                if r["total"] > 0
+                else 0,
                 "avg_pnl": round(r["avg_pnl"], 2) if r["avg_pnl"] else 0,
             }
             for r in dir_rows
@@ -461,8 +482,8 @@ def add_journal_entry(entry: dict) -> int:
                 entry.get("reason", ""),
                 entry.get("emotion", "Calm"),
                 entry.get("status", "OPEN"),
-                float(entry["pnl"]) if entry.get("pnl") is not None else None
-            )
+                float(entry["pnl"]) if entry.get("pnl") is not None else None,
+            ),
         )
         c.commit()
         return cur.lastrowid
@@ -470,7 +491,9 @@ def add_journal_entry(entry: dict) -> int:
 
 def get_journal_entries() -> list:
     with _conn() as c:
-        rows = c.execute("SELECT * FROM trade_journal ORDER BY entry_date DESC").fetchall()
+        rows = c.execute(
+            "SELECT * FROM trade_journal ORDER BY entry_date DESC"
+        ).fetchall()
         return [dict(r) for r in rows]
 
 
@@ -500,8 +523,8 @@ def add_prediction(pred: dict) -> int:
                 float(pred["macd"]) if pred.get("macd") is not None else None,
                 float(pred["adx"]) if pred.get("adx") is not None else None,
                 pred.get("status", "PENDING").upper(),
-                pred.get("reason", "")
-            )
+                pred.get("reason", ""),
+            ),
         )
         c.commit()
         return cur.lastrowid
@@ -509,7 +532,9 @@ def add_prediction(pred: dict) -> int:
 
 def get_predictions() -> list:
     with _conn() as c:
-        rows = c.execute("SELECT * FROM predictions_history ORDER BY prediction_date DESC").fetchall()
+        rows = c.execute(
+            "SELECT * FROM predictions_history ORDER BY prediction_date DESC"
+        ).fetchall()
         return [dict(r) for r in rows]
 
 
@@ -520,7 +545,7 @@ def resolve_prediction(pred_id: int, actual_outcome: float, status: str) -> bool
             """UPDATE predictions_history 
                SET actual_outcome=?, status=?, resolved_at=? 
                WHERE id=?""",
-            (actual_outcome, status.upper(), now, pred_id)
+            (actual_outcome, status.upper(), now, pred_id),
         )
         c.commit()
         return cur.rowcount > 0
@@ -534,6 +559,7 @@ def delete_prediction(pred_id: int) -> bool:
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _now_ist() -> str:
     utc = datetime.now(timezone.utc)
@@ -559,17 +585,29 @@ def save_upstox_token(token: str, raw: dict = None):
                 updated_at TEXT
             )
         """)
-        c.execute("""
+        c.execute(
+            """
             INSERT OR REPLACE INTO app_settings (key, value, updated_at)
             VALUES (?, ?, ?)
-        """, ('upstox_token', json.dumps({"access_token": token, **(raw or {})}), _now_ist()))
+        """,
+            (
+                "upstox_token",
+                json.dumps({"access_token": token, **(raw or {})}),
+                _now_ist(),
+            ),
+        )
         c.commit()
+
 
 def get_upstox_token() -> Optional[str]:
     try:
         with _conn() as c:
-            c.execute("CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT)")
-            row = c.execute("SELECT value FROM app_settings WHERE key='upstox_token'").fetchone()
+            c.execute(
+                "CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT)"
+            )
+            row = c.execute(
+                "SELECT value FROM app_settings WHERE key='upstox_token'"
+            ).fetchone()
             if row:
                 data = json.loads(row["value"])
                 return data.get("access_token")

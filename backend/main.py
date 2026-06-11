@@ -14,7 +14,16 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Request, Depends, Header
+from fastapi import (
+    FastAPI,
+    WebSocket,
+    WebSocketDisconnect,
+    HTTPException,
+    Query,
+    Request,
+    Depends,
+    Header,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -31,7 +40,6 @@ from backtest_routes import backtest_router
 load_dotenv()
 
 
-
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(title="ApexTrade API", version="2.0.0")
@@ -40,7 +48,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,https://trade-ai-beta.vercel.app"
+    "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,https://trade-ai-beta.vercel.app",
 ).split(",")
 
 app.add_middleware(
@@ -60,12 +68,13 @@ from auth_helpers import (
     SESSION_TTL,
     ADMIN_KEY,
     USER_REGISTRY,
-    authenticate_user
+    authenticate_user,
 )
 
 # Optional Gemini AI integration (google-genai SDK)
 try:
     from google import genai as _genai
+
     _GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
     if _GEMINI_KEY:
         _genai_client = _genai.Client(api_key=_GEMINI_KEY)
@@ -80,9 +89,11 @@ app.include_router(backtest_router)
 # ── Active WebSocket connections ───────────────────────────────────────────────
 active_connections: list[WebSocket] = []
 
+
 class LoginRequest(BaseModel):
     username: str
     password: str
+
 
 @app.post("/api/login")
 @limiter.limit("10/minute")
@@ -91,21 +102,23 @@ async def login(req: LoginRequest, request: Request):
     user_obj = authenticate_user(u, req.password)
     if not user_obj:
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    
+
     token = create_session(u)
     return {
         "token": token,
         "username": u,
         "role": user_obj["role"],
         "clearance": user_obj["clearance"],
-        "expires_in": SESSION_TTL
+        "expires_in": SESSION_TTL,
     }
+
 
 @app.post("/api/logout")
 async def logout(x_session_token: str = Header(None)):
     if x_session_token and x_session_token in ACTIVE_SESSIONS:
         del ACTIVE_SESSIONS[x_session_token]
     return {"status": "logged out"}
+
 
 @app.get("/api/auth/verify")
 async def verify(token: str = Depends(require_session)):
@@ -115,6 +128,7 @@ async def verify(token: str = Depends(require_session)):
 # ══════════════════════════════════════════════════════════════════════════════
 #  REST ENDPOINTS
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 @app.get("/")
 def root():
@@ -129,11 +143,12 @@ def keep_alive():
     to run every 10 minutes between 9:10 AM and 3:40 PM IST, Monday to Friday.
     """
     from datetime import datetime, timezone, timedelta
+
     now_utc = datetime.now(timezone.utc)
     now_ist = now_utc + timedelta(hours=5, minutes=30)
-    
+
     market_open = sig_engine.is_nse_market_open()
-    
+
     return {
         "status": "active",
         "message": "ApexTrade keep-alive handshake successful.",
@@ -144,8 +159,8 @@ def keep_alive():
             "schedule": "Every 10 minutes",
             "active_hours": "09:10 AM to 03:40 PM IST (03:40 to 10:10 UTC)",
             "active_days": "Monday to Friday",
-            "purpose": "Keeps backend node warm during NSE trading session to eliminate 5m candle latency."
-        }
+            "purpose": "Keeps backend node warm during NSE trading session to eliminate 5m candle latency.",
+        },
     }
 
 
@@ -162,10 +177,11 @@ def upstox_authorize(state: Optional[str] = Query(None)):
     if not upstox_feed.UPSTOX_API_KEY or not upstox_feed.UPSTOX_REDIRECT_URI:
         raise HTTPException(
             status_code=400,
-            detail="Upstox API key or Redirect URI not configured in the environment."
+            detail="Upstox API key or Redirect URI not configured in the environment.",
         )
 
     import secrets
+
     csrf_token = secrets.token_urlsafe(32)
     original_state = state or ""
     oauth_state = f"{original_state}|{csrf_token}"
@@ -178,13 +194,15 @@ def upstox_authorize(state: Optional[str] = Query(None)):
         httponly=True,
         secure=True,
         samesite="lax",
-        max_age=600
+        max_age=600,
     )
     return response
 
 
 @app.get("/api/upstox/callback")
-def upstox_callback(request: Request, code: str = Query(...), state: Optional[str] = Query(None)):
+def upstox_callback(
+    request: Request, code: str = Query(...), state: Optional[str] = Query(None)
+):
     # Validate CSRF token in state
     cookie_token = request.cookies.get("oauth_csrf_token")
     if not cookie_token:
@@ -200,18 +218,24 @@ def upstox_callback(request: Request, code: str = Query(...), state: Optional[st
     original_state, state_csrf_token = parts
 
     import hmac
+
     if not hmac.compare_digest(cookie_token, state_csrf_token):
         raise HTTPException(status_code=400, detail="CSRF token mismatch")
 
     # Reconstruct the exact redirect_uri used for this request to avoid OAuth mismatch
     redirect_uri = str(request.url).split("?")[0]
-    if upstox_feed.UPSTOX_REDIRECT_URI.startswith("https://") and redirect_uri.startswith("http://"):
+    if upstox_feed.UPSTOX_REDIRECT_URI.startswith(
+        "https://"
+    ) and redirect_uri.startswith("http://"):
         redirect_uri = redirect_uri.replace("http://", "https://")
-        
+
     res = upstox_feed.exchange_code_for_token(code, redirect_uri=redirect_uri)
     if not res:
-        raise HTTPException(status_code=400, detail="Failed to exchange authorization code for access token")
-    
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to exchange authorization code for access token",
+        )
+
     redirect_target = original_state or ""
     if not redirect_target:
         redirect_uri_conf = upstox_feed.UPSTOX_REDIRECT_URI
@@ -225,18 +249,21 @@ def upstox_callback(request: Request, code: str = Query(...), state: Optional[st
                 redirect_target += "account"
             else:
                 redirect_target += "/account"
-                
+
     if "?" in redirect_target:
         redirect_target += "&broker_login=success"
     else:
         redirect_target += "?broker_login=success"
-        
+
     response = RedirectResponse(redirect_target)
     response.delete_cookie("oauth_csrf_token")
     return response
 
+
 @app.get("/auth/callback")
-def upstox_callback_alias(request: Request, code: str = Query(...), state: Optional[str] = Query(None)):
+def upstox_callback_alias(
+    request: Request, code: str = Query(...), state: Optional[str] = Query(None)
+):
     return upstox_callback(request=request, code=code, state=state)
 
 
@@ -262,7 +289,9 @@ def upstox_status():
 @app.get("/api/history")
 def get_history(
     symbol: str = Query(..., description="Ticker symbol, e.g. AAPL"),
-    interval: str = Query("1d", description="Bar interval: 1m,5m,15m,30m,1h,1d,1wk,1mo"),
+    interval: str = Query(
+        "1d", description="Bar interval: 1m,5m,15m,30m,1h,1d,1wk,1mo"
+    ),
     range: str = Query("3mo", description="Date range: 1d,5d,1mo,3mo,6mo,1y,2y,5y,max"),
 ):
     """
@@ -271,13 +300,42 @@ def get_history(
     Lightweight Charts expects:
       { time: 'YYYY-MM-DD' | unix_timestamp, open, high, low, close, volume }
     """
-    VALID_INTERVALS = {"1m", "2m", "5m", "15m", "30m", "60m", "1h", "1d", "5d", "1wk", "1mo", "3mo"}
-    VALID_RANGES = {"1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"}
+    VALID_INTERVALS = {
+        "1m",
+        "2m",
+        "5m",
+        "15m",
+        "30m",
+        "60m",
+        "1h",
+        "1d",
+        "5d",
+        "1wk",
+        "1mo",
+        "3mo",
+    }
+    VALID_RANGES = {
+        "1d",
+        "5d",
+        "1mo",
+        "3mo",
+        "6mo",
+        "1y",
+        "2y",
+        "5y",
+        "10y",
+        "ytd",
+        "max",
+    }
 
     if interval not in VALID_INTERVALS:
-        raise HTTPException(status_code=400, detail=f"Invalid interval. Choose from: {VALID_INTERVALS}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid interval. Choose from: {VALID_INTERVALS}"
+        )
     if range not in VALID_RANGES:
-        raise HTTPException(status_code=400, detail=f"Invalid range. Choose from: {VALID_RANGES}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid range. Choose from: {VALID_RANGES}"
+        )
 
     try:
         df = sig_engine.download_market_data_df(symbol, period=range, interval=interval)
@@ -287,7 +345,10 @@ def get_history(
         # Drop NaN values in OHLC columns to prevent JSON serialization crash
         df = df.dropna(subset=["Open", "High", "Low", "Close"])
         if df.empty:
-            raise HTTPException(status_code=404, detail=f"No history data found for {symbol} after filtering NaNs")
+            raise HTTPException(
+                status_code=404,
+                detail=f"No history data found for {symbol} after filtering NaNs",
+            )
 
         # For intraday intervals, use Unix timestamps; for daily+, use date strings
         use_unix = interval not in {"1d", "5d", "1wk", "1mo", "3mo"}
@@ -299,14 +360,16 @@ def get_history(
             else:
                 t = ts.strftime("%Y-%m-%d")
 
-            bars.append({
-                "time": t,
-                "open": round(float(row["Open"]), 4),
-                "high": round(float(row["High"]), 4),
-                "low": round(float(row["Low"]), 4),
-                "close": round(float(row["Close"]), 4),
-                "volume": int(row["Volume"]),
-            })
+            bars.append(
+                {
+                    "time": t,
+                    "open": round(float(row["Open"]), 4),
+                    "high": round(float(row["High"]), 4),
+                    "low": round(float(row["Low"]), 4),
+                    "close": round(float(row["Close"]), 4),
+                    "volume": int(row["Volume"]),
+                }
+            )
 
         return {
             "symbol": symbol.upper(),
@@ -352,9 +415,12 @@ _executor = ThreadPoolExecutor(max_workers=2)
 @limiter.limit("5/minute")
 async def get_signals(
     request: Request,
-    symbols: Optional[str] = Query(None, description="Comma-separated NSE symbols, e.g. RELIANCE.NS,TCS.NS. Omit for full scan."),
-    limit:   int = Query(20, ge=1, le=50, description="Max results to return"),
-    _=Depends(require_session)
+    symbols: Optional[str] = Query(
+        None,
+        description="Comma-separated NSE symbols, e.g. RELIANCE.NS,TCS.NS. Omit for full scan.",
+    ),
+    limit: int = Query(20, ge=1, le=50, description="Max results to return"),
+    _=Depends(require_session),
 ):
     """
     Scans NSE stocks and returns ranked intraday signals.
@@ -365,36 +431,40 @@ async def get_signals(
     if symbols:
         sym_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
         # Map to watchlist entries or create minimal ones
-        wl_map   = {w["symbol"]: w for w in sig_engine.NSE_WATCHLIST}
-        watchlist = [wl_map.get(s, {"symbol": s, "name": s.replace(".NS", ""), "sector": "NSE"}) for s in sym_list]
+        wl_map = {w["symbol"]: w for w in sig_engine.NSE_WATCHLIST}
+        watchlist = [
+            wl_map.get(s, {"symbol": s, "name": s.replace(".NS", ""), "sector": "NSE"})
+            for s in sym_list
+        ]
     else:
         watchlist = sig_engine.NSE_WATCHLIST
 
     # Run analysis concurrently in thread pool (scanning is blocking I/O)
     import functools
+
     try:
         results = await asyncio.wait_for(
             loop.run_in_executor(
                 _executor,
                 functools.partial(sig_engine.run_scan, watchlist),
             ),
-            timeout=85
+            timeout=85,
         )
     except asyncio.TimeoutError:
         return {
             "error": "Scan took too long (backend cold start)",
             "total": 0,
             "signals": [],
-            "message": "First scan on free tier takes 2 min. Try again in 30s when backend is warm."
+            "message": "First scan on free tier takes 2 min. Try again in 30s when backend is warm.",
         }
 
     return {
-        "market":      "NSE",
-        "type":        "intraday",
-        "scan_time":   datetime.utcnow().isoformat() + "Z",
-        "total":       len(results),
-        "signals":     results[:limit],
-        "disclaimer":  "Algorithmic signals only — not financial advice. Always apply your own judgement and risk management.",
+        "market": "NSE",
+        "type": "intraday",
+        "scan_time": datetime.utcnow().isoformat() + "Z",
+        "total": len(results),
+        "signals": results[:limit],
+        "disclaimer": "Algorithmic signals only — not financial advice. Always apply your own judgement and risk management.",
     }
 
 
@@ -409,24 +479,29 @@ async def get_signal_single(symbol: str):
         sym = sym + ".NS"
 
     wl_map = {w["symbol"]: w for w in sig_engine.NSE_WATCHLIST}
-    meta   = wl_map.get(sym, {"symbol": sym, "name": sym.replace(".NS", ""), "sector": "NSE"})
+    meta = wl_map.get(
+        sym, {"symbol": sym, "name": sym.replace(".NS", ""), "sector": "NSE"}
+    )
 
-    loop   = asyncio.get_event_loop()
+    loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         _executor,
         lambda: sig_engine.analyse_symbol(meta["symbol"], meta["name"], meta["sector"]),
     )
 
     if result is None:
-        raise HTTPException(status_code=404, detail=f"Could not fetch data for {sym}. Market may be closed or symbol invalid.")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Could not fetch data for {sym}. Market may be closed or symbol invalid.",
+        )
 
     return result
-
 
 
 class ChatMessage(BaseModel):
     role: str
     text: str
+
 
 class ChatRequest(BaseModel):
     message: str
@@ -441,8 +516,8 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
     AI trading assistant. Uses Gemini if GEMINI_API_KEY is set,
     otherwise falls back to a context-aware heuristic engine.
     """
-    symbol  = (req.context or {}).get("symbol", "the market")
-    price   = (req.context or {}).get("price", None)
+    symbol = (req.context or {}).get("symbol", "the market")
+    price = (req.context or {}).get("price", None)
     chg_pct = (req.context or {}).get("changePct", None)
 
     # ── Try Gemini (google-genai SDK) ────────────────────────────────────────
@@ -450,7 +525,9 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
         try:
             # Load custom trading knowledge base
             knowledge_content = ""
-            knowledge_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "trading_knowledge.txt"))
+            knowledge_path = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "trading_knowledge.txt")
+            )
             if os.path.exists(knowledge_path):
                 try:
                     # Limit context size to allow the entire codebase blueprint and PDF manuals (up to 140000 chars)
@@ -464,6 +541,7 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
             if symbol and symbol != "the market":
                 try:
                     import news_feed
+
                     articles = news_feed.fetch_ticker_news(symbol)
                     if articles:
                         news_context = "--- LATEST NEWS CONTEXT ---\n"
@@ -487,16 +565,18 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
                 + ". \n\n"
                 "IMPORTANT: The user may ask you about this active stock, or they may ask general questions about candlestick patterns, indicators, risk management, or other stocks. Answer any of these questions freely. Do not restrict your answers only to the active stock unless they ask about it. Provide concise, highly actionable advice. Never provide direct financial advice — always remind them this is educational. Keep responses under 180 words. Use **bold** sparingly for key terms."
             )
-            
+
             # Construct chat thread including history
             formatted_history = ""
             if req.history:
                 for h in req.history:
                     role_label = "User" if h.role == "user" else "Assistant"
                     formatted_history += f"{role_label}: {h.text}\n"
-            
-            prompt = f"{system_ctx}\n\n{formatted_history}User: {req.message}\nAssistant:"
-            
+
+            prompt = (
+                f"{system_ctx}\n\n{formatted_history}User: {req.message}\nAssistant:"
+            )
+
             response = _genai_client.models.generate_content(
                 model="gemini-2.0-flash",
                 contents=prompt,
@@ -508,7 +588,7 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
     # ── Heuristic fallback engine ─────────────────────────────────────────────
     msg_lower = req.message.lower()
     price_str = f"₹{price:,.2f}" if price else "current levels"
-    chg_str   = f"{chg_pct:+.2f}%" if chg_pct is not None else "unchanged"
+    chg_str = f"{chg_pct:+.2f}%" if chg_pct is not None else "unchanged"
 
     # ── Custom Knowledge Base Heuristic Matches ──────────────────────────────
     if "hammer" in msg_lower:
@@ -555,7 +635,10 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
             "prioritizes recent prices for faster responses. Watch for crossover triggers (e.g. 9 EMA crossing 21 EMA) to confirm trend shifts. "
             "*(Local fallback response - set GEMINI_API_KEY for full AI mentoring)*"
         )
-    elif any(w in msg_lower for w in ["stop", "sl", "risk", "size", "sizing", "capital", "money"]):
+    elif any(
+        w in msg_lower
+        for w in ["stop", "sl", "risk", "size", "sizing", "capital", "money"]
+    ):
         reply = (
             "**Risk Management Policy** — Limit risk to 1-2% of total capital per trade. Calculate your position size dynamically: "
             "Position Size = (Capital * Risk %) / (Entry Price - Stop Loss Price). Place stop losses below recent swing lows or moving average lines. "
@@ -617,40 +700,38 @@ def is_nse_market_open() -> bool:
     IST is UTC + 5:30.
     """
     from datetime import datetime, timedelta, timezone
+
     now_utc = datetime.now(timezone.utc)
     now_ist = now_utc + timedelta(hours=5, minutes=30)
-    
+
     if now_ist.weekday() >= 5:
         return False
-        
+
     minutes_since_midnight = now_ist.hour * 60 + now_ist.minute
     start_minutes = 9 * 60 + 15
     end_minutes = 15 * 60 + 30
-    
+
     return start_minutes <= minutes_since_midnight <= end_minutes
 
 
 # Fallback seed prices for Indian stocks if provider feed fails
 SEED_PRICES = {
-    'HAL.NS': 4550.0,
-    'BEL.NS': 295.0,
-    'RVNL.NS': 385.0,
-    'IREDA.NS': 185.0,
-    'HUDCO.NS': 275.0,
-    'COALINDIA.NS': 485.0,
-    'NHPC.NS': 95.0,
-    'ADANIPORTS.NS': 1405.0,
-    'TATAPOWER.NS': 445.0,
-    'BHEL.NS': 305.0,
+    "HAL.NS": 4550.0,
+    "BEL.NS": 295.0,
+    "RVNL.NS": 385.0,
+    "IREDA.NS": 185.0,
+    "HUDCO.NS": 275.0,
+    "COALINDIA.NS": 485.0,
+    "NHPC.NS": 95.0,
+    "ADANIPORTS.NS": 1405.0,
+    "TATAPOWER.NS": 445.0,
+    "BHEL.NS": 305.0,
 }
 
 # Live prices cache seeded initially with baseline seed prices
 LIVE_PRICES_CACHE = {
-    sym: {
-        "price": price,
-        "prev_close": price,
-        "timestamp": int(time.time() * 1000)
-    } for sym, price in SEED_PRICES.items()
+    sym: {"price": price, "prev_close": price, "timestamp": int(time.time() * 1000)}
+    for sym, price in SEED_PRICES.items()
 }
 
 _crawl_executor = ThreadPoolExecutor(max_workers=5)
@@ -664,8 +745,9 @@ async def fetch_live_quotes_loop():
     import functools
     import requests
     import pandas as pd
+
     watchlist_symbols = [w["symbol"] for w in sig_engine.NSE_WATCHLIST]
-    
+
     while True:
         # Preserve API rate limits / credits when no active users are online
         if len(active_connections) == 0:
@@ -675,12 +757,12 @@ async def fetch_live_quotes_loop():
         sleep_time = 10
         try:
             loop = asyncio.get_event_loop()
-            
+
             if upstox_feed.is_authorized():
                 # Fetch live quotes from Upstox
                 quotes = await loop.run_in_executor(
                     _crawl_executor,
-                    functools.partial(upstox_feed.get_live_quotes, watchlist_symbols)
+                    functools.partial(upstox_feed.get_live_quotes, watchlist_symbols),
                 )
                 if quotes:
                     for sym in watchlist_symbols:
@@ -689,7 +771,7 @@ async def fetch_live_quotes_loop():
                             data = {
                                 "price": quote["price"],
                                 "prev_close": quote["prev_close"],
-                                "timestamp": int(time.time() * 1000)
+                                "timestamp": int(time.time() * 1000),
                             }
                             LIVE_PRICES_CACHE[sym] = data
                             # Also cache clean key for easier frontend lookup
@@ -702,13 +784,13 @@ async def fetch_live_quotes_loop():
                 sleep_time = 10
         except Exception as e:
             print(f"[fetch_live_quotes_loop] Error: {e}")
-            
+
         # Reconcile pending signals after prices update
         try:
             reconcile_pending_signals()
         except Exception:
             pass
-            
+
         await asyncio.sleep(sleep_time)
 
 
@@ -720,16 +802,16 @@ def reconcile_pending_signals():
     pending = db.get_pending_signals()
     if not pending:
         return
-        
+
     now_utc = datetime.utcnow()
     now_ist = now_utc + timedelta(hours=5, minutes=30)
-    
+
     for sig in pending:
         symbol = sig["symbol"]
         cached = LIVE_PRICES_CACHE.get(symbol)
         if not cached:
             continue
-            
+
         current_price = cached["price"]
         entry_price = sig["entry_price"]
         target = sig["target"]
@@ -737,12 +819,12 @@ def reconcile_pending_signals():
         signal_type = sig["signal_type"]
         scan_type = sig["scan_type"]
         scanned_at_str = sig["scanned_at"]
-        
+
         hit = False
         status = "PENDING"
         exit_price = current_price
         pnl = 0.0
-        
+
         if "BUY" in signal_type:
             if current_price >= target:
                 hit = True
@@ -765,11 +847,11 @@ def reconcile_pending_signals():
                 status = "HIT_STOP"
                 exit_price = stop_loss
                 pnl = (entry_price - exit_price) / entry_price * 100
-                
+
         if hit:
             db.update_signal_status(sig["id"], status, exit_price, pnl)
             continue
-            
+
         # Check Expiry
         try:
             clean_ts = scanned_at_str.replace("Z", "")
@@ -777,19 +859,25 @@ def reconcile_pending_signals():
                 clean_ts = clean_ts.split("+")[0]
             scanned_dt_utc = datetime.fromisoformat(clean_ts)
             scanned_dt_ist = scanned_dt_utc + timedelta(hours=5, minutes=30)
-            
+
             if scan_type == "INTRADAY":
                 is_future_day = now_ist.date() > scanned_dt_ist.date()
-                is_past_market_close = now_ist.hour > 15 or (now_ist.hour == 15 and now_ist.minute >= 30)
-                
-                if is_future_day or (now_ist.date() == scanned_dt_ist.date() and is_past_market_close):
+                is_past_market_close = now_ist.hour > 15 or (
+                    now_ist.hour == 15 and now_ist.minute >= 30
+                )
+
+                if is_future_day or (
+                    now_ist.date() == scanned_dt_ist.date() and is_past_market_close
+                ):
                     pnl_calc = 0.0
                     if "BUY" in signal_type:
                         pnl_calc = (current_price - entry_price) / entry_price * 100
                     else:
                         pnl_calc = (entry_price - current_price) / entry_price * 100
-                        
-                    db.update_signal_status(sig["id"], "EXPIRED", current_price, pnl_calc)
+
+                    db.update_signal_status(
+                        sig["id"], "EXPIRED", current_price, pnl_calc
+                    )
             else:
                 # OVERNIGHT: 5 days limit
                 days_diff = (now_utc - scanned_dt_utc).days
@@ -799,14 +887,17 @@ def reconcile_pending_signals():
                         pnl_calc = (current_price - entry_price) / entry_price * 100
                     else:
                         pnl_calc = (entry_price - current_price) / entry_price * 100
-                        
-                    db.update_signal_status(sig["id"], "EXPIRED", current_price, pnl_calc)
+
+                    db.update_signal_status(
+                        sig["id"], "EXPIRED", current_price, pnl_calc
+                    )
         except Exception:
             pass
 
 
-AUTO_SCAN_INTERVAL_OPEN   = 60
+AUTO_SCAN_INTERVAL_OPEN = 60
 AUTO_SCAN_INTERVAL_CLOSED = 3600
+
 
 async def cleanup_sessions_loop():
     """
@@ -821,6 +912,7 @@ async def cleanup_sessions_loop():
             print(f"[cleanup_sessions_loop] error: {e}")
         await asyncio.sleep(3600)
 
+
 async def auto_scan_loop():
     """
     Background task:
@@ -829,12 +921,13 @@ async def auto_scan_loop():
     Also reconciles pending signals against LIVE_PRICES_CACHE every cycle.
     """
     import functools
+
     loop = asyncio.get_event_loop()
 
     while True:
         try:
             market_open = is_nse_market_open()
-            scan_type   = "INTRADAY" if market_open else "OVERNIGHT"
+            scan_type = "INTRADAY" if market_open else "OVERNIGHT"
 
             # ── 1. Run signal scan ───────────────────────────────────────────
             results = await loop.run_in_executor(
@@ -844,10 +937,13 @@ async def auto_scan_loop():
 
             # Log BUY / SELL signals with confidence >= 60
             for sig in results:
-                if sig.get("signal") in ("BUY", "SELL") and sig.get("confidence", 0) >= 60:
-                    sig["direction"]  = sig["signal"]
-                    sig["entry"]      = sig.get("price",      sig.get("entry", 0))
-                    sig["scan_type"]  = scan_type
+                if (
+                    sig.get("signal") in ("BUY", "SELL")
+                    and sig.get("confidence", 0) >= 60
+                ):
+                    sig["direction"] = sig["signal"]
+                    sig["entry"] = sig.get("price", sig.get("entry", 0))
+                    sig["scan_type"] = scan_type
                     db.add_signal(sig)
 
             # ── 2. Reconcile pending signals vs live prices ──────────────────
@@ -857,19 +953,25 @@ async def auto_scan_loop():
                 if live is None:
                     continue
 
-                price  = live["price"]
+                price = live["price"]
                 is_buy = "BUY" in trade["signal_type"]
 
-                hit_target = (is_buy  and price >= trade["target"]) or \
-                             (not is_buy and price <= trade["target"])
-                hit_stop   = (is_buy  and price <= trade["stop_loss"]) or \
-                             (not is_buy and price >= trade["stop_loss"])
+                hit_target = (is_buy and price >= trade["target"]) or (
+                    not is_buy and price <= trade["target"]
+                )
+                hit_stop = (is_buy and price <= trade["stop_loss"]) or (
+                    not is_buy and price >= trade["stop_loss"]
+                )
 
                 if hit_target:
-                    pnl = db._calc_pnl(trade["signal_type"], trade["entry_price"], price)
+                    pnl = db._calc_pnl(
+                        trade["signal_type"], trade["entry_price"], price
+                    )
                     db.update_signal(trade["id"], "HIT_TARGET", price, pnl)
                 elif hit_stop:
-                    pnl = db._calc_pnl(trade["signal_type"], trade["entry_price"], price)
+                    pnl = db._calc_pnl(
+                        trade["signal_type"], trade["entry_price"], price
+                    )
                     db.update_signal(trade["id"], "HIT_STOP", price, pnl)
 
             # ── 3. Expire stale intraday signals ─────────────────────────────
@@ -878,7 +980,11 @@ async def auto_scan_loop():
         except Exception as e:
             print(f"[auto_scan_loop] error: {e}")
 
-        sleep_dur = AUTO_SCAN_INTERVAL_OPEN if is_nse_market_open() else AUTO_SCAN_INTERVAL_CLOSED
+        sleep_dur = (
+            AUTO_SCAN_INTERVAL_OPEN
+            if is_nse_market_open()
+            else AUTO_SCAN_INTERVAL_CLOSED
+        )
         await asyncio.sleep(sleep_dur)
 
 
@@ -894,7 +1000,7 @@ async def startup_event():
 async def websocket_prices(
     websocket: WebSocket,
     token: str = Query(None),
-    symbols: str = "HAL.NS,BEL.NS,RVNL.NS,IREDA.NS,HUDCO.NS,COALINDIA.NS,NHPC.NS,ADANIPORTS.NS,TATAPOWER.NS,BHEL.NS"
+    symbols: str = "HAL.NS,BEL.NS,RVNL.NS,IREDA.NS,HUDCO.NS,COALINDIA.NS,NHPC.NS,ADANIPORTS.NS,TATAPOWER.NS,BHEL.NS",
 ):
     await websocket.accept()
 
@@ -902,21 +1008,31 @@ async def websocket_prices(
     if token and token.startswith("apt_"):
         if token not in ACTIVE_SESSIONS:
             import logging
-            logging.warning(f"[WS] Token not found in active sessions (may be stale after restart)")
+
+            logging.warning(
+                f"[WS] Token not found in active sessions (may be stale after restart)"
+            )
     elif not token:
         import logging
+
         logging.warning("[WS] No token provided — anonymous WebSocket connection")
 
     active_connections.append(websocket)
 
     watch = [s.strip().upper() for s in symbols.split(",") if s.strip()]
-    
+
     # Store local tracking price states to simulate smooth tick transitions
     local_prices: dict[str, float] = {}
     local_prev_closes: dict[str, float] = {}
 
     for sym in watch:
-        cached = LIVE_PRICES_CACHE.get(sym, {"price": SEED_PRICES.get(sym, 150.0), "prev_close": SEED_PRICES.get(sym, 150.0)})
+        cached = LIVE_PRICES_CACHE.get(
+            sym,
+            {
+                "price": SEED_PRICES.get(sym, 150.0),
+                "prev_close": SEED_PRICES.get(sym, 150.0),
+            },
+        )
         local_prices[sym] = cached["price"]
         local_prev_closes[sym] = cached["prev_close"]
 
@@ -930,7 +1046,13 @@ async def websocket_prices(
                     new_syms = [s.strip().upper() for s in msg["symbols"] if s.strip()]
                     for sym in new_syms:
                         if sym not in local_prices:
-                            cached = LIVE_PRICES_CACHE.get(sym, {"price": SEED_PRICES.get(sym, 150.0), "prev_close": SEED_PRICES.get(sym, 150.0)})
+                            cached = LIVE_PRICES_CACHE.get(
+                                sym,
+                                {
+                                    "price": SEED_PRICES.get(sym, 150.0),
+                                    "prev_close": SEED_PRICES.get(sym, 150.0),
+                                },
+                            )
                             local_prices[sym] = cached["price"]
                             local_prev_closes[sym] = cached["prev_close"]
                     watch = new_syms
@@ -957,18 +1079,22 @@ async def websocket_prices(
                     price = baseline_price
                     local_prices[sym] = price
 
-                ticks.append({
-                    "symbol": sym,
-                    "price": round(price, 4),
-                    "prev_close": round(local_prev_closes.get(sym, price), 4),
-                    "timestamp": int(time.time() * 1000),
-                })
+                ticks.append(
+                    {
+                        "symbol": sym,
+                        "price": round(price, 4),
+                        "prev_close": round(local_prev_closes.get(sym, price), 4),
+                        "timestamp": int(time.time() * 1000),
+                    }
+                )
 
-            await websocket.send_json({
-                "type": "tick",
-                "data": ticks,
-                "market_status": "OPEN" if market_open else "CLOSED"
-            })
+            await websocket.send_json(
+                {
+                    "type": "tick",
+                    "data": ticks,
+                    "market_status": "OPEN" if market_open else "CLOSED",
+                }
+            )
             await asyncio.sleep(1)
 
     except WebSocketDisconnect:
@@ -997,6 +1123,7 @@ def _simulate_tick(last_price: float) -> float:
 #  CAPITAL ALLOCATION ENDPOINT
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class CapitalRequest(BaseModel):
     capital: float
     interval: str = "5m"
@@ -1008,7 +1135,9 @@ class CapitalRequest(BaseModel):
 
 @app.post("/api/allocate")
 @limiter.limit("3/minute")
-async def allocate_capital(req: CapitalRequest, request: Request, _=Depends(require_session)):
+async def allocate_capital(
+    req: CapitalRequest, request: Request, _=Depends(require_session)
+):
     """
     Scan HIGH_VOLATILITY_UNIVERSE matched to capital size.
     Small capital → cheap volatile stocks (YESBANK, SUZLON, RVNL…)
@@ -1018,6 +1147,7 @@ async def allocate_capital(req: CapitalRequest, request: Request, _=Depends(requ
         raise HTTPException(status_code=400, detail="Minimum capital is ₹500")
 
     import functools
+
     loop = asyncio.get_event_loop()
 
     # Pick the right universe based on capital size
@@ -1036,34 +1166,36 @@ async def allocate_capital(req: CapitalRequest, request: Request, _=Depends(requ
                     req.trading_style,
                     req.risk_level,
                     req.market_segment,
-                    req.capital
+                    req.capital,
                 ),
             ),
-            timeout=150
+            timeout=150,
         )
     except asyncio.TimeoutError:
         return {
             "error": "Scan took too long (backend cold start)",
             "positions": [],
-            "message": "First scan on free tier takes 2 min. Try again in 30s when backend is warm."
+            "message": "First scan on free tier takes 2 min. Try again in 30s when backend is warm.",
         }
 
     # Normalise signal fields so allocator can read them
     normalised = []
     for s in signals:
-        normalised.append({
-            **s,
-            "direction":   s.get("signal", s.get("direction", "")),
-            "entry":       s.get("price", s.get("entry", s.get("entry_price", 0))),
-            "entry_price": s.get("price", s.get("entry", s.get("entry_price", 0))),
-        })
+        normalised.append(
+            {
+                **s,
+                "direction": s.get("signal", s.get("direction", "")),
+                "entry": s.get("price", s.get("entry", s.get("entry_price", 0))),
+                "entry_price": s.get("price", s.get("entry", s.get("entry_price", 0))),
+            }
+        )
 
     plan = capital_allocator.allocate(
         req.capital,
         normalised,
         style=req.trading_style,
         risk=req.risk_level,
-        max_recommendations=req.max_recommendations
+        max_recommendations=req.max_recommendations,
     )
     plan["all_signals"] = normalised
 
@@ -1081,64 +1213,75 @@ async def allocate_capital(req: CapitalRequest, request: Request, _=Depends(requ
                 "macd": pos.get("macd_hist"),
                 "adx": pos.get("adx"),
                 "status": "PENDING",
-                "reason": ", ".join(pos.get("reasons", []))
+                "reason": ", ".join(pos.get("reasons", [])),
             }
             db.add_prediction(pred_data)
         except Exception as e:
-            print(f"[api/allocate] Error archiving recommendation for {pos['symbol']}: {e}")
+            print(
+                f"[api/allocate] Error archiving recommendation for {pos['symbol']}: {e}"
+            )
 
     return plan
 
 
 @app.post("/api/allocate/quick")
 @limiter.limit("3/minute")
-async def allocate_capital_quick(req: CapitalRequest, request: Request, _=Depends(require_session)):
+async def allocate_capital_quick(
+    req: CapitalRequest, request: Request, _=Depends(require_session)
+):
     """
     Fast allocation using already-cached live prices (no fresh yfinance scan).
     Returns instantly if LIVE_PRICES_CACHE is warm; falls back to full scan otherwise.
     """
     if req.capital < 500:
-        raise HTTPException(
-            status_code=400,
-            detail="Minimum capital is ₹500"
-        )
+        raise HTTPException(status_code=400, detail="Minimum capital is ₹500")
 
     # Build lightweight signals from the live price cache
     quick_signals = []
     for entry in sig_engine.NSE_WATCHLIST:
-        sym   = entry["symbol"]
-        
+        sym = entry["symbol"]
+
         # Apply segment filter
         if req.market_segment == "BSE" and not sym.endswith(".BO"):
             continue
-        elif req.market_segment == "F&O" and sym not in ["HAL.NS", "BEL.NS", "RVNL.NS", "COALINDIA.NS", "ADANIPORTS.NS", "TATAPOWER.NS", "BHEL.NS"]:
+        elif req.market_segment == "F&O" and sym not in [
+            "HAL.NS",
+            "BEL.NS",
+            "RVNL.NS",
+            "COALINDIA.NS",
+            "ADANIPORTS.NS",
+            "TATAPOWER.NS",
+            "BHEL.NS",
+        ]:
             continue
 
         cached = LIVE_PRICES_CACHE.get(sym)
         if not cached:
             continue
         price = cached["price"]
-        quick_signals.append({
-            "symbol":     sym,
-            "name":       entry["name"],
-            "sector":     entry["sector"],
-            "direction":  "BUY",   # optimistic placeholder
-            "entry":      price,
-            "entry_price": price,
-            "target":     round(price * 1.025, 2),
-            "target1":    round(price * 1.025, 2),
-            "target2":    round(price * 1.045, 2),
-            "stop_loss":  round(price * 0.985, 2),
-            "confidence": 60,
-            "atr":        round(price * 0.012, 2),
-            "rr_ratio":   1.67,
-            "rsi":        50,
-            "macd_hist":  0.0,
-            "adx":        20,
-            "reasons":    ["Cached Live Price Signal"],
-            "sector_strength": "Medium",
-            "expected_move_pct": 2.5,
-        })
+        quick_signals.append(
+            {
+                "symbol": sym,
+                "name": entry["name"],
+                "sector": entry["sector"],
+                "direction": "BUY",  # optimistic placeholder
+                "entry": price,
+                "entry_price": price,
+                "target": round(price * 1.025, 2),
+                "target1": round(price * 1.025, 2),
+                "target2": round(price * 1.045, 2),
+                "stop_loss": round(price * 0.985, 2),
+                "confidence": 60,
+                "atr": round(price * 0.012, 2),
+                "rr_ratio": 1.67,
+                "rsi": 50,
+                "macd_hist": 0.0,
+                "adx": 20,
+                "reasons": ["Cached Live Price Signal"],
+                "sector_strength": "Medium",
+                "expected_move_pct": 2.5,
+            }
+        )
 
     if not quick_signals:
         # Cache not warm yet — fall back to full scan
@@ -1149,10 +1292,12 @@ async def allocate_capital_quick(req: CapitalRequest, request: Request, _=Depend
         quick_signals,
         style=req.trading_style,
         risk=req.risk_level,
-        max_recommendations=req.max_recommendations
+        max_recommendations=req.max_recommendations,
     )
     plan["all_signals"] = quick_signals
-    plan["note"] = "Quick allocation using cached prices — run /api/allocate for a full fresh scan."
+    plan["note"] = (
+        "Quick allocation using cached prices — run /api/allocate for a full fresh scan."
+    )
 
     # Log generated recommendations in predictions_history database
     for pos in plan.get("positions", []):
@@ -1168,16 +1313,19 @@ async def allocate_capital_quick(req: CapitalRequest, request: Request, _=Depend
                 "macd": pos.get("macd_hist"),
                 "adx": pos.get("adx"),
                 "status": "PENDING",
-                "reason": ", ".join(pos.get("reasons", []))
+                "reason": ", ".join(pos.get("reasons", [])),
             }
             db.add_prediction(pred_data)
         except Exception as e:
-            print(f"[api/allocate/quick] Error archiving recommendation for {pos['symbol']}: {e}")
+            print(
+                f"[api/allocate/quick] Error archiving recommendation for {pos['symbol']}: {e}"
+            )
 
     return plan
 
 
 # ── Trade Journal API ────────────────────────────────────────────────────────
+
 
 class JournalEntryCreate(BaseModel):
     symbol: str
@@ -1191,14 +1339,18 @@ class JournalEntryCreate(BaseModel):
     status: Optional[str] = "OPEN"
     pnl: Optional[float] = None
 
+
 @app.post("/api/journal")
 @limiter.limit("10/minute")
-async def create_journal(entry: JournalEntryCreate, request: Request, _=Depends(require_session)):
+async def create_journal(
+    entry: JournalEntryCreate, request: Request, _=Depends(require_session)
+):
     try:
         row_id = db.add_journal_entry(entry.dict())
         return {"status": "success", "id": row_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/journal")
 async def list_journal(request: Request, _=Depends(require_session)):
@@ -1218,6 +1370,7 @@ async def list_journal(request: Request, _=Depends(require_session)):
 
 # ── Predictions Tracking API ──────────────────────────────────────────────────
 
+
 class PredictionCreate(BaseModel):
     symbol: str
     prediction_type: str  # 'UP' or 'DOWN'
@@ -1230,13 +1383,16 @@ class PredictionCreate(BaseModel):
     adx: Optional[float] = None
     reason: Optional[str] = ""
 
+
 class PredictionResolve(BaseModel):
     actual_outcome: float
     status: str  # 'CORRECT' or 'INCORRECT' or 'FLAT'
 
 
 @app.post("/api/predictions")
-async def create_prediction(pred: PredictionCreate, request: Request, _=Depends(require_session)):
+async def create_prediction(
+    pred: PredictionCreate, request: Request, _=Depends(require_session)
+):
     try:
         row_id = db.add_prediction(pred.dict())
         return {"status": "success", "id": row_id}
@@ -1253,7 +1409,9 @@ async def list_predictions(request: Request, _=Depends(require_session)):
 
 
 @app.post("/api/predictions/{pred_id}/resolve")
-async def resolve_prediction_route(pred_id: int, req: PredictionResolve, request: Request, _=Depends(require_session)):
+async def resolve_prediction_route(
+    pred_id: int, req: PredictionResolve, request: Request, _=Depends(require_session)
+):
     try:
         success = db.resolve_prediction(pred_id, req.actual_outcome, req.status)
         if not success:
@@ -1266,7 +1424,9 @@ async def resolve_prediction_route(pred_id: int, req: PredictionResolve, request
 
 
 @app.delete("/api/predictions/{pred_id}")
-async def delete_prediction_route(pred_id: int, request: Request, _=Depends(require_session)):
+async def delete_prediction_route(
+    pred_id: int, request: Request, _=Depends(require_session)
+):
     try:
         success = db.delete_prediction(pred_id)
         if not success:
@@ -1284,9 +1444,11 @@ async def get_prediction_stats(request: Request, _=Depends(require_session)):
         preds = db.get_predictions()
         resolved = [p for p in preds if p["status"] != "PENDING"]
         correct = [p for p in resolved if p["status"] == "CORRECT"]
-        
-        win_rate = round((len(correct) / len(resolved)) * 100, 1) if len(resolved) > 0 else 0.0
-        
+
+        win_rate = (
+            round((len(correct) / len(resolved)) * 100, 1) if len(resolved) > 0 else 0.0
+        )
+
         # Calculate Mean Absolute Error (MAE) between target and actual resolved price
         total_error = 0.0
         for p in resolved:
@@ -1295,28 +1457,34 @@ async def get_prediction_stats(request: Request, _=Depends(require_session)):
             if actual is not None and target is not None:
                 total_error += abs(target - actual)
         avg_error = round(total_error / len(resolved), 2) if len(resolved) > 0 else 0.0
-        
+
         # Best and worst sectors
         SECTORS_MAP = {
-            'HAL.NS': 'Defence', 'BEL.NS': 'Defence', 'RVNL.NS': 'Railways',
-            'IREDA.NS': 'Green Energy', 'HUDCO.NS': 'Finance', 'COALINDIA.NS': 'Energy',
-            'NHPC.NS': 'Power', 'ADANIPORTS.NS': 'Infrastructure', 'TATAPOWER.NS': 'Power',
-            'BHEL.NS': 'Capital Goods'
+            "HAL.NS": "Defence",
+            "BEL.NS": "Defence",
+            "RVNL.NS": "Railways",
+            "IREDA.NS": "Green Energy",
+            "HUDCO.NS": "Finance",
+            "COALINDIA.NS": "Energy",
+            "NHPC.NS": "Power",
+            "ADANIPORTS.NS": "Infrastructure",
+            "TATAPOWER.NS": "Power",
+            "BHEL.NS": "Capital Goods",
         }
-        
+
         sector_wins = {}
         sector_totals = {}
         for p in resolved:
-            sec = SECTORS_MAP.get(p['symbol'], 'Other')
+            sec = SECTORS_MAP.get(p["symbol"], "Other")
             sector_totals[sec] = sector_totals.get(sec, 0) + 1
-            if p['status'] == 'CORRECT':
+            if p["status"] == "CORRECT":
                 sector_wins[sec] = sector_wins.get(sec, 0) + 1
-                
+
         best_sector = "None"
         best_rate = -1.0
         worst_sector = "None"
         worst_rate = 101.0
-        
+
         for sec, total in sector_totals.items():
             rate = (sector_wins.get(sec, 0) / total) * 100
             if rate > best_rate:
@@ -1325,13 +1493,17 @@ async def get_prediction_stats(request: Request, _=Depends(require_session)):
             if rate < worst_rate:
                 worst_rate = rate
                 worst_sector = f"{sec} ({rate:.0f}%)"
-                
+
         # outcomes list for sparkline (last 20 resolved outcomes)
         recent_outcomes = [p["status"] == "CORRECT" for p in resolved[:20]]
-        
+
         # Average confidence of predictions
-        avg_conf = round(sum(p["confidence_score"] for p in preds) / len(preds), 1) if len(preds) > 0 else 0.0
-        
+        avg_conf = (
+            round(sum(p["confidence_score"] for p in preds) / len(preds), 1)
+            if len(preds) > 0
+            else 0.0
+        )
+
         return {
             "total_predictions": len(preds),
             "resolved_predictions": len(resolved),
@@ -1340,7 +1512,7 @@ async def get_prediction_stats(request: Request, _=Depends(require_session)):
             "best_sector": best_sector if best_rate >= 0 else "N/A",
             "worst_sector": worst_sector if worst_rate <= 100 else "N/A",
             "recent_outcomes": recent_outcomes,
-            "avg_confidence": avg_conf
+            "avg_confidence": avg_conf,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1354,14 +1526,18 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
             signals = sig_engine.run_scan()
         except Exception:
             signals = []
-            
+
         buys = [s for s in signals if s.get("signal") in ("BUY", "WEAK BUY")]
         sentiment_pct = int(len(buys) / len(signals) * 100) if signals else 50
-        
+
         # Find best Opportunities
-        top_ops = [s for s in signals if s.get("signal") in ("BUY", "SELL", "WEAK BUY", "WEAK SELL")]
+        top_ops = [
+            s
+            for s in signals
+            if s.get("signal") in ("BUY", "SELL", "WEAK BUY", "WEAK SELL")
+        ]
         top_ops.sort(key=lambda x: -x.get("confidence", 0))
-        
+
         # Nifty overall trend based on watchlist sentiment
         if sentiment_pct >= 60:
             trend_bias = "BULLISH"
@@ -1372,14 +1548,14 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
         else:
             trend_bias = "CONSOLIDATION"
             heuristic_brief = "Sideways consolidation range observed. Low trend strength (ADX under 20) with prices clustering near middle Bollinger Band levels. Favor range-bound mean-reversion tactics."
-            
+
         briefing_text = heuristic_brief
-        
+
         # Try to generate using Gemini if available
         if _genai_client and signals:
             try:
                 opp_summary = "\n".join(
-                    f"- {s['symbol'].replace('.NS','')}: {s['signal']} (Conf: {s['confidence']}%, Price: ₹{s['price']:.1f}, Reasoning: {s['reasoning']})"
+                    f"- {s['symbol'].replace('.NS', '')}: {s['signal']} (Conf: {s['confidence']}%, Price: ₹{s['price']:.1f}, Reasoning: {s['reasoning']})"
                     for s in signals[:5]
                 )
                 prompt = (
@@ -1399,18 +1575,18 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
                 if gemini_text:
                     briefing_text = gemini_text
             except Exception:
-                pass # Fall back to heuristic
-                
+                pass  # Fall back to heuristic
+
         return {
             "nifty_trend": trend_bias,
             "market_sentiment_pct": sentiment_pct,
             "top_opportunities": [
                 {
-                    "symbol": s["symbol"].replace('.NS', ''),
+                    "symbol": s["symbol"].replace(".NS", ""),
                     "name": s["name"],
                     "signal": s["signal"],
                     "confidence": s["confidence"],
-                    "price": s["price"]
+                    "price": s["price"],
                 }
                 for s in top_ops[:3]
             ],
@@ -1418,10 +1594,9 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
                 "RBI Monetary Policy Committee Rate Announcement (Upcoming)",
                 "US Core CPI inflation data report (Scheduled release)",
                 "Nifty Index Weekly Options Expiry (Thursday)",
-                "Federal Reserve Open Market Committee Interest Rate decision"
+                "Federal Reserve Open Market Committee Interest Rate decision",
             ],
-            "briefing_text": briefing_text
+            "briefing_text": briefing_text,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-

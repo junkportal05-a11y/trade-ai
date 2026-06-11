@@ -6,6 +6,7 @@ from typing import Optional, Tuple
 #  CANDLESTICK PATTERN DETECTORS
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def detect_doji(df: pd.DataFrame) -> Tuple[bool, bool, bool]:
     """
     Detects Doji, Dragonfly Doji, and Gravestone Doji on the latest candle.
@@ -25,8 +26,12 @@ def detect_doji(df: pd.DataFrame) -> Tuple[bool, bool, bool]:
     lower_wick = min(o, c) - l
 
     is_standard = body <= 0.1 * rng
-    is_dragonfly = is_standard and (upper_wick <= 0.1 * rng) and (lower_wick >= 0.7 * rng)
-    is_gravestone = is_standard and (lower_wick <= 0.1 * rng) and (upper_wick >= 0.7 * rng)
+    is_dragonfly = (
+        is_standard and (upper_wick <= 0.1 * rng) and (lower_wick >= 0.7 * rng)
+    )
+    is_gravestone = (
+        is_standard and (lower_wick <= 0.1 * rng) and (upper_wick >= 0.7 * rng)
+    )
 
     # Standard Doji is True if it's doji but not dragonfly/gravestone
     is_standard = is_standard and not (is_dragonfly or is_gravestone)
@@ -53,9 +58,13 @@ def detect_hammer_shooting_star(df: pd.DataFrame) -> Tuple[bool, bool]:
     lower_wick = min(o, c) - l
 
     # Hammer: long lower shadow, small body near high, tiny upper shadow
-    is_hammer = (lower_wick >= 2 * body) and (upper_wick <= 0.1 * rng) and (body >= 0.05 * rng)
+    is_hammer = (
+        (lower_wick >= 2 * body) and (upper_wick <= 0.1 * rng) and (body >= 0.05 * rng)
+    )
     # Shooting Star: long upper shadow, small body near low, tiny lower shadow
-    is_shooting_star = (upper_wick >= 2 * body) and (lower_wick <= 0.1 * rng) and (body >= 0.05 * rng)
+    is_shooting_star = (
+        (upper_wick >= 2 * body) and (lower_wick <= 0.1 * rng) and (body >= 0.05 * rng)
+    )
 
     return is_hammer, is_shooting_star
 
@@ -96,9 +105,19 @@ def detect_harami(df: pd.DataFrame) -> Tuple[bool, bool]:
     o2, c2 = float(df["Open"].iloc[-1]), float(df["Close"].iloc[-1])
 
     # Bullish Harami: Large bearish body, small body contained inside it
-    bullish = (c1 < o1) and (max(o2, c2) <= o1) and (min(o2, c2) >= c1) and (abs(c2 - o2) < abs(c1 - o1) * 0.5)
+    bullish = (
+        (c1 < o1)
+        and (max(o2, c2) <= o1)
+        and (min(o2, c2) >= c1)
+        and (abs(c2 - o2) < abs(c1 - o1) * 0.5)
+    )
     # Bearish Harami: Large bullish body, small body contained inside it
-    bearish = (c1 > o1) and (max(o2, c2) <= c1) and (min(o2, c2) >= o1) and (abs(c2 - o2) < abs(c1 - o1) * 0.5)
+    bearish = (
+        (c1 > o1)
+        and (max(o2, c2) <= c1)
+        and (min(o2, c2) >= o1)
+        and (abs(c2 - o2) < abs(c1 - o1) * 0.5)
+    )
 
     return bullish, bearish
 
@@ -119,9 +138,13 @@ def detect_stars(df: pd.DataFrame) -> Tuple[bool, bool]:
     body2 = abs(c2 - o2)
 
     # Morning Star: Bearish candle -> Small star -> Bullish candle closing > 50% body1
-    morning = (c1 < o1) and (body2 <= 0.3 * body1) and (c3 > o3) and (c3 >= o1 - 0.5 * body1)
+    morning = (
+        (c1 < o1) and (body2 <= 0.3 * body1) and (c3 > o3) and (c3 >= o1 - 0.5 * body1)
+    )
     # Evening Star: Bullish candle -> Small star -> Bearish candle closing < 50% body1
-    evening = (c1 > o1) and (body2 <= 0.3 * body1) and (c3 < o3) and (c3 <= o1 + 0.5 * body1)
+    evening = (
+        (c1 > o1) and (body2 <= 0.3 * body1) and (c3 < o3) and (c3 <= o1 + 0.5 * body1)
+    )
 
     return morning, evening
 
@@ -142,9 +165,13 @@ def detect_tweezers(df: pd.DataFrame) -> Tuple[bool, bool]:
     threshold = 0.0005 * c2
 
     # Tweezer Bottom: Matching lows
-    bottom = abs(l1 - l2) <= threshold and (min(df["Open"].iloc[-2], df["Close"].iloc[-2]) - l1 > 0.1 * (h1 - l1))
+    bottom = abs(l1 - l2) <= threshold and (
+        min(df["Open"].iloc[-2], df["Close"].iloc[-2]) - l1 > 0.1 * (h1 - l1)
+    )
     # Tweezer Top: Matching highs
-    top = abs(h1 - h2) <= threshold and (h1 - max(df["Open"].iloc[-2], df["Close"].iloc[-2]) > 0.1 * (h1 - l1))
+    top = abs(h1 - h2) <= threshold and (
+        h1 - max(df["Open"].iloc[-2], df["Close"].iloc[-2]) > 0.1 * (h1 - l1)
+    )
 
     return bottom, top
 
@@ -153,7 +180,14 @@ def detect_tweezers(df: pd.DataFrame) -> Tuple[bool, bool]:
 #  PIN BAR STRATEGIES (WITH TREND, COUNTER-TREND, CONFLUENCE)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def detect_pin_bars(df: pd.DataFrame, ema21_val: float, rsi_val: float, support_level: Optional[float] = None, resistance_level: Optional[float] = None) -> Tuple[str, list[str]]:
+
+def detect_pin_bars(
+    df: pd.DataFrame,
+    ema21_val: float,
+    rsi_val: float,
+    support_level: Optional[float] = None,
+    resistance_level: Optional[float] = None,
+) -> Tuple[str, list[str]]:
     """
     Detects Pin Bars and evaluates their strategy categories.
     Returns (pin_bar_type: "BULLISH", "BEARISH", or "NONE", list_of_confluences).
@@ -165,19 +199,19 @@ def detect_pin_bars(df: pd.DataFrame, ema21_val: float, rsi_val: float, support_
     is_bearish_pin = is_shooting_star or is_gravestone
 
     confluences = []
-    
+
     if is_bullish_pin:
         l = float(df["Low"].iloc[-1])
         c = float(df["Close"].iloc[-1])
-        
+
         # Confluence 1: Near Support
         if support_level and abs(l - support_level) <= 0.008 * c:
             confluences.append("Support Level Confluence")
-        
+
         # Confluence 2: Touching/near EMA21
         if ema21_val and abs(l - ema21_val) <= 0.005 * c:
             confluences.append("EMA21 Confluence")
-            
+
         # Confluence 3: Counter-Trend extreme oversold
         if rsi_val < 30:
             confluences.append("Oversold Reversal (RSI < 30)")
@@ -190,15 +224,15 @@ def detect_pin_bars(df: pd.DataFrame, ema21_val: float, rsi_val: float, support_
     elif is_bearish_pin:
         h = float(df["High"].iloc[-1])
         c = float(df["Close"].iloc[-1])
-        
+
         # Confluence 1: Near Resistance
         if resistance_level and abs(h - resistance_level) <= 0.008 * c:
             confluences.append("Resistance Level Confluence")
-        
+
         # Confluence 2: Touching/near EMA21
         if ema21_val and abs(h - ema21_val) <= 0.005 * c:
             confluences.append("EMA21 Confluence")
-            
+
         # Confluence 3: Counter-Trend extreme overbought
         if rsi_val > 70:
             confluences.append("Overbought Reversal (RSI > 70)")
@@ -214,6 +248,7 @@ def detect_pin_bars(df: pd.DataFrame, ema21_val: float, rsi_val: float, support_
 # ══════════════════════════════════════════════════════════════════════════════
 #  INSIDE BARS & FALSE BREAKOUT (HIKKAKE/FAKEOUT)
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def detect_inside_bars(df: pd.DataFrame) -> bool:
     """
@@ -265,35 +300,44 @@ def detect_inside_bar_fakeout(df: pd.DataFrame) -> Tuple[str, float]:
 #  SMART MONEY CONCEPTS (BOS, CHOCH, SWINGS)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def detect_swings(df: pd.DataFrame, window: int = 5) -> Tuple[list[Tuple[int, float]], list[Tuple[int, float]]]:
+
+def detect_swings(
+    df: pd.DataFrame, window: int = 5
+) -> Tuple[list[Tuple[int, float]], list[Tuple[int, float]]]:
     """
     Detects Swing Highs and Swing Lows from the past N candles.
     Returns (list_of_swing_highs, list_of_swing_lows) as [(index, price), ...]
     """
     highs = df["High"].values
     lows = df["Low"].values
-    
+
     swing_highs = []
     swing_lows = []
-    
+
     for i in range(window, len(df) - window):
         # Check swing high
         val_h = highs[i]
         if val_h == max(highs[i - window : i + window + 1]):
             # Verify it's unique in the window to avoid duplicates
-            if all(val_h > highs[j] for j in range(i - window, i)) and all(val_h >= highs[j] for j in range(i + 1, i + window + 1)):
+            if all(val_h > highs[j] for j in range(i - window, i)) and all(
+                val_h >= highs[j] for j in range(i + 1, i + window + 1)
+            ):
                 swing_highs.append((i, float(val_h)))
-                
+
         # Check swing low
         val_l = lows[i]
         if val_l == min(lows[i - window : i + window + 1]):
-            if all(val_l < lows[j] for j in range(i - window, i)) and all(val_l <= lows[j] for j in range(i + 1, i + window + 1)):
+            if all(val_l < lows[j] for j in range(i - window, i)) and all(
+                val_l <= lows[j] for j in range(i + 1, i + window + 1)
+            ):
                 swing_lows.append((i, float(val_l)))
-                
+
     return swing_highs, swing_lows
 
 
-def detect_structure_breaks(df: pd.DataFrame, swing_highs: list, swing_lows: list) -> Tuple[str, str]:
+def detect_structure_breaks(
+    df: pd.DataFrame, swing_highs: list, swing_lows: list
+) -> Tuple[str, str]:
     """
     Checks for Break of Structure (BOS) or Change of Character (CHoCH) on the latest candle.
     Returns (break_type: "BULLISH", "BEARISH", or "NONE", reason: str)
@@ -304,14 +348,14 @@ def detect_structure_breaks(df: pd.DataFrame, swing_highs: list, swing_lows: lis
     c1 = float(df["Close"].iloc[-1])
     h1 = float(df["High"].iloc[-1])
     l1 = float(df["Low"].iloc[-1])
-    
+
     # Sort swing levels by time (index)
     sorted_highs = sorted(swing_highs, key=lambda x: x[0])
     sorted_lows = sorted(swing_lows, key=lambda x: x[0])
-    
+
     last_high_idx, last_high_val = sorted_highs[-1]
     last_low_idx, last_low_val = sorted_lows[-1]
-    
+
     # Check for Bullish break
     if c1 > last_high_val:
         # Determine if it's BOS (with trend) or CHoCH (reversal)
@@ -319,7 +363,10 @@ def detect_structure_breaks(df: pd.DataFrame, swing_highs: list, swing_lows: lis
         if len(sorted_highs) >= 2:
             prev_high_val = sorted_highs[-2][1]
             if last_high_val < prev_high_val:
-                return "BULLISH", f"CHoCH (Bullish Reversal above LH {last_high_val:.2f})"
+                return (
+                    "BULLISH",
+                    f"CHoCH (Bullish Reversal above LH {last_high_val:.2f})",
+                )
         return "BULLISH", f"BOS (Bullish Continuation above HH {last_high_val:.2f})"
 
     # Check for Bearish break
@@ -328,13 +375,18 @@ def detect_structure_breaks(df: pd.DataFrame, swing_highs: list, swing_lows: lis
         if len(sorted_lows) >= 2:
             prev_low_val = sorted_lows[-2][1]
             if last_low_val > prev_low_val:
-                return "BEARISH", f"CHoCH (Bearish Reversal below HL {last_low_val:.2f})"
+                return (
+                    "BEARISH",
+                    f"CHoCH (Bearish Reversal below HL {last_low_val:.2f})",
+                )
         return "BEARISH", f"BOS (Bearish Continuation below LL {last_low_val:.2f})"
-        
+
     return "NONE", ""
 
 
-def find_support_resistance(df: pd.DataFrame, swing_highs: list, swing_lows: list) -> Tuple[Optional[float], Optional[float]]:
+def find_support_resistance(
+    df: pd.DataFrame, swing_highs: list, swing_lows: list
+) -> Tuple[Optional[float], Optional[float]]:
     """
     Groups recent swing points to find nearest Support (below price) and Resistance (above price).
     Returns (nearest_support, nearest_resistance).
@@ -343,25 +395,26 @@ def find_support_resistance(df: pd.DataFrame, swing_highs: list, swing_lows: lis
         return None, None
 
     c1 = float(df["Close"].iloc[-1])
-    
+
     # Extract prices
-    high_prices = [h[1] for h in swing_highs[-10:]] # last 10 swings
+    high_prices = [h[1] for h in swing_highs[-10:]]  # last 10 swings
     low_prices = [l[1] for l in swing_lows[-10:]]
-    
+
     # Nearest support is the highest swing low that is below current price
     supports = [val for val in low_prices if val < c1]
     support = max(supports) if supports else None
-    
+
     # Nearest resistance is the lowest swing high that is above current price
     resistances = [val for val in high_prices if val > c1]
     resistance = min(resistances) if resistances else None
-    
+
     return support, resistance
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  RISK & POSITION SIZING CALCULATOR
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def _avoid_round_numbers(price: float, is_buy: bool) -> float:
     """Shifts stop loss 3 points away from round numbers (multiples of 50 or 100)"""
@@ -370,15 +423,16 @@ def _avoid_round_numbers(price: float, is_buy: bool) -> float:
         return price - 3.0 if is_buy else price + 3.0
     return price
 
+
 def calculate_risk_parameters(
-    price: float, 
-    signal_type: str, 
-    df: pd.DataFrame, 
-    support: Optional[float], 
-    resistance: Optional[float], 
-    capital: float, 
+    price: float,
+    signal_type: str,
+    df: pd.DataFrame,
+    support: Optional[float],
+    resistance: Optional[float],
+    capital: float,
     risk_pct: float = 0.01,
-    is_macro_aligned: bool = True
+    is_macro_aligned: bool = True,
 ) -> Tuple[float, float, int, float]:
     """
     Calculates Stop Loss, Target, Position Size, and Risk/Reward Ratio.
@@ -392,34 +446,35 @@ def calculate_risk_parameters(
         sl_base = support if support else float(df["Low"].iloc[-3:].min())
         stop_loss = sl_base - (atr * 0.3)
         stop_loss = _avoid_round_numbers(stop_loss, is_buy=True)
-        
+
         risk_per_share = price - stop_loss
         if risk_per_share <= 0:
             risk_per_share = atr
             stop_loss = price - risk_per_share
-            
+
         target = price + (rr_target * risk_per_share)
-        
-    else: # BEARISH
+
+    else:  # BEARISH
         sl_base = resistance if resistance else float(df["High"].iloc[-3:].max())
         stop_loss = sl_base + (atr * 0.3)
         stop_loss = _avoid_round_numbers(stop_loss, is_buy=False)
-        
+
         risk_per_share = stop_loss - price
         if risk_per_share <= 0:
             risk_per_share = atr
             stop_loss = price + risk_per_share
-            
+
         target = price - (rr_target * risk_per_share)
 
     # 2. Position Sizing
     max_loss = capital * risk_pct
     position_size = int(max_loss // risk_per_share) if risk_per_share > 0 else 1
-    
+
     max_buy_power = int(capital // price)
     position_size = max(1, min(position_size, max_buy_power))
 
     return round(stop_loss, 2), round(target, 2), position_size, rr_target
+
 
 def get_pattern_score(df: pd.DataFrame) -> dict:
     """
@@ -438,13 +493,17 @@ def get_pattern_score(df: pd.DataFrame) -> dict:
     m_star, e_star = detect_stars(df)
     if m_star:
         bull_pts += 31
-        reasons.append("Morning Star — 3-candle bullish reversal. Buyers fully in control.")
+        reasons.append(
+            "Morning Star — 3-candle bullish reversal. Buyers fully in control."
+        )
         if 31 > max_pts:
             max_pts = 31
             top_pattern = "Morning Star"
     if e_star:
         bear_pts += 31
-        reasons.append("Evening Star — 3-candle bearish reversal. Sellers fully in control.")
+        reasons.append(
+            "Evening Star — 3-candle bearish reversal. Sellers fully in control."
+        )
         if 31 > max_pts:
             max_pts = 31
             top_pattern = "Evening Star"
@@ -508,7 +567,7 @@ def get_pattern_score(df: pd.DataFrame) -> dict:
         if 26 > max_pts:
             max_pts = 26
             top_pattern = "Gravestone Doji"
-            
+
     # 6. Inside Bar (25 pts)
     is_inside = detect_inside_bars(df)
     if is_inside:
@@ -559,5 +618,5 @@ def get_pattern_score(df: pd.DataFrame) -> dict:
         "bull_pts": bull_pts,
         "bear_pts": bear_pts,
         "reasons": reasons,
-        "top_pattern": top_pattern
+        "top_pattern": top_pattern,
     }
