@@ -1,6 +1,6 @@
 import { API_BASE_URL } from './api';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { createChart, CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
+import { createChart } from 'lightweight-charts';
 import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
 import SignalsPanel from './SignalsPanel';
 import PerformancePanel from './PerformancePanel';
@@ -180,7 +180,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     });
     mainChartRef.current = mainChart;
 
-    const candleSeries = mainChart.addSeries(CandlestickSeries, {
+    const candleSeries = mainChart.addCandlestickSeries({
       upColor:       T.green,
       downColor:     T.red,
       borderVisible: false,
@@ -200,7 +200,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     });
 
     // Volume histogram on main chart
-    const volSeries = mainChart.addSeries(HistogramSeries, {
+    const volSeries = mainChart.addHistogramSeries({
       priceFormat:  { type: 'volume' },
       priceScaleId: 'vol',
       color: 'rgba(77,159,255,0.25)',
@@ -220,7 +220,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     // EMA 9 overlay
     if (indicators.ema9) {
       const ema9Data = calcEMA(bars, 9);
-      const ema9Series = mainChart.addSeries(LineSeries, {
+      const ema9Series = mainChart.addLineSeries({
         color: '#00e5a8',
         lineWidth: 1.5,
         title: 'EMA 9',
@@ -231,7 +231,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     // EMA 21 overlay
     if (indicators.ema21) {
       const ema21Data = calcEMA(bars, 21);
-      const ema21Series = mainChart.addSeries(LineSeries, {
+      const ema21Series = mainChart.addLineSeries({
         color: '#ff9f43',
         lineWidth: 1.5,
         title: 'EMA 21',
@@ -242,16 +242,16 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     // Bollinger Bands overlays
     if (indicators.bb) {
       const bbData = calcBollingerBands(bars, 20, 2);
-      const bbUpSeries = mainChart.addSeries(LineSeries, {
+      const bbUpSeries = mainChart.addLineSeries({
         color: 'rgba(123,108,255,0.6)',
         lineWidth: 1,
       });
-      const bbMidSeries = mainChart.addSeries(LineSeries, {
+      const bbMidSeries = mainChart.addLineSeries({
         color: 'rgba(123,108,255,0.3)',
         lineWidth: 1,
         lineStyle: 2,
       });
-      const bbDownSeries = mainChart.addSeries(LineSeries, {
+      const bbDownSeries = mainChart.addLineSeries({
         color: 'rgba(123,108,255,0.6)',
         lineWidth: 1,
       });
@@ -303,7 +303,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       rsiChartRef.current = rsiChart;
       targets.push(rsiChart);
 
-      const rsiSeries = rsiChart.addSeries(LineSeries, {
+      const rsiSeries = rsiChart.addLineSeries({
         color: '#7b6cff',
         lineWidth: 1.5,
       });
@@ -362,7 +362,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
 
       const macdData = calcMACD(bars);
       
-      const macdHistSeries = macdChart.addSeries(HistogramSeries, {
+      const macdHistSeries = macdChart.addHistogramSeries({
         priceScaleId: 'right',
       });
       const macdHistData = macdData.histogram.map(h => ({
@@ -372,13 +372,13 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       }));
       macdHistSeries.setData(macdHistData);
 
-      const macdLineSeries = macdChart.addSeries(LineSeries, {
+      const macdLineSeries = macdChart.addLineSeries({
         color: '#4da6ff',
         lineWidth: 1.2,
       });
       macdLineSeries.setData(macdData.macdLine.map(m => ({ time: m.time, value: m.value })));
 
-      const macdSigSeries = macdChart.addSeries(LineSeries, {
+      const macdSigSeries = macdChart.addLineSeries({
         color: '#f5c842',
         lineWidth: 1.2,
       });
