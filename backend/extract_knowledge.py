@@ -1,7 +1,5 @@
 import os
-import sys
 import ast
-import re
 import pypdf
 
 
@@ -171,7 +169,6 @@ def extract_knowledge(project_dir, knowledge_dir, output_file):
                 out.write(f"Total Pages: {total_pages}\n\n")
 
                 # Extract up to 30 key pages to fit context constraints
-                pages_to_read = min(30, total_pages)
                 step = 1 if total_pages <= 30 else total_pages // 30
 
                 pages_extracted = 0
