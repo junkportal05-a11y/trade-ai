@@ -812,7 +812,6 @@ async def fetch_live_quotes_loop():
     quotes for all watchlisted NSE stocks and updates LIVE_PRICES_CACHE.
     """
     import functools
-    import requests
     import pandas as pd
 
     watchlist_symbols = [w["symbol"] for w in sig_engine.NSE_WATCHLIST]
