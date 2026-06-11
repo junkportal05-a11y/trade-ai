@@ -77,9 +77,9 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
   // Fetch functions
   const fetchPredictions = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
       const res = await fetch(`${BASE}/api/predictions`, {
-        headers: { 'X-Session-Token': token }
+        credentials: 'include',
+        headers: {}
       });
       if (res.ok) {
         const data = await res.json();
@@ -92,9 +92,9 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
 
   const fetchStats = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
       const res = await fetch(`${BASE}/api/predictions/stats`, {
-        headers: { 'X-Session-Token': token }
+        credentials: 'include',
+        headers: {}
       });
       if (res.ok) {
         const data = await res.json();
@@ -203,13 +203,10 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
     };
 
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
       const res = await fetch(`${BASE}/api/predictions`, {
+        credentials: 'include',
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Session-Token': token
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
@@ -237,13 +234,10 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
     e.preventDefault();
     if (!actualOutcomeInput) return;
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
       const res = await fetch(`${BASE}/api/predictions/${resolvingId}/resolve`, {
+        credentials: 'include',
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Session-Token': token
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           actual_outcome: parseFloat(actualOutcomeInput),
           status: resolutionStatus
@@ -265,10 +259,10 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
   const handleDelete = async (predId) => {
     if (!window.confirm("Are you sure you want to delete this prediction?")) return;
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
       const res = await fetch(`${BASE}/api/predictions/${predId}`, {
+        credentials: 'include',
         method: 'DELETE',
-        headers: { 'X-Session-Token': token }
+        headers: {}
       });
       if (res.ok) {
         fetchPredictions();

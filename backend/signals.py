@@ -1159,7 +1159,6 @@ def run_scan(
     segment: str = "NSE",
     capital: float = 1000.0,
 ) -> list:
-async def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: str = "Intraday Momentum", risk: str = "Medium", segment: str = "NSE", capital: float = 1000.0) -> list:
     """
     Scan watchlist and return signals sorted by conviction/confidence.
     Uses asyncio.gather for asynchronous scanning to minimize overhead.
@@ -1203,9 +1202,8 @@ async def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: 
 
     first_pass_results = []
     
-    # Run all blocking operations concurrently using asyncio.to_thread
-    tasks = [asyncio.to_thread(analyse_one, item) for item in watchlist]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    # Run all blocking operations sequentially for now
+    results = [analyse_one(item) for item in watchlist]
     
     for item, res in zip(watchlist, results):
         if isinstance(res, Exception):

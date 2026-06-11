@@ -48,9 +48,9 @@ export default function JournalPanel() {
   const fetchJournal = async () => {
     setLoading(true);
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
       const res = await fetch(`${BASE}/api/journal`, {
-        headers: { 'X-Session-Token': token }
+        credentials: 'include',
+        headers: {}
       });
       if (!res.ok) throw new Error("Failed to fetch journal entries");
       const data = await res.json();
@@ -69,7 +69,6 @@ export default function JournalPanel() {
   const handleAddSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
       const payload = {
         ...newEntry,
         entry_price: parseFloat(newEntry.entry_price) || 0,
@@ -80,11 +79,9 @@ export default function JournalPanel() {
       };
 
       const res = await fetch(`${BASE}/api/journal`, {
+        credentials: 'include',
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Session-Token': token
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error("Failed to save entry");
@@ -99,10 +96,10 @@ export default function JournalPanel() {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this journal entry?")) return;
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
       const res = await fetch(`${BASE}/api/journal/${id}`, {
+        credentials: 'include',
         method: 'DELETE',
-        headers: { 'X-Session-Token': token }
+        headers: {}
       });
       if (!res.ok) throw new Error("Failed to delete");
       fetchJournal();
