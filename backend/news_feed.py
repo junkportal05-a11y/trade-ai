@@ -179,11 +179,3 @@ def analyze_news_sentiment(articles: list[dict]) -> float:
         score -= len(bearish_matches) * 0.25
 
     return max(-1.0, min(1.0, score))
-        for k in bullish_keywords:
-            if k in text:
-                score += 25.0
-        for k in bearish_keywords:
-            if k in text:
-                score -= 25.0
-                
-    return max(-100.0, min(100.0, score))
