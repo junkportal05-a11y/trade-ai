@@ -236,7 +236,17 @@ def init_db():
                 status                  TEXT    NOT NULL DEFAULT 'PENDING',
                 reason                  TEXT,
                 resolved_at             TEXT,
-                manual_override_reason  TEXT
+                manual_override_reason  TEXT,
+                setup_type              TEXT,
+                market_regime_snapshot  TEXT,
+                risk_amount             REAL,
+                confidence_probability  REAL,
+                r_multiple              REAL,
+                exit_price              REAL,
+                holding_time_minutes    REAL,
+                pnl_pct                 REAL,
+                pnl_inr                 REAL,
+                resolution_reason       TEXT
             )
         """)
 
@@ -276,7 +286,17 @@ def init_db():
             ("market_breadth", "REAL"),
             ("sector_strength", "REAL"),
             ("nifty_trend", "TEXT"),
-            ("manual_override_reason", "TEXT")
+            ("manual_override_reason", "TEXT"),
+            ("setup_type", "TEXT"),
+            ("market_regime_snapshot", "TEXT"),
+            ("risk_amount", "REAL"),
+            ("confidence_probability", "REAL"),
+            ("r_multiple", "REAL"),
+            ("exit_price", "REAL"),
+            ("holding_time_minutes", "REAL"),
+            ("pnl_pct", "REAL"),
+            ("pnl_inr", "REAL"),
+            ("resolution_reason", "TEXT")
         ]
         for col_name, col_type in pred_migrations:
             if col_name not in pred_columns:
@@ -284,6 +304,28 @@ def init_db():
                     c.execute(f"ALTER TABLE predictions_history ADD COLUMN {col_name} {col_type}")
                 except Exception:
                     pass
+        
+        # New tables for advanced metrics
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS equity_curve (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                trade_id INTEGER NOT NULL,
+                equity_before REAL NOT NULL,
+                equity_after REAL NOT NULL,
+                peak_equity REAL NOT NULL,
+                drawdown_pct REAL NOT NULL,
+                timestamp TEXT NOT NULL
+            )
+        """)
+        
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS metrics_cache (
+                key TEXT PRIMARY KEY,
+                value_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        
         c.commit()
 
 
@@ -545,8 +587,9 @@ def add_prediction(pred: dict) -> int:
             """INSERT INTO predictions_history 
                (symbol, prediction_date, prediction_type, entry_price, target_price, stop_loss, confidence_score, 
                 rsi, macd, adx, sector, market_cap, volume_ratio, vwap_distance, atr, news_score, 
-                market_breadth, sector_strength, nifty_trend, status, reason)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                market_breadth, sector_strength, nifty_trend, status, reason,
+                setup_type, market_regime_snapshot, risk_amount, confidence_probability)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 pred["symbol"].upper(),
                 pred.get("prediction_date", now),
@@ -569,10 +612,15 @@ def add_prediction(pred: dict) -> int:
                 pred.get("nifty_trend"),
                 pred.get("status", "PENDING").upper(),
                 pred.get("reason", ""),
+                pred.get("setup_type", "UNKNOWN"),
+                pred.get("market_regime_snapshot", "UNKNOWN"),
+                float(pred.get("risk_amount", 0.0)),
+                float(pred.get("confidence_probability", pred.get("confidence_score", 0.0))),
             ),
         )
         c.commit()
         return cur.lastrowid
+
 
 
 def get_predictions() -> list:
@@ -583,31 +631,85 @@ def get_predictions() -> list:
         return [dict(r) for r in rows]
 
 
-def resolve_prediction(pred_id: int, actual_outcome: float, status: str, manual_override_reason: Optional[str] = None) -> bool:
+def resolve_prediction(
+    pred_id: int, 
+    actual_outcome: float, 
+    status: str, 
+    exit_price: float = 0.0,
+    holding_time_minutes: float = 0.0,
+    pnl_pct: float = 0.0,
+    pnl_inr: float = 0.0,
+    r_multiple: float = 0.0,
+    resolution_reason: str = "EXPIRED",
+    manual_override_reason: Optional[str] = None
+) -> bool:
+    with _conn() as c:
+        now = _now_ist()
+        query = """UPDATE predictions_history 
+                   SET actual_outcome=?, status=?, resolved_at=?,
+                       exit_price=?, holding_time_minutes=?, pnl_pct=?, 
+                       pnl_inr=?, r_multiple=?, resolution_reason=?
+        """
+        params = [
+            actual_outcome, status.upper(), now,
+            exit_price, holding_time_minutes, pnl_pct, pnl_inr, r_multiple, resolution_reason
+        ]
+        
+        if manual_override_reason:
+            query += ", manual_override_reason=? WHERE id=?"
+            params.extend([manual_override_reason, pred_id])
+        else:
+            query += " WHERE id=?"
+            params.append(pred_id)
+            
+        cur = c.execute(query, tuple(params))
+        c.commit()
+        return cur.rowcount > 0
+
+
+def add_equity_curve(trade_id: int, equity_before: float, equity_after: float, peak_equity: float, drawdown_pct: float) -> int:
     with _conn() as c:
         now = _now_ist()
         cur = c.execute(
-            """UPDATE predictions_history 
-               SET actual_outcome=?, status=?, resolved_at=? 
-               WHERE id=?""",
-            (actual_outcome, status.upper(), now, pred_id),
+            """INSERT INTO equity_curve 
+               (trade_id, equity_before, equity_after, peak_equity, drawdown_pct, timestamp)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (trade_id, equity_before, equity_after, peak_equity, drawdown_pct, now),
         )
-        if manual_override_reason:
-            cur = c.execute(
-                """UPDATE predictions_history 
-                   SET actual_outcome=?, status=?, resolved_at=?, manual_override_reason=? 
-                   WHERE id=?""",
-                (actual_outcome, status.upper(), now, manual_override_reason, pred_id)
-            )
-        else:
-            cur = c.execute(
-                """UPDATE predictions_history 
-                   SET actual_outcome=?, status=?, resolved_at=? 
-                   WHERE id=?""",
-                (actual_outcome, status.upper(), now, pred_id)
-            )
         c.commit()
-        return cur.rowcount > 0
+        return cur.lastrowid
+
+
+def get_latest_equity() -> tuple:
+    with _conn() as c:
+        row = c.execute("SELECT equity_after, peak_equity FROM equity_curve ORDER BY id DESC LIMIT 1").fetchone()
+        if row:
+            return float(row["equity_after"]), float(row["peak_equity"])
+        # Default starting equity if none exists
+        return 100000.0, 100000.0
+
+
+def get_metrics_cache(key: str) -> Optional[dict]:
+    with _conn() as c:
+        row = c.execute("SELECT value_json FROM metrics_cache WHERE key=?", (key,)).fetchone()
+        if row:
+            try:
+                return json.loads(row["value_json"])
+            except Exception:
+                pass
+        return None
+
+
+def set_metrics_cache(key: str, data: dict):
+    with _conn() as c:
+        now = _now_ist()
+        c.execute(
+            """INSERT INTO metrics_cache (key, value_json, updated_at) 
+               VALUES (?, ?, ?) 
+               ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=excluded.updated_at""",
+            (key, json.dumps(data), now)
+        )
+        c.commit()
 
 
 def delete_prediction(pred_id: int) -> bool:

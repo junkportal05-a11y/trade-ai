@@ -160,7 +160,7 @@ def root():
 @app.get("/api/keepalive")
 def keep_alive():
     """
-    Keep-alive endpoint to prevent Render free tier cold starts.
+    Keep-alive endpoint to prevent Hugging Face Space free tier sleep/shutdown.
     Configure a free cron-job (e.g., via cron-job.org) targeting this endpoint
     to run every 10 minutes between 9:10 AM and 3:40 PM IST, Monday to Friday.
     """

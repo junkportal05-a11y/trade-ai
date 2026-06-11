@@ -1382,8 +1382,29 @@ def run_scan(
         r["nifty_trend"] = nifty_trend_bias
         r["expected_move_pct"] = expected_move_pct
         r["estimated_profit"] = estimated_profit
-        r["quantity"] = qty
+        
+        # Total Risk & Position Size
+        risk_per_share = r.get("risk", 0)
+        total_risk_amount = capital * 0.01  # 1% risk per trade
+        
+        if risk_per_share > 0:
+            qty = total_risk_amount / risk_per_share
+        else:
+            qty = 0
+        
+        qty_label = f"{int(qty)} Shares" if qty >= 1 else f"{qty:.2f} Shares"
+        
+        r["quantity"] = round(qty, 2)
         r["quantity_label"] = qty_label
+        r["risk_amount"] = round(total_risk_amount, 2)
+        r["confidence_probability"] = round(setup_quality, 2)
+        r["market_regime_snapshot"] = market_regime
+        
+        # Setup Type
+        setup_type = "SYSTEM_EDGE"
+        if r.get("reasons"):
+            setup_type = str(r["reasons"][0]).split('(')[0].strip()
+        r["setup_type"] = setup_type.upper().replace(' ', '_')
 
         # ── Define Signal Output ──
         score = r["score"]

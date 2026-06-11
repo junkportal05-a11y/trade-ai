@@ -18,8 +18,8 @@ const T = {
 const LOG_MESSAGES = [
   "✦ APEXTRADE CORE v3.14 — INITIALIZING BOOT SEQUENCE",
   "✦ Setting up local cryptographic security context...",
-  "✦ Searching for active Render cloud backend nodes...",
-  "✦ Cloud server detected (Render free tier). Waking up node...",
+  "✦ Searching for active Hugging Face cloud backend nodes...",
+  "✦ Cloud server detected (Hugging Face Space). Waking up node...",
   "✦ Handshake ping sent. Waiting for database spin-up...",
   "✦ Handshake ping sent. Waiting for database spin-up...",
   "✦ Database thread waking up. Preparing cache storage...",
@@ -252,7 +252,7 @@ export default function IntroSplash({ onWokenUp }) {
             margin: '0 auto',
           }}>
             {!isDone 
-              ? "Waking up the cloud server on Render. This takes up to 45 seconds during backend cold starts."
+              ? "Waking up the cloud server on Hugging Face. This takes up to 45 seconds during backend cold starts."
               : "Handshake verified. Decrypting environment context..."}
           </div>
         </div>
