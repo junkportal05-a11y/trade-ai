@@ -313,10 +313,24 @@ def init_db():
         ]
         for col_name, col_type in pred_migrations:
             if col_name not in pred_columns:
-                try:
-                    c.execute(f"ALTER TABLE predictions_history ADD COLUMN {col_name} {col_type}")
-                except Exception:
-                    pass
+                c.execute(f"ALTER TABLE predictions_history ADD COLUMN {col_name} {col_type}")
+
+        # Phase Omega: Add missing columns to strategy_health and daily_governance_reports
+        try:
+            sh_columns = [row["name"] for row in c.execute("PRAGMA table_info(strategy_health)").fetchall()]
+            if "edge_score" not in sh_columns:
+                c.execute("ALTER TABLE strategy_health ADD COLUMN edge_score REAL DEFAULT 0.0")
+        except Exception:
+            pass
+
+        try:
+            dgr_columns = [row["name"] for row in c.execute("PRAGMA table_info(daily_governance_reports)").fetchall()]
+            if "data_confidence_score" not in dgr_columns:
+                c.execute("ALTER TABLE daily_governance_reports ADD COLUMN data_confidence_score REAL DEFAULT 100.0")
+            if "created_at" not in dgr_columns:
+                c.execute("ALTER TABLE daily_governance_reports ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP")
+        except Exception:
+            pass
         
         # New tables for advanced metrics
         c.execute("""

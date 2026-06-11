@@ -128,6 +128,7 @@ const sign = (v) => v > 0 ? '+' : '';
 // ── Candlestick Chart (with volume and indicators) ────────────────────────
 function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [] }) {
   const mainContainerRef = useRef();
+  const legendRef = useRef();
   const rsiContainerRef = useRef();
   const macdContainerRef = useRef();
   
@@ -160,6 +161,14 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
         fontSize: 11,
         fontFamily: "'IBM Plex Mono', monospace",
       },
+      watermark: {
+        visible: true,
+        fontSize: 64,
+        horzAlign: 'center',
+        vertAlign: 'center',
+        color: 'rgba(123, 108, 255, 0.05)',
+        text: symbol,
+      },
       grid: {
         vertLines: { color: T.border },
         horzLines: { color: T.border },
@@ -190,6 +199,31 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     });
     candleSeries.setData(bars);
     candleSeriesRef.current = candleSeries;
+
+    mainChart.subscribeCrosshairMove((param) => {
+      const legend = legendRef.current;
+      if (!legend) return;
+      if (!param.time || param.point.x < 0 || param.point.y < 0) {
+        legend.style.display = 'none';
+        return;
+      }
+      const data = param.seriesData.get(candleSeries);
+      if (data) {
+        legend.style.display = 'block';
+        const color = data.close >= data.open ? T.green : T.red;
+        legend.innerHTML = `
+          <div style="font-weight: 700; margin-bottom: 4px; color: ${T.text}; font-size: 14px;">${symbol} <span style="color: ${T.textMid}; font-size: 11px;">(${interval})</span></div>
+          <div style="display: flex; gap: 14px; font-size: 12px; color: ${T.text};">
+            <span>O <span style="color: ${color}">${data.open.toFixed(2)}</span></span>
+            <span>H <span style="color: ${color}">${data.high.toFixed(2)}</span></span>
+            <span>L <span style="color: ${color}">${data.low.toFixed(2)}</span></span>
+            <span>C <span style="color: ${color}">${data.close.toFixed(2)}</span></span>
+          </div>
+        `;
+      } else {
+        legend.style.display = 'none';
+      }
+    });
 
     mainChart.subscribeClick((param) => {
       if (!param.point || !drawMode) return;
@@ -484,7 +518,10 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       )}
       
       {/* Main Chart Container */}
-      <div ref={mainContainerRef} style={{ flex: 3, minHeight: 0, position: 'relative' }} />
+      <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
+        <div ref={legendRef} style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, fontFamily: "'IBM Plex Mono', monospace", pointerEvents: 'none', background: 'rgba(13,16,24,0.65)', backdropFilter: 'blur(4px)', padding: '8px 12px', borderRadius: 6, display: 'none', border: `1px solid ${T.borderHi}` }} />
+        <div ref={mainContainerRef} style={{ width: '100%', height: '100%' }} />
+      </div>
       
       {/* RSI Container */}
       {indicators.rsi && (
