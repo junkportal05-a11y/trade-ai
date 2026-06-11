@@ -245,8 +245,6 @@ def init_db():
         cursor.execute("PRAGMA table_info(signals_history)")
         columns = [row[1] for row in cursor.fetchall()]
 
-        if "rr_ratio" not in columns:
-        
         # Check signals_history
         cursor.execute("PRAGMA table_info(signals_history)")
         sig_columns = [row[1] for row in cursor.fetchall()]
