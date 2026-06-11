@@ -35,7 +35,7 @@ export default function IntroSplash({ onWokenUp }) {
   const [statusText, setStatusText] = useState("CONNECTING TO CLOUD NODE...");
   const [isDone, setIsDone] = useState(false);
 
-  const BASE_URL = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+  const BASE_URL = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
 
   // Increment elapsed timer
   useEffect(() => {

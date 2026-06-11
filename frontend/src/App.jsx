@@ -61,7 +61,7 @@ const DEFAULT_WATCHLIST = [
   { symbol: 'ICICIBANK.NS',  name: 'ICICI Bank',     sector: 'Banking' },
   { symbol: 'SBIN.NS',       name: 'SBI',            sector: 'Banking' },
   { symbol: 'TATAMOTORS.NS', name: 'Tata Motors',    sector: 'Auto' },
-  { symbol: 'BHARTIARTEL.NS',name: 'Bharti Airtel',   sector: 'Telecom' },
+  { symbol: 'BHARTIARTL.NS',name: 'Bharti Airtel',   sector: 'Telecom' },
   { symbol: 'ITC.NS',        name: 'ITC',            sector: 'FMCG' },
   { symbol: 'LT.NS',         name: 'L&T',            sector: 'Infrastructure' },
   { symbol: 'ADANIENT.NS',   name: 'Adani Ent',      sector: 'Conglomerate' },
@@ -93,7 +93,7 @@ const SEED_PRICES = {
   'BHEL.NS': 305,
   'RELIANCE.NS': 2950, 'TCS.NS': 3850, 'HDFCBANK.NS': 1600,
   'INFY.NS': 1480, 'ICICIBANK.NS': 1120, 'SBIN.NS': 830,
-  'TATAMOTORS.NS': 970, 'BHARTIARTEL.NS': 1380, 'ITC.NS': 430,
+  'TATAMOTORS.NS': 970, 'BHARTIARTL.NS': 1380, 'ITC.NS': 430,
   'LT.NS': 3550, 'ADANIENT.NS': 3200, 'ADANIPOWER.NS': 720,
   'IRFC.NS': 175, 'PFC.NS': 480, 'REC.NS': 520,
   'ZOMATO.NS': 190, 'TATASTEEL.NS': 170, 'SAIL.NS': 150,
@@ -1092,7 +1092,7 @@ function ChatPanel({ symbol, price, changePct }) {
     setMsgs(m => [...m, { role: 'user', text: userMsg }]);
     setBusy(true);
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+      const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: {
@@ -1703,7 +1703,7 @@ export default function App() {
 
   // Warm up backend in the background as soon as the app mounts (during login screen presentation)
   useEffect(() => {
-    const BASE_URL = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+    const BASE_URL = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
     fetch(`${BASE_URL}/`).catch(() => {});
   }, []);
 
@@ -1810,7 +1810,7 @@ export default function App() {
       if (lastShown !== todayStr && (hours > 9 || (hours === 9 && minutes >= 15))) {
         // Market is open or opened already today
         const token = sessionStorage.getItem('apt_token') || '';
-        fetch(`${import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com"}/api/scan`, {
+        fetch(`${import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space"}/api/scan`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Session-Token': token },
           body: JSON.stringify({ symbols: DEFAULT_WATCHLIST.map(w=>w.symbol), interval: '15m', capital: cash })
@@ -1863,7 +1863,7 @@ export default function App() {
 
   const fetchMarketBrief = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+    const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
     const token = sessionStorage.getItem('apt_token') || '';
     setLoadingBrief(true);
     fetch(`${API_BASE}/api/market_brief`, {
@@ -1881,7 +1881,7 @@ export default function App() {
 
   const fetchPredictionStats = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+    const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
     const token = sessionStorage.getItem('apt_token') || '';
     fetch(`${API_BASE}/api/predictions/stats`, {
       headers: { 'X-Session-Token': token }
@@ -1971,7 +1971,7 @@ export default function App() {
     if (!loggedIn) return;
     try {
       const token = sessionStorage.getItem('apt_token') || '';
-      const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+      const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
       const res = await fetch(`${API_BASE}/api/predictions`, {
         headers: { 'X-Session-Token': token }
       });
@@ -1997,7 +1997,7 @@ export default function App() {
   useEffect(() => {
     if (!loggedIn || pendingPredictions.length === 0) return;
 
-    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+    const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
 
     pendingPredictions.forEach(async (pred) => {
       if (resolvingIds.current.has(pred.id)) return;
@@ -2080,7 +2080,7 @@ export default function App() {
     
     const timer = setTimeout(async () => {
       try {
-        const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+        const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
         const cleanedSymbol = selected.replace('.NS', '');
         const currentPrices = pricesRef.current || {};
         const livePrice = currentPrices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
@@ -2484,8 +2484,8 @@ export default function App() {
             letterSpacing: '0.04em',
             flexShrink: 0
           }}>
-            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: T.gold, animation: 'pulse 1.5s infinite' }} />
-            BACKEND OFFLINE — WAITING FOR RENDER SERVER TO WAKE UP (THIS TAKES 30–50 SECONDS)
+            <span style={{ display: 'inline-block', width: 12, height: 12, border: `2px solid rgba(245,200,66,0.3)`, borderTopColor: T.gold, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            ESTABLISHING SECURE CONNECTION TO QUANT SERVER...
           </div>
         )}
 

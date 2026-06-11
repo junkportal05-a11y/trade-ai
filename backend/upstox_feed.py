@@ -77,7 +77,14 @@ def load_token() -> Optional[str]:
 load_token()
 
 
+_last_token_check = 0
 def is_authorized() -> bool:
+    global access_token, _last_token_check
+    if access_token is None:
+        now = time.time()
+        if now - _last_token_check > 5:
+            _last_token_check = now
+            load_token()
     return access_token is not None
 
 

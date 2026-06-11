@@ -212,44 +212,80 @@ def init_db():
         """)
         c.execute("""
             CREATE TABLE IF NOT EXISTS predictions_history (
-                id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                symbol           TEXT    NOT NULL,
-                prediction_date  TEXT    NOT NULL,
-                prediction_type  TEXT    NOT NULL,
-                entry_price      REAL    NOT NULL,
-                target_price     REAL    NOT NULL,
-                stop_loss        REAL    NOT NULL,
-                confidence_score INTEGER NOT NULL,
-                rsi              REAL,
-                macd             REAL,
-                adx              REAL,
-                actual_outcome   REAL,
-                status           TEXT    NOT NULL DEFAULT 'PENDING',
-                reason           TEXT,
-                resolved_at      TEXT
+                id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol                  TEXT    NOT NULL,
+                prediction_date         TEXT    NOT NULL,
+                prediction_type         TEXT    NOT NULL,
+                entry_price             REAL    NOT NULL,
+                target_price            REAL    NOT NULL,
+                stop_loss               REAL    NOT NULL,
+                confidence_score        INTEGER NOT NULL,
+                rsi                     REAL,
+                macd                     REAL,
+                adx                     REAL,
+                sector                  TEXT,
+                market_cap              REAL,
+                volume_ratio            REAL,
+                vwap_distance           REAL,
+                atr                     REAL,
+                news_score              REAL,
+                market_breadth          REAL,
+                sector_strength         REAL,
+                nifty_trend             TEXT,
+                actual_outcome          REAL,
+                status                  TEXT    NOT NULL DEFAULT 'PENDING',
+                reason                  TEXT,
+                resolved_at             TEXT,
+                manual_override_reason  TEXT
             )
         """)
 
         # Self-healing migration for existing databases:
-        # Check if columns exist and add them if missing
         cursor = c.cursor()
         cursor.execute("PRAGMA table_info(signals_history)")
         columns = [row[1] for row in cursor.fetchall()]
 
         if "rr_ratio" not in columns:
+        
+        # Check signals_history
+        cursor.execute("PRAGMA table_info(signals_history)")
+        sig_columns = [row[1] for row in cursor.fetchall()]
+        if "rr_ratio" not in sig_columns:
             try:
                 c.execute(
                     "ALTER TABLE signals_history ADD COLUMN rr_ratio REAL NOT NULL DEFAULT 0"
                 )
             except Exception:
                 pass
-        if "atr" not in columns:
+        if "atr" not in sig_columns:
             try:
                 c.execute(
                     "ALTER TABLE signals_history ADD COLUMN atr REAL NOT NULL DEFAULT 0"
                 )
             except Exception:
                 pass
+                
+        # Check predictions_history
+        cursor.execute("PRAGMA table_info(predictions_history)")
+        pred_columns = [row[1] for row in cursor.fetchall()]
+        pred_migrations = [
+            ("sector", "TEXT"),
+            ("market_cap", "REAL"),
+            ("volume_ratio", "REAL"),
+            ("vwap_distance", "REAL"),
+            ("atr", "REAL"),
+            ("news_score", "REAL"),
+            ("market_breadth", "REAL"),
+            ("sector_strength", "REAL"),
+            ("nifty_trend", "TEXT"),
+            ("manual_override_reason", "TEXT")
+        ]
+        for col_name, col_type in pred_migrations:
+            if col_name not in pred_columns:
+                try:
+                    c.execute(f"ALTER TABLE predictions_history ADD COLUMN {col_name} {col_type}")
+                except Exception:
+                    pass
         c.commit()
 
 
@@ -509,8 +545,10 @@ def add_prediction(pred: dict) -> int:
         now = _now_ist()
         cur = c.execute(
             """INSERT INTO predictions_history 
-               (symbol, prediction_date, prediction_type, entry_price, target_price, stop_loss, confidence_score, rsi, macd, adx, status, reason)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (symbol, prediction_date, prediction_type, entry_price, target_price, stop_loss, confidence_score, 
+                rsi, macd, adx, sector, market_cap, volume_ratio, vwap_distance, atr, news_score, 
+                market_breadth, sector_strength, nifty_trend, status, reason)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 pred["symbol"].upper(),
                 pred.get("prediction_date", now),
@@ -522,6 +560,15 @@ def add_prediction(pred: dict) -> int:
                 float(pred["rsi"]) if pred.get("rsi") is not None else None,
                 float(pred["macd"]) if pred.get("macd") is not None else None,
                 float(pred["adx"]) if pred.get("adx") is not None else None,
+                pred.get("sector"),
+                float(pred["market_cap"]) if pred.get("market_cap") is not None else None,
+                float(pred["volume_ratio"]) if pred.get("volume_ratio") is not None else None,
+                float(pred["vwap_distance"]) if pred.get("vwap_distance") is not None else None,
+                float(pred["atr"]) if pred.get("atr") is not None else None,
+                float(pred["news_score"]) if pred.get("news_score") is not None else None,
+                float(pred["market_breadth"]) if pred.get("market_breadth") is not None else None,
+                float(pred["sector_strength"]) if pred.get("sector_strength") is not None else None,
+                pred.get("nifty_trend"),
                 pred.get("status", "PENDING").upper(),
                 pred.get("reason", ""),
             ),
@@ -538,7 +585,7 @@ def get_predictions() -> list:
         return [dict(r) for r in rows]
 
 
-def resolve_prediction(pred_id: int, actual_outcome: float, status: str) -> bool:
+def resolve_prediction(pred_id: int, actual_outcome: float, status: str, manual_override_reason: Optional[str] = None) -> bool:
     with _conn() as c:
         now = _now_ist()
         cur = c.execute(
@@ -547,6 +594,20 @@ def resolve_prediction(pred_id: int, actual_outcome: float, status: str) -> bool
                WHERE id=?""",
             (actual_outcome, status.upper(), now, pred_id),
         )
+        if manual_override_reason:
+            cur = c.execute(
+                """UPDATE predictions_history 
+                   SET actual_outcome=?, status=?, resolved_at=?, manual_override_reason=? 
+                   WHERE id=?""",
+                (actual_outcome, status.upper(), now, manual_override_reason, pred_id)
+            )
+        else:
+            cur = c.execute(
+                """UPDATE predictions_history 
+                   SET actual_outcome=?, status=?, resolved_at=? 
+                   WHERE id=?""",
+                (actual_outcome, status.upper(), now, pred_id)
+            )
         c.commit()
         return cur.rowcount > 0
 
@@ -614,3 +675,154 @@ def get_upstox_token() -> Optional[str]:
     except Exception:
         pass
     return None
+
+
+def add_signals_batch(signals: list[dict]) -> None:
+    """
+    Batch insert new pending signals.
+    Filters out duplicates or closes reversed signals just like add_signal,
+    but executed in a single transaction for efficiency.
+    """
+    if not signals:
+        return
+
+    now = _now_ist()
+    symbols = [sig["symbol"] for sig in signals]
+
+    with _conn() as c:
+        # 1. Fetch existing PENDING signals for the given symbols
+        if IS_POSTGRES:
+            placeholders = ",".join(["%s"] * len(symbols))
+        else:
+            placeholders = ",".join(["?"] * len(symbols))
+        existing_rows = c.execute(
+            f"SELECT id, symbol, signal_type, entry_price FROM signals_history WHERE status='PENDING' AND symbol IN ({placeholders})",
+            symbols
+        ).fetchall()
+
+        existing_map = {r["symbol"]: r for r in existing_rows}
+
+        insert_data = []
+        update_data = []
+
+        for sig in signals:
+            symbol = sig["symbol"]
+            existing = existing_map.get(symbol)
+
+            if existing:
+                same_dir = (
+                    ("BUY" in existing["signal_type"]) == ("BUY" in sig.get("signal_type", sig.get("direction", "")))
+                )
+                if same_dir:
+                    continue  # Already tracking this direction
+                # Opposite signal — close the old one
+                sig_entry_price = sig.get("entry_price", sig.get("entry", 0))
+                pnl = _calc_pnl(existing["signal_type"], existing["entry_price"], sig_entry_price)
+                update_data.append((
+                    sig_entry_price,
+                    now,
+                    pnl,
+                    existing["id"]
+                ))
+
+            # Prepare insertion
+            insert_data.append((
+                symbol,
+                sig.get("name", symbol),
+                sig.get("sector", "NSE"),
+                sig["direction"],
+                sig["confidence"],
+                sig.get("bull_score", 0) if "BUY" in sig["direction"] else sig.get("bear_score", 0),
+                sig.get("entry", 0),
+                sig.get("target", 0),
+                sig.get("stop_loss", 0),
+                sig.get("rr_ratio", 0),
+                sig.get("atr", 0),
+                now,
+                sig.get("scan_type", "INTRADAY"),
+            ))
+
+        # 2. Execute updates (closing opposite directions)
+        if update_data:
+            if IS_POSTGRES:
+                update_query = """UPDATE signals_history
+                   SET status='CLOSED', exit_price=%s, exit_at=%s,
+                       pnl_pct=%s
+                   WHERE id=%s"""
+            else:
+                update_query = """UPDATE signals_history
+                   SET status='CLOSED', exit_price=?, exit_at=?,
+                       pnl_pct=?
+                   WHERE id=?"""
+
+            c.cursor_obj.executemany(update_query, update_data)
+
+        # 3. Execute inserts
+        if insert_data:
+            if IS_POSTGRES:
+                query = """INSERT INTO signals_history
+                   (symbol, name, sector, signal_type, confidence, score,
+                    entry_price, target, stop_loss, rr_ratio, atr,
+                    scanned_at, scan_type)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+            else:
+                query = """INSERT INTO signals_history
+                   (symbol, name, sector, signal_type, confidence, score,
+                    entry_price, target, stop_loss, rr_ratio, atr,
+                    scanned_at, scan_type)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"""
+
+            c.cursor_obj.executemany(query, insert_data)
+
+        c.commit()
+def get_pattern_hash(pred_dict: dict) -> str:
+    """Generates a consistent pattern hash matching get_pattern_success_rates."""
+    p_type = pred_dict.get("prediction_type", "BULLISH")
+    rsi = pred_dict.get("rsi", 50)
+    macd = pred_dict.get("macd", 0)
+    
+    rsi_bucket = "RSI_HIGH" if rsi > 60 else ("RSI_LOW" if rsi < 40 else "RSI_MID")
+    macd_bucket = "MACD_POS" if macd > 0 else "MACD_NEG"
+    
+    return f"{p_type}_{rsi_bucket}_{macd_bucket}"
+
+def get_pattern_success_rates() -> dict:
+    """Returns win rates clustered by technical condition buckets."""
+    try:
+        with _conn() as c:
+            rows = c.execute('''
+                SELECT 
+                    prediction_type,
+                    CASE WHEN rsi > 60 THEN 'RSI_HIGH'
+                         WHEN rsi < 40 THEN 'RSI_LOW'
+                         ELSE 'RSI_MID' END as rsi_bucket,
+                    CASE WHEN macd > 0 THEN 'MACD_POS' ELSE 'MACD_NEG' END as macd_bucket,
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status IN ('WIN', 'CORRECT') THEN 1 ELSE 0 END) as wins
+                FROM predictions_history
+                WHERE status NOT IN ('PENDING', 'ACTIVE')
+                GROUP BY prediction_type, rsi_bucket, macd_bucket
+            ''').fetchall()
+            
+            results = {}
+            for r in rows:
+                if r["total"] > 0:
+                    pattern = f"{r['prediction_type']}_{r['rsi_bucket']}_{r['macd_bucket']}"
+                    results[pattern] = round((r["wins"] / r["total"]) * 100, 1)
+            return results
+    except Exception as e:
+        return {}
+
+def get_general_win_rate() -> float:
+    """Returns the overall historical win rate."""
+    try:
+        with _conn() as c:
+            total_row = c.execute("SELECT COUNT(*) FROM predictions_history WHERE status NOT IN ('PENDING', 'ACTIVE')").fetchone()
+            total = total_row[0] if total_row else 0
+            if total == 0: return 50.0
+            
+            wins_row = c.execute("SELECT COUNT(*) FROM predictions_history WHERE status IN ('WIN', 'CORRECT')").fetchone()
+            wins = wins_row[0] if wins_row else 0
+            return round((wins / total) * 100, 1)
+    except Exception as e:
+        return 50.0
