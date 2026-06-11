@@ -427,7 +427,7 @@ function ScanProgress({ elapsed }) {
           fontFamily: "'IBM Plex Mono', monospace",
           animation: 'shimmer 2s infinite ease-in-out'
         }}>
-          💡 Cloud server cold-start detected. Waking up server threads on Render. This can take up to 45 seconds on the free tier. Please stand by...
+          💡 Cloud server cold-start detected. Waking up server threads on Hugging Face. This can take up to 45 seconds on the free tier. Please stand by...
         </div>
       )}
     </div>

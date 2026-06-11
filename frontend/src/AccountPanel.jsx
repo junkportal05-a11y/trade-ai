@@ -106,7 +106,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
       { type: 'SEC', msg: 'Risk sizing protocol checked: active constraints validated.' },
       { type: 'AUTH', msg: 'Active sessions audit: 0 failed login attempts in last 30 min.' },
       { type: 'SYS', msg: 'Backtest cache refreshed: 12 strategy indexes updated.' },
-      { type: 'NET', msg: 'Render cloud endpoint keep-alive payload dispatched.' }
+      { type: 'NET', msg: 'Hugging Face Space keep-alive payload dispatched.' }
     ];
 
     const interval = setInterval(() => {

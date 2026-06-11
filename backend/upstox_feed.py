@@ -52,7 +52,7 @@ _DYNAMIC_MAP = {}
 # Load token at module import
 def load_token() -> Optional[str]:
     global access_token
-    # Try DB first (survives Render deploys)
+    # Try DB first (survives Hugging Face deploys)
     try:
         import db
 
@@ -104,7 +104,7 @@ def get_login_url(state: str = "") -> str:
 def save_token(token: str, details: dict = None):
     global access_token
     access_token = token
-    # Save to DB (persists on Render)
+    # Save to DB (persists on Hugging Face Space)
     try:
         import db
 
