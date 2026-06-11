@@ -1,3 +1,4 @@
+import { API_BASE_URL } from './api';
 import React, { useState } from 'react';
 
 const T = {
@@ -24,7 +25,7 @@ export default function LoginScreen({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const BASE_URL = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+  const BASE_URL = API_BASE_URL;
   const [serverReady, setServerReady] = useState(false);
   const [waking, setWaking] = useState(true);
 

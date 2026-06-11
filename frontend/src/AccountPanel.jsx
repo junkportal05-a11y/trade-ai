@@ -1,3 +1,4 @@
+import { API_BASE_URL } from './api';
 import React, { useState, useEffect } from 'react';
 
 const T = {
@@ -49,7 +50,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://trade-ai-nkqv.onrender.com'}/api/upstox/status`, {
+        const res = await fetch(`${API_BASE_URL}/api/upstox/status`, {
           credentials: 'include'
         });
         if (res.ok) {
@@ -277,7 +278,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
 
                 <button
                   onClick={() => {
-                    const baseUrl = import.meta.env.VITE_API_URL || 'https://trade-ai-nkqv.onrender.com';
+                    const baseUrl = API_BASE_URL;
                     const state = encodeURIComponent(window.location.origin);
                     window.location.href = `${baseUrl}/api/upstox/authorize?state=${state}`;
                   }}

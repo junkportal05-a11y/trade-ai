@@ -1,3 +1,4 @@
+import { API_BASE_URL } from './api';
 import React, { useState, useEffect } from 'react';
 
 const T = {
@@ -35,7 +36,7 @@ export default function IntroSplash({ onWokenUp }) {
   const [statusText, setStatusText] = useState("CONNECTING TO CLOUD NODE...");
   const [isDone, setIsDone] = useState(false);
 
-  const BASE_URL = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+  const BASE_URL = API_BASE_URL;
 
   // Increment elapsed timer
   useEffect(() => {
