@@ -1,0 +1,9 @@
+.venv/
+.env
+__pycache__/
+trading_platform.db
+tests/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.DS_Store

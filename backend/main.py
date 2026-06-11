@@ -32,7 +32,13 @@ load_dotenv()
 
 
 
-limiter = Limiter(key_func=get_remote_address)
+def get_user_or_ip(request: Request) -> str:
+    token = request.headers.get("x-session-token")
+    if token:
+        return f"user:{token}"
+    return get_remote_address(request)
+
+limiter = Limiter(key_func=get_user_or_ip)
 
 app = FastAPI(title="ApexTrade API", version="2.0.0")
 app.state.limiter = limiter
@@ -349,7 +355,8 @@ _executor = ThreadPoolExecutor(max_workers=2)
 
 
 @app.get("/api/signals")
-@limiter.limit("5/minute")
+@limiter.limit("15/minute")
+@limiter.limit("5/10 seconds")
 async def get_signals(
     request: Request,
     symbols: Optional[str] = Query(None, description="Comma-separated NSE symbols, e.g. RELIANCE.NS,TCS.NS. Omit for full scan."),
@@ -374,10 +381,7 @@ async def get_signals(
     import functools
     try:
         results = await asyncio.wait_for(
-            loop.run_in_executor(
-                _executor,
-                functools.partial(sig_engine.run_scan, watchlist),
-            ),
+            sig_engine.run_scan(watchlist),
             timeout=85
         )
     except asyncio.TimeoutError:
@@ -394,6 +398,63 @@ async def get_signals(
         "scan_time":   datetime.utcnow().isoformat() + "Z",
         "total":       len(results),
         "signals":     results[:limit],
+        "disclaimer":  "Algorithmic signals only — not financial advice. Always apply your own judgement and risk management.",
+    }
+
+
+class ScanRequest(BaseModel):
+    symbols: List[str]
+    interval: str = "15m"
+    capital: float = 100000.0
+    trading_style: str = "Intraday Momentum"
+    risk_level: str = "Medium"
+    market_segment: str = "NSE"
+
+
+@app.post("/api/scan")
+@limiter.limit("15/minute")
+@limiter.limit("5/10 seconds")
+async def post_scan(
+    req: ScanRequest,
+    request: Request,
+    _=Depends(require_session)
+):
+    """
+    Scans a list of symbols and returns ranked intraday signals (POST alternative).
+    """
+    loop = asyncio.get_event_loop()
+    
+    # Map raw symbol strings to NSE_WATCHLIST structure
+    wl_map = {w["symbol"]: w for w in sig_engine.NSE_WATCHLIST}
+    watchlist = [wl_map.get(s.upper(), {"symbol": s.upper(), "name": s.upper().replace(".NS", ""), "sector": "NSE"}) for s in req.symbols]
+
+    import functools
+    try:
+        results = await asyncio.wait_for(
+            sig_engine.run_scan(
+                watchlist,
+                req.interval,
+                req.trading_style,
+                req.risk_level,
+                req.market_segment,
+                req.capital
+            ),
+            timeout=85
+        )
+    except asyncio.TimeoutError:
+        return {
+            "error": "Scan took too long (backend cold start)",
+            "total": 0,
+            "signals": [],
+            "message": "First scan on free tier takes 2 min. Try again in 30s when backend is warm."
+        }
+
+    return {
+        "market":      "NSE",
+        "type":        "intraday",
+        "scan_time":   datetime.utcnow().isoformat() + "Z",
+        "total":       len(results),
+        "signals":     results,
         "disclaimer":  "Algorithmic signals only — not financial advice. Always apply your own judgement and risk management.",
     }
 
@@ -435,7 +496,8 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/api/chat")
-@limiter.limit("20/minute")
+@limiter.limit("30/minute")
+@limiter.limit("10/10 seconds")
 async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
     """
     AI trading assistant. Uses Gemini if GEMINI_API_KEY is set,
@@ -821,12 +883,64 @@ async def cleanup_sessions_loop():
             print(f"[cleanup_sessions_loop] error: {e}")
         await asyncio.sleep(3600)
 
+
+async def reconcile_predictions():
+    """
+    Checks PENDING predictions against live prices to resolve them.
+    If target_price or stop_loss is hit, marks them as WIN or LOSS.
+    If a prediction is older than 24 hours, marks it as TIMEOUT.
+    """
+    try:
+        predictions = db.get_predictions()
+        pending = [p for p in predictions if p.get("status") == "PENDING"]
+        if not pending:
+            return
+            
+        for pred in pending:
+            symbol = pred["symbol"]
+            live = LIVE_PRICES_CACHE.get(symbol)
+            if not live:
+                continue
+                
+            price = live["price"]
+            is_bullish = pred["prediction_type"].upper() == "BULLISH"
+            target = pred["target_price"]
+            stop = pred["stop_loss"]
+            
+            hit_target = (is_bullish and price >= target) or (not is_bullish and price <= target)
+            hit_stop = (is_bullish and price <= stop) or (not is_bullish and price >= stop)
+            
+            # Expire after 24 hours
+            pred_date_str = pred["prediction_date"]
+            expired = False
+            try:
+                from dateutil import parser
+                pred_time = parser.parse(pred_date_str)
+                if pred_time.tzinfo is None:
+                    ist_tz = timezone(timedelta(hours=5, minutes=30))
+                    pred_time = pred_time.replace(tzinfo=ist_tz)
+                now_ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
+                if now_ist - pred_time > timedelta(hours=24):
+                    expired = True
+            except Exception:
+                pass
+                
+            if hit_target:
+                db.resolve_prediction(pred["id"], price, "WIN")
+            elif hit_stop:
+                db.resolve_prediction(pred["id"], price, "LOSS")
+            elif expired:
+                db.resolve_prediction(pred["id"], price, "TIMEOUT")
+    except Exception as e:
+        print(f"[reconcile_predictions] error: {e}")
+
+
 async def auto_scan_loop():
     """
     Background task:
       - Market OPEN  → scan every 60 s, log signals to DB
       - Market CLOSED → scan every 60 min for overnight signals
-    Also reconciles pending signals against LIVE_PRICES_CACHE every cycle.
+    Also reconciles pending signals and predictions against LIVE_PRICES_CACHE every cycle.
     """
     import functools
     loop = asyncio.get_event_loop()
@@ -837,10 +951,15 @@ async def auto_scan_loop():
             scan_type   = "INTRADAY" if market_open else "OVERNIGHT"
 
             # ── 1. Run signal scan ───────────────────────────────────────────
-            results = await loop.run_in_executor(
-                _executor,
-                functools.partial(sig_engine.run_scan, sig_engine.NSE_WATCHLIST),
-            )
+            results = await sig_engine.run_scan(sig_engine.NSE_WATCHLIST)
+
+            # Analyze market breadth and regime for logging predictions
+            sentiment_pct = 50
+            nifty_trend_bias = "CONSOLIDATION"
+            if results:
+                nifty_trend_bias = results[0].get("nifty_trend", "CONSOLIDATION")
+                buys_count = sum(1 for s in results if s.get("score", 0) > 0)
+                sentiment_pct = int(buys_count / len(results) * 100) if results else 50
 
             # Log BUY / SELL signals with confidence >= 60
             valid_signals = []
@@ -853,6 +972,36 @@ async def auto_scan_loop():
 
             if valid_signals:
                 db.add_signals_batch(valid_signals)
+                    db.add_signal(sig)
+                    
+                    # Also log to predictions_history for the learning engine feedback loop
+                    try:
+                        vwap_dist = ((sig["price"] - sig["vwap"]) / sig["vwap"] * 100) if sig.get("vwap") else 0.0
+                        pred_data = {
+                            "symbol": sig["symbol"],
+                            "prediction_type": "BULLISH" if sig["signal"] == "BUY" else "BEARISH",
+                            "entry_price": sig["entry"],
+                            "target_price": sig["target"],
+                            "stop_loss": sig["stop_loss"],
+                            "confidence_score": sig["confidence"],
+                            "rsi": sig.get("rsi"),
+                            "macd": sig.get("macd_hist"),
+                            "adx": sig.get("adx"),
+                            "sector": sig.get("sector"),
+                            "market_cap": sig.get("market_cap"),
+                            "volume_ratio": sig.get("vol_ratio"),
+                            "vwap_distance": vwap_dist,
+                            "atr": sig.get("atr"),
+                            "news_score": sig.get("news_sentiment", 0.0),
+                            "market_breadth": float(sentiment_pct),
+                            "sector_strength": float(sig.get("sector_score", 10.0)),
+                            "nifty_trend": nifty_trend_bias,
+                            "status": "PENDING",
+                            "reason": sig.get("reasoning", "")
+                        }
+                        db.add_prediction(pred_data)
+                    except Exception as pe:
+                        print(f"[auto_scan_loop] Failed to log prediction for {sig['symbol']}: {pe}")
 
             # ── 2. Reconcile pending signals vs live prices ──────────────────
             pending = db.get_pending_signals()
@@ -875,6 +1024,9 @@ async def auto_scan_loop():
                 elif hit_stop:
                     pnl = db._calc_pnl(trade["signal_type"], trade["entry_price"], price)
                     db.update_signal(trade["id"], "HIT_STOP", price, pnl)
+
+            # ── 2b. Reconcile predictions vs live prices ──────────────────────
+            await reconcile_predictions()
 
             # ── 3. Expire stale intraday signals ─────────────────────────────
             db.expire_old_intraday()
@@ -1031,17 +1183,13 @@ async def allocate_capital(req: CapitalRequest, request: Request, _=Depends(requ
     # (run_scan accepts both plain symbol strings and dicts with 'symbol' key)
     try:
         signals = await asyncio.wait_for(
-            loop.run_in_executor(
-                _executor,
-                functools.partial(
-                    sig_engine.run_scan,
-                    target_symbols,
-                    req.interval,
-                    req.trading_style,
-                    req.risk_level,
-                    req.market_segment,
-                    req.capital
-                ),
+            sig_engine.run_scan(
+                target_symbols,
+                req.interval,
+                req.trading_style,
+                req.risk_level,
+                req.market_segment,
+                req.capital
             ),
             timeout=150
         )
@@ -1240,6 +1388,7 @@ class PredictionResolve(BaseModel):
 
 
 @app.post("/api/predictions")
+@limiter.limit("20/minute")
 async def create_prediction(pred: PredictionCreate, request: Request, _=Depends(require_session)):
     try:
         row_id = db.add_prediction(pred.dict())
@@ -1286,19 +1435,67 @@ async def delete_prediction_route(pred_id: int, request: Request, _=Depends(requ
 async def get_prediction_stats(request: Request, _=Depends(require_session)):
     try:
         preds = db.get_predictions()
-        resolved = [p for p in preds if p["status"] != "PENDING"]
-        correct = [p for p in resolved if p["status"] == "CORRECT"]
+        resolved = [p for p in preds if p["status"] not in ("PENDING", "ACTIVE")]
+        correct = [p for p in resolved if p["status"].upper() in ("CORRECT", "WIN")]
         
         win_rate = round((len(correct) / len(resolved)) * 100, 1) if len(resolved) > 0 else 0.0
         
-        # Calculate Mean Absolute Error (MAE) between target and actual resolved price
-        total_error = 0.0
-        for p in resolved:
+        # Calculate real financial metrics
+        gross_profit_pct = 0.0
+        gross_loss_pct = 0.0
+        winning_trades_pct = 0.0
+        losing_trades_pct = 0.0
+        win_count = 0
+        loss_count = 0
+        
+        equity_curve = [100.0]  # Base 100 to calculate drawdown %
+        peak_equity = 100.0
+        max_drawdown = 0.0
+        
+        # Sort ascending for time-series calculations
+        resolved_asc = sorted(resolved, key=lambda x: x.get("resolved_at") or x.get("prediction_date"))
+        
+        for p in resolved_asc:
+            is_bullish = p["prediction_type"].upper() in ("BULLISH", "UP")
+            entry = p["entry_price"]
             actual = p.get("actual_outcome")
-            target = p.get("target_price")
-            if actual is not None and target is not None:
-                total_error += abs(target - actual)
-        avg_error = round(total_error / len(resolved), 2) if len(resolved) > 0 else 0.0
+            
+            if not actual or entry == 0:
+                continue
+                
+            # Calculate PnL %
+            if is_bullish:
+                pnl_pct = (actual - entry) / entry * 100
+            else:
+                pnl_pct = (entry - actual) / entry * 100
+                
+            if pnl_pct > 0:
+                gross_profit_pct += pnl_pct
+                winning_trades_pct += pnl_pct
+                win_count += 1
+            else:
+                gross_loss_pct += abs(pnl_pct)
+                losing_trades_pct += abs(pnl_pct)
+                loss_count += 1
+                
+            new_equity = equity_curve[-1] * (1 + (pnl_pct / 100))
+            equity_curve.append(new_equity)
+            
+            if new_equity > peak_equity:
+                peak_equity = new_equity
+                
+            dd = (peak_equity - new_equity) / peak_equity * 100
+            if dd > max_drawdown:
+                max_drawdown = dd
+
+        profit_factor = round(gross_profit_pct / gross_loss_pct, 2) if gross_loss_pct > 0 else (round(gross_profit_pct, 2) if gross_profit_pct > 0 else 0.0)
+        
+        avg_win_pct = round(winning_trades_pct / win_count, 2) if win_count > 0 else 0.0
+        avg_loss_pct = round(losing_trades_pct / loss_count, 2) if loss_count > 0 else 0.0
+        emp_rr_ratio = round(avg_win_pct / avg_loss_pct, 2) if avg_loss_pct > 0 else avg_win_pct
+        
+        ev_pct = round((gross_profit_pct - gross_loss_pct) / len(resolved_asc), 2) if len(resolved_asc) > 0 else 0.0
+        max_drawdown = round(max_drawdown, 2)
         
         # Best and worst sectors
         SECTORS_MAP = {
@@ -1313,7 +1510,7 @@ async def get_prediction_stats(request: Request, _=Depends(require_session)):
         for p in resolved:
             sec = SECTORS_MAP.get(p['symbol'], 'Other')
             sector_totals[sec] = sector_totals.get(sec, 0) + 1
-            if p['status'] == 'CORRECT':
+            if p['status'].upper() in ('CORRECT', 'WIN'):
                 sector_wins[sec] = sector_wins.get(sec, 0) + 1
                 
         best_sector = "None"
@@ -1331,20 +1528,29 @@ async def get_prediction_stats(request: Request, _=Depends(require_session)):
                 worst_sector = f"{sec} ({rate:.0f}%)"
                 
         # outcomes list for sparkline (last 20 resolved outcomes)
-        recent_outcomes = [p["status"] == "CORRECT" for p in resolved[:20]]
+        recent_outcomes = [p["status"].upper() in ("CORRECT", "WIN") for p in resolved[:20]]
         
         # Average confidence of predictions
         avg_conf = round(sum(p["confidence_score"] for p in preds) / len(preds), 1) if len(preds) > 0 else 0.0
+        
+        # Pattern success rates for feedback loop
+        pattern_success_rates = db.get_pattern_success_rates()
         
         return {
             "total_predictions": len(preds),
             "resolved_predictions": len(resolved),
             "win_rate": win_rate,
-            "avg_error": avg_error,
+            "profit_factor": profit_factor,
+            "empirical_rr_ratio": emp_rr_ratio,
+            "expected_value_pct": ev_pct,
+            "max_drawdown_pct": max_drawdown,
+            "average_win_pct": avg_win_pct,
+            "average_loss_pct": avg_loss_pct,
             "best_sector": best_sector if best_rate >= 0 else "N/A",
             "worst_sector": worst_sector if worst_rate <= 100 else "N/A",
             "recent_outcomes": recent_outcomes,
-            "avg_confidence": avg_conf
+            "avg_confidence": avg_conf,
+            "pattern_success_rates": pattern_success_rates
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1355,7 +1561,7 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
     try:
         # Get latest indicators via scan
         try:
-            signals = sig_engine.run_scan()
+            signals = await sig_engine.run_scan()
         except Exception:
             signals = []
             

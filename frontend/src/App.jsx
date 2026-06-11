@@ -61,7 +61,7 @@ const DEFAULT_WATCHLIST = [
   { symbol: 'ICICIBANK.NS',  name: 'ICICI Bank',     sector: 'Banking' },
   { symbol: 'SBIN.NS',       name: 'SBI',            sector: 'Banking' },
   { symbol: 'TATAMOTORS.NS', name: 'Tata Motors',    sector: 'Auto' },
-  { symbol: 'BHARTIARTEL.NS',name: 'Bharti Airtel',   sector: 'Telecom' },
+  { symbol: 'BHARTIARTL.NS',name: 'Bharti Airtel',   sector: 'Telecom' },
   { symbol: 'ITC.NS',        name: 'ITC',            sector: 'FMCG' },
   { symbol: 'LT.NS',         name: 'L&T',            sector: 'Infrastructure' },
   { symbol: 'ADANIENT.NS',   name: 'Adani Ent',      sector: 'Conglomerate' },
@@ -93,7 +93,7 @@ const SEED_PRICES = {
   'BHEL.NS': 305,
   'RELIANCE.NS': 2950, 'TCS.NS': 3850, 'HDFCBANK.NS': 1600,
   'INFY.NS': 1480, 'ICICIBANK.NS': 1120, 'SBIN.NS': 830,
-  'TATAMOTORS.NS': 970, 'BHARTIARTEL.NS': 1380, 'ITC.NS': 430,
+  'TATAMOTORS.NS': 970, 'BHARTIARTL.NS': 1380, 'ITC.NS': 430,
   'LT.NS': 3550, 'ADANIENT.NS': 3200, 'ADANIPOWER.NS': 720,
   'IRFC.NS': 175, 'PFC.NS': 480, 'REC.NS': 520,
   'ZOMATO.NS': 190, 'TATASTEEL.NS': 170, 'SAIL.NS': 150,
@@ -2484,8 +2484,8 @@ export default function App() {
             letterSpacing: '0.04em',
             flexShrink: 0
           }}>
-            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: T.gold, animation: 'pulse 1.5s infinite' }} />
-            BACKEND OFFLINE — WAITING FOR RENDER SERVER TO WAKE UP (THIS TAKES 30–50 SECONDS)
+            <span style={{ display: 'inline-block', width: 12, height: 12, border: `2px solid rgba(245,200,66,0.3)`, borderTopColor: T.gold, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            ESTABLISHING SECURE CONNECTION TO QUANT SERVER...
           </div>
         )}
 
