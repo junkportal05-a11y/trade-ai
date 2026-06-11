@@ -1562,6 +1562,9 @@ class PredictionResolve(BaseModel):
 @app.post("/api/predictions")
 @limiter.limit("20/minute")
 async def create_prediction(pred: PredictionCreate, request: Request, _=Depends(require_session)):
+async def create_prediction(
+    pred: PredictionCreate, request: Request, _=Depends(require_session)
+):
     try:
         row_id = db.add_prediction(pred.dict())
         return {"status": "success", "id": row_id}

@@ -89,14 +89,15 @@ def is_authorized() -> bool:
 
 
 def get_login_url(state: str = "") -> str:
-    url = (
-        f"https://api.upstox.com/v2/login/authorization/dialog"
-        f"?response_type=code&client_id={UPSTOX_API_KEY}&redirect_uri={UPSTOX_REDIRECT_URI}"
-    )
+    from urllib.parse import urlencode
+    params = {
+        "response_type": "code",
+        "client_id": UPSTOX_API_KEY,
+        "redirect_uri": UPSTOX_REDIRECT_URI,
+    }
     if state:
-        from urllib.parse import quote
-
-        url += f"&state={quote(state)}"
+        params["state"] = state
+    url = f"https://api.upstox.com/v2/login/authorization/dialog?{urlencode(params)}"
     return url
 
 
