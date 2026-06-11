@@ -1,3 +1,4 @@
+import { API_BASE_URL } from './api';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createChart, CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
@@ -1092,7 +1093,7 @@ function ChatPanel({ symbol, price, changePct }) {
     setMsgs(m => [...m, { role: 'user', text: userMsg }]);
     setBusy(true);
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+      const API_BASE = API_BASE_URL;
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         credentials: 'include',
@@ -1703,7 +1704,7 @@ export default function App() {
 
   // Warm up backend in the background as soon as the app mounts (during login screen presentation)
   useEffect(() => {
-    const BASE_URL = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+    const BASE_URL = API_BASE_URL;
     fetch(`${BASE_URL}/`).catch(() => {});
   }, []);
 
@@ -1809,7 +1810,7 @@ export default function App() {
       
       if (lastShown !== todayStr && (hours > 9 || (hours === 9 && minutes >= 15))) {
         // Market is open or opened already today
-        fetch(`${import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com"}/api/scan`, {
+        fetch(`${API_BASE_URL}/api/scan`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json', },
@@ -1863,7 +1864,7 @@ export default function App() {
 
   const fetchMarketBrief = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+    const API_BASE = API_BASE_URL;
     setLoadingBrief(true);
     fetch(`${API_BASE}/api/market_brief`, {
       credentials: 'include',
@@ -1881,7 +1882,7 @@ export default function App() {
 
   const fetchPredictionStats = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+    const API_BASE = API_BASE_URL;
     fetch(`${API_BASE}/api/predictions/stats`, {
       credentials: 'include',
       headers: { }
@@ -1970,7 +1971,7 @@ export default function App() {
   const fetchPendingPredictions = useCallback(async () => {
     if (!loggedIn) return;
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+      const API_BASE = API_BASE_URL;
       const res = await fetch(`${API_BASE}/api/predictions`, {
         credentials: 'include',
         headers: { }
@@ -1997,7 +1998,7 @@ export default function App() {
   useEffect(() => {
     if (!loggedIn || pendingPredictions.length === 0) return;
 
-    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+    const API_BASE = API_BASE_URL;
 
     pendingPredictions.forEach(async (pred) => {
       if (resolvingIds.current.has(pred.id)) return;
@@ -2079,7 +2080,7 @@ export default function App() {
     
     const timer = setTimeout(async () => {
       try {
-        const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+        const API_BASE = API_BASE_URL;
         const cleanedSymbol = selected.replace('.NS', '');
         const currentPrices = pricesRef.current || {};
         const livePrice = currentPrices[selected]?.price ?? SEED_PRICES[selected] ?? 0;

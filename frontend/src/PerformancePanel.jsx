@@ -1,3 +1,4 @@
+import { API_BASE_URL } from './api';
 /**
  * PerformancePanel.jsx
  * ─────────────────────────────────────────────────────────────────────────────
@@ -7,7 +8,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 
-const BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+const BASE = API_BASE_URL;
 
 const T = {
   bg:       '#080a0f',

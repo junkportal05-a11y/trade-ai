@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../api';
 /**
  * useMarketData.js
  * ─────────────────────────────────────────────────────────────────────────────
@@ -13,7 +14,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+const BASE_URL = API_BASE_URL;
 const WS_URL   = import.meta.env.VITE_WS_URL || BASE_URL.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
 
 const SEED_PRICES = {

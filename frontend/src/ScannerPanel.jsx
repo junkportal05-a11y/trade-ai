@@ -1,3 +1,4 @@
+import { API_BASE_URL } from './api';
 /**
  * ScannerPanel.jsx
  * Unified NSE Smart Scanner — merges signal scanning with capital allocation
@@ -15,7 +16,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 /* ─── Base URL ──────────────────────────────────────────────────────────────── */
-const BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+const BASE = API_BASE_URL;
 
 /* ─── Design Tokens ─────────────────────────────────────────────────────────── */
 const T = {
