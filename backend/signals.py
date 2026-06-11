@@ -38,9 +38,10 @@ CACHE_TTL = 300  # 5 minutes
 #  UNIFIED DATA FETCHER — Upstox ONLY
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def download_market_data_df(
     symbol: str,
-    period: str  = "5d",
+    period: str = "5d",
     interval: str = "5m",
 ) -> Optional[pd.DataFrame]:
     """
@@ -62,7 +63,7 @@ def download_market_data_df(
             df = upstox_feed.get_historical_candles(symbol, period, interval)
             if df is not None and not df.empty:
                 _BATCH_CANDLE_CACHE[cache_key] = df
-                _CACHE_TIMESTAMP[cache_key]    = time.time()
+                _CACHE_TIMESTAMP[cache_key] = time.time()
                 return df
             print(f"[signals] Upstox returned no data for {symbol}")
         except Exception as e:
@@ -76,6 +77,7 @@ def download_market_data_df(
 # ══════════════════════════════════════════════════════════════════════════════
 #  QUOTE FETCHER — single real-time price
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def get_symbol_quote(symbol: str) -> Optional[dict]:
     """
@@ -93,91 +95,145 @@ def get_symbol_quote(symbol: str) -> Optional[dict]:
     return None
 
 
-
 # ── Pure pandas/numpy indicator helpers ───────────────────────────────────────
+
 
 def _ema(series: pd.Series, span: int) -> pd.Series:
     return series.ewm(span=span, adjust=False).mean()
 
+
 def _rsi(close: pd.Series, period: int = 14) -> pd.Series:
     delta = close.diff()
-    gain  = delta.clip(lower=0).rolling(period).mean()
-    loss  = (-delta.clip(upper=0)).rolling(period).mean()
-    rs    = gain / loss.replace(0, np.nan)
+    gain = delta.clip(lower=0).rolling(period).mean()
+    loss = (-delta.clip(upper=0)).rolling(period).mean()
+    rs = gain / loss.replace(0, np.nan)
     return 100 - (100 / (1 + rs))
 
+
 def _macd(close: pd.Series, fast=12, slow=26, signal=9):
-    line  = _ema(close, fast) - _ema(close, slow)
-    sig   = _ema(line, signal)
-    hist  = line - sig
+    line = _ema(close, fast) - _ema(close, slow)
+    sig = _ema(line, signal)
+    hist = line - sig
     return line, sig, hist
+
 
 def _bbands(close: pd.Series, period=20, std_dev=2):
     mid = close.rolling(period).mean()
     std = close.rolling(period).std()
     return mid + std_dev * std, mid, mid - std_dev * std  # upper, mid, lower
 
+
 def _atr(high: pd.Series, low: pd.Series, close: pd.Series, period=14) -> pd.Series:
-    tr = pd.concat([
-        high - low,
-        (high - close.shift()).abs(),
-        (low  - close.shift()).abs(),
-    ], axis=1).max(axis=1)
-    return tr.rolling(period).mean(), tr   # returns (atr, tr)
+    tr = pd.concat(
+        [
+            high - low,
+            (high - close.shift()).abs(),
+            (low - close.shift()).abs(),
+        ],
+        axis=1,
+    ).max(axis=1)
+    return tr.rolling(period).mean(), tr  # returns (atr, tr)
+
 
 def _adx(high: pd.Series, low: pd.Series, close: pd.Series, period=14) -> pd.Series:
-    _, tr  = _atr(high, low, close, period)
-    up     = high.diff()
-    down   = -low.diff()
-    plus_dm  = up.where((up > down) & (up > 0), 0.0)
+    _, tr = _atr(high, low, close, period)
+    up = high.diff()
+    down = -low.diff()
+    plus_dm = up.where((up > down) & (up > 0), 0.0)
     minus_dm = down.where((down > up) & (down > 0), 0.0)
-    atr_s    = tr.rolling(period).mean().replace(0, np.nan)
-    plus_di  = 100 * plus_dm.rolling(period).mean()  / atr_s
+    atr_s = tr.rolling(period).mean().replace(0, np.nan)
+    plus_di = 100 * plus_dm.rolling(period).mean() / atr_s
     minus_di = 100 * minus_dm.rolling(period).mean() / atr_s
     dx = (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan) * 100
     return dx.rolling(period).mean()
 
+
 def _stochastic(high: pd.Series, low: pd.Series, close: pd.Series, k=14, d=3):
-    lo    = low.rolling(k).min()
-    hi    = high.rolling(k).max()
+    lo = low.rolling(k).min()
+    hi = high.rolling(k).max()
     k_pct = 100 * (close - lo) / (hi - lo).replace(0, np.nan)
     return k_pct, k_pct.rolling(d).mean()
+
 
 def _obv(close: pd.Series, volume: pd.Series) -> pd.Series:
     direction = np.sign(close.diff()).fillna(0)
     return (direction * volume).cumsum()
 
-def _vwap(high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Series) -> pd.Series:
+
+def _vwap(
+    high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Series
+) -> pd.Series:
     tp = (high + low + close) / 3
     return (tp * volume).cumsum() / volume.cumsum().replace(0, np.nan)
 
-def _supertrend(high: pd.Series, low: pd.Series, close: pd.Series, period=7, multiplier=3.0):
+
+def _supertrend(
+    high: pd.Series, low: pd.Series, close: pd.Series, period=7, multiplier=3.0
+):
     _, tr = _atr(high, low, close, period)
     atr_s = tr.rolling(period).mean()
     basic_upper = (high + low) / 2 + multiplier * atr_s
     basic_lower = (high + low) / 2 - multiplier * atr_s
-    supert     = pd.Series(np.nan, index=close.index)
-    supert_dir = pd.Series(1.0,    index=close.index)
+    supert = pd.Series(np.nan, index=close.index)
+    supert_dir = pd.Series(1.0, index=close.index)
     for i in range(1, len(close)):
         bu = basic_upper.iloc[i]
         bl = basic_lower.iloc[i]
         prev = supert.iloc[i - 1] if not np.isnan(supert.iloc[i - 1]) else bl
-        pd_  = supert_dir.iloc[i - 1]
-        bl   = max(bl, prev) if pd_ == 1 else bl
-        bu   = min(bu, prev) if pd_ == -1 else bu
+        pd_ = supert_dir.iloc[i - 1]
+        bl = max(bl, prev) if pd_ == 1 else bl
+        bu = min(bu, prev) if pd_ == -1 else bu
         if close.iloc[i - 1] <= prev:
-            supert.iloc[i]     = bu
+            supert.iloc[i] = bu
             supert_dir.iloc[i] = -1
         else:
-            supert.iloc[i]     = bl
+            supert.iloc[i] = bl
             supert_dir.iloc[i] = 1
     return supert, supert_dir
 
 
-
-
 # ── NSE Intraday Watchlist ────────────────────────────────────────────────────
 NSE_WATCHLIST = [
+    {"symbol": "HAL.NS", "name": "HAL", "sector": "Defence"},
+    {"symbol": "BEL.NS", "name": "BEL", "sector": "Defence"},
+    {"symbol": "RVNL.NS", "name": "RVNL", "sector": "Railways"},
+    {"symbol": "IREDA.NS", "name": "IREDA", "sector": "Green Energy"},
+    {"symbol": "HUDCO.NS", "name": "HUDCO", "sector": "Finance"},
+    {"symbol": "COALINDIA.NS", "name": "Coal India", "sector": "Energy"},
+    {"symbol": "NHPC.NS", "name": "NHPC", "sector": "Power"},
+    {"symbol": "ADANIPORTS.NS", "name": "Adani Ports", "sector": "Infrastructure"},
+    {"symbol": "TATAPOWER.NS", "name": "Tata Power", "sector": "Power"},
+    {"symbol": "BHEL.NS", "name": "BHEL", "sector": "Capital Goods"},
+    {"symbol": "RELIANCE.NS", "name": "Reliance", "sector": "Energy"},
+    {"symbol": "TCS.NS", "name": "TCS", "sector": "IT"},
+    {"symbol": "HDFCBANK.NS", "name": "HDFC Bank", "sector": "Banking"},
+    {"symbol": "INFY.NS", "name": "Infosys", "sector": "IT"},
+    {"symbol": "ICICIBANK.NS", "name": "ICICI Bank", "sector": "Banking"},
+    {"symbol": "SBIN.NS", "name": "SBI", "sector": "Banking"},
+    {"symbol": "TATAMOTORS.NS", "name": "Tata Motors", "sector": "Auto"},
+    {"symbol": "BHARTIARTEL.NS", "name": "Bharti Airtel", "sector": "Telecom"},
+    {"symbol": "ITC.NS", "name": "ITC", "sector": "FMCG"},
+    {"symbol": "LT.NS", "name": "L&T", "sector": "Infrastructure"},
+    {"symbol": "ADANIENT.NS", "name": "Adani Ent", "sector": "Conglomerate"},
+    {"symbol": "ADANIPOWER.NS", "name": "Adani Power", "sector": "Power"},
+    {"symbol": "IRFC.NS", "name": "IRFC", "sector": "Railways"},
+    {"symbol": "PFC.NS", "name": "PFC", "sector": "Finance"},
+    {"symbol": "REC.NS", "name": "REC", "sector": "Finance"},
+    {"symbol": "ZOMATO.NS", "name": "Zomato", "sector": "Consumer Tech"},
+    {"symbol": "TATASTEEL.NS", "name": "Tata Steel", "sector": "Metals"},
+    {"symbol": "SAIL.NS", "name": "SAIL", "sector": "Metals"},
+    {"symbol": "WIPRO.NS", "name": "Wipro", "sector": "IT"},
+    {"symbol": "JIOFIN.NS", "name": "Jio Financial", "sector": "Finance"},
+    {"symbol": "SJVN.NS", "name": "SJVN", "sector": "Power"},
+    {"symbol": "GMRINFRA.NS", "name": "GMR Infra", "sector": "Infrastructure"},
+    {"symbol": "NBCC.NS", "name": "NBCC", "sector": "Infrastructure"},
+    {"symbol": "JINDALSTEL.NS", "name": "Jindal Steel", "sector": "Metals"},
+    {"symbol": "JSWSTEEL.NS", "name": "JSW Steel", "sector": "Metals"},
+    {"symbol": "HINDALCO.NS", "name": "Hindalco", "sector": "Metals"},
+    {"symbol": "BPCL.NS", "name": "BPCL", "sector": "Energy"},
+    {"symbol": "IOC.NS", "name": "IOC", "sector": "Energy"},
+    {"symbol": "ONGC.NS", "name": "ONGC", "sector": "Energy"},
+    {"symbol": "NTPC.NS", "name": "NTPC", "sector": "Power"},
     {"symbol": "HAL.NS",         "name": "HAL",                  "sector": "Defence"},
     {"symbol": "BEL.NS",         "name": "BEL",                  "sector": "Defence"},
     {"symbol": "RVNL.NS",        "name": "RVNL",                 "sector": "Railways"},
@@ -229,22 +285,25 @@ def is_nse_market_open() -> bool:
     """
     now_utc = datetime.now(timezone.utc)
     now_ist = now_utc + timedelta(hours=5, minutes=30)
-    
+
     if now_ist.weekday() >= 5:
         return False
-        
+
     minutes_since_midnight = now_ist.hour * 60 + now_ist.minute
     start_minutes = 9 * 60 + 15
     end_minutes = 15 * 60 + 30
-    
+
     return start_minutes <= minutes_since_midnight <= end_minutes
 
 
-def _download_market_data(symbol: str, period: str, interval: str) -> Optional[pd.DataFrame]:
+def _download_market_data(
+    symbol: str, period: str, interval: str
+) -> Optional[pd.DataFrame]:
     return download_market_data_df(symbol, period, interval)
 
 
 # ── Future Learning Feedback Weights ──────────────────────────────────────────
+
 
 def get_learned_weights() -> dict:
     """
@@ -256,39 +315,44 @@ def get_learned_weights() -> dict:
         "volume": 1.0,
         "sector": 1.0,
         "momentum": 1.0,
-        "market": 1.0
+        "market": 1.0,
     }
     try:
         # Avoid circular imports
         import db
+
         preds = db.get_predictions()
         resolved = [p for p in preds if p.get("status") in ("CORRECT", "INCORRECT")]
         if len(resolved) < 5:
             return default_weights
-        
+
         correct_count = sum(1 for p in resolved if p["status"] == "CORRECT")
         base_success_rate = correct_count / len(resolved)
-        
+
         tech_success = []
         vol_success = []
-        
+
         for p in resolved:
             reason_str = p.get("reason", "").upper()
             is_correct = p["status"] == "CORRECT"
-            
+
             if any(k in reason_str for k in ["RSI", "MACD", "EMA", "SUPERTREND"]):
                 tech_success.append(1 if is_correct else 0)
             if "VOL" in reason_str or "VOLUME" in reason_str:
                 vol_success.append(1 if is_correct else 0)
-                
+
         weights = default_weights.copy()
         if tech_success:
             tech_rate = sum(tech_success) / len(tech_success)
-            weights["technical"] = round(max(0.5, min(2.0, tech_rate / (base_success_rate or 0.5))), 2)
+            weights["technical"] = round(
+                max(0.5, min(2.0, tech_rate / (base_success_rate or 0.5))), 2
+            )
         if vol_success:
             vol_rate = sum(vol_success) / len(vol_success)
-            weights["volume"] = round(max(0.5, min(2.0, vol_rate / (base_success_rate or 0.5))), 2)
-            
+            weights["volume"] = round(
+                max(0.5, min(2.0, vol_rate / (base_success_rate or 0.5))), 2
+            )
+
         return weights
     except Exception:
         return default_weights
@@ -296,7 +360,16 @@ def get_learned_weights() -> dict:
 
 # ── Core Signal Calculation ───────────────────────────────────────────────────
 
-def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday Momentum", risk: str = "Medium", segment: str = "NSE", capital: float = 1000.0) -> Optional[dict]:
+
+def analyse_symbol(
+    symbol: str,
+    name: str,
+    sector: str,
+    style: str = "Intraday Momentum",
+    risk: str = "Medium",
+    segment: str = "NSE",
+    capital: float = 1000.0,
+) -> Optional[dict]:
     """
     Download market data for a symbol and calculate advanced signals using pandas-ta.
     If market is open, runs intraday 5m scan.
@@ -316,47 +389,44 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
 
         # Fetch data via data abstraction helper
         df = _download_market_data(symbol, period, interval)
-        
+
         # ── Compute Daily Macro Trend (With Caching) ─────────────────────────
         current_date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         cached_macro = _MACRO_CACHE.get(symbol)
-        
+
         macro_bullish = None
-        
+
         if cached_macro and cached_macro.get("date") == current_date_str:
             macro_bullish = cached_macro.get("bullish")
         else:
             # Fetch Daily Macro Data for Multi-Timeframe Analysis via data abstraction helper
             df_daily = _download_market_data(symbol, "3mo", "1d")
-            
+
             if df_daily is not None and len(df_daily) >= 21:
                 if isinstance(df_daily.columns, pd.MultiIndex):
                     df_daily.columns = df_daily.columns.get_level_values(0)
                 df_daily = df_daily.dropna(subset=["Close"])
-                
+
                 if not df_daily.empty:
                     daily_close = df_daily["Close"]
                     daily_ema21 = daily_close.ewm(span=21, adjust=False).mean()
-                    
+
                     # Daily RSI
                     delta_d = daily_close.diff()
                     gain_d = delta_d.clip(lower=0).rolling(14).mean()
                     loss_d = (-delta_d.clip(upper=0)).rolling(14).mean()
                     rs_d = gain_d / loss_d.replace(0, np.nan)
                     daily_rsi14 = 100 - (100 / (1 + rs_d))
-                    
+
                     macro_ema = daily_ema21.iloc[-1]
                     macro_close = daily_close.iloc[-1]
                     macro_rsi = daily_rsi14.iloc[-1]
-                    
+
                     # Simple macro trend definition: Price above EMA21 and RSI > 50
                     macro_bullish = bool((macro_close > macro_ema) and (macro_rsi > 50))
-            
+
             # Save result to cache
-            _MACRO_CACHE[symbol] = {
-                "date": current_date_str,
-                "bullish": macro_bullish
-            }
+            _MACRO_CACHE[symbol] = {"date": current_date_str, "bullish": macro_bullish}
 
         if df is None or len(df) < 20:
             return None
@@ -372,26 +442,26 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
         change_pct = ((df["Close"].iloc[-1] - df["Close"].iloc[0]) / df["Close"].iloc[0] * 100) if len(df) > 0 else 0.0
 
         # ── Pure pandas/numpy indicators (no pandas-ta dependency) ────────
-        close  = df["Close"]
-        high   = df["High"]
-        low    = df["Low"]
+        close = df["Close"]
+        high = df["High"]
+        low = df["Low"]
         volume = df["Volume"]
 
         # EMA
-        df["EMA_9"]  = close.ewm(span=9,  adjust=False).mean()
+        df["EMA_9"] = close.ewm(span=9, adjust=False).mean()
         df["EMA_21"] = close.ewm(span=21, adjust=False).mean()
 
         # RSI(14)
         delta = close.diff()
-        gain  = delta.clip(lower=0).rolling(14).mean()
-        loss  = (-delta.clip(upper=0)).rolling(14).mean()
-        rs    = gain / loss.replace(0, np.nan)
+        gain = delta.clip(lower=0).rolling(14).mean()
+        loss = (-delta.clip(upper=0)).rolling(14).mean()
+        rs = gain / loss.replace(0, np.nan)
         df["RSI_14"] = 100 - (100 / (1 + rs))
 
         # MACD(12,26,9)
         ema12 = close.ewm(span=12, adjust=False).mean()
         ema26 = close.ewm(span=26, adjust=False).mean()
-        df["MACD_12_26_9"]  = ema12 - ema26
+        df["MACD_12_26_9"] = ema12 - ema26
         df["MACDs_12_26_9"] = df["MACD_12_26_9"].ewm(span=9, adjust=False).mean()
         df["MACDh_12_26_9"] = df["MACD_12_26_9"] - df["MACDs_12_26_9"]
 
@@ -407,11 +477,14 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
         df["VWAP_D"] = (tp * volume).cumsum() / volume.cumsum().replace(0, np.nan)
 
         # ATR(14)
-        tr = pd.concat([
-            high - low,
-            (high - close.shift()).abs(),
-            (low  - close.shift()).abs(),
-        ], axis=1).max(axis=1)
+        tr = pd.concat(
+            [
+                high - low,
+                (high - close.shift()).abs(),
+                (low - close.shift()).abs(),
+            ],
+            axis=1,
+        ).max(axis=1)
         df["ATRr_14"] = tr.rolling(14).mean()
 
         # Supertrend(7, 3.0)
@@ -425,7 +498,7 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
             bu = basic_upper.iloc[i]
             bl = basic_lower.iloc[i]
             prev_supert = supert.iloc[i - 1] if not np.isnan(supert.iloc[i - 1]) else bl
-            prev_dir    = supert_dir_s.iloc[i - 1]
+            prev_dir = supert_dir_s.iloc[i - 1]
             if prev_dir == 1:
                 bl = max(bl, prev_supert)
             else:
@@ -436,24 +509,34 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
             else:
                 supert.iloc[i] = bl
                 supert_dir_s.iloc[i] = 1
-        df["SUPERT_7_3.0"]  = supert
+        df["SUPERT_7_3.0"] = supert
         df["SUPERTd_7_3.0"] = supert_dir_s
 
         # ADX(14)
-        up_move   = high.diff()
+        up_move = high.diff()
         down_move = -low.diff()
-        plus_dm   = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
-        minus_dm  = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
-        atr14     = df["ATRr_14"]
-        plus_di   = 100 * pd.Series(plus_dm,  index=df.index).rolling(14).mean() / atr14.replace(0, np.nan)
-        minus_di  = 100 * pd.Series(minus_dm, index=df.index).rolling(14).mean() / atr14.replace(0, np.nan)
-        dx        = (100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan))
+        plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
+        minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
+        atr14 = df["ATRr_14"]
+        plus_di = (
+            100
+            * pd.Series(plus_dm, index=df.index).rolling(14).mean()
+            / atr14.replace(0, np.nan)
+        )
+        minus_di = (
+            100
+            * pd.Series(minus_dm, index=df.index).rolling(14).mean()
+            / atr14.replace(0, np.nan)
+        )
+        dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan)
         df["ADX_14"] = dx.rolling(14).mean()
 
         # Stochastic(14,3,3)
-        low14  = low.rolling(14).min()
+        low14 = low.rolling(14).min()
         high14 = high.rolling(14).max()
-        df["STOCHk_14_3_3"] = 100 * (close - low14) / (high14 - low14).replace(0, np.nan)
+        df["STOCHk_14_3_3"] = (
+            100 * (close - low14) / (high14 - low14).replace(0, np.nan)
+        )
         df["STOCHd_14_3_3"] = df["STOCHk_14_3_3"].rolling(3).mean()
 
         # OBV
@@ -469,41 +552,50 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
 
         # Drop rows with NaN in key columns
         required_cols = [
-            "Close", "EMA_9", "EMA_21", "RSI_14", "MACD_12_26_9",
-            "BBU_20_2.0", "VWAP_D", "ATRr_14", "SUPERT_7_3.0",
-            "ADX_14", "STOCHk_14_3_3", "OBV"
+            "Close",
+            "EMA_9",
+            "EMA_21",
+            "RSI_14",
+            "MACD_12_26_9",
+            "BBU_20_2.0",
+            "VWAP_D",
+            "ATRr_14",
+            "SUPERT_7_3.0",
+            "ADX_14",
+            "STOCHk_14_3_3",
+            "OBV",
         ]
         df = df.dropna(subset=required_cols)
         if len(df) < 5:
             return None
 
         # Extract latest indicator values
-        price      = float(close.iloc[-1])
-        rsi_val    = float(df["RSI_14"].iloc[-1])
-        macd_val   = float(df["MACD_12_26_9"].iloc[-1])
-        sig_val    = float(df["MACDs_12_26_9"].iloc[-1])
-        hist_val   = float(df["MACDh_12_26_9"].iloc[-1])
-        hist_prev  = float(df["MACDh_12_26_9"].iloc[-2])
-        ema9_val   = float(df["EMA_9"].iloc[-1])
-        ema21_val  = float(df["EMA_21"].iloc[-1])
-        vwap_val   = float(df["VWAP_D"].iloc[-1])
-        bb_up      = float(df["BBU_20_2.0"].iloc[-1])
-        bb_lo      = float(df["BBL_20_2.0"].iloc[-1])
-        bb_mid_v   = float(df["BBM_20_2.0"].iloc[-1])
-        atr_val    = float(df["ATRr_14"].iloc[-1])
-        
+        price = float(close.iloc[-1])
+        rsi_val = float(df["RSI_14"].iloc[-1])
+        macd_val = float(df["MACD_12_26_9"].iloc[-1])
+        sig_val = float(df["MACDs_12_26_9"].iloc[-1])
+        hist_val = float(df["MACDh_12_26_9"].iloc[-1])
+        hist_prev = float(df["MACDh_12_26_9"].iloc[-2])
+        ema9_val = float(df["EMA_9"].iloc[-1])
+        ema21_val = float(df["EMA_21"].iloc[-1])
+        vwap_val = float(df["VWAP_D"].iloc[-1])
+        bb_up = float(df["BBU_20_2.0"].iloc[-1])
+        bb_lo = float(df["BBL_20_2.0"].iloc[-1])
+        bb_mid_v = float(df["BBM_20_2.0"].iloc[-1])
+        atr_val = float(df["ATRr_14"].iloc[-1])
+
         supert_val = float(df["SUPERT_7_3.0"].iloc[-1])
         supert_dir = float(df["SUPERTd_7_3.0"].iloc[-1])
-        adx_val    = float(df["ADX_14"].iloc[-1])
-        stoch_k    = float(df["STOCHk_14_3_3"].iloc[-1])
-        stoch_d    = float(df["STOCHd_14_3_3"].iloc[-1])
-        obv_val    = float(df["OBV"].iloc[-1])
-        obv_prev   = float(df["OBV"].iloc[-5])
+        adx_val = float(df["ADX_14"].iloc[-1])
+        stoch_k = float(df["STOCHk_14_3_3"].iloc[-1])
+        stoch_d = float(df["STOCHd_14_3_3"].iloc[-1])
+        obv_val = float(df["OBV"].iloc[-1])
+        obv_prev = float(df["OBV"].iloc[-5])
 
         # Volume ratio vs 20-bar average
-        vol_avg  = volume.rolling(20).mean()
+        vol_avg = volume.rolling(20).mean()
         vol_ratio = (volume / vol_avg.replace(0, 1)).iloc[-1]
-        vol_r     = float(vol_ratio)
+        vol_r = float(vol_ratio)
 
         # Pre-compute Swings and Support/Resistance to avoid duplicate calls later
         try:
@@ -524,16 +616,26 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
             reasons_bear = []
             has_candle = False
             support_val, resist_val = None, None
-            
+
             try:
                 import candlestick_patterns
 
                 # 1. Swings & Support/Resistance
+                swing_highs, swing_lows = candlestick_patterns.detect_swings(
+                    df, window=5
+                )
+                support_val, resist_val = candlestick_patterns.find_support_resistance(
+                    df, swing_highs, swing_lows
+                )
                 swing_highs, swing_lows = cached_sh, cached_sl
                 support_val, resist_val = cached_support, cached_resistance
 
                 # 2. SMC Structure Breaks (BOS / CHoCH)
-                struct_break, struct_reason = candlestick_patterns.detect_structure_breaks(df, swing_highs, swing_lows)
+                struct_break, struct_reason = (
+                    candlestick_patterns.detect_structure_breaks(
+                        df, swing_highs, swing_lows
+                    )
+                )
                 if struct_break == "BULLISH":
                     score += 4
                     reasons_bull.append(struct_reason)
@@ -548,8 +650,10 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
                         reasons_bull.append("Inside Bar (Consolidation)")
                     else:
                         reasons_bear.append("Inside Bar (Consolidation)")
-                
-                fakeout_dir, fakeout_trigger = candlestick_patterns.detect_inside_bar_fakeout(df)
+
+                fakeout_dir, fakeout_trigger = (
+                    candlestick_patterns.detect_inside_bar_fakeout(df)
+                )
                 if fakeout_dir == "BULLISH":
                     score += 4
                     reasons_bull.append("Inside Bar False Breakout (Bullish Fakeout)")
@@ -560,7 +664,9 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
                     has_candle = True
 
                 # 4. Pin Bars with Confluences
-                pin_type, pin_confluences = candlestick_patterns.detect_pin_bars(df, ema21_val, rsi_val, support_val, resist_val)
+                pin_type, pin_confluences = candlestick_patterns.detect_pin_bars(
+                    df, ema21_val, rsi_val, support_val, resist_val
+                )
                 if pin_type == "BULLISH":
                     score += 3 + len(pin_confluences)
                     desc = "Bullish Pin Bar"
@@ -569,7 +675,7 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
                     reasons_bull.append(desc)
                     has_candle = True
                 elif pin_type == "BEARISH":
-                    score -= (3 + len(pin_confluences))
+                    score -= 3 + len(pin_confluences)
                     desc = "Bearish Pin Bar"
                     if pin_confluences:
                         desc += f" ({', '.join(pin_confluences)})"
@@ -589,7 +695,9 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
                     has_candle = True
 
                 # Doji variations
-                is_doji_std, is_dragonfly, is_gravestone = candlestick_patterns.detect_doji(df)
+                is_doji_std, is_dragonfly, is_gravestone = (
+                    candlestick_patterns.detect_doji(df)
+                )
                 if is_dragonfly:
                     score += 2
                     reasons_bull.append("Dragonfly Doji (Bullish Reversal)")
@@ -606,7 +714,9 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
 
                 # Hammer / Shooting Star (only if not already registered as Pin Bar)
                 if not has_candle:
-                    is_ham, is_shoot = candlestick_patterns.detect_hammer_shooting_star(df)
+                    is_ham, is_shoot = candlestick_patterns.detect_hammer_shooting_star(
+                        df
+                    )
                     if is_ham:
                         score += 2
                         reasons_bull.append("Bullish Hammer Candle")
@@ -663,27 +773,36 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
             # 7. Volume Confirmation
             if vol_r >= 1.5:
                 score += 1 if score > 0 else -1
-                reasons_bull.append("Volume confirmation") if score > 0 else reasons_bear.append("Volume pressure confirmation")
+                reasons_bull.append(
+                    "Volume confirmation"
+                ) if score > 0 else reasons_bear.append("Volume pressure confirmation")
 
             # 8. News Sentiment
             news_sentiment = 0.0
             try:
                 import news_feed
+
                 articles = news_feed.fetch_ticker_news(symbol)
                 if articles:
                     news_sentiment = news_feed.analyze_news_sentiment(articles)
                     if news_sentiment > 0.3:
                         score += 2
-                        reasons_bull.append(f"Bullish News Sentiment ({news_sentiment:+.2f})")
+                        reasons_bull.append(
+                            f"Bullish News Sentiment ({news_sentiment:+.2f})"
+                        )
                     elif news_sentiment < -0.3:
                         score -= 2
-                        reasons_bear.append(f"Bearish News Sentiment ({news_sentiment:.2f})")
+                        reasons_bear.append(
+                            f"Bearish News Sentiment ({news_sentiment:.2f})"
+                        )
             except Exception as e:
                 print(f"[signals] News sentiment failed: {e}")
 
             # Define Component Scores for PDF mode (Map total score to max 20)
             market_score = min(20, 10 if macro_bullish else 5)
-            tech_score = min(20, (10 + score * 2) if score >= 0 else max(0, 10 + score * 2))
+            tech_score = min(
+                20, (10 + score * 2) if score >= 0 else max(0, 10 + score * 2)
+            )
             volume_score = min(20, 10 if vol_r >= 1.2 else 5)
             momentum_score = min(20, 12 if has_candle else 5)
 
@@ -692,14 +811,17 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
             signal_type = "BULLISH" if is_buy else "BEARISH"
             try:
                 import candlestick_patterns
-                stop, target1, position_size, rr_ratio = candlestick_patterns.calculate_risk_parameters(
-                    price=price,
-                    signal_type=signal_type,
-                    df=df,
-                    support=support_val,
-                    resistance=resist_val,
-                    capital=capital,
-                    risk_pct=0.01
+
+                stop, target1, position_size, rr_ratio = (
+                    candlestick_patterns.calculate_risk_parameters(
+                        price=price,
+                        signal_type=signal_type,
+                        df=df,
+                        support=support_val,
+                        resistance=resist_val,
+                        capital=capital,
+                        risk_pct=0.01,
+                    )
                 )
                 entry = round(price, 2)
                 if is_buy:
@@ -716,11 +838,19 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
                 atr_stop = 2.0 * atr_val
                 stop = round(price - atr_stop if is_buy else price + atr_stop, 2)
                 risk_amount = round(abs(price - stop), 2)
-                target1 = round(price + 2.0 * risk_amount if is_buy else price - 2.0 * risk_amount, 2)
-                target2 = round(price + 3.0 * risk_amount if is_buy else price - 3.0 * risk_amount, 2)
+                target1 = round(
+                    price + 2.0 * risk_amount if is_buy else price - 2.0 * risk_amount,
+                    2,
+                )
+                target2 = round(
+                    price + 3.0 * risk_amount if is_buy else price - 3.0 * risk_amount,
+                    2,
+                )
                 reward = round(abs(target1 - price), 2)
                 rr_ratio = 2.0
-                position_size = int((capital * 0.01) // risk_amount) if risk_amount > 0 else 1
+                position_size = (
+                    int((capital * 0.01) // risk_amount) if risk_amount > 0 else 1
+                )
                 position_size = max(1, min(position_size, int(capital // price)))
 
         else:
@@ -736,12 +866,17 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
             # PDF Candlestick Pattern Scoring
             try:
                 import candlestick_patterns
+
                 pat = candlestick_patterns.get_pattern_score(df)
                 if pat:
                     bull_pts += pat.get("bull_pts", 0)
                     bear_pts += pat.get("bear_pts", 0)
-                    reasons_bull.extend(pat.get("reasons", []) if pat.get("bull_pts", 0) > 0 else [])
-                    reasons_bear.extend(pat.get("reasons", []) if pat.get("bear_pts", 0) > 0 else [])
+                    reasons_bull.extend(
+                        pat.get("reasons", []) if pat.get("bull_pts", 0) > 0 else []
+                    )
+                    reasons_bear.extend(
+                        pat.get("reasons", []) if pat.get("bear_pts", 0) > 0 else []
+                    )
                     top_pattern = pat.get("top_pattern")
             except Exception as e:
                 print(f"[signals] Pattern scoring failed: {e}")
@@ -773,10 +908,16 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
                 bear_pts += 10
                 reasons_bear.append("MACD histogram bearish momentum")
 
-            if macd_val > sig_val and df["MACD_12_26_9"].iloc[-2] <= df["MACDs_12_26_9"].iloc[-2]:
+            if (
+                macd_val > sig_val
+                and df["MACD_12_26_9"].iloc[-2] <= df["MACDs_12_26_9"].iloc[-2]
+            ):
                 bull_pts += 12
                 reasons_bull.append("MACD bullish crossover")
-            elif macd_val < sig_val and df["MACD_12_26_9"].iloc[-2] >= df["MACDs_12_26_9"].iloc[-2]:
+            elif (
+                macd_val < sig_val
+                and df["MACD_12_26_9"].iloc[-2] >= df["MACDs_12_26_9"].iloc[-2]
+            ):
                 bear_pts += 12
                 reasons_bear.append("MACD bearish crossover")
 
@@ -826,10 +967,18 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
                     reasons_bear.insert(0, "Daily Macro Bearish")
 
             # 8. Stochastic Crossovers
-            if stoch_k < 20 and stoch_k > stoch_d and df["STOCHk_14_3_3"].iloc[-2] <= df["STOCHd_14_3_3"].iloc[-2]:
+            if (
+                stoch_k < 20
+                and stoch_k > stoch_d
+                and df["STOCHk_14_3_3"].iloc[-2] <= df["STOCHd_14_3_3"].iloc[-2]
+            ):
                 bull_pts += 8
                 reasons_bull.append("Stochastic golden cross")
-            elif stoch_k > 80 and stoch_k < stoch_d and df["STOCHk_14_3_3"].iloc[-2] >= df["STOCHd_14_3_3"].iloc[-2]:
+            elif (
+                stoch_k > 80
+                and stoch_k < stoch_d
+                and df["STOCHk_14_3_3"].iloc[-2] >= df["STOCHd_14_3_3"].iloc[-2]
+            ):
                 bear_pts += 8
                 reasons_bear.append("Stochastic death cross")
 
@@ -858,15 +1007,20 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
             news_sentiment = 0.0
             try:
                 import news_feed
+
                 articles = news_feed.fetch_ticker_news(symbol)
                 if articles:
                     news_sentiment = news_feed.analyze_news_sentiment(articles)
                     if news_sentiment > 0.3:
                         bull_pts += 15
-                        reasons_bull.append(f"Bullish News Sentiment ({news_sentiment:+.2f})")
+                        reasons_bull.append(
+                            f"Bullish News Sentiment ({news_sentiment:+.2f})"
+                        )
                     elif news_sentiment < -0.3:
                         bear_pts += 15
-                        reasons_bear.append(f"Bearish News Sentiment ({news_sentiment:.2f})")
+                        reasons_bear.append(
+                            f"Bearish News Sentiment ({news_sentiment:.2f})"
+                        )
             except Exception as e:
                 print(f"[signals] Failed to run news sentiment scanner: {e}")
 
@@ -881,11 +1035,17 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
             # Confidence Formula
             total_pts = bull_pts + bear_pts
             if total_pts > 0:
-                calc_confidence = round((bull_pts / total_pts) * 100) if bull_pts > bear_pts else round((bear_pts / total_pts) * 100)
+                calc_confidence = (
+                    round((bull_pts / total_pts) * 100)
+                    if bull_pts > bear_pts
+                    else round((bear_pts / total_pts) * 100)
+                )
             else:
                 calc_confidence = 50
 
-            score = (bull_pts - bear_pts) // 10  # proxy score for compatibility if needed
+            score = (
+                bull_pts - bear_pts
+            ) // 10  # proxy score for compatibility if needed
 
             # Define Component Scores for pass 2 compatibility
             market_score = 10 if macro_bullish else 4
@@ -895,22 +1055,35 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
 
             # Smart Money Stop Loss Setup via calculate_risk_parameters
             import candlestick_patterns
+
+            try:
+                sh, sl = candlestick_patterns.detect_swings(df, window=5)
+                support, resistance = candlestick_patterns.find_support_resistance(
+                    df, sh, sl
+                )
+            except Exception:
+                support, resistance = None, None
+
             support, resistance = cached_support, cached_resistance
                 
             is_buy = bull_pts > bear_pts
             signal_type = "BULLISH" if is_buy else "BEARISH"
 
-            stop, target1, position_size, rr_ratio = candlestick_patterns.calculate_risk_parameters(
-                price=price,
-                signal_type=signal_type,
-                df=df,
-                support=support,
-                resistance=resistance,
-                capital=capital,
-                risk_pct=0.01,
-                is_macro_aligned=(macro_bullish if is_buy else not macro_bullish) if macro_bullish is not None else True
+            stop, target1, position_size, rr_ratio = (
+                candlestick_patterns.calculate_risk_parameters(
+                    price=price,
+                    signal_type=signal_type,
+                    df=df,
+                    support=support,
+                    resistance=resistance,
+                    capital=capital,
+                    risk_pct=0.01,
+                    is_macro_aligned=(macro_bullish if is_buy else not macro_bullish)
+                    if macro_bullish is not None
+                    else True,
+                )
             )
-            target2 = target1 + (target1 - price) # basic 2nd target
+            target2 = target1 + (target1 - price)  # basic 2nd target
 
             risk_amount = round(abs(stop - price), 2)
             reward = round(abs(target1 - price), 2)
@@ -919,9 +1092,11 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
 
             all_reasons = reasons_bull + reasons_bear
             reasoning = " | ".join(all_reasons[:4])
-            
+
             entry = round(price, 2)
-            position_size = int((capital * 0.01) // risk_amount) if risk_amount > 0 else 1
+            position_size = (
+                int((capital * 0.01) // risk_amount) if risk_amount > 0 else 1
+            )
             position_size = max(1, min(position_size, int(capital // price)))
 
         rr_ratio = round(reward / risk_amount, 2) if risk_amount > 0 else 1.0
@@ -931,46 +1106,46 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
         reasoning = " | ".join(all_reasons[:4])
 
         return {
-            "symbol":         symbol,
-            "name":           name,
-            "sector":         sector,
-            "signal":         "HOLD", # Evaluated in pass 2
-            "confidence":     50,     # Evaluated in pass 2
-            "score":          score,
-            "price":          entry,
-            "entry":          entry,
-            "target":         target1,
-            "target1":        target1,
-            "target2":        target2,
-            "stop_loss":      stop,
-            "target_pct":     target_pct,
-            "risk":           risk_amount,
-            "reward":         reward,
-            "rr_ratio":       rr_ratio,
-            "rsi":            round(rsi_val, 1),
-            "macd_hist":      round(hist_val, 4),
-            "vwap":           round(vwap_val, 2),
-            "ema9":           round(ema9_val, 2),
-            "ema21":          round(ema21_val, 2),
-            "bb_upper":       round(bb_up, 2),
-            "bb_lower":       round(bb_lo, 2),
-            "vol_ratio":      round(vol_r, 2),
-            "atr":            round(atr_val, 2),
-            "supertrend":     round(supert_val, 2),
+            "symbol": symbol,
+            "name": name,
+            "sector": sector,
+            "signal": "HOLD",  # Evaluated in pass 2
+            "confidence": 50,  # Evaluated in pass 2
+            "score": score,
+            "price": entry,
+            "entry": entry,
+            "target": target1,
+            "target1": target1,
+            "target2": target2,
+            "stop_loss": stop,
+            "target_pct": target_pct,
+            "risk": risk_amount,
+            "reward": reward,
+            "rr_ratio": rr_ratio,
+            "rsi": round(rsi_val, 1),
+            "macd_hist": round(hist_val, 4),
+            "vwap": round(vwap_val, 2),
+            "ema9": round(ema9_val, 2),
+            "ema21": round(ema21_val, 2),
+            "bb_upper": round(bb_up, 2),
+            "bb_lower": round(bb_lo, 2),
+            "vol_ratio": round(vol_r, 2),
+            "atr": round(atr_val, 2),
+            "supertrend": round(supert_val, 2),
             "supertrend_dir": int(supert_dir),
-            "adx":            round(adx_val, 2),
-            "stoch_k":        round(stoch_k, 2),
-            "obv":            round(obv_val, 2),
-            "scan_type":      scan_type,
-            "reasoning":      reasoning,
-            "reasons":        all_reasons,
-            "scanned_at":     datetime.utcnow().isoformat() + "Z",
-            
+            "adx": round(adx_val, 2),
+            "stoch_k": round(stoch_k, 2),
+            "obv": round(obv_val, 2),
+            "scan_type": scan_type,
+            "reasoning": reasoning,
+            "reasons": all_reasons,
+            "scanned_at": datetime.utcnow().isoformat() + "Z",
             # Sub-scores
-            "_market_score":   market_score,
-            "_tech_score":     tech_score,
-            "_volume_score":   volume_score,
+            "_market_score": market_score,
+            "_tech_score": tech_score,
+            "_volume_score": volume_score,
             "_momentum_score": momentum_score,
+            "position_size": position_size,
             "position_size":   position_size,
             "change_pct":      round(change_pct, 2),
             "news_sentiment":   round(news_sentiment, 2),
@@ -978,11 +1153,20 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
 
     except Exception as e:
         import traceback
+
         print(f"[signals] Exception in analyse_symbol for {symbol}: {e}")
         traceback.print_exc()
         return None
 
 
+def run_scan(
+    symbols: Optional[list] = None,
+    interval: str = "5m",
+    style: str = "Intraday Momentum",
+    risk: str = "Medium",
+    segment: str = "NSE",
+    capital: float = 1000.0,
+) -> list:
 async def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: str = "Intraday Momentum", risk: str = "Medium", segment: str = "NSE", capital: float = 1000.0) -> list:
     """
     Scan watchlist and return signals sorted by conviction/confidence.
@@ -1007,13 +1191,23 @@ async def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: 
         # Apply segment filter
         if segment == "BSE" and not sym.endswith(".BO"):
             return None
-        elif segment == "F&O" and sym not in ["HAL.NS", "BEL.NS", "RVNL.NS", "COALINDIA.NS", "ADANIPORTS.NS", "TATAPOWER.NS", "BHEL.NS"]:
+        elif segment == "F&O" and sym not in [
+            "HAL.NS",
+            "BEL.NS",
+            "RVNL.NS",
+            "COALINDIA.NS",
+            "ADANIPORTS.NS",
+            "TATAPOWER.NS",
+            "BHEL.NS",
+        ]:
             return None
 
         df = download_market_data_df(sym, "5d", interval)
         if df is None or len(df) < 30:
             return None
-        return analyse_symbol(sym, name, sector, style=style, risk=risk, segment=segment, capital=capital)
+        return analyse_symbol(
+            sym, name, sector, style=style, risk=risk, segment=segment, capital=capital
+        )
 
     first_pass_results = []
     
@@ -1090,6 +1284,33 @@ async def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: 
     for r in first_pass_results:
         sec = r["sector"]
         sector_score = sector_scores.get(sec, 10.0)
+
+        # Calculate final confidence score (0-100)
+        if "_calc_confidence" in r:
+            confidence = r["_calc_confidence"]
+        else:
+            weighted_sum = (
+                r["_tech_score"] * weights["technical"]
+                + r["_volume_score"] * weights["volume"]
+                + sector_score * weights["sector"]
+                + r["_momentum_score"] * weights["momentum"]
+                + r["_market_score"] * weights["market"]
+            )
+            max_possible = (
+                20 * weights["technical"]
+                + 20 * weights["volume"]
+                + 20 * weights["sector"]
+                + 20 * weights["momentum"]
+                + 20 * weights["market"]
+            )
+
+            confidence = (
+                round((weighted_sum / max_possible) * 100) if max_possible > 0 else 50
+            )
+
+        confidence = min(100, max(0, confidence))
+
+        # Sector strength label
         
         # Calculate Current Setup Quality (0-100)
         weighted_sum = (
@@ -1158,7 +1379,7 @@ async def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: 
         # Quantity and expected profit range
         qty = round(capital / entry, 2)
         qty_label = f"{qty} Shares" if qty >= 1 else f"{qty:.2f} Shares"
-        
+
         est_profit_low = round(qty * abs(target1 - entry), 2)
         est_profit_high = round(qty * abs(target2 - entry), 2)
         estimated_profit = f"₹{est_profit_low:.0f} - ₹{est_profit_high:.0f}"
