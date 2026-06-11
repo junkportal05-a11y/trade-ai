@@ -416,8 +416,6 @@ def find_support_resistance(
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def _avoid_round_numbers(price: float, is_buy: bool) -> float:
-    """Shifts stop loss 3 points away from round numbers (multiples of 50 or 100)"""
 def _avoid_round_numbers(price: float, atr: float, is_buy: bool) -> float:
     """Shifts stop loss 0.1 * ATR away from round numbers (multiples of 50 or 100)"""
     p_int = int(round(price))
@@ -448,7 +446,7 @@ def calculate_risk_parameters(
     if signal_type == "BULLISH":
         sl_base = support if support else float(df["Low"].iloc[-3:].min())
         stop_loss = sl_base - (atr * 0.3)
-        stop_loss = _avoid_round_numbers(stop_loss, is_buy=True)
+        stop_loss = _avoid_round_numbers(stop_loss, atr, is_buy=True)
 
         risk_per_share = price - stop_loss
         if risk_per_share <= 0:
@@ -460,30 +458,13 @@ def calculate_risk_parameters(
     else:  # BEARISH
         sl_base = resistance if resistance else float(df["High"].iloc[-3:].max())
         stop_loss = sl_base + (atr * 0.3)
-        stop_loss = _avoid_round_numbers(stop_loss, is_buy=False)
+        stop_loss = _avoid_round_numbers(stop_loss, atr, is_buy=False)
 
         risk_per_share = stop_loss - price
         if risk_per_share <= 0:
             risk_per_share = atr
             stop_loss = price + risk_per_share
 
-        stop_loss = price - atr
-        stop_loss = _avoid_round_numbers(stop_loss, atr, is_buy=True)
-        
-        risk_per_share = price - stop_loss
-        if risk_per_share <= 0:
-            risk_per_share = atr
-            
-        target = price + (rr_target * risk_per_share)
-        
-    else: # BEARISH
-        stop_loss = price + atr
-        stop_loss = _avoid_round_numbers(stop_loss, atr, is_buy=False)
-        
-        risk_per_share = stop_loss - price
-        if risk_per_share <= 0:
-            risk_per_share = atr
-            
         target = price - (rr_target * risk_per_share)
 
     # 2. Position Sizing

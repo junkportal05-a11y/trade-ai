@@ -9,7 +9,7 @@ import AccountPanel from './AccountPanel';
 import OrderBookPanel from './OrderBookPanel';
 import HomePanel from './HomePanel';
 import PredictionsPanel from './PredictionsPanel';
-
+import JournalPanel from './JournalPanel';
 
 
 
