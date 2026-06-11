@@ -962,11 +962,16 @@ async def auto_scan_loop():
                 sentiment_pct = int(buys_count / len(results) * 100) if results else 50
 
             # Log BUY / SELL signals with confidence >= 60
+            valid_signals = []
             for sig in results:
                 if sig.get("signal") in ("BUY", "SELL") and sig.get("confidence", 0) >= 60:
                     sig["direction"]  = sig["signal"]
                     sig["entry"]      = sig.get("price",      sig.get("entry", 0))
                     sig["scan_type"]  = scan_type
+                    valid_signals.append(sig)
+
+            if valid_signals:
+                db.add_signals_batch(valid_signals)
                     db.add_signal(sig)
                     
                     # Also log to predictions_history for the learning engine feedback loop
