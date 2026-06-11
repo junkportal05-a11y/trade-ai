@@ -884,12 +884,25 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
                     </div>
 
                     {/* Indicators details */}
-                    {(pred.rsi || pred.macd || pred.adx) && (
-                      <div style={{ display: 'flex', gap: 12, fontSize: 9, color: T.textMid, ...mono }}>
-                        {pred.rsi && <span>RSI: <strong style={{ color: T.text }}>{pred.rsi}</strong></span>}
-                        {pred.macd && <span>MACD Hist: <strong style={{ color: T.text }}>{pred.macd}</strong></span>}
-                        {pred.adx && <span>ADX: <strong style={{ color: T.text }}>{pred.adx}</strong></span>}
-                        <span>Confidence: <strong style={{ color: T.gold }}>{pred.confidence_score}%</strong></span>
+                    {(pred.rsi || pred.macd || pred.adx || pred.trade_quality_score) && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 9, color: T.textMid, ...mono }}>
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                          {pred.rsi && <span>RSI: <strong style={{ color: T.text }}>{pred.rsi}</strong></span>}
+                          {pred.macd && <span>MACD Hist: <strong style={{ color: T.text }}>{pred.macd}</strong></span>}
+                          {pred.adx && <span>ADX: <strong style={{ color: T.text }}>{pred.adx}</strong></span>}
+                          <span>Confidence: <strong style={{ color: T.gold }}>{pred.confidence_score}%</strong></span>
+                        </div>
+                        
+                        {/* Phase Omega: Trade Quality Engine */}
+                        {pred.trade_quality_score > 0 && (
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '6px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', border: `1px solid ${T.borderHi}` }}>
+                            <span style={{ color: T.accent, fontWeight: 'bold' }}>TQS: {pred.trade_quality_score}</span>
+                            <span>| Regime: {pred.regime_score}</span>
+                            <span>| Sector: {pred.sector_score}</span>
+                            <span>| RS: {pred.rs_score}</span>
+                            <span>| Correl: {pred.correlation_score}</span>
+                          </div>
+                        )}
                       </div>
                     )}
 

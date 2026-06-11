@@ -309,6 +309,7 @@ def init_db():
             ("fill_time", "TEXT"),
             ("fill_price", "REAL"),
             ("slippage_pct", "REAL"),
+            ("broker_failure_reason", "TEXT"),
         ]
         for col_name, col_type in pred_migrations:
             if col_name not in pred_columns:
@@ -358,6 +359,7 @@ def init_db():
                 lifetime_pf REAL NOT NULL,
                 last_30_pf REAL NOT NULL,
                 last_90_pf REAL NOT NULL,
+                edge_score REAL DEFAULT 0.0,
                 status TEXT NOT NULL DEFAULT 'ACTIVE'
             )
         """)
@@ -824,6 +826,7 @@ def resolve_prediction(
     resolution_reason: str = "EXPIRED",
     fill_time: Optional[str] = None,
     slippage_pct: float = 0.0,
+    broker_failure_reason: Optional[str] = None,
     manual_override_reason: Optional[str] = None
 ) -> bool:
     with _conn() as c:
@@ -835,12 +838,12 @@ def resolve_prediction(
                    SET actual_outcome=?, status=?, resolved_at=?,
                        exit_price=?, holding_time_minutes=?, pnl_pct=?, 
                        pnl_inr=?, r_multiple=?, resolution_reason=?,
-                       fill_time=?, slippage_pct=?
+                       fill_time=?, slippage_pct=?, broker_failure_reason=?
         """
         params = [
             actual_outcome, status.upper(), now,
             exit_price, holding_time_minutes, pnl_pct, pnl_inr, r_multiple, resolution_reason,
-            fill_time, slippage_pct
+            fill_time, slippage_pct, broker_failure_reason
         ]
         
         if manual_override_reason:

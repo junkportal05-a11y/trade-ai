@@ -788,21 +788,18 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
         </div>
       ) : (
         <>
-          {/* KPI Cards */}
+          {/* Institutional Dashboard KPIs */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <KpiCard
-              label="WIN RATE"
-              value={`${stats.win_rate}%`}
-              sub={`${stats.won} wins / ${stats.lost} losses`}
-              color={stats.win_rate >= 60 ? T.green : stats.win_rate >= 40 ? T.gold : T.red}
-              big
-            />
-            <KpiCard label="PROFIT FACTOR" value={`${stats.profit_factor}x`} color={stats.profit_factor >= 1.5 ? T.green : stats.profit_factor >= 1.0 ? T.gold : T.red} sub="Gross Win / Loss" big />
-            <KpiCard label="EXPECTED VALUE" value={`${stats.ev_pct > 0 ? '+' : ''}${stats.ev_pct}%`} color={stats.ev_pct > 0 ? T.green : T.red} sub="Avg Expected Return" big />
-            <KpiCard label="MAX DRAWDOWN" value={`-${stats.max_drawdown}%`} color={stats.max_drawdown <= 10 ? T.green : T.red} sub="Peak to Trough" big />
-            <KpiCard label="TOTAL SIGNALS" value={stats.total} sub={`${stats.pending} active`} />
-            <KpiCard label="AVG P&L" value={pct(stats.avg_pnl)} color={clr(stats.avg_pnl)} sub="per resolved trade" />
-            <KpiCard label="RESOLVED" value={stats.resolved} sub={`${stats.expired} expired · ${stats.closed} closed`} />
+            <KpiCard label="PORTFOLIO EQUITY" value={`₹${fmt(stats.portfolio?.current_equity || 0)}`} color={stats.portfolio?.current_equity >= stats.portfolio?.daily_equity ? T.green : T.red} big />
+            <KpiCard label="PORTFOLIO DD" value={`-${fmt(((stats.portfolio?.peak_equity - stats.portfolio?.current_equity) / (stats.portfolio?.peak_equity || 1)) * 100)}%`} color={T.gold} big />
+            <KpiCard label="KILL SWITCH" value={stats.kill_switch || "SAFE"} color={stats.kill_switch === "ACTIVE" ? T.red : T.green} big />
+            <KpiCard label="MARKET REGIME" value={stats.current_regime || "UNKNOWN"} color={T.accent} big />
+            
+            <KpiCard label="WIN RATE" value={`${stats.win_rate}%`} sub={`${stats.won} wins / ${stats.lost} losses`} color={stats.win_rate >= 60 ? T.green : stats.win_rate >= 40 ? T.gold : T.red} />
+            <KpiCard label="PROFIT FACTOR" value={`${stats.profit_factor}x`} color={stats.profit_factor >= 1.5 ? T.green : stats.profit_factor >= 1.0 ? T.gold : T.red} sub="Gross Win / Loss" />
+            <KpiCard label="EXPECTED VALUE" value={`${stats.ev_pct > 0 ? '+' : ''}${stats.ev_pct}%`} color={stats.ev_pct > 0 ? T.green : T.red} sub="Avg Expected Return" />
+            <KpiCard label="CALIBRATION ERR" value={`${stats.calibration_error}%`} sub="Expected vs Actual" color={stats.calibration_error < 10 ? T.green : T.red} />
+            <KpiCard label="STRATEGY HEALTH" value={stats.strategy_health || "ACTIVE"} color={stats.strategy_health === "DECAY_WARNING" ? T.gold : stats.strategy_health === "QUARANTINED" ? T.red : T.green} />
           </div>
 
           {/* Breakdown charts */}
