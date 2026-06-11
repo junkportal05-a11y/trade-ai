@@ -246,88 +246,7 @@ def init_db():
                 holding_time_minutes    REAL,
                 pnl_pct                 REAL,
                 pnl_inr                 REAL,
-                resolution_reason       TEXT,
-                trade_quality_score     REAL,
-                regime_score            REAL,
-                sector_score            REAL,
-                volume_score            REAL,
-                rs_score                REAL,
-                signal_time             TEXT,
-                order_time              TEXT,
-                fill_time               TEXT,
-                fill_price              REAL,
-                slippage_pct            REAL
-            )
-        """)
-        
-        # Phase Omega Tables
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS portfolio_state (
-                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-                current_equity      REAL NOT NULL DEFAULT 0.0,
-                peak_equity         REAL NOT NULL DEFAULT 0.0,
-                daily_equity        REAL NOT NULL DEFAULT 0.0,
-                sector_exposure     TEXT,
-                active_positions    TEXT,
-                last_updated        TEXT
-            )
-        """)
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS strategy_health (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                setup_type      TEXT UNIQUE NOT NULL,
-                lifetime_pf     REAL DEFAULT 0.0,
-                last_30_pf      REAL DEFAULT 0.0,
-                last_90_pf      REAL DEFAULT 0.0,
-                status          TEXT DEFAULT 'ACTIVE'
-            )
-        """)
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS confidence_calibration (
-                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-                band                TEXT NOT NULL,
-                regime              TEXT NOT NULL,
-                predicted_win_rate  REAL DEFAULT 0.0,
-                actual_win_rate     REAL DEFAULT 0.0,
-                calibration_error   REAL DEFAULT 0.0,
-                UNIQUE(band, regime)
-            )
-        """)
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS daily_governance_reports (
-                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-                report_date         TEXT NOT NULL,
-                pf                  REAL,
-                ev                  REAL,
-                drawdown            REAL,
-                regime              TEXT,
-                best_strategy       TEXT,
-                worst_strategy      TEXT,
-                calibration_error   REAL,
-                kill_switch_events  INTEGER,
-                exposure_violations INTEGER
-            )
-        """)
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS risk_settings (
-                id                      INTEGER PRIMARY KEY AUTOINCREMENT,
-                daily_loss_limit        REAL DEFAULT -3.0,
-                daily_drawdown_limit    REAL DEFAULT -4.0,
-                max_consecutive_losses  INTEGER DEFAULT 5
-            )
-        """)
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS rejected_signals (
-                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-                symbol              TEXT NOT NULL,
-                rejection_category  TEXT NOT NULL,
-                rejection_reason    TEXT NOT NULL,
-                signal_price        REAL,
-                target_price        REAL,
-                stop_loss           REAL,
-                status              TEXT DEFAULT 'PENDING',
-                scanned_at          TEXT NOT NULL,
-                market_regime       TEXT
+                resolution_reason       TEXT
             )
         """)
 
@@ -378,16 +297,18 @@ def init_db():
             ("pnl_pct", "REAL"),
             ("pnl_inr", "REAL"),
             ("resolution_reason", "TEXT"),
-            ("trade_quality_score", "REAL"),
             ("regime_score", "REAL"),
             ("sector_score", "REAL"),
             ("volume_score", "REAL"),
+            ("news_score", "REAL"),
             ("rs_score", "REAL"),
+            ("trade_quality_score", "REAL"),
+            ("correlation_score", "REAL"),
             ("signal_time", "TEXT"),
             ("order_time", "TEXT"),
             ("fill_time", "TEXT"),
             ("fill_price", "REAL"),
-            ("slippage_pct", "REAL")
+            ("slippage_pct", "REAL"),
         ]
         for col_name, col_type in pred_migrations:
             if col_name not in pred_columns:
@@ -417,6 +338,98 @@ def init_db():
             )
         """)
         
+        # Phase Omega Tables
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS portfolio_state (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                current_equity REAL NOT NULL,
+                peak_equity REAL NOT NULL,
+                daily_equity REAL NOT NULL,
+                sector_exposure TEXT NOT NULL,
+                active_positions TEXT NOT NULL,
+                last_updated TEXT NOT NULL
+            )
+        """)
+
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS strategy_health (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                setup_type TEXT NOT NULL UNIQUE,
+                lifetime_pf REAL NOT NULL,
+                last_30_pf REAL NOT NULL,
+                last_90_pf REAL NOT NULL,
+                status TEXT NOT NULL DEFAULT 'ACTIVE'
+            )
+        """)
+
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS confidence_calibration (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                band TEXT NOT NULL,
+                regime TEXT NOT NULL,
+                predicted_win_rate REAL NOT NULL,
+                actual_win_rate REAL NOT NULL,
+                calibration_error REAL NOT NULL,
+                UNIQUE(band, regime)
+            )
+        """)
+
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS daily_governance_reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                report_date TEXT NOT NULL UNIQUE,
+                pf REAL NOT NULL,
+                ev REAL NOT NULL,
+                drawdown REAL NOT NULL,
+                regime TEXT NOT NULL,
+                best_strategy TEXT,
+                worst_strategy TEXT,
+                calibration_error REAL,
+                kill_switch_events INTEGER DEFAULT 0,
+                exposure_violations INTEGER DEFAULT 0
+            )
+        """)
+
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS risk_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                daily_loss_limit REAL NOT NULL DEFAULT -3.0,
+                daily_drawdown_limit REAL NOT NULL DEFAULT -4.0,
+                max_consecutive_losses INTEGER NOT NULL DEFAULT 5,
+                updated_at TEXT NOT NULL
+            )
+        """)
+
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS rejected_signals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol TEXT NOT NULL,
+                rejection_category TEXT NOT NULL,
+                rejection_reason TEXT NOT NULL,
+                signal_price REAL,
+                target_price REAL,
+                stop_loss REAL,
+                status TEXT NOT NULL DEFAULT 'PENDING',
+                scanned_at TEXT NOT NULL
+            )
+        """)
+        
+        # Initialize default risk settings if empty
+        row = c.execute("SELECT COUNT(*) as count FROM risk_settings").fetchone()
+        if row and row["count"] == 0:
+            c.execute(
+                "INSERT INTO risk_settings (daily_loss_limit, daily_drawdown_limit, max_consecutive_losses, updated_at) VALUES (?, ?, ?, ?)",
+                (-3.0, -4.0, 5, _now_ist())
+            )
+
+        # Initialize portfolio state if empty
+        p_row = c.execute("SELECT COUNT(*) as count FROM portfolio_state").fetchone()
+        if p_row and p_row["count"] == 0:
+            c.execute(
+                "INSERT INTO portfolio_state (current_equity, peak_equity, daily_equity, sector_exposure, active_positions, last_updated) VALUES (?, ?, ?, ?, ?, ?)",
+                (100000.0, 100000.0, 100000.0, "{}", "[]", _now_ist())
+            )
+
         c.commit()
 
 
@@ -686,8 +699,10 @@ def add_prediction(pred: dict) -> int:
                (symbol, prediction_date, prediction_type, entry_price, target_price, stop_loss, confidence_score, 
                 rsi, macd, adx, sector, market_cap, volume_ratio, vwap_distance, atr, news_score, 
                 market_breadth, sector_strength, nifty_trend, status, reason,
-                setup_type, market_regime_snapshot, risk_amount, confidence_probability)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                setup_type, market_regime_snapshot, risk_amount, confidence_probability,
+                regime_score, sector_score, volume_score, rs_score, trade_quality_score, correlation_score,
+                signal_time, order_time)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 pred["symbol"].upper(),
                 pred.get("prediction_date", now),
@@ -696,29 +711,97 @@ def add_prediction(pred: dict) -> int:
                 float(pred["target_price"]),
                 float(pred["stop_loss"]),
                 int(pred["confidence_score"]),
-                float(pred["rsi"]) if pred.get("rsi") is not None else None,
-                float(pred["macd"]) if pred.get("macd") is not None else None,
-                float(pred["adx"]) if pred.get("adx") is not None else None,
-                pred.get("sector"),
-                float(pred["market_cap"]) if pred.get("market_cap") is not None else None,
-                float(pred["volume_ratio"]) if pred.get("volume_ratio") is not None else None,
-                float(pred["vwap_distance"]) if pred.get("vwap_distance") is not None else None,
-                float(pred["atr"]) if pred.get("atr") is not None else None,
-                float(pred["news_score"]) if pred.get("news_score") is not None else None,
-                float(pred["market_breadth"]) if pred.get("market_breadth") is not None else None,
-                float(pred["sector_strength"]) if pred.get("sector_strength") is not None else None,
-                pred.get("nifty_trend"),
-                pred.get("status", "PENDING").upper(),
+                float(pred["rsi"]),
+                float(pred["macd"]),
+                float(pred["adx"]),
+                pred["sector"],
+                float(pred["market_cap"]),
+                float(pred["volume_ratio"]),
+                float(pred["vwap_distance"]),
+                float(pred.get("atr", 0.0)),
+                float(pred.get("news_score", 0.0)),
+                float(pred.get("market_breadth", 0.0)),
+                float(pred.get("sector_strength", 0.0)),
+                pred.get("nifty_trend", "FLAT"),
+                pred.get("status", "PENDING"),
                 pred.get("reason", ""),
                 pred.get("setup_type", "UNKNOWN"),
                 pred.get("market_regime_snapshot", "UNKNOWN"),
                 float(pred.get("risk_amount", 0.0)),
-                float(pred.get("confidence_probability", pred.get("confidence_score", 0.0))),
+                float(pred.get("confidence_probability", 0.5)),
+                float(pred.get("regime_score", 0.0)),
+                float(pred.get("sector_score", 0.0)),
+                float(pred.get("volume_score", 0.0)),
+                float(pred.get("rs_score", 0.0)),
+                float(pred.get("trade_quality_score", 0.0)),
+                float(pred.get("correlation_score", 0.0)),
+                pred.get("signal_time", now),
+                pred.get("order_time", now)
             ),
         )
         c.commit()
         return cur.lastrowid
 
+
+def add_rejected_signal(sig: dict) -> int:
+    with _conn() as c:
+        now = _now_ist()
+        cur = c.execute(
+            """INSERT INTO rejected_signals 
+               (symbol, rejection_category, rejection_reason, signal_price, target_price, stop_loss, status, scanned_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                sig["symbol"].upper(),
+                sig.get("rejection_category", "UNKNOWN"),
+                sig.get("rejection_reason", ""),
+                float(sig.get("signal_price", 0.0)),
+                float(sig.get("target_price", 0.0)),
+                float(sig.get("stop_loss", 0.0)),
+                "PENDING",
+                now
+            ),
+        )
+        c.commit()
+        return cur.lastrowid
+
+
+def get_risk_settings() -> dict:
+    with _conn() as c:
+        row = c.execute("SELECT * FROM risk_settings LIMIT 1").fetchone()
+        if row:
+            return dict(row)
+        return {"daily_loss_limit": -3.0, "daily_drawdown_limit": -4.0, "max_consecutive_losses": 5}
+
+
+def get_portfolio_state() -> dict:
+    with _conn() as c:
+        row = c.execute("SELECT * FROM portfolio_state LIMIT 1").fetchone()
+        if row:
+            d = dict(row)
+            try:
+                d["sector_exposure"] = json.loads(d["sector_exposure"])
+                d["active_positions"] = json.loads(d["active_positions"])
+            except:
+                d["sector_exposure"] = {}
+                d["active_positions"] = []
+            return d
+        return {
+            "current_equity": 100000.0,
+            "peak_equity": 100000.0,
+            "daily_equity": 100000.0,
+            "sector_exposure": {},
+            "active_positions": []
+        }
+
+def get_pending_rejected_signals() -> list:
+    with _conn() as c:
+        rows = c.execute("SELECT * FROM rejected_signals WHERE status='PENDING'").fetchall()
+        return [dict(r) for r in rows]
+
+def resolve_rejected_signal(sig_id: int, status: str):
+    with _conn() as c:
+        c.execute("UPDATE rejected_signals SET status=? WHERE id=?", (status, sig_id))
+        c.commit()
 
 
 def get_predictions() -> list:
@@ -739,18 +822,25 @@ def resolve_prediction(
     pnl_inr: float = 0.0,
     r_multiple: float = 0.0,
     resolution_reason: str = "EXPIRED",
+    fill_time: Optional[str] = None,
+    slippage_pct: float = 0.0,
     manual_override_reason: Optional[str] = None
 ) -> bool:
     with _conn() as c:
         now = _now_ist()
+        if fill_time is None:
+            fill_time = now
+            
         query = """UPDATE predictions_history 
                    SET actual_outcome=?, status=?, resolved_at=?,
                        exit_price=?, holding_time_minutes=?, pnl_pct=?, 
-                       pnl_inr=?, r_multiple=?, resolution_reason=?
+                       pnl_inr=?, r_multiple=?, resolution_reason=?,
+                       fill_time=?, slippage_pct=?
         """
         params = [
             actual_outcome, status.upper(), now,
-            exit_price, holding_time_minutes, pnl_pct, pnl_inr, r_multiple, resolution_reason
+            exit_price, holding_time_minutes, pnl_pct, pnl_inr, r_multiple, resolution_reason,
+            fill_time, slippage_pct
         ]
         
         if manual_override_reason:
@@ -785,6 +875,39 @@ def get_latest_equity() -> tuple:
             return float(row["equity_after"]), float(row["peak_equity"])
         # Default starting equity if none exists
         return 100000.0, 100000.0
+
+
+def get_stats() -> dict:
+    """Return stats from cache and append Phase Omega governance KPIs."""
+    with _conn() as c:
+        row = c.execute("SELECT value_json FROM metrics_cache WHERE key='stats_overview'").fetchone()
+        stats = json.loads(row["value_json"]) if row else _get_stats_live()
+        
+        # Phase Omega Additions
+        portfolio = get_portfolio_state()
+        risk = get_risk_settings()
+        
+        gov_row = c.execute("SELECT * FROM daily_governance_reports ORDER BY report_date DESC LIMIT 1").fetchone()
+        gov_report = dict(gov_row) if gov_row else {}
+        
+        # Determine Kill Switch Status
+        daily_start = portfolio.get("daily_equity", 100000.0)
+        current_eq = portfolio.get("current_equity", 100000.0)
+        peak_eq = portfolio.get("peak_equity", 100000.0)
+        
+        daily_loss_pct = ((current_eq - daily_start) / daily_start) * 100 if daily_start else 0.0
+        peak_dd_pct = ((current_eq - peak_eq) / peak_eq) * 100 if peak_eq else 0.0
+        
+        kill_switch_active = (daily_loss_pct <= risk["daily_loss_limit"]) or (peak_dd_pct <= risk["daily_drawdown_limit"])
+        
+        stats["portfolio"] = portfolio
+        stats["governance"] = gov_report
+        stats["kill_switch"] = "ACTIVE" if kill_switch_active else "SAFE"
+        stats["current_regime"] = gov_report.get("regime", "UNKNOWN")
+        stats["calibration_error"] = gov_report.get("calibration_error", 0.0)
+        stats["strategy_health"] = gov_report.get("best_strategy", "N/A")
+        
+        return stats
 
 
 def get_metrics_cache(key: str) -> Optional[dict]:

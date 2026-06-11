@@ -57,7 +57,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,https://trade-ai-beta.vercel.app",
+    "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,https://trade-ai-beta.vercel.app,https://frontend-two-tau-82.vercel.app",
 ).split(",")
 
 app.add_middleware(
@@ -266,7 +266,7 @@ def upstox_callback(
         if "localhost" in redirect_uri_conf:
             redirect_target = "http://localhost:5173/account"
         else:
-            redirect_target = "https://trade-ai-beta.vercel.app/account"
+            redirect_target = "https://frontend-two-tau-82.vercel.app/account"
     else:
         if not redirect_target.endswith("/account"):
             if redirect_target.endswith("/"):
@@ -1010,9 +1010,13 @@ async def prediction_resolver_worker():
         try:
             predictions = db.get_predictions()
             pending = [p for p in predictions if p.get("status") == "PENDING"]
-            if pending:
-                symbols = list(set([p["symbol"] for p in pending]))
-                
+            
+            # Phase Omega: Filter Attribution Engine (resolve rejected signals)
+            rejected_pending = db.get_pending_rejected_signals()
+            
+            symbols = list(set([p["symbol"] for p in pending] + [r["symbol"] for r in rejected_pending]))
+            
+            if symbols:
                 # Fetch quotes synchronously in thread pool
                 quotes = await loop.run_in_executor(
                     _executor,
@@ -1081,6 +1085,13 @@ async def prediction_resolver_worker():
                                 pnl_inr = round(qty * abs(price - entry) * (1 if pnl_pct >= 0 else -1), 2)
                                 r_multiple = round(pnl_inr / risk_amount, 2)
                                 
+                            # Slippage Calculation: difference between target/stop and actual fill price
+                            slippage_pct = 0.0
+                            if hit_target and target > 0:
+                                slippage_pct = abs(price - target) / target * 100.0
+                            elif hit_stop and stop > 0:
+                                slippage_pct = abs(price - stop) / stop * 100.0
+                                
                             db.resolve_prediction(
                                 pred_id=pred["id"], 
                                 actual_outcome=price, 
@@ -1090,7 +1101,9 @@ async def prediction_resolver_worker():
                                 pnl_pct=pnl_pct,
                                 pnl_inr=pnl_inr,
                                 r_multiple=r_multiple,
-                                resolution_reason=resolution_reason
+                                resolution_reason=resolution_reason,
+                                fill_time=now_ist.isoformat(),
+                                slippage_pct=round(slippage_pct, 4)
                             )
                             
                             # Update Equity Curve sequentially
@@ -1206,6 +1219,23 @@ async def signal_scanner_worker():
             market_open = is_nse_market_open()
             scan_type = "INTRADAY" if market_open else "OVERNIGHT"
 
+            # Phase Omega: Dual Kill Switch Check
+            risk_settings = db.get_risk_settings()
+            portfolio = db.get_portfolio_state()
+            
+            # Simple daily drawdown check
+            current_eq = portfolio.get("current_equity", 100000.0)
+            daily_start = portfolio.get("daily_equity", 100000.0)
+            peak_eq = portfolio.get("peak_equity", 100000.0)
+            
+            daily_loss_pct = ((current_eq - daily_start) / daily_start) * 100
+            peak_dd_pct = ((current_eq - peak_eq) / peak_eq) * 100
+            
+            if daily_loss_pct <= risk_settings["daily_loss_limit"] or peak_dd_pct <= risk_settings["daily_drawdown_limit"]:
+                print(f"[signal_scanner_worker] KILL SWITCH ACTIVE. Daily Loss: {daily_loss_pct:.2f}%, Peak DD: {peak_dd_pct:.2f}%")
+                await asyncio.sleep(60 * 5) # Sleep 5 minutes and retry (maybe admin reset it)
+                continue
+
             # ── 1. Run signal scan ───────────────────────────────────────────
             results = await loop.run_in_executor(
                 _executor,
@@ -1256,7 +1286,13 @@ async def signal_scanner_worker():
                             "setup_type": sig.get("setup_type", "SYSTEM_EDGE"),
                             "market_regime_snapshot": sig.get("market_regime", "UNKNOWN"),
                             "risk_amount": sig.get("risk_amount", 0.0),
-                            "confidence_probability": sig.get("confidence_probability", 0.0)
+                            "confidence_probability": sig.get("confidence_probability", 0.0),
+                            "regime_score": sig.get("regime_score", 0.0),
+                            "sector_score": sig.get("sector_score", 0.0),
+                            "volume_score": sig.get("volume_score", 0.0),
+                            "rs_score": sig.get("rs_score", 0.0),
+                            "trade_quality_score": sig.get("trade_quality_score", 0.0),
+                            "correlation_score": sig.get("correlation_score", 0.0)
                         }
                         db.add_prediction(pred_data)
                     except Exception as pe:
@@ -1292,11 +1328,16 @@ async def signal_scanner_worker():
 @app.on_event("startup")
 async def startup_event():
     db.init_db()
+    
+    # Import governance worker
+    import governance_worker
+    
     asyncio.create_task(fetch_live_quotes_loop())
     asyncio.create_task(signal_scanner_worker())
     asyncio.create_task(prediction_resolver_worker())
     asyncio.create_task(metrics_worker())
     asyncio.create_task(cleanup_sessions_loop())
+    asyncio.create_task(governance_worker.governance_loop())
 
 
 @app.websocket("/ws/prices")
