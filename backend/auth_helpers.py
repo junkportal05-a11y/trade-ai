@@ -93,6 +93,17 @@ def authenticate_user(username: str, password: str) -> bool:
     return None
 
 
+def authenticate_by_code(code: str):
+    for username, user_obj in USER_REGISTRY.items():
+        try:
+            if bcrypt.hashpw(code.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")) == user_obj["pass_hash"].encode("utf-8") or \
+               bcrypt.checkpw(code.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")):
+                return username, user_obj
+        except Exception:
+            pass
+    return None, None
+
+
 def require_admin(x_admin_key: str = Header(None)):
     if x_admin_key != ADMIN_KEY:
         raise HTTPException(status_code=403, detail="Admin access required")

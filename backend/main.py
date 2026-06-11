@@ -105,10 +105,26 @@ class LoginRequest(BaseModel):
 @app.post("/api/login")
 @limiter.limit("10/minute")
 async def login(req: LoginRequest, request: Request, response: Response):
+    from auth_helpers import authenticate_by_code
+    
     u = req.username.strip()
-    user_obj = authenticate_user(u, req.password)
+    p = req.password.strip()
+    
+    # Check if a single access code is sent (no username or generic username)
+    if not u or u.lower() in ("code", "login", "admin", "apex_head_quant"):
+        matched_user, user_obj = authenticate_by_code(p)
+        if matched_user:
+            u = matched_user
+        else:
+            # Try to authenticate standard admin fallback
+            user_obj = authenticate_user("apex_head_quant", p)
+            if user_obj:
+                u = "apex_head_quant"
+    else:
+        user_obj = authenticate_user(u, p)
+        
     if not user_obj:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+        raise HTTPException(status_code=401, detail="Invalid access code or credentials")
 
     token = create_session(u)
     response.set_cookie(
