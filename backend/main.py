@@ -15,6 +15,7 @@ from typing import List, Optional
 from dotenv import load_dotenv
 
 from fastapi import (
+    Response,
     FastAPI,
     WebSocket,
     WebSocketDisconnect,
@@ -102,13 +103,21 @@ class LoginRequest(BaseModel):
 
 @app.post("/api/login")
 @limiter.limit("10/minute")
-async def login(req: LoginRequest, request: Request):
+async def login(req: LoginRequest, request: Request, response: Response):
     u = req.username.strip()
     user_obj = authenticate_user(u, req.password)
     if not user_obj:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     token = create_session(u)
+    response.set_cookie(
+        key="apt_token",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=SESSION_TTL,
+    )
     return {
         "token": token,
         "username": u,
@@ -119,9 +128,16 @@ async def login(req: LoginRequest, request: Request):
 
 
 @app.post("/api/logout")
-async def logout(x_session_token: str = Header(None)):
+async def logout(request: Request, response: Response):
+    x_session_token = request.cookies.get("apt_token")
     if x_session_token and x_session_token in ACTIVE_SESSIONS:
         del ACTIVE_SESSIONS[x_session_token]
+    response.delete_cookie(
+        key="apt_token",
+        httponly=True,
+        secure=True,
+        samesite="none"
+    )
     return {"status": "logged out"}
 
 
@@ -1158,23 +1174,24 @@ async def startup_event():
 @app.websocket("/ws/prices")
 async def websocket_prices(
     websocket: WebSocket,
-    token: str = Query(None),
     symbols: str = "HAL.NS,BEL.NS,RVNL.NS,IREDA.NS,HUDCO.NS,COALINDIA.NS,NHPC.NS,ADANIPORTS.NS,TATAPOWER.NS,BHEL.NS",
 ):
     await websocket.accept()
 
-    # Validate session token — soft check (warn but allow during cold starts)
+    # Validate session token via cookie
+    token = websocket.cookies.get("apt_token")
     if token and token.startswith("apt_"):
         if token not in ACTIVE_SESSIONS:
             import logging
-
             logging.warning(
                 "[WS] Token not found in active sessions (may be stale after restart)"
             )
     elif not token:
         import logging
-
-        logging.warning("[WS] No token provided — anonymous WebSocket connection")
+        logging.warning("[WS] No token provided via cookie — anonymous WebSocket connection")
+        # You could also close the connection here if auth is strict:
+        # await websocket.close(code=4001)
+        # return
 
     active_connections.append(websocket)
 
@@ -1325,6 +1342,7 @@ async def allocate_capital(
                     req.risk_level,
                     req.market_segment,
                     req.capital,
+                )
                 ),
             ),
             timeout=150
@@ -1553,6 +1571,7 @@ class PredictionResolve(BaseModel):
 
 @app.post("/api/predictions")
 @limiter.limit("20/minute")
+async def create_prediction(pred: PredictionCreate, request: Request, _=Depends(require_session)):
 async def create_prediction(
     pred: PredictionCreate, request: Request, _=Depends(require_session)
 ):

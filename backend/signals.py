@@ -1202,8 +1202,7 @@ def run_scan(
 
     first_pass_results = []
     
-    # This was a normal function, let's just make it do synchronous list comprehension
-    # (Since changing it back to an async function broke the `run_in_executor` usage in `main.py`)
+    # Run all blocking operations sequentially for now
     results = [analyse_one(item) for item in watchlist]
     
     for item, res in zip(watchlist, results):
