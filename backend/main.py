@@ -23,7 +23,6 @@ from fastapi import (
     Query,
     Request,
     Depends,
-    Header,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -72,7 +71,6 @@ app.add_middleware(
 from auth_helpers import (
     require_session,
     create_session,
-    cleanup_sessions,
     ACTIVE_SESSIONS,
     SESSION_TTL,
     authenticate_user,
@@ -847,7 +845,6 @@ async def fetch_live_quotes_loop():
     quotes for all watchlisted NSE stocks and updates LIVE_PRICES_CACHE.
     """
     import functools
-    import pandas as pd
 
     watchlist_symbols = [w["symbol"] for w in sig_engine.NSE_WATCHLIST]
 
@@ -1008,6 +1005,7 @@ async def cleanup_sessions_loop():
     Runs every 1 hour (3600 seconds) to prevent memory leak
     from unbounded ACTIVE_SESSIONS dictionary.
     """
+    from auth_helpers import cleanup_sessions
     while True:
         try:
             cleanup_sessions()
