@@ -19,7 +19,6 @@ Supports Market Hours Gating:
   • Market Closed: Overnight scanning using daily (1d) interval bars.
 """
 
-import os
 import time
 import pandas as pd
 import numpy as np
