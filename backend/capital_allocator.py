@@ -12,8 +12,6 @@ Strategy:
   - Use confidence + ATR% + volume surge as combined score
 """
 
-import math
-
 
 # ── High-volatility NSE stocks ideal for small capital intraday ───────────────
 # Each entry is a dict matching the format run_scan expects: {symbol, name, sector}
