@@ -24,6 +24,27 @@ export default function LoginScreen({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const BASE_URL = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
+  const [serverReady, setServerReady] = useState(false);
+  const [waking, setWaking] = useState(true);
+
+  // Pre-warm the backend on mount (HF Spaces auto-sleep after inactivity)
+  React.useEffect(() => {
+    let cancelled = false;
+    const wake = async () => {
+      for (let i = 0; i < 4; i++) {
+        try {
+          const r = await fetch(BASE_URL + "/", { method: "GET", signal: AbortSignal.timeout(10000) });
+          if (r.ok && !cancelled) { setServerReady(true); setWaking(false); return; }
+        } catch (_) { /* server still waking */ }
+        if (!cancelled) await new Promise(ok => setTimeout(ok, 2000 * (i + 1)));
+      }
+      if (!cancelled) { setServerReady(false); setWaking(false); }
+    };
+    wake();
+    return () => { cancelled = true; };
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -37,34 +58,59 @@ export default function LoginScreen({ onLogin }) {
 
     setLoading(true);
 
-    try {
-      const BASE_URL = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
-      const res = await fetch(`${BASE_URL}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ username: u, password: p })
-      });
-      
-      if (!res.ok) {
-        let errMessage = "AUTHENTICATION FAILED: Invalid credentials.";
-        try {
-          const errData = await res.json();
-          if (errData && errData.detail) errMessage = "ERROR: " + errData.detail;
-        } catch (e) {}
-        throw new Error(errMessage);
+    const MAX_RETRIES = 3;
+    const payload = JSON.stringify({ username: u, password: p });
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const res = await fetch(`${BASE_URL}/api/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: payload,
+          signal: AbortSignal.timeout(15000),
+        });
+        
+        if (!res.ok) {
+          let errMessage = "AUTHENTICATION FAILED: Invalid credentials.";
+          try {
+            const errData = await res.json();
+            if (errData && errData.detail) errMessage = "ERROR: " + errData.detail;
+          } catch (_) {}
+          // Auth errors are not retryable — break immediately
+          setError(errMessage);
+          setLoading(false);
+          return;
+        }
+        
+        const data = await res.json();
+        
+        // Store a flag indicating we are logged in (actual token is in HttpOnly cookie)
+        localStorage.setItem('is_logged_in', 'true');
+        
+        // Also store session token if provided (fallback for non-cookie auth)
+        if (data.token) sessionStorage.setItem('apt_token', data.token);
+        
+        // Propagate user metadata to parent App component
+        onLogin(u, data.role, data.clearance);
+        return; // success — exit
+      } catch (err) {
+        const isNetworkError = err.name === "TypeError" || err.name === "AbortError" || (err.message && err.message.toLowerCase().includes("failed to fetch"));
+        if (isNetworkError && attempt < MAX_RETRIES) {
+          // Server likely sleeping — wait and retry
+          setError(`SERVER WAKING UP — Retry ${attempt}/${MAX_RETRIES}...`);
+          await new Promise(ok => setTimeout(ok, 3000 * attempt));
+          continue;
+        }
+        // Final attempt or non-network error
+        setError(
+          isNetworkError
+            ? "CONNECTION FAILED: Server is unreachable. It may be starting up — please wait 30 seconds and try again."
+            : (err.message || "AUTHENTICATION FAILED: Connection error.")
+        );
+        setLoading(false);
+        return;
       }
-      
-      const data = await res.json();
-      
-      // Store a flag indicating we are logged in (actual token is in HttpOnly cookie)
-      localStorage.setItem('is_logged_in', 'true');
-      
-      // Propagate user metadata to parent App component
-      onLogin(u, data.role, data.clearance);
-    } catch (err) {
-      setError(err.message || "AUTHENTICATION FAILED: Connection error.");
-      setLoading(false);
     }
   };
 
@@ -126,7 +172,17 @@ export default function LoginScreen({ onLogin }) {
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f5c842' }} />
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.green }} />
           </div>
-          <span style={{ fontSize: 7.5, color: T.textDim, letterSpacing: '0.15em', ...mono }}>SECURITY GATEWAY v1.0.8</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: waking ? '#f5c842' : serverReady ? T.green : T.red,
+              boxShadow: waking ? '0 0 6px #f5c842' : serverReady ? `0 0 6px ${T.green}` : `0 0 6px ${T.red}`,
+              animation: waking ? 'pulse 1.2s ease-in-out infinite' : 'none',
+            }} />
+            <span style={{ fontSize: 7.5, color: T.textDim, letterSpacing: '0.15em', ...mono }}>
+              {waking ? 'CONNECTING...' : serverReady ? 'SERVER ONLINE' : 'SERVER OFFLINE'}
+            </span>
+          </div>
         </div>
 
         {/* Branding Logo */}
@@ -282,6 +338,10 @@ export default function LoginScreen({ onLogin }) {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
         }
       `}</style>
     </div>
