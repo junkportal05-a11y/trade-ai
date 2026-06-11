@@ -388,7 +388,9 @@ def init_db():
                 worst_strategy TEXT,
                 calibration_error REAL,
                 kill_switch_events INTEGER DEFAULT 0,
-                exposure_violations INTEGER DEFAULT 0
+                exposure_violations INTEGER DEFAULT 0,
+                data_confidence_score REAL DEFAULT 100.0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         """)
 

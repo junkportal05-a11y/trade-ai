@@ -55,7 +55,7 @@ export default function JournalPanel() {
       });
       if (!res.ok) throw new Error("Failed to fetch journal entries");
       const data = await res.json();
-      setEntries(data.entries || []);
+      setEntries(Array.isArray(data) ? data : (data.entries || []));
     } catch (err) {
       setError(err.message);
     } finally {
