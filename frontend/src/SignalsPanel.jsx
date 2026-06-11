@@ -741,6 +741,10 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
 
     setLoading(true);
     setError(null);
+
+    // Yield to the browser event loop to paint loading UI immediately (fixes INP issues)
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     try {
       const res = await fetch(`${BASE}/api/allocate`, {
         credentials: 'include',

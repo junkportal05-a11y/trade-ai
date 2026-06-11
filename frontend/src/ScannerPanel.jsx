@@ -475,6 +475,10 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
   const fetchAllocation = useCallback(async (amt) => {
     if (!amt || amt < 500) return;
     setAllocLoading(true);
+
+    // Yield to the browser event loop to paint allocation status immediately (fixes INP)
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     try {
       const res = await fetch(`${BASE}/api/allocate`, {
         credentials: 'include',
@@ -500,6 +504,9 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
 
     setLoading(true);
     setError(null);
+
+    // Yield to the browser event loop to paint scanning status immediately (fixes INP)
+    await new Promise(resolve => setTimeout(resolve, 0));
 
     try {
       const res = await fetch(`${BASE}/api/signals`, {
