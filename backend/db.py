@@ -541,7 +541,7 @@ def expire_old_intraday():
         c.commit()
 
 
-def get_stats() -> dict:
+def _get_stats_live() -> dict:
     with _conn() as c:
         total = c.execute("SELECT COUNT(*) FROM signals_history").fetchone()[0]
         pending = c.execute(
