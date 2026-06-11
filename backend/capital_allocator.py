@@ -20,67 +20,75 @@ import math
 HIGH_VOLATILITY_UNIVERSE = {
     # ₹20-100 range — buy many shares, big % moves
     "MICRO": [
-        {"symbol": "YESBANK.NS",    "name": "Yes Bank",           "sector": "Banking"},
-        {"symbol": "IDEA.NS",       "name": "Vodafone Idea",       "sector": "Telecom"},
-        {"symbol": "SUZLON.NS",     "name": "Suzlon Energy",       "sector": "Power"},
-        {"symbol": "IRFC.NS",       "name": "IRFC",               "sector": "Finance"},
-        {"symbol": "NHPC.NS",       "name": "NHPC",               "sector": "Power"},
-        {"symbol": "RVNL.NS",       "name": "RVNL",               "sector": "Infrastructure"},
-        {"symbol": "IRCON.NS",      "name": "Ircon International", "sector": "Infrastructure"},
-        {"symbol": "RECLTD.NS",     "name": "REC Ltd",            "sector": "Finance"},
-        {"symbol": "PFC.NS",        "name": "Power Finance Corp", "sector": "Finance"},
-        {"symbol": "SAIL.NS",       "name": "SAIL",               "sector": "Metals"},
-        {"symbol": "NALCO.NS",      "name": "NALCO",              "sector": "Metals"},
-        {"symbol": "HUDCO.NS",      "name": "HUDCO",              "sector": "Finance"},
-        {"symbol": "SJVN.NS",       "name": "SJVN",               "sector": "Power"},
-        {"symbol": "MOIL.NS",       "name": "MOIL",               "sector": "Metals"},
-        {"symbol": "MRPL.NS",       "name": "MRPL",               "sector": "Energy"},
+        {"symbol": "YESBANK.NS", "name": "Yes Bank", "sector": "Banking"},
+        {"symbol": "IDEA.NS", "name": "Vodafone Idea", "sector": "Telecom"},
+        {"symbol": "SUZLON.NS", "name": "Suzlon Energy", "sector": "Power"},
+        {"symbol": "IRFC.NS", "name": "IRFC", "sector": "Finance"},
+        {"symbol": "NHPC.NS", "name": "NHPC", "sector": "Power"},
+        {"symbol": "RVNL.NS", "name": "RVNL", "sector": "Infrastructure"},
+        {
+            "symbol": "IRCON.NS",
+            "name": "Ircon International",
+            "sector": "Infrastructure",
+        },
+        {"symbol": "RECLTD.NS", "name": "REC Ltd", "sector": "Finance"},
+        {"symbol": "PFC.NS", "name": "Power Finance Corp", "sector": "Finance"},
+        {"symbol": "SAIL.NS", "name": "SAIL", "sector": "Metals"},
+        {"symbol": "NALCO.NS", "name": "NALCO", "sector": "Metals"},
+        {"symbol": "HUDCO.NS", "name": "HUDCO", "sector": "Finance"},
+        {"symbol": "SJVN.NS", "name": "SJVN", "sector": "Power"},
+        {"symbol": "MOIL.NS", "name": "MOIL", "sector": "Metals"},
+        {"symbol": "MRPL.NS", "name": "MRPL", "sector": "Energy"},
     ],
     # ₹100-500 range — sweet spot for ₹1K-10K capital
     "SMALL": [
-        {"symbol": "TATASTEEL.NS",   "name": "Tata Steel",         "sector": "Metals"},
-        {"symbol": "BANKBARODA.NS",  "name": "Bank of Baroda",     "sector": "Banking"},
-        {"symbol": "CANBK.NS",       "name": "Canara Bank",        "sector": "Banking"},
-        {"symbol": "PNB.NS",         "name": "Punjab National Bank","sector": "Banking"},
-        {"symbol": "UNIONBANK.NS",   "name": "Union Bank",         "sector": "Banking"},
-        {"symbol": "IDFCFIRSTB.NS",  "name": "IDFC First Bank",    "sector": "Banking"},
-        {"symbol": "FEDERALBNK.NS",  "name": "Federal Bank",      "sector": "Banking"},
-        {"symbol": "TATAPOWER.NS",   "name": "Tata Power",        "sector": "Power"},
-        {"symbol": "ADANIPOWER.NS",  "name": "Adani Power",       "sector": "Power"},
-        {"symbol": "JSWENERGY.NS",   "name": "JSW Energy",        "sector": "Power"},
-        {"symbol": "NLCINDIA.NS",    "name": "NLC India",         "sector": "Power"},
-        {"symbol": "NBCC.NS",        "name": "NBCC India",        "sector": "Infrastructure"},
-        {"symbol": "BEL.NS",         "name": "Bharat Electronics", "sector": "Defence"},
-        {"symbol": "BHEL.NS",        "name": "BHEL",              "sector": "Capital Goods"},
-        {"symbol": "COALINDIA.NS",   "name": "Coal India",        "sector": "Metals"},
-        {"symbol": "HINDALCO.NS",    "name": "Hindalco",          "sector": "Metals"},
-        {"symbol": "ONGC.NS",        "name": "ONGC",              "sector": "Energy"},
-        {"symbol": "NTPC.NS",        "name": "NTPC",              "sector": "Power"},
+        {"symbol": "TATASTEEL.NS", "name": "Tata Steel", "sector": "Metals"},
+        {"symbol": "BANKBARODA.NS", "name": "Bank of Baroda", "sector": "Banking"},
+        {"symbol": "CANBK.NS", "name": "Canara Bank", "sector": "Banking"},
+        {"symbol": "PNB.NS", "name": "Punjab National Bank", "sector": "Banking"},
+        {"symbol": "UNIONBANK.NS", "name": "Union Bank", "sector": "Banking"},
+        {"symbol": "IDFCFIRSTB.NS", "name": "IDFC First Bank", "sector": "Banking"},
+        {"symbol": "FEDERALBNK.NS", "name": "Federal Bank", "sector": "Banking"},
+        {"symbol": "TATAPOWER.NS", "name": "Tata Power", "sector": "Power"},
+        {"symbol": "ADANIPOWER.NS", "name": "Adani Power", "sector": "Power"},
+        {"symbol": "JSWENERGY.NS", "name": "JSW Energy", "sector": "Power"},
+        {"symbol": "NLCINDIA.NS", "name": "NLC India", "sector": "Power"},
+        {"symbol": "NBCC.NS", "name": "NBCC India", "sector": "Infrastructure"},
+        {"symbol": "BEL.NS", "name": "Bharat Electronics", "sector": "Defence"},
+        {"symbol": "BHEL.NS", "name": "BHEL", "sector": "Capital Goods"},
+        {"symbol": "COALINDIA.NS", "name": "Coal India", "sector": "Metals"},
+        {"symbol": "HINDALCO.NS", "name": "Hindalco", "sector": "Metals"},
+        {"symbol": "ONGC.NS", "name": "ONGC", "sector": "Energy"},
+        {"symbol": "NTPC.NS", "name": "NTPC", "sector": "Power"},
     ],
     # ₹500-1500 range — good for ₹10K-50K capital
     "MID": [
-        {"symbol": "ADANIENT.NS",    "name": "Adani Enterprises",  "sector": "Conglomerate"},
-        {"symbol": "ADANIPORTS.NS",  "name": "Adani Ports",        "sector": "Infrastructure"},
-        {"symbol": "TATAMOTORS.NS",  "name": "Tata Motors",        "sector": "Auto"},
-        {"symbol": "JSWSTEEL.NS",    "name": "JSW Steel",          "sector": "Metals"},
-        {"symbol": "SBIN.NS",        "name": "SBI",               "sector": "Banking"},
-        {"symbol": "AXISBANK.NS",    "name": "Axis Bank",          "sector": "Banking"},
-        {"symbol": "ICICIBANK.NS",   "name": "ICICI Bank",         "sector": "Banking"},
-        {"symbol": "INDUSINDBK.NS",  "name": "IndusInd Bank",      "sector": "Banking"},
-        {"symbol": "POWERGRID.NS",   "name": "Power Grid",         "sector": "Power"},
-        {"symbol": "GLENMARK.NS",    "name": "Glenmark Pharma",    "sector": "Pharma"},
+        {
+            "symbol": "ADANIENT.NS",
+            "name": "Adani Enterprises",
+            "sector": "Conglomerate",
+        },
+        {"symbol": "ADANIPORTS.NS", "name": "Adani Ports", "sector": "Infrastructure"},
+        {"symbol": "TATAMOTORS.NS", "name": "Tata Motors", "sector": "Auto"},
+        {"symbol": "JSWSTEEL.NS", "name": "JSW Steel", "sector": "Metals"},
+        {"symbol": "SBIN.NS", "name": "SBI", "sector": "Banking"},
+        {"symbol": "AXISBANK.NS", "name": "Axis Bank", "sector": "Banking"},
+        {"symbol": "ICICIBANK.NS", "name": "ICICI Bank", "sector": "Banking"},
+        {"symbol": "INDUSINDBK.NS", "name": "IndusInd Bank", "sector": "Banking"},
+        {"symbol": "POWERGRID.NS", "name": "Power Grid", "sector": "Power"},
+        {"symbol": "GLENMARK.NS", "name": "Glenmark Pharma", "sector": "Pharma"},
     ],
     # ₹1500+ range — for larger capital
     "LARGE": [
-        {"symbol": "RELIANCE.NS",    "name": "Reliance Industries", "sector": "Energy"},
-        {"symbol": "TCS.NS",         "name": "TCS",                "sector": "IT"},
-        {"symbol": "HDFCBANK.NS",    "name": "HDFC Bank",           "sector": "Banking"},
-        {"symbol": "INFY.NS",        "name": "Infosys",             "sector": "IT"},
-        {"symbol": "WIPRO.NS",       "name": "Wipro",               "sector": "IT"},
-        {"symbol": "LT.NS",          "name": "Larsen & Toubro",     "sector": "Engineering"},
-        {"symbol": "BAJFINANCE.NS",  "name": "Bajaj Finance",       "sector": "Finance"},
-        {"symbol": "MARUTI.NS",      "name": "Maruti Suzuki",       "sector": "Auto"},
-        {"symbol": "TITAN.NS",       "name": "Titan Company",       "sector": "Consumer"},
+        {"symbol": "RELIANCE.NS", "name": "Reliance Industries", "sector": "Energy"},
+        {"symbol": "TCS.NS", "name": "TCS", "sector": "IT"},
+        {"symbol": "HDFCBANK.NS", "name": "HDFC Bank", "sector": "Banking"},
+        {"symbol": "INFY.NS", "name": "Infosys", "sector": "IT"},
+        {"symbol": "WIPRO.NS", "name": "Wipro", "sector": "IT"},
+        {"symbol": "LT.NS", "name": "Larsen & Toubro", "sector": "Engineering"},
+        {"symbol": "BAJFINANCE.NS", "name": "Bajaj Finance", "sector": "Finance"},
+        {"symbol": "MARUTI.NS", "name": "Maruti Suzuki", "sector": "Auto"},
+        {"symbol": "TITAN.NS", "name": "Titan Company", "sector": "Consumer"},
     ],
 }
 
@@ -92,7 +100,7 @@ def get_target_universe(capital: float) -> list:
     """
     micro = HIGH_VOLATILITY_UNIVERSE["MICRO"]
     small = HIGH_VOLATILITY_UNIVERSE["SMALL"]
-    mid   = HIGH_VOLATILITY_UNIVERSE["MID"]
+    mid = HIGH_VOLATILITY_UNIVERSE["MID"]
     large = HIGH_VOLATILITY_UNIVERSE["LARGE"]
 
     if capital < 2_000:
@@ -105,49 +113,71 @@ def get_target_universe(capital: float) -> list:
         return small + mid + large
 
 
-def generate_mentor_advice(sig: dict, actual_cost: float, pot_loss: float, capital: float, rr: float) -> list:
+def generate_mentor_advice(
+    sig: dict, actual_cost: float, pot_loss: float, capital: float, rr: float
+) -> list:
     advice = []
-    
+
     # 1. Candlestick check from Candlestick Bible
     candlestick_found = False
     reasons = sig.get("reasons", [])
     for r in reasons:
         if "Hammer" in r:
-            advice.append("✦ Candlestick Bible: Hammer detected! This shows buyers rejected lower prices and took control. Wait for the next candle to break the high for confirmation.")
+            advice.append(
+                "✦ Candlestick Bible: Hammer detected! This shows buyers rejected lower prices and took control. Wait for the next candle to break the high for confirmation."
+            )
             candlestick_found = True
             break
         elif "Shooting Star" in r:
-            advice.append("✦ Candlestick Bible: Shooting Star detected! Selling pressure pushes prices down. Keep stop loss tight above the high wick.")
+            advice.append(
+                "✦ Candlestick Bible: Shooting Star detected! Selling pressure pushes prices down. Keep stop loss tight above the high wick."
+            )
             candlestick_found = True
             break
         elif "Engulfing" in r:
-            advice.append("✦ Candlestick Bible: Engulfing Pattern detected! Shows a powerful shift in momentum. Buy engulfing suggests buyers have overwhelmed sellers completely.")
+            advice.append(
+                "✦ Candlestick Bible: Engulfing Pattern detected! Shows a powerful shift in momentum. Buy engulfing suggests buyers have overwhelmed sellers completely."
+            )
             candlestick_found = True
             break
         elif "Marubozu" in r:
-            advice.append("✦ Candlestick Bible: Marubozu detected! A full solid body shows extreme buying strength. Momentum is highly likely to continue higher.")
+            advice.append(
+                "✦ Candlestick Bible: Marubozu detected! A full solid body shows extreme buying strength. Momentum is highly likely to continue higher."
+            )
             candlestick_found = True
             break
-            
+
     if not candlestick_found:
-        advice.append("✦ Candlestick Bible: Look for confirmation patterns (like Engulfing or Hammer candles) near moving average supports before entering.")
+        advice.append(
+            "✦ Candlestick Bible: Look for confirmation patterns (like Engulfing or Hammer candles) near moving average supports before entering."
+        )
 
     # 2. Risk sizing check from SL Guide
     risk_pct_of_cap = (pot_loss / capital) * 100 if capital > 0 else 0
     if risk_pct_of_cap <= 2.0:
-        advice.append(f"✦ Risk Management: Risking ₹{pot_loss:,.1f} ({risk_pct_of_cap:.1f}% of capital). This aligns perfectly with the 1-2% golden risk rule in your SL Guide.")
+        advice.append(
+            f"✦ Risk Management: Risking ₹{pot_loss:,.1f} ({risk_pct_of_cap:.1f}% of capital). This aligns perfectly with the 1-2% golden risk rule in your SL Guide."
+        )
     else:
-        advice.append(f"✦ Risk Management: Risking ₹{pot_loss:,.1f} ({risk_pct_of_cap:.1f}% of capital). This exceeds the standard 2% rule. Consider scaling down if account size permits.")
+        advice.append(
+            f"✦ Risk Management: Risking ₹{pot_loss:,.1f} ({risk_pct_of_cap:.1f}% of capital). This exceeds the standard 2% rule. Consider scaling down if account size permits."
+        )
 
     # 3. R:R check
     if rr >= 2.0:
-        advice.append(f"✦ Risk-Reward: R:R ratio is 1:{rr:.2f}. This exceeds your guide's target minimum of 1:2. Excellent trade structure!")
+        advice.append(
+            f"✦ Risk-Reward: R:R ratio is 1:{rr:.2f}. This exceeds your guide's target minimum of 1:2. Excellent trade structure!"
+        )
     else:
-        advice.append(f"✦ Risk-Reward: R:R ratio is 1:{rr:.2f}. Below your guide's ideal 1:2 ratio. Tighten your stop loss or aim for higher targets to improve reward ratios.")
+        advice.append(
+            f"✦ Risk-Reward: R:R ratio is 1:{rr:.2f}. Below your guide's ideal 1:2 ratio. Tighten your stop loss or aim for higher targets to improve reward ratios."
+        )
 
     # 4. Stop loss placement advice
-    advice.append(f"✦ Stop Loss Guide: Place your stop loss strictly below support at ₹{sig.get('stop_loss', 0):,.2f}. Avoid placing it exactly on round numbers to prevent market-maker stop-runs.")
-    
+    advice.append(
+        f"✦ Stop Loss Guide: Place your stop loss strictly below support at ₹{sig.get('stop_loss', 0):,.2f}. Avoid placing it exactly on round numbers to prevent market-maker stop-runs."
+    )
+
     # 5. Flat brokerage warning for small capital
     if capital < 10000:
         advice.append(
@@ -158,7 +188,13 @@ def generate_mentor_advice(sig: dict, actual_cost: float, pot_loss: float, capit
     return advice
 
 
-def allocate(capital: float, signals: list, style: str = "Intraday Momentum", risk: str = "Medium", max_recommendations: int = 5) -> dict:
+def allocate(
+    capital: float,
+    signals: list,
+    style: str = "Intraday Momentum",
+    risk: str = "Medium",
+    max_recommendations: int = 5,
+) -> dict:
     """
     Build a high-return allocation plan targeting 10-20% on invested capital.
 
@@ -177,41 +213,41 @@ def allocate(capital: float, signals: list, style: str = "Intraday Momentum", ri
 
     # ── Tier config ────────────────────────────────────────────────────────────
     if capital < 2_000:
-        max_positions      = 1
-        cash_buffer        = 0.02
-        risk_pct           = 0.08   # allow 8% stop on tiny accounts (volatile stocks)
-        max_per_stock      = 0.98
-        min_profit_target  = capital * 0.08   # at least 8% return
+        max_positions = 1
+        cash_buffer = 0.02
+        risk_pct = 0.08  # allow 8% stop on tiny accounts (volatile stocks)
+        max_per_stock = 0.98
+        min_profit_target = capital * 0.08  # at least 8% return
     elif capital < 5_000:
-        max_positions      = 1
-        cash_buffer        = 0.03
-        risk_pct           = 0.06
-        max_per_stock      = 0.97
-        min_profit_target  = capital * 0.10
+        max_positions = 1
+        cash_buffer = 0.03
+        risk_pct = 0.06
+        max_per_stock = 0.97
+        min_profit_target = capital * 0.10
     elif capital < 15_000:
-        max_positions      = 2
-        cash_buffer        = 0.04
-        risk_pct           = 0.05
-        max_per_stock      = 0.65
-        min_profit_target  = capital * 0.04   # per position
+        max_positions = 2
+        cash_buffer = 0.04
+        risk_pct = 0.05
+        max_per_stock = 0.65
+        min_profit_target = capital * 0.04  # per position
     elif capital < 50_000:
-        max_positions      = 3
-        cash_buffer        = 0.05
-        risk_pct           = 0.04
-        max_per_stock      = 0.45
-        min_profit_target  = capital * 0.025
+        max_positions = 3
+        cash_buffer = 0.05
+        risk_pct = 0.04
+        max_per_stock = 0.45
+        min_profit_target = capital * 0.025
     elif capital < 2_00_000:
-        max_positions      = 4
-        cash_buffer        = 0.05
-        risk_pct           = 0.03
-        max_per_stock      = 0.35
-        min_profit_target  = capital * 0.02
+        max_positions = 4
+        cash_buffer = 0.05
+        risk_pct = 0.03
+        max_per_stock = 0.35
+        min_profit_target = capital * 0.02
     else:
-        max_positions      = 6
-        cash_buffer        = 0.05
-        risk_pct           = 0.025
-        max_per_stock      = 0.25
-        min_profit_target  = capital * 0.015
+        max_positions = 6
+        cash_buffer = 0.05
+        risk_pct = 0.025
+        max_per_stock = 0.25
+        min_profit_target = capital * 0.015
 
     # Adjust risk_pct based on risk level
     if risk == "Low":
@@ -231,13 +267,13 @@ def allocate(capital: float, signals: list, style: str = "Intraday Momentum", ri
         # Accept BUY and WEAK BUY
         if "BUY" not in raw_signal.upper():
             continue
-        if s.get("confidence", 0) < 45:   # lower threshold — market may be closed
+        if s.get("confidence", 0) < 45:  # lower threshold — market may be closed
             continue
 
-        entry  = s.get("entry") or s.get("entry_price") or s.get("price", 0)
-        stop   = s.get("stop_loss", 0)
+        entry = s.get("entry") or s.get("entry_price") or s.get("price", 0)
+        stop = s.get("stop_loss", 0)
         target = s.get("target", 0)
-        atr    = s.get("atr", 0)
+        atr = s.get("atr", 0)
 
         if entry <= 0:
             continue
@@ -258,20 +294,20 @@ def allocate(capital: float, signals: list, style: str = "Intraday Momentum", ri
         score = s["confidence"] * (1 + atr_pct * 0.3) * (1 + min(profit_pct, 20) * 0.05)
 
         s = dict(s)  # copy to avoid mutating original
-        s["direction"]  = "BUY"
-        s["entry"]      = entry
-        s["stop_loss"]  = stop
-        s["target"]     = target
-        s["atr_pct"]    = round(atr_pct, 2)
+        s["direction"] = "BUY"
+        s["entry"] = entry
+        s["stop_loss"] = stop
+        s["target"] = target
+        s["atr_pct"] = round(atr_pct, 2)
         s["profit_pct"] = round(profit_pct, 2)
-        s["_score"]     = score
+        s["_score"] = score
         candidates.append(s)
 
     if not candidates:
         return {
-            "capital":        round(capital, 2),
-            "deployable":     round(deployable, 2),
-            "positions":      [],
+            "capital": round(capital, 2),
+            "deployable": round(deployable, 2),
+            "positions": [],
             "position_count": 0,
             "message": (
                 "No high-return BUY signals found right now. "
@@ -286,20 +322,20 @@ def allocate(capital: float, signals: list, style: str = "Intraday Momentum", ri
 
     # ── Build positions ────────────────────────────────────────────────────────
     total_score = sum(c["_score"] for c in candidates)
-    positions   = []
-    deployed    = 0
+    positions = []
+    deployed = 0
 
     for sig in candidates:
-        entry  = sig["entry"]
-        stop   = sig["stop_loss"]
-        
+        entry = sig["entry"]
+        stop = sig["stop_loss"]
+
         target1 = sig.get("target1") or sig.get("target") or (entry * 1.03)
         target2 = sig.get("target2") or round(target1 * 1.05, 2)
 
-        weight       = sig["_score"] / total_score
-        raw_alloc    = deployable * weight
+        weight = sig["_score"] / total_score
+        raw_alloc = deployable * weight
         capped_alloc = min(raw_alloc, capital * max_per_stock)
-        remaining    = deployable - deployed
+        remaining = deployable - deployed
 
         budget = min(capped_alloc, remaining)
         # Allow fractional shares down to 0.01 shares
@@ -307,13 +343,17 @@ def allocate(capital: float, signals: list, style: str = "Intraday Momentum", ri
             continue
 
         # Position sizing: risk-based
-        risk_per_share  = abs(entry - stop)
-        max_risk_money  = capital * risk_pct
-        
+        risk_per_share = abs(entry - stop)
+        max_risk_money = capital * risk_pct
+
         # Support fractional shares (2 decimal places) for high-precision capital allocation
-        shares_by_cap   = round(budget / entry, 2)
-        shares_by_risk  = round(max_risk_money / risk_per_share, 2) if risk_per_share > 0 else shares_by_cap
-        shares          = min(shares_by_risk, shares_by_cap)
+        shares_by_cap = round(budget / entry, 2)
+        shares_by_risk = (
+            round(max_risk_money / risk_per_share, 2)
+            if risk_per_share > 0
+            else shares_by_cap
+        )
+        shares = min(shares_by_risk, shares_by_cap)
 
         # Recheck affordability
         if shares * entry > remaining:
@@ -321,94 +361,109 @@ def allocate(capital: float, signals: list, style: str = "Intraday Momentum", ri
         if shares < 0.01:
             continue
 
-        actual_cost     = round(shares * entry, 2)
-        pot_profit      = round(shares * (target1 - entry), 2)
+        actual_cost = round(shares * entry, 2)
+        pot_profit = round(shares * (target1 - entry), 2)
         pot_profit_high = round(shares * (target2 - entry), 2)
-        pot_loss        = round(shares * (entry - stop), 2)
-        rr              = round((target1 - entry) / (entry - stop), 2) if (entry - stop) > 0 else 0
-        profit_on_inv   = round((pot_profit / actual_cost) * 100, 2) if actual_cost > 0 else 0
-        profit_on_cap   = round((pot_profit / capital) * 100, 2)
+        pot_loss = round(shares * (entry - stop), 2)
+        rr = round((target1 - entry) / (entry - stop), 2) if (entry - stop) > 0 else 0
+        profit_on_inv = (
+            round((pot_profit / actual_cost) * 100, 2) if actual_cost > 0 else 0
+        )
+        profit_on_cap = round((pot_profit / capital) * 100, 2)
 
         # Skip if profit is too small relative to capital — no point
         if pot_profit < min_profit_target:
             # Try to bump shares to hit minimum
-            needed_shares = round(min_profit_target / (target1 - entry), 2) if (target1 - entry) > 0 else shares
-            if needed_shares * entry <= remaining and (needed_shares * risk_per_share) <= max_risk_money:
-                shares          = needed_shares
-                actual_cost     = round(shares * entry, 2)
-                pot_profit      = round(shares * (target1 - entry), 2)
+            needed_shares = (
+                round(min_profit_target / (target1 - entry), 2)
+                if (target1 - entry) > 0
+                else shares
+            )
+            if (
+                needed_shares * entry <= remaining
+                and (needed_shares * risk_per_share) <= max_risk_money
+            ):
+                shares = needed_shares
+                actual_cost = round(shares * entry, 2)
+                pot_profit = round(shares * (target1 - entry), 2)
                 pot_profit_high = round(shares * (target2 - entry), 2)
-                pot_loss        = round(shares * (entry - stop), 2)
-                profit_on_inv   = round((pot_profit / actual_cost) * 100, 2) if actual_cost > 0 else 0
-                profit_on_cap   = round((pot_profit / capital) * 100, 2)
+                pot_loss = round(shares * (entry - stop), 2)
+                profit_on_inv = (
+                    round((pot_profit / actual_cost) * 100, 2) if actual_cost > 0 else 0
+                )
+                profit_on_cap = round((pot_profit / capital) * 100, 2)
 
         advice = generate_mentor_advice(sig, actual_cost, pot_loss, capital, rr)
 
         qty_label = f"{shares} Shares" if shares >= 1 else f"{shares:.2f} Shares"
         estimated_profit = f"₹{pot_profit:.0f} - ₹{pot_profit_high:.0f}"
 
-        positions.append({
-            "symbol":            sig.get("symbol", ""),
-            "direction":         "BUY",
-            "confidence":        sig["confidence"],
-            "entry_price":       round(entry, 2),
-            "target":            round(target1, 2),
-            "target1":           round(target1, 2),
-            "target2":           round(target2, 2),
-            "stop_loss":         round(stop, 2),
-            "rr_ratio":          rr,
-            "shares":            shares,
-            "quantity":          shares,
-            "quantity_label":    qty_label,
-            "amount_invested":   actual_cost,
-            "allocation_pct":    round((actual_cost / capital) * 100, 1),
-            "potential_profit":  pot_profit,
-            "potential_profit_high": pot_profit_high,
-            "potential_loss":    pot_loss,
-            "profit_on_invested": profit_on_inv,
-            "profit_on_capital":  profit_on_cap,
-            "atr":               round(sig.get("atr", 0), 2),
-            "atr_pct":           sig.get("atr_pct", 0),
-            "profit_pct":        sig.get("profit_pct", 0),
-            "rsi":               round(sig.get("rsi", 0), 1),
-            "macd_hist":         round(sig.get("macd_hist", 0), 4),
-            "adx":               round(sig.get("adx", 0), 2),
-            "vwap":              round(sig.get("vwap", 0), 2),
-            "vol_surge":         round(sig.get("vol_surge", 1), 2),
-            "reasons":           sig.get("reasons", [])[:4],
-            "sector_strength":   sig.get("sector_strength", "Medium"),
-            "expected_move_pct": sig.get("expected_move_pct", round(abs(target1 - entry) / entry * 100, 2)),
-            "estimated_profit":  estimated_profit,
-            "mentor_advice":     advice,
-        })
+        positions.append(
+            {
+                "symbol": sig.get("symbol", ""),
+                "direction": "BUY",
+                "confidence": sig["confidence"],
+                "entry_price": round(entry, 2),
+                "target": round(target1, 2),
+                "target1": round(target1, 2),
+                "target2": round(target2, 2),
+                "stop_loss": round(stop, 2),
+                "rr_ratio": rr,
+                "shares": shares,
+                "quantity": shares,
+                "quantity_label": qty_label,
+                "amount_invested": actual_cost,
+                "allocation_pct": round((actual_cost / capital) * 100, 1),
+                "potential_profit": pot_profit,
+                "potential_profit_high": pot_profit_high,
+                "potential_loss": pot_loss,
+                "profit_on_invested": profit_on_inv,
+                "profit_on_capital": profit_on_cap,
+                "atr": round(sig.get("atr", 0), 2),
+                "atr_pct": sig.get("atr_pct", 0),
+                "profit_pct": sig.get("profit_pct", 0),
+                "rsi": round(sig.get("rsi", 0), 1),
+                "macd_hist": round(sig.get("macd_hist", 0), 4),
+                "adx": round(sig.get("adx", 0), 2),
+                "vwap": round(sig.get("vwap", 0), 2),
+                "vol_surge": round(sig.get("vol_surge", 1), 2),
+                "reasons": sig.get("reasons", [])[:4],
+                "sector_strength": sig.get("sector_strength", "Medium"),
+                "expected_move_pct": sig.get(
+                    "expected_move_pct", round(abs(target1 - entry) / entry * 100, 2)
+                ),
+                "estimated_profit": estimated_profit,
+                "mentor_advice": advice,
+            }
+        )
         deployed += actual_cost
 
     if not positions:
         return {
-            "capital":        round(capital, 2),
-            "deployable":     round(deployable, 2),
-            "positions":      [],
+            "capital": round(capital, 2),
+            "deployable": round(deployable, 2),
+            "positions": [],
             "position_count": 0,
             "message": f"Signal prices exceed available capital of ₹{capital:,.0f}. Try during market hours when more volatile low-price stocks have signals.",
         }
 
-    total_profit    = sum(p["potential_profit"] for p in positions)
-    total_loss      = sum(p["potential_loss"]   for p in positions)
+    total_profit = sum(p["potential_profit"] for p in positions)
+    total_loss = sum(p["potential_loss"] for p in positions)
     total_profit_pct = round((total_profit / capital) * 100, 1)
-    cash_reserve    = round(capital - deployed, 2)
+    cash_reserve = round(capital - deployed, 2)
 
     return {
-        "capital":                 round(capital, 2),
-        "deployable":              round(deployable, 2),
-        "total_deployed":          round(deployed, 2),
-        "cash_reserve":            cash_reserve,
-        "deployment_pct":          round((deployed / capital) * 100, 1),
-        "positions":               positions,
-        "position_count":          len(positions),
-        "total_potential_profit":  round(total_profit, 2),
-        "total_potential_loss":    round(total_loss, 2),
-        "total_profit_pct":        total_profit_pct,
-        "portfolio_rr":            round(total_profit / total_loss, 2) if total_loss > 0 else 0,
-        "max_risk_pct":            round((total_loss / capital) * 100, 1),
-        "message":                 None,
+        "capital": round(capital, 2),
+        "deployable": round(deployable, 2),
+        "total_deployed": round(deployed, 2),
+        "cash_reserve": cash_reserve,
+        "deployment_pct": round((deployed / capital) * 100, 1),
+        "positions": positions,
+        "position_count": len(positions),
+        "total_potential_profit": round(total_profit, 2),
+        "total_potential_loss": round(total_loss, 2),
+        "total_profit_pct": total_profit_pct,
+        "portfolio_rr": round(total_profit / total_loss, 2) if total_loss > 0 else 0,
+        "max_risk_pct": round((total_loss / capital) * 100, 1),
+        "message": None,
     }
