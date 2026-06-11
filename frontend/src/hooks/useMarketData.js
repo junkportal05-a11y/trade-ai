@@ -36,10 +36,7 @@ export function useQuote(symbol) {
     setLoading(true);
     setError(null);
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
-      const res = await fetch(`${BASE_URL}/api/quote?symbol=${symbol}`, {
-        headers: { "X-Session-Token": token }
-      });
+      const res = await fetch(`${BASE_URL}/api/quote?symbol=${symbol}`, { credentials: 'include' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData(await res.json());
     } catch (e) {
@@ -71,11 +68,8 @@ export function useHistory(symbol, { interval = "1d", range = "3mo", seedPrice =
       setLoading(true);
       setError(null);
       try {
-        const token = sessionStorage.getItem('apt_token') || '';
         const url = `${BASE_URL}/api/history?symbol=${symbol}&interval=${interval}&range=${range}`;
-        const res = await fetch(url, {
-          headers: { "X-Session-Token": token }
-        });
+        const res = await fetch(url, { credentials: 'include' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         if (!cancelled) {
@@ -121,8 +115,7 @@ export function useLivePrices(symbols = []) {
 
     function connect() {
       try {
-        const token = sessionStorage.getItem('apt_token') || '';
-        const ws = new WebSocket(`${WS_URL}/ws/prices?symbols=${symbolKey}&token=${token}`);
+        const ws = new WebSocket(`${WS_URL}/ws/prices?symbols=${symbolKey}`);
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -167,8 +160,8 @@ export function useLivePrices(symbols = []) {
 
           if (event.code === 4001) {
             console.warn("[WebSocket] Connection closed with code 4001: Session unauthorized/expired.");
-            const hadToken = !!sessionStorage.getItem('apt_token');
-            sessionStorage.removeItem('apt_token');
+            const hadToken = !!localStorage.getItem('is_logged_in');
+            localStorage.removeItem('is_logged_in');
             localStorage.removeItem('apex_user');
             if (hadToken) {
               window.location.reload();

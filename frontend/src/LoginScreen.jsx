@@ -42,6 +42,7 @@ export default function LoginScreen({ onLogin }) {
       const res = await fetch(`${BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ username: u, password: p })
       });
       
@@ -56,8 +57,8 @@ export default function LoginScreen({ onLogin }) {
       
       const data = await res.json();
       
-      // Store session token in sessionStorage (in-memory only, clears on tab close)
-      sessionStorage.setItem('apt_token', data.token);
+      // Store a flag indicating we are logged in (actual token is in HttpOnly cookie)
+      localStorage.setItem('is_logged_in', 'true');
       
       // Propagate user metadata to parent App component
       onLogin(u, data.role, data.clearance);

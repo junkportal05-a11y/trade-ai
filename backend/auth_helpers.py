@@ -2,7 +2,7 @@ import os
 import time
 import bcrypt
 import secrets
-from fastapi import HTTPException, Header
+from fastapi import HTTPException, Header, Request
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -104,7 +104,8 @@ def create_session(username: str) -> str:
     return token
 
 
-def require_session(x_session_token: str = Header(None)):
+def require_session(request: Request):
+    x_session_token = request.cookies.get("apt_token")
     if not x_session_token:
         raise HTTPException(
             status_code=401, detail="Authentication session token required"

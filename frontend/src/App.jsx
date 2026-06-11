@@ -1095,9 +1095,9 @@ function ChatPanel({ symbol, price, changePct }) {
       const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'X-Session-Token': sessionStorage.getItem('apt_token') || ''
         },
         body: JSON.stringify({
           message: userMsg,
@@ -1106,7 +1106,7 @@ function ChatPanel({ symbol, price, changePct }) {
         }),
       });
       if (res.status === 401) {
-        sessionStorage.removeItem('apt_token');
+        localStorage.removeItem('is_logged_in');
         localStorage.removeItem('apex_user');
         window.location.reload();
         return;
@@ -1688,13 +1688,13 @@ const TABS = ['HOME', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   // Security Authentication Gate
-  const [loggedIn, setLoggedIn] = useState(() => sessionStorage.getItem('apt_token') !== null);
+  const [loggedIn, setLoggedIn] = useState(() => localStorage.getItem('is_logged_in') === 'true');
   const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('apex_user') || 'apex_head_quant');
   const [userRole, setUserRole] = useState(() => localStorage.getItem('apex_role') || 'Master Quant / Administrator');
   const [userClearance, setUserClearance] = useState(() => localStorage.getItem('apex_clearance') || 'LEVEL_4_ROOT');
 
   const handleLogout = useCallback(() => {
-    sessionStorage.removeItem('apt_token');
+    localStorage.removeItem('is_logged_in');
     localStorage.removeItem('apex_user');
     localStorage.removeItem('apex_role');
     localStorage.removeItem('apex_clearance');
@@ -1809,10 +1809,10 @@ export default function App() {
       
       if (lastShown !== todayStr && (hours > 9 || (hours === 9 && minutes >= 15))) {
         // Market is open or opened already today
-        const token = sessionStorage.getItem('apt_token') || '';
         fetch(`${import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space"}/api/scan`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Session-Token': token },
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', },
           body: JSON.stringify({ symbols: DEFAULT_WATCHLIST.map(w=>w.symbol), interval: '15m', capital: cash })
         })
         .then(r => r.json())
@@ -1864,10 +1864,10 @@ export default function App() {
   const fetchMarketBrief = useCallback(() => {
     if (!loggedIn) return;
     const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
-    const token = sessionStorage.getItem('apt_token') || '';
     setLoadingBrief(true);
     fetch(`${API_BASE}/api/market_brief`, {
-      headers: { 'X-Session-Token': token }
+      credentials: 'include',
+      headers: { }
     })
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(data => {
@@ -1882,9 +1882,9 @@ export default function App() {
   const fetchPredictionStats = useCallback(() => {
     if (!loggedIn) return;
     const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
-    const token = sessionStorage.getItem('apt_token') || '';
     fetch(`${API_BASE}/api/predictions/stats`, {
-      headers: { 'X-Session-Token': token }
+      credentials: 'include',
+      headers: { }
     })
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(data => {
@@ -1970,10 +1970,10 @@ export default function App() {
   const fetchPendingPredictions = useCallback(async () => {
     if (!loggedIn) return;
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
       const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
       const res = await fetch(`${API_BASE}/api/predictions`, {
-        headers: { 'X-Session-Token': token }
+        credentials: 'include',
+        headers: { }
       });
       if (res.ok) {
         const data = await res.json();
@@ -2032,12 +2032,11 @@ export default function App() {
       if (shouldResolve) {
         resolvingIds.current.add(pred.id);
         try {
-          const token = sessionStorage.getItem('apt_token') || '';
           const res = await fetch(`${API_BASE}/api/predictions/${pred.id}/resolve`, {
             method: 'POST',
+            credentials: 'include',
             headers: {
               'Content-Type': 'application/json',
-              'X-Session-Token': token
             },
             body: JSON.stringify({
               actual_outcome: currentPrice,
@@ -2088,9 +2087,9 @@ export default function App() {
         
         const res = await fetch(`${API_BASE}/api/chat`, {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            'X-Session-Token': sessionStorage.getItem('apt_token') || ''
           },
           body: JSON.stringify({
             message: `Provide a quick 1-2 sentence technical analyst recommendation for ${cleanedSymbol} at current price ₹${livePrice} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%). Focus on technical metrics like RSI, key levels, or potential triggers. Keep it extremely concise.`,
