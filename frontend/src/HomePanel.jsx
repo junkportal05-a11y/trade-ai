@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 
-const BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
+const BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
 
 const T = {
   bg:         '#080a0f',

@@ -15,7 +15,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 /* ─── Base URL ──────────────────────────────────────────────────────────────── */
-const BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
+const BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
 
 /* ─── Design Tokens ─────────────────────────────────────────────────────────── */
 const T = {
