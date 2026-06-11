@@ -455,15 +455,7 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
         df["STOCHd_14_3_3"] = df["STOCHk_14_3_3"].rolling(3).mean()
 
         # OBV
-        obv = [0]
-        for i in range(1, len(df)):
-            if close.iloc[i] > close.iloc[i - 1]:
-                obv.append(obv[-1] + volume.iloc[i])
-            elif close.iloc[i] < close.iloc[i - 1]:
-                obv.append(obv[-1] - volume.iloc[i])
-            else:
-                obv.append(obv[-1])
-        df["OBV"] = obv
+        df["OBV"] = np.where(close > close.shift(1), volume, np.where(close < close.shift(1), -volume, 0)).cumsum()
 
         # Drop rows with NaN in key columns
         required_cols = [
