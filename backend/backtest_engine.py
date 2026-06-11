@@ -5,7 +5,6 @@ Downloads daily data, computes quant signals, and runs a chronological trade sim
 """
 
 import math
-from datetime import datetime, timezone
 import pandas as pd
 import numpy as np
 from signals import download_market_data_df
