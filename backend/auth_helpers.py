@@ -10,9 +10,14 @@ load_dotenv()
 ADMIN_KEY = os.getenv("ADMIN_KEY")
 if not ADMIN_KEY:
     ADMIN_KEY = secrets.token_hex(24)
-    print(
-        f"\n[SECURITY WARNING] ADMIN_KEY is not set in environment! Generated a temporary admin key: {ADMIN_KEY}\n"
-    )
+    if os.getenv("ENVIRONMENT") == "development":
+        print(
+            f"\n[SECURITY WARNING] ADMIN_KEY is not set in environment! Generated a temporary admin key: {ADMIN_KEY}\n"
+        )
+    else:
+        print(
+            "\n[SECURITY WARNING] ADMIN_KEY is not set in environment! A temporary admin key was generated securely but will not be logged. Set ADMIN_KEY to access admin features.\n"
+        )
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
@@ -46,8 +51,12 @@ if not raw_pass_admin:
     temp_pass = secrets.token_urlsafe(16)
     print("\n" + "=" * 80)
     print(" [SECURITY WARNING] PASS_ADMIN / APP_PASSWORD is not configured in .env!")
-    print(f" Generated a secure temporary session password for 'apex_head_quant':")
-    print(f" {temp_pass}")
+    if os.getenv("ENVIRONMENT") == "development":
+        print(f" Generated a secure temporary session password for 'apex_head_quant':")
+        print(f" {temp_pass}")
+    else:
+        print(f" A temporary session password was generated securely for 'apex_head_quant' but will not be logged.")
+        print(f" Set PASS_ADMIN or APP_PASSWORD to access this account.")
     print("=" * 80 + "\n")
     admin_hash = get_password_hash(temp_pass)
 else:
