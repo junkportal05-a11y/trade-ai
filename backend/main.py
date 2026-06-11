@@ -209,11 +209,9 @@ def upstox_callback(request: Request, code: str = Query(...), state: Optional[st
     if not hmac.compare_digest(cookie_token, state_csrf_token):
         raise HTTPException(status_code=400, detail="CSRF token mismatch")
 
-    # Reconstruct the exact redirect_uri used for this request to avoid OAuth mismatch
-    redirect_uri = str(request.url).split("?")[0]
-    if upstox_feed.UPSTOX_REDIRECT_URI.startswith("https://") and redirect_uri.startswith("http://"):
-        redirect_uri = redirect_uri.replace("http://", "https://")
-        
+    # Use the configured redirect URI directly to bypass proxy header issues
+    redirect_uri = upstox_feed.UPSTOX_REDIRECT_URI
+
     res = upstox_feed.exchange_code_for_token(code, redirect_uri=redirect_uri)
     if not res:
         raise HTTPException(status_code=400, detail="Failed to exchange authorization code for access token")
