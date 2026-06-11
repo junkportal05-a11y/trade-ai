@@ -1000,67 +1000,207 @@ async def cleanup_sessions_loop():
         await asyncio.sleep(3600)
 
 
-async def reconcile_predictions():
+async def prediction_resolver_worker():
     """
-    Checks PENDING predictions against live prices to resolve them.
-    If target_price or stop_loss is hit, marks them as WIN or LOSS.
-    If a prediction is older than 24 hours, marks it as TIMEOUT.
+    Batched resolution engine that bypasses LIVE_PRICES_CACHE.
+    Fetches unique symbols directly from API to prevent DDoS.
     """
-    try:
-        predictions = db.get_predictions()
-        pending = [p for p in predictions if p.get("status") == "PENDING"]
-        if not pending:
-            return
-            
-        for pred in pending:
-            symbol = pred["symbol"]
-            live = LIVE_PRICES_CACHE.get(symbol)
-            if not live:
-                continue
+    loop = asyncio.get_event_loop()
+    while True:
+        try:
+            predictions = db.get_predictions()
+            pending = [p for p in predictions if p.get("status") == "PENDING"]
+            if pending:
+                symbols = list(set([p["symbol"] for p in pending]))
                 
-            price = live["price"]
-            is_bullish = pred["prediction_type"].upper() == "BULLISH"
-            target = pred["target_price"]
-            stop = pred["stop_loss"]
-            
-            hit_target = (is_bullish and price >= target) or (not is_bullish and price <= target)
-            hit_stop = (is_bullish and price <= stop) or (not is_bullish and price >= stop)
-            
-            # Expire after 24 hours
-            pred_date_str = pred["prediction_date"]
-            expired = False
-            try:
-                from dateutil import parser
-                pred_time = parser.parse(pred_date_str)
-                if pred_time.tzinfo is None:
-                    ist_tz = timezone(timedelta(hours=5, minutes=30))
-                    pred_time = pred_time.replace(tzinfo=ist_tz)
-                now_ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
-                if now_ist - pred_time > timedelta(hours=24):
-                    expired = True
-            except Exception:
-                pass
+                # Fetch quotes synchronously in thread pool
+                quotes = await loop.run_in_executor(
+                    _executor,
+                    functools.partial(upstox_feed.get_live_quotes, symbols)
+                )
                 
-            if hit_target:
-                db.resolve_prediction(pred["id"], price, "WIN")
-            elif hit_stop:
-                db.resolve_prediction(pred["id"], price, "LOSS")
-            elif expired:
-                db.resolve_prediction(pred["id"], price, "TIMEOUT")
-    except Exception as e:
-        print(f"[reconcile_predictions] error: {e}")
+                if quotes:
+                    for pred in pending:
+                        symbol = pred["symbol"]
+                        live = quotes.get(symbol)
+                        if not live:
+                            continue
+                            
+                        price = live["price"]
+                        is_bullish = pred["prediction_type"].upper() == "BULLISH"
+                        target = pred["target_price"]
+                        stop = pred["stop_loss"]
+                        entry = pred["entry_price"]
+                        
+                        hit_target = (is_bullish and price >= target) or (not is_bullish and price <= target)
+                        hit_stop = (is_bullish and price <= stop) or (not is_bullish and price >= stop)
+                        
+                        pred_date_str = pred["prediction_date"]
+                        expired = False
+                        holding_time_minutes = 0.0
+                        try:
+                            from dateutil import parser
+                            pred_time = parser.parse(pred_date_str)
+                            if pred_time.tzinfo is None:
+                                ist_tz = timezone(timedelta(hours=5, minutes=30))
+                                pred_time = pred_time.replace(tzinfo=ist_tz)
+                            now_ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
+                            delta = now_ist - pred_time
+                            holding_time_minutes = delta.total_seconds() / 60.0
+                            if delta > timedelta(hours=24):
+                                expired = True
+                        except Exception:
+                            pass
+                            
+                        if hit_target or hit_stop or expired:
+                            resolution_reason = "EXPIRED"
+                            if hit_target:
+                                resolution_reason = "TARGET_HIT"
+                                status = "WIN"
+                            elif hit_stop:
+                                resolution_reason = "STOP_HIT"
+                                status = "LOSS"
+                            else:
+                                status = "TIMEOUT"
+                                
+                            # Calculate PnL
+                            pnl_pct = 0.0
+                            if entry > 0:
+                                if is_bullish:
+                                    pnl_pct = ((price - entry) / entry) * 100
+                                else:
+                                    pnl_pct = ((entry - price) / entry) * 100
+                                    
+                            pnl_pct = round(pnl_pct, 2)
+                            risk_amount = pred.get("risk_amount") or 0.0
+                            pnl_inr = 0.0
+                            r_multiple = 0.0
+                            
+                            if risk_amount > 0:
+                                qty = risk_amount / abs(entry - stop) if abs(entry - stop) > 0 else 0
+                                pnl_inr = round(qty * abs(price - entry) * (1 if pnl_pct >= 0 else -1), 2)
+                                r_multiple = round(pnl_inr / risk_amount, 2)
+                                
+                            db.resolve_prediction(
+                                pred_id=pred["id"], 
+                                actual_outcome=price, 
+                                status=status,
+                                exit_price=price,
+                                holding_time_minutes=round(holding_time_minutes, 1),
+                                pnl_pct=pnl_pct,
+                                pnl_inr=pnl_inr,
+                                r_multiple=r_multiple,
+                                resolution_reason=resolution_reason
+                            )
+                            
+                            # Update Equity Curve sequentially
+                            if pnl_inr != 0:
+                                eq_after, peak = db.get_latest_equity()
+                                new_eq = eq_after + pnl_inr
+                                new_peak = max(peak, new_eq)
+                                drawdown = round(((new_peak - new_eq) / new_peak) * 100, 2) if new_peak > 0 else 0.0
+                                db.add_equity_curve(pred["id"], eq_after, new_eq, new_peak, drawdown)
+                                
+        except Exception as e:
+            print(f"[prediction_resolver_worker] error: {e}")
+            
+        await asyncio.sleep(60)
 
 
-async def auto_scan_loop():
+async def metrics_worker():
+    """
+    Asynchronously aggregates analytics and populates the metrics_cache.
+    Ensures dashboard loads instantly without recomputing all historical trades.
+    """
+    while True:
+        try:
+            predictions = db.get_predictions()
+            resolved = [p for p in predictions if p.get("status") in ["WIN", "LOSS", "TIMEOUT", "CORRECT", "INCORRECT"]]
+            
+            total_wins = sum(1 for p in resolved if p.get("pnl_inr", 0) > 0 or p["status"] in ["WIN", "CORRECT"])
+            total_losses = sum(1 for p in resolved if p.get("pnl_inr", 0) < 0 or p["status"] in ["LOSS", "INCORRECT"])
+            
+            winning_pnl = sum(p.get("pnl_inr", 0) for p in resolved if p.get("pnl_inr", 0) > 0)
+            losing_pnl = abs(sum(p.get("pnl_inr", 0) for p in resolved if p.get("pnl_inr", 0) < 0))
+            
+            profit_factor = round(winning_pnl / losing_pnl, 2) if losing_pnl > 0 else (999.0 if winning_pnl > 0 else 0)
+            
+            win_rate = (total_wins / len(resolved) * 100) if resolved else 0.0
+            loss_rate = (total_losses / len(resolved) * 100) if resolved else 0.0
+            
+            avg_win_pct = sum(p.get("pnl_pct", 0) for p in resolved if p.get("pnl_pct", 0) > 0) / total_wins if total_wins else 0
+            avg_loss_pct = sum(p.get("pnl_pct", 0) for p in resolved if p.get("pnl_pct", 0) < 0) / total_losses if total_losses else 0
+            
+            ev_pct = round((win_rate/100 * avg_win_pct) - (loss_rate/100 * abs(avg_loss_pct)), 2)
+            avg_r = round(sum(p.get("r_multiple", 0) for p in resolved) / len(resolved), 2) if resolved else 0.0
+            
+            holding_times = [p.get("holding_time_minutes", 0) for p in resolved if p.get("holding_time_minutes")]
+            avg_holding = round(sum(holding_times) / len(holding_times), 1) if holding_times else 0.0
+            
+            fastest_win = min([p.get("holding_time_minutes", 0) for p in resolved if p.get("pnl_inr", 0) > 0 and p.get("holding_time_minutes")], default=0)
+            longest_win = max([p.get("holding_time_minutes", 0) for p in resolved if p.get("pnl_inr", 0) > 0 and p.get("holding_time_minutes")], default=0)
+            longest_loss = max([p.get("holding_time_minutes", 0) for p in resolved if p.get("pnl_inr", 0) < 0 and p.get("holding_time_minutes")], default=0)
+            
+            _, peak = db.get_latest_equity()
+            eq_after, _ = db.get_latest_equity()
+            max_drawdown = round(((peak - eq_after) / peak) * 100, 2) if peak > 0 else 0.0
+            
+            setups = {}
+            for p in resolved:
+                stype = p.get("setup_type", "UNKNOWN")
+                if stype not in setups:
+                    setups[stype] = {"trades": 0, "wins": 0, "winning_pnl": 0, "losing_pnl": 0, "r_sum": 0}
+                setups[stype]["trades"] += 1
+                if p.get("pnl_inr", 0) > 0:
+                    setups[stype]["wins"] += 1
+                    setups[stype]["winning_pnl"] += p.get("pnl_inr", 0)
+                else:
+                    setups[stype]["losing_pnl"] += abs(p.get("pnl_inr", 0))
+                setups[stype]["r_sum"] += p.get("r_multiple", 0)
+                
+            leaderboard = []
+            for stype, sdata in setups.items():
+                trades = sdata["trades"]
+                wr = round((sdata["wins"] / trades) * 100, 1) if trades else 0
+                pf = round(sdata["winning_pnl"] / sdata["losing_pnl"], 2) if sdata["losing_pnl"] > 0 else (99.0 if sdata["winning_pnl"] > 0 else 0)
+                avg_r_setup = round(sdata["r_sum"] / trades, 2) if trades else 0
+                leaderboard.append({
+                    "setup": stype,
+                    "trades": trades,
+                    "win_rate": wr,
+                    "profit_factor": pf,
+                    "avg_r": avg_r_setup
+                })
+            leaderboard.sort(key=lambda x: x["avg_r"], reverse=True)
+            
+            cache_data = {
+                "total_resolved": len(resolved),
+                "profit_factor": profit_factor,
+                "ev_pct": ev_pct,
+                "avg_r": avg_r,
+                "avg_holding": avg_holding,
+                "fastest_win": fastest_win,
+                "longest_win": longest_win,
+                "longest_loss": longest_loss,
+                "max_drawdown": max_drawdown,
+                "leaderboard": leaderboard
+            }
+            db.set_metrics_cache("dashboard_metrics", cache_data)
+        except Exception as e:
+            print(f"[metrics_worker] error: {e}")
+            import traceback
+            traceback.print_exc()
+            
+        await asyncio.sleep(60)
+
+
+async def signal_scanner_worker():
     """
     Background task:
       - Market OPEN  → scan every 60 s, log signals to DB
       - Market CLOSED → scan every 60 min for overnight signals
-    Also reconciles pending signals and predictions against LIVE_PRICES_CACHE every cycle.
     """
-
     loop = asyncio.get_event_loop()
-
     while True:
         try:
             market_open = is_nse_market_open()
@@ -1072,7 +1212,6 @@ async def auto_scan_loop():
                 functools.partial(sig_engine.run_scan, sig_engine.NSE_WATCHLIST),
             )
 
-            # Analyze market breadth and regime for logging predictions
             sentiment_pct = 50
             nifty_trend_bias = "CONSOLIDATION"
             if results:
@@ -1080,19 +1219,17 @@ async def auto_scan_loop():
                 buys_count = sum(1 for s in results if s.get("score", 0) > 0)
                 sentiment_pct = int(buys_count / len(results) * 100) if results else 50
 
-            # Log BUY / SELL signals with confidence >= 60
             valid_signals = []
             for sig in results:
                 if sig.get("signal") in ("BUY", "SELL") and sig.get("confidence", 0) >= 60:
                     sig["direction"]  = sig["signal"]
-                    sig["entry"]      = sig.get("price",      sig.get("entry", 0))
+                    sig["entry"]      = sig.get("price", sig.get("entry", 0))
                     sig["scan_type"]  = scan_type
                     valid_signals.append(sig)
 
             if valid_signals:
                 db.add_signals_batch(valid_signals)
                 for sig in valid_signals:
-                    # Also log to predictions_history for the learning engine feedback loop
                     try:
                         vwap_dist = ((sig["price"] - sig["vwap"]) / sig["vwap"] * 100) if sig.get("vwap") else 0.0
                         pred_data = {
@@ -1115,54 +1252,40 @@ async def auto_scan_loop():
                             "sector_strength": float(sig.get("sector_score", 10.0)),
                             "nifty_trend": nifty_trend_bias,
                             "status": "PENDING",
-                            "reason": sig.get("reasoning", "")
+                            "reason": sig.get("reasoning", ""),
+                            "setup_type": sig.get("setup_type", "SYSTEM_EDGE"),
+                            "market_regime_snapshot": sig.get("market_regime", "UNKNOWN"),
+                            "risk_amount": sig.get("risk_amount", 0.0),
+                            "confidence_probability": sig.get("confidence_probability", 0.0)
                         }
                         db.add_prediction(pred_data)
                     except Exception as pe:
-                        print(f"[auto_scan_loop] Failed to log prediction for {sig['symbol']}: {pe}")
+                        print(f"[signal_scanner_worker] Failed to log prediction: {pe}")
 
-            # ── 2. Reconcile pending signals vs live prices ──────────────────
+            # ── 2. Reconcile signals_history vs live prices ──────────────────
             pending = db.get_pending_signals()
             for trade in pending:
                 live = LIVE_PRICES_CACHE.get(trade["symbol"])
                 if live is None:
                     continue
-
                 price = live["price"]
                 is_buy = "BUY" in trade["signal_type"]
-
-                hit_target = (is_buy and price >= trade["target"]) or (
-                    not is_buy and price <= trade["target"]
-                )
-                hit_stop = (is_buy and price <= trade["stop_loss"]) or (
-                    not is_buy and price >= trade["stop_loss"]
-                )
-
+                hit_target = (is_buy and price >= trade["target"]) or (not is_buy and price <= trade["target"])
+                hit_stop = (is_buy and price <= trade["stop_loss"]) or (not is_buy and price >= trade["stop_loss"])
                 if hit_target:
-                    pnl = db._calc_pnl(
-                        trade["signal_type"], trade["entry_price"], price
-                    )
+                    pnl = db._calc_pnl(trade["signal_type"], trade["entry_price"], price)
                     db.update_signal(trade["id"], "HIT_TARGET", price, pnl)
                 elif hit_stop:
-                    pnl = db._calc_pnl(
-                        trade["signal_type"], trade["entry_price"], price
-                    )
+                    pnl = db._calc_pnl(trade["signal_type"], trade["entry_price"], price)
                     db.update_signal(trade["id"], "HIT_STOP", price, pnl)
-
-            # ── 2b. Reconcile predictions vs live prices ──────────────────────
-            await reconcile_predictions()
 
             # ── 3. Expire stale intraday signals ─────────────────────────────
             db.expire_old_intraday()
 
         except Exception as e:
-            print(f"[auto_scan_loop] error: {e}")
+            print(f"[signal_scanner_worker] error: {e}")
 
-        sleep_dur = (
-            AUTO_SCAN_INTERVAL_OPEN
-            if is_nse_market_open()
-            else AUTO_SCAN_INTERVAL_CLOSED
-        )
+        sleep_dur = AUTO_SCAN_INTERVAL_OPEN if is_nse_market_open() else AUTO_SCAN_INTERVAL_CLOSED
         await asyncio.sleep(sleep_dur)
 
 
@@ -1170,7 +1293,9 @@ async def auto_scan_loop():
 async def startup_event():
     db.init_db()
     asyncio.create_task(fetch_live_quotes_loop())
-    asyncio.create_task(auto_scan_loop())
+    asyncio.create_task(signal_scanner_worker())
+    asyncio.create_task(prediction_resolver_worker())
+    asyncio.create_task(metrics_worker())
     asyncio.create_task(cleanup_sessions_loop())
 
 
