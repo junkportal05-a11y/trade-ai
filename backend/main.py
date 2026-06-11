@@ -773,6 +773,19 @@ def reconcile_pending_signals():
 AUTO_SCAN_INTERVAL_OPEN   = 60
 AUTO_SCAN_INTERVAL_CLOSED = 3600
 
+async def cleanup_sessions_loop():
+    """
+    Background task to clean up expired sessions periodically.
+    Runs every 1 hour (3600 seconds) to prevent memory leak
+    from unbounded ACTIVE_SESSIONS dictionary.
+    """
+    while True:
+        try:
+            cleanup_sessions()
+        except Exception as e:
+            print(f"[cleanup_sessions_loop] error: {e}")
+        await asyncio.sleep(3600)
+
 async def auto_scan_loop():
     """
     Background task:
@@ -839,6 +852,7 @@ async def startup_event():
     db.init_db()
     asyncio.create_task(fetch_live_quotes_loop())
     asyncio.create_task(auto_scan_loop())
+    asyncio.create_task(cleanup_sessions_loop())
 
 
 @app.websocket("/ws/prices")
