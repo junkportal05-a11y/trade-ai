@@ -195,7 +195,7 @@ NSE_WATCHLIST = [
     {"symbol": "ICICIBANK.NS",   "name": "ICICI Bank",           "sector": "Banking"},
     {"symbol": "SBIN.NS",        "name": "SBI",                  "sector": "Banking"},
     {"symbol": "TATAMOTORS.NS",  "name": "Tata Motors",          "sector": "Auto"},
-    {"symbol": "BHARTIARTEL.NS", "name": "Bharti Airtel",        "sector": "Telecom"},
+    {"symbol": "BHARTIARTL.NS", "name": "Bharti Airtel",        "sector": "Telecom"},
     {"symbol": "ITC.NS",         "name": "ITC",                  "sector": "FMCG"},
     {"symbol": "LT.NS",          "name": "L&T",                  "sector": "Infrastructure"},
     {"symbol": "ADANIENT.NS",    "name": "Adani Ent",            "sector": "Conglomerate"},
@@ -368,6 +368,8 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
         df = df.dropna(subset=["Close", "High", "Low", "Open", "Volume"])
         if len(df) < 20:
             return None
+
+        change_pct = ((df["Close"].iloc[-1] - df["Close"].iloc[0]) / df["Close"].iloc[0] * 100) if len(df) > 0 else 0.0
 
         # ── Pure pandas/numpy indicators (no pandas-ta dependency) ────────
         close  = df["Close"]
@@ -859,6 +861,14 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
             except Exception as e:
                 print(f"[signals] Failed to run news sentiment scanner: {e}")
 
+            # Strict VWAP Filter
+            if bull_pts > bear_pts and price < vwap_val:
+                bear_pts += 100  # Penalize heavily to reject
+                reasons_bear.append("REJECTED: Price is below VWAP")
+            elif bear_pts > bull_pts and price > vwap_val:
+                bull_pts += 100  # Penalize heavily to reject
+                reasons_bull.append("REJECTED: Price is above VWAP")
+
             # Confidence Formula
             total_pts = bull_pts + bear_pts
             if total_pts > 0:
@@ -957,6 +967,8 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
             "_volume_score":   volume_score,
             "_momentum_score": momentum_score,
             "position_size":   position_size,
+            "change_pct":      round(change_pct, 2),
+            "news_sentiment":   round(news_sentiment, 2),
         }
 
     except Exception as e:
@@ -966,17 +978,15 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
         return None
 
 
-def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: str = "Intraday Momentum", risk: str = "Medium", segment: str = "NSE", capital: float = 1000.0) -> list:
+async def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: str = "Intraday Momentum", risk: str = "Medium", segment: str = "NSE", capital: float = 1000.0) -> list:
     """
     Scan watchlist and return signals sorted by conviction/confidence.
-    Uses batch download so only 1-2 Twelve Data API calls for entire scan.
+    Uses asyncio.gather for asynchronous scanning to minimize overhead.
     """
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import asyncio
 
     watchlist = symbols or NSE_WATCHLIST
     symbol_strs = [s["symbol"] if isinstance(s, dict) else s for s in watchlist]
-
-
 
     # ── Worker: analyse single symbol (Pass 1) ─────────────────────────────
     def analyse_one(item) -> Optional[dict]:
@@ -1001,22 +1011,58 @@ def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: str = 
         return analyse_symbol(sym, name, sector, style=style, risk=risk, segment=segment, capital=capital)
 
     first_pass_results = []
-    with ThreadPoolExecutor(max_workers=3) as ex:
-        futures = {ex.submit(analyse_one, item): item for item in watchlist}
-        for f in futures:
-            try:
-                res = f.result()
-                if res:
-                    first_pass_results.append(res)
-            except Exception as e:
-                item = futures[f]
-                sym_label = item["symbol"] if isinstance(item, dict) else item
-                print(f"[run_scan] Error for {sym_label}: {e}")
+    
+    # Run all blocking operations concurrently using asyncio.to_thread
+    tasks = [asyncio.to_thread(analyse_one, item) for item in watchlist]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    for item, res in zip(watchlist, results):
+        if isinstance(res, Exception):
+            sym_label = item["symbol"] if isinstance(item, dict) else item
+            print(f"[run_scan] Error for {sym_label}: {res}")
+        elif res:
+            first_pass_results.append(res)
 
     if not first_pass_results:
         return []
 
     # ── Pass 2: Calculate Sector Averages and finalize Confidence scores ──
+    import db
+
+    # 1. Market Breadth / Sentiment Pct
+    buys = [s for s in first_pass_results if s.get("score", 0) > 0]
+    sentiment_pct = int(len(buys) / len(first_pass_results) * 100) if first_pass_results else 50
+
+    # 2. Market Regime Detection
+    stocks_above_ema21 = sum(1 for s in first_pass_results if s.get("price", 0) > s.get("ema21", 0))
+    pct_above_ema21 = (stocks_above_ema21 / len(first_pass_results)) * 100 if first_pass_results else 50.0
+    
+    avg_atr_pct = sum((s.get("atr", 0) / s.get("price", 1) * 100) for s in first_pass_results) / len(first_pass_results) if first_pass_results else 1.0
+
+    if pct_above_ema21 > 60 and avg_atr_pct < 2.0:
+        market_regime = "TRENDING_BULLISH"
+    elif pct_above_ema21 < 40 and avg_atr_pct < 2.0:
+        market_regime = "TRENDING_BEARISH"
+    elif avg_atr_pct >= 2.5 and pct_above_ema21 < 30:
+        market_regime = "PANIC"
+    elif avg_atr_pct >= 2.0:
+        market_regime = "VOLATILE"
+    else:
+        market_regime = "RANGING"
+        
+    nifty_trend_bias = "BULLISH" if pct_above_ema21 > 50 else "BEARISH"
+
+    # 3. Nifty/Market Change Proxy
+    nifty_change_proxy = sum(s.get("change_pct", 0.0) for s in first_pass_results) / len(first_pass_results) if first_pass_results else 0.0
+
+    # Query feedback loop statistics from learning engine
+    try:
+        success_rates = db.get_pattern_success_rates()
+        fallback_win_rate = db.get_general_win_rate()
+    except Exception:
+        success_rates = {}
+        fallback_win_rate = 55.0
+
     sector_groups = {}
     for r in first_pass_results:
         sec = r["sector"]
@@ -1029,6 +1075,10 @@ def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: str = 
         avg_val = sum(vals) / len(vals)
         sector_scores[sec] = round(avg_val / 2.0, 1)
 
+    # Identify Top 3 Strongest Sectors
+    sorted_sectors = sorted(sector_scores.items(), key=lambda x: x[1], reverse=True)
+    top_3_sectors = [s[0] for s in sorted_sectors[:3]]
+
     weights = get_learned_weights()
     results = []
 
@@ -1036,36 +1086,60 @@ def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: str = 
         sec = r["sector"]
         sector_score = sector_scores.get(sec, 10.0)
         
-        # Calculate final confidence score (0-100)
-        if "_calc_confidence" in r:
-            confidence = r["_calc_confidence"]
-        else:
-            weighted_sum = (
-                r["_tech_score"] * weights["technical"] +
-                r["_volume_score"] * weights["volume"] +
-                sector_score * weights["sector"] +
-                r["_momentum_score"] * weights["momentum"] +
-                r["_market_score"] * weights["market"]
-            )
-            max_possible = (
-                20 * weights["technical"] +
-                20 * weights["volume"] +
-                20 * weights["sector"] +
-                20 * weights["momentum"] +
-                20 * weights["market"]
-            )
-            
-            confidence = round((weighted_sum / max_possible) * 100) if max_possible > 0 else 50
-        
-        confidence = min(100, max(0, confidence))
+        # Calculate Current Setup Quality (0-100)
+        weighted_sum = (
+            r["_tech_score"] * weights["technical"] +
+            r["_volume_score"] * weights["volume"] +
+            sector_score * weights["sector"] +
+            r["_momentum_score"] * weights["momentum"] +
+            r["_market_score"] * weights["market"]
+        )
+        max_possible = (
+            20 * weights["technical"] +
+            20 * weights["volume"] +
+            20 * weights["sector"] +
+            20 * weights["momentum"] +
+            20 * weights["market"]
+        )
+        setup_quality = (weighted_sum / max_possible * 100) if max_possible > 0 else 50.0
 
-        # Sector strength label
+        # Calculate Relative Strength (RS) vs Nifty
+        stock_change = r.get("change_pct", 0.0)
+        relative_strength = stock_change - nifty_change_proxy
+
+        # Calculate Sector Strength Label & Confidence Adjustment
         if sector_score >= 14:
             sec_strength = "Strong"
         elif sector_score >= 7:
             sec_strength = "Medium"
         else:
             sec_strength = "Weak"
+
+        # Calculate Market Conditions Score (0-100)
+        is_buy_signal = r["score"] > 0
+        if market_regime == "TRENDING_BULLISH":
+            market_cond_score = 100.0 if is_buy_signal else 0.0
+        elif market_regime == "TRENDING_BEARISH":
+            market_cond_score = 100.0 if not is_buy_signal else 0.0
+        else: # RANGING / VOLATILE
+            market_cond_score = 50.0
+
+        # Calculate Pattern Hash & Historical win rate
+        vwap_dist = ((r["price"] - r["vwap"]) / r["vwap"] * 100) if r.get("vwap") else 0.0
+        pred_dict = {
+            "prediction_type": "BULLISH" if is_buy_signal else "BEARISH",
+            "rsi": r.get("rsi", 50),
+            "macd": r.get("macd_hist", 0),
+            "adx": r.get("adx", 20),
+            "vwap_distance": vwap_dist,
+            "news_score": r.get("news_sentiment", 0.0)
+        }
+        p_hash = db.get_pattern_hash(pred_dict)
+        hist_win_rate = success_rates.get(p_hash, {}).get("win_rate", fallback_win_rate)
+
+        # Refactored Confidence Formula: Strictly Historical
+        confidence = round(hist_win_rate)
+        confidence = min(100, max(0, confidence))
 
         # Pricing and PnL expectations
         entry = r["entry"]
@@ -1086,6 +1160,10 @@ def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: str = 
 
         r["confidence"] = confidence
         r["sector_strength"] = sec_strength
+        r["sector_score"] = sector_score
+        r["relative_strength"] = round(relative_strength, 2)
+        r["market_regime"] = market_regime
+        r["nifty_trend"] = nifty_trend_bias
         r["expected_move_pct"] = expected_move_pct
         r["estimated_profit"] = estimated_profit
         r["quantity"] = qty
@@ -1104,21 +1182,30 @@ def run_scan(symbols: Optional[list] = None, interval: str = "5m", style: str = 
         else:
             sig = "HOLD"
 
-        # ── Stock Selection Rules (Reject Weak Setups) ──
-        # 1. Volume confirmation
-        if r["vol_ratio"] < 1.0:
+        # ── Stock Selection Rules (Phase 3 Strict Filtering) ──
+        
+        # 1. Market Trend Alignment (Kill trades fighting NIFTY moving averages)
+        if is_buy_signal and nifty_trend_bias == "BEARISH":
             sig = "HOLD"
-        # 2. Trend alignment
-        if r["adx"] < 15:
+            
+        # 2. Sector Strength (Kill trades not in Top 3 strongest sectors)
+        if sec not in top_3_sectors:
             sig = "HOLD"
-        # 3. Risk-to-reward ratio
-        if r["rr_ratio"] < 1.5:
+            
+        # 3. Relative Strength (Kill longs underperforming NIFTY, shorts outperforming NIFTY)
+        if is_buy_signal and relative_strength < 0:
             sig = "HOLD"
-        # 4. Sector support
-        if sec_strength == "Weak":
+        elif not is_buy_signal and relative_strength > 0:
             sig = "HOLD"
-        # 5. Trading style alignment: Breakout requires ADX > 25
-        if style == "Breakout" and r["adx"] < 25:
+
+        # 4. Market Regime Safety
+        if market_regime == "PANIC" and is_buy_signal:
+            sig = "HOLD"
+        elif market_regime == "RANGING" and (40 < r.get("rsi", 50) < 60):
+            sig = "HOLD"  # Ignore chopped setups in ranging markets
+
+        # 5. Core Validation
+        if r["vol_ratio"] < 1.0 or r["rr_ratio"] < 1.5:
             sig = "HOLD"
 
         r["signal"] = sig

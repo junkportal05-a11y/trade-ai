@@ -363,11 +363,12 @@ def find_support_resistance(df: pd.DataFrame, swing_highs: list, swing_lows: lis
 #  RISK & POSITION SIZING CALCULATOR
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _avoid_round_numbers(price: float, is_buy: bool) -> float:
-    """Shifts stop loss 3 points away from round numbers (multiples of 50 or 100)"""
+def _avoid_round_numbers(price: float, atr: float, is_buy: bool) -> float:
+    """Shifts stop loss 0.1 * ATR away from round numbers (multiples of 50 or 100)"""
     p_int = int(round(price))
+    offset = 0.1 * atr
     if p_int % 100 <= 2 or p_int % 100 >= 98 or p_int % 50 <= 2 or p_int % 50 >= 48:
-        return price - 3.0 if is_buy else price + 3.0
+        return price - offset if is_buy else price + offset
     return price
 
 def calculate_risk_parameters(
@@ -386,29 +387,25 @@ def calculate_risk_parameters(
     """
     # 1. Stop Loss Placement
     atr = float(df["ATRr_14"].iloc[-1]) if "ATRr_14" in df.columns else (price * 0.01)
-    rr_target = 2.5 if is_macro_aligned else 1.0
+    rr_target = 1.5
 
     if signal_type == "BULLISH":
-        sl_base = support if support else float(df["Low"].iloc[-3:].min())
-        stop_loss = sl_base - (atr * 0.3)
-        stop_loss = _avoid_round_numbers(stop_loss, is_buy=True)
+        stop_loss = price - atr
+        stop_loss = _avoid_round_numbers(stop_loss, atr, is_buy=True)
         
         risk_per_share = price - stop_loss
         if risk_per_share <= 0:
             risk_per_share = atr
-            stop_loss = price - risk_per_share
             
         target = price + (rr_target * risk_per_share)
         
     else: # BEARISH
-        sl_base = resistance if resistance else float(df["High"].iloc[-3:].max())
-        stop_loss = sl_base + (atr * 0.3)
-        stop_loss = _avoid_round_numbers(stop_loss, is_buy=False)
+        stop_loss = price + atr
+        stop_loss = _avoid_round_numbers(stop_loss, atr, is_buy=False)
         
         risk_per_share = stop_loss - price
         if risk_per_share <= 0:
             risk_per_share = atr
-            stop_loss = price + risk_per_share
             
         target = price - (rr_target * risk_per_share)
 
