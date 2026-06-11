@@ -49,7 +49,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://trade-ai-nkqv.onrender.com'}/api/upstox/status`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://apextrade-core-trade-ai-backend.hf.space'}/api/upstox/status`);
         if (res.ok) {
           const data = await res.json();
           setUpstoxStatus(data);
@@ -275,7 +275,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
 
                 <button
                   onClick={() => {
-                    const baseUrl = import.meta.env.VITE_API_URL || 'https://trade-ai-nkqv.onrender.com';
+                    const baseUrl = import.meta.env.VITE_API_URL || 'https://apextrade-core-trade-ai-backend.hf.space';
                     const state = window.location.origin;
                     window.location.href = `${baseUrl}/api/upstox/authorize?state=${state}`;
                   }}
