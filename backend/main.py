@@ -64,8 +64,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "X-Session-Token", "X-Admin-Key"],
+    allow_methods=["GET", "POST", "DELETE", "PUT", "PATCH"],
+    allow_headers=["Content-Type", "X-Session-Token", "X-Admin-Key", "Authorization"],
 )
 
 from auth_helpers import (
@@ -300,10 +300,13 @@ def upstox_status():
     }
     if authorized:
         try:
-            with open(upstox_feed.TOKEN_FILE, "r") as f:
-                data = json.load(f)
-                status_data["updated_at"] = data.get("updated_at")
-                status_data["user_name"] = data.get("user_name")
+            import db
+            with db._conn() as c:
+                row = c.execute("SELECT value FROM app_settings WHERE key='upstox_token'").fetchone()
+                if row:
+                    data = json.loads(row["value"])
+                    status_data["updated_at"] = data.get("updated_at")
+                    status_data["user_name"] = data.get("user_name")
         except Exception:
             pass
     return status_data
@@ -519,13 +522,17 @@ async def post_scan(
 
     try:
         results = await asyncio.wait_for(
-            sig_engine.run_scan(
-                watchlist,
-                req.interval,
-                req.trading_style,
-                req.risk_level,
-                req.market_segment,
-                req.capital
+            loop.run_in_executor(
+                _executor,
+                functools.partial(
+                    sig_engine.run_scan,
+                    watchlist,
+                    req.interval,
+                    req.trading_style,
+                    req.risk_level,
+                    req.market_segment,
+                    req.capital
+                )
             ),
             timeout=85
         )
@@ -548,7 +555,7 @@ async def post_scan(
 
 
 @app.get("/api/signal/{symbol}")
-async def get_signal_single(symbol: str):
+async def get_signal_single(symbol: str, _=Depends(require_session)):
     """
     Full technical analysis for a single NSE symbol.
     Accepts symbol with or without .NS suffix.
@@ -1059,7 +1066,10 @@ async def auto_scan_loop():
             scan_type = "INTRADAY" if market_open else "OVERNIGHT"
 
             # ── 1. Run signal scan ───────────────────────────────────────────
-            results = await sig_engine.run_scan(sig_engine.NSE_WATCHLIST)
+            results = await loop.run_in_executor(
+                _executor,
+                functools.partial(sig_engine.run_scan, sig_engine.NSE_WATCHLIST),
+            )
 
             # Analyze market breadth and regime for logging predictions
             sentiment_pct = 50
@@ -1072,14 +1082,6 @@ async def auto_scan_loop():
             # Log BUY / SELL signals with confidence >= 60
             valid_signals = []
             for sig in results:
-                if (
-                    sig.get("signal") in ("BUY", "SELL")
-                    and sig.get("confidence", 0) >= 60
-                ):
-                    sig["direction"] = sig["signal"]
-                    sig["entry"] = sig.get("price", sig.get("entry", 0))
-                    sig["scan_type"] = scan_type
-                    db.add_signal(sig)
                 if sig.get("signal") in ("BUY", "SELL") and sig.get("confidence", 0) >= 60:
                     sig["direction"]  = sig["signal"]
                     sig["entry"]      = sig.get("price",      sig.get("entry", 0))
@@ -1343,7 +1345,6 @@ async def allocate_capital(
                     req.market_segment,
                     req.capital,
                 )
-                ),
             ),
             timeout=150
         )
@@ -1571,7 +1572,6 @@ class PredictionResolve(BaseModel):
 
 @app.post("/api/predictions")
 @limiter.limit("20/minute")
-async def create_prediction(pred: PredictionCreate, request: Request, _=Depends(require_session)):
 async def create_prediction(
     pred: PredictionCreate, request: Request, _=Depends(require_session)
 ):
@@ -1781,7 +1781,11 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
     try:
         # Get latest indicators via scan
         try:
-            signals = await sig_engine.run_scan()
+            loop = asyncio.get_event_loop()
+            signals = await loop.run_in_executor(
+                _executor,
+                functools.partial(sig_engine.run_scan, sig_engine.NSE_WATCHLIST),
+            )
         except Exception:
             signals = []
 

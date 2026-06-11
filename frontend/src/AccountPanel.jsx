@@ -49,14 +49,15 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://apextrade-core-trade-ai-backend.hf.space'}/api/upstox/status`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://apextrade-core-trade-ai-backend.hf.space'}/api/upstox/status`, {
+          credentials: 'include'
+        });
         if (res.ok) {
           const data = await res.json();
           setUpstoxStatus(data);
         }
       } catch (e) {
         console.error("Failed to fetch Upstox status:", e);
-      } finally {
         setUpstoxStatus({
           authorized: false,
           api_key_configured: false,
@@ -64,6 +65,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
           updated_at: null,
           user_name: null
         });
+      } finally {
         setLoadingStatus(false);
       }
     };
@@ -276,7 +278,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
                 <button
                   onClick={() => {
                     const baseUrl = import.meta.env.VITE_API_URL || 'https://apextrade-core-trade-ai-backend.hf.space';
-                    const state = window.location.origin;
+                    const state = encodeURIComponent(window.location.origin);
                     window.location.href = `${baseUrl}/api/upstox/authorize?state=${state}`;
                   }}
                   style={{
