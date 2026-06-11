@@ -1,6 +1,15 @@
 import { API_BASE_URL } from './api';
 import React, { useState } from 'react';
 
+function getTimeoutSignal(ms) {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms);
+  }
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}
+
 const T = {
   bg:         '#05070c',
   panel:      '#0d1017',
@@ -35,7 +44,7 @@ export default function LoginScreen({ onLogin }) {
     const wake = async () => {
       for (let i = 0; i < 4; i++) {
         try {
-          const r = await fetch(BASE_URL + "/", { method: "GET", signal: AbortSignal.timeout(10000) });
+          const r = await fetch(BASE_URL + "/", { method: "GET", signal: getTimeoutSignal(10000) });
           if (r.ok && !cancelled) { setServerReady(true); setWaking(false); return; }
         } catch (_) { /* server still waking */ }
         if (!cancelled) await new Promise(ok => setTimeout(ok, 2000 * (i + 1)));
@@ -69,7 +78,7 @@ export default function LoginScreen({ onLogin }) {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: payload,
-          signal: AbortSignal.timeout(15000),
+          signal: getTimeoutSignal(15000),
         });
         
         if (!res.ok) {
