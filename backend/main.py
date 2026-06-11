@@ -391,7 +391,7 @@ def get_history(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/search")
@@ -1335,7 +1335,7 @@ async def allocate_capital(
                     req.capital,
                 ),
             ),
-            timeout=150,
+            timeout=150
         )
     except asyncio.TimeoutError:
         return {
@@ -1515,7 +1515,7 @@ async def create_journal(
         row_id = db.add_journal_entry(entry.dict())
         return {"status": "success", "id": row_id}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/journal")
@@ -1523,15 +1523,19 @@ async def list_journal(request: Request, _=Depends(require_session)):
     try:
         return db.get_journal_entries()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
+@app.delete("/api/journal/{entry_id}")
+async def delete_journal_entry(entry_id: int, request: Request, _=Depends(require_session)):
+    try:
+        success = db.delete_journal_entry(entry_id)
         if not success:
             raise HTTPException(status_code=404, detail="Journal entry not found")
         return {"status": "success"}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ── Predictions Tracking API ──────────────────────────────────────────────────
@@ -1557,6 +1561,7 @@ class PredictionResolve(BaseModel):
 
 @app.post("/api/predictions")
 @limiter.limit("20/minute")
+async def create_prediction(pred: PredictionCreate, request: Request, _=Depends(require_session)):
 async def create_prediction(
     pred: PredictionCreate, request: Request, _=Depends(require_session)
 ):
@@ -1564,7 +1569,7 @@ async def create_prediction(
         row_id = db.add_prediction(pred.dict())
         return {"status": "success", "id": row_id}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/predictions")
@@ -1572,7 +1577,7 @@ async def list_predictions(request: Request, _=Depends(require_session)):
     try:
         return db.get_predictions()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.post("/api/predictions/{pred_id}/resolve")
@@ -1587,7 +1592,7 @@ async def resolve_prediction_route(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.delete("/api/predictions/{pred_id}")
@@ -1602,7 +1607,7 @@ async def delete_prediction_route(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/predictions/stats")
@@ -1758,7 +1763,7 @@ async def get_prediction_stats(request: Request, _=Depends(require_session)):
             "pattern_success_rates": pattern_success_rates
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/market_brief")
@@ -1842,4 +1847,4 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
             "briefing_text": briefing_text,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
