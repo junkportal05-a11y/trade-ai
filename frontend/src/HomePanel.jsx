@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 
-const BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+const BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
 
 const T = {
   bg:         '#080a0f',
@@ -46,7 +46,7 @@ const DEFAULT_WATCHLIST = [
   { symbol: 'ICICIBANK.NS',  name: 'ICICI Bank',     sector: 'Banking' },
   { symbol: 'SBIN.NS',       name: 'SBI',            sector: 'Banking' },
   { symbol: 'TATAMOTORS.NS', name: 'Tata Motors',    sector: 'Auto' },
-  { symbol: 'BHARTIARTEL.NS',name: 'Bharti Airtel',   sector: 'Telecom' },
+  { symbol: 'BHARTIARTL.NS',name: 'Bharti Airtel',   sector: 'Telecom' },
   { symbol: 'ITC.NS',        name: 'ITC',            sector: 'FMCG' },
   { symbol: 'LT.NS',         name: 'L&T',            sector: 'Infrastructure' },
   { symbol: 'ADANIENT.NS',   name: 'Adani Ent',      sector: 'Conglomerate' },

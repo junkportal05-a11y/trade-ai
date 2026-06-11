@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 
-const BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+const BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
 
 const T = {
   bg:       '#080a0f',
@@ -63,7 +63,7 @@ const WATCHLIST_STOCKS = [
   { symbol: 'ICICIBANK.NS', name: 'ICICI Bank' },
   { symbol: 'SBIN.NS', name: 'SBI' },
   { symbol: 'TATAMOTORS.NS', name: 'Tata Motors' },
-  { symbol: 'BHARTIARTEL.NS', name: 'Bharti Airtel' },
+  { symbol: 'BHARTIARTL.NS', name: 'Bharti Airtel' },
   { symbol: 'ITC.NS', name: 'ITC' },
   { symbol: 'LT.NS', name: 'L&T' },
   { symbol: 'ADANIENT.NS', name: 'Adani Ent' },

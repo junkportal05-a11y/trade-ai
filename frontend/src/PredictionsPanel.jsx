@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-const BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+const BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
 
 const T = {
   bg:         '#080a0f',
@@ -34,7 +34,7 @@ const WATCHLIST = [
   'HAL.NS', 'BEL.NS', 'RVNL.NS', 'IREDA.NS', 'HUDCO.NS',
   'COALINDIA.NS', 'NHPC.NS', 'ADANIPORTS.NS', 'TATAPOWER.NS', 'BHEL.NS',
   'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS',
-  'SBIN.NS', 'TATAMOTORS.NS', 'BHARTIARTEL.NS', 'ITC.NS', 'LT.NS',
+  'SBIN.NS', 'TATAMOTORS.NS', 'BHARTIARTL.NS', 'ITC.NS', 'LT.NS',
   'ADANIENT.NS', 'ADANIPOWER.NS', 'IRFC.NS', 'PFC.NS', 'REC.NS',
   'ZOMATO.NS', 'TATASTEEL.NS', 'SAIL.NS', 'WIPRO.NS', 'JIOFIN.NS',
   'SJVN.NS', 'GMRINFRA.NS', 'NBCC.NS', 'JINDALSTEL.NS', 'JSWSTEEL.NS',
