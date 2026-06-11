@@ -88,7 +88,7 @@ def authenticate_user(username: str, password: str) -> bool:
             password.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")
         ):
             return user_obj
-    except Exception:
+    except (ValueError, TypeError):
         pass
     return None
 
@@ -99,7 +99,7 @@ def authenticate_by_code(code: str):
             if bcrypt.hashpw(code.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")) == user_obj["pass_hash"].encode("utf-8") or \
                bcrypt.checkpw(code.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")):
                 return username, user_obj
-        except Exception:
+        except (ValueError, TypeError):
             pass
     return None, None
 
