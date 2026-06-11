@@ -63,7 +63,7 @@ const WATCHLIST_STOCKS = [
   { symbol: 'ICICIBANK.NS', name: 'ICICI Bank' },
   { symbol: 'SBIN.NS', name: 'SBI' },
   { symbol: 'TATAMOTORS.NS', name: 'Tata Motors' },
-  { symbol: 'BHARTIARTEL.NS', name: 'Bharti Airtel' },
+  { symbol: 'BHARTIARTL.NS', name: 'Bharti Airtel' },
   { symbol: 'ITC.NS', name: 'ITC' },
   { symbol: 'LT.NS', name: 'L&T' },
   { symbol: 'ADANIENT.NS', name: 'Adani Ent' },
