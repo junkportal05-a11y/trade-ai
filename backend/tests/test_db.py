@@ -1,8 +1,5 @@
-import os
 import pytest
-import sqlite3
 from unittest.mock import patch
-from datetime import datetime
 
 import backend.db as db
 
@@ -59,3 +56,47 @@ def test_update_signal(temp_db):
                 assert row["exit_price"] == 110.0
                 assert row["pnl_pct"] == 10.0
                 assert row["exit_at"] is not None
+
+
+def test_clear_history(temp_db):
+    """Test clearing all records from the signals_history table."""
+
+    mock_signal = {
+        "symbol": "RELIANCE",
+        "name": "Reliance Industries",
+        "sector": "Energy",
+        "direction": "BUY",
+        "signal_type": "BUY",
+        "confidence": 90,
+        "score": 9,
+        "entry": 2500.0,
+        "entry_price": 2500.0,
+        "target": 2600.0,
+        "stop_loss": 2400.0,
+        "rr_ratio": 1.0,
+        "atr": 50.0,
+        "scan_type": "intraday",
+    }
+
+    with patch("backend.db.DB_PATH", str(temp_db)):
+        with patch("backend.db.IS_POSTGRES", False):
+            # Act: Add a signal
+            signal_id = db.add_signal(mock_signal)
+            assert signal_id is not None
+
+            # Assert: Verify the signal was added
+            with db._conn() as c:
+                row = c.execute(
+                    "SELECT COUNT(*) FROM signals_history"
+                ).fetchone()
+                assert row[0] == 1
+
+            # Act: Clear history
+            db.clear_history()
+
+            # Assert: Verify the table is empty
+            with db._conn() as c:
+                row = c.execute(
+                    "SELECT COUNT(*) FROM signals_history"
+                ).fetchone()
+                assert row[0] == 0
