@@ -459,8 +459,6 @@ async def get_signals(
                 _executor,
                 functools.partial(sig_engine.run_scan, watchlist),
             ),
-            timeout=85,
-            sig_engine.run_scan(watchlist),
             timeout=85
         )
     except asyncio.TimeoutError:
@@ -1336,13 +1334,6 @@ async def allocate_capital(
                     req.market_segment,
                     req.capital,
                 ),
-            sig_engine.run_scan(
-                target_symbols,
-                req.interval,
-                req.trading_style,
-                req.risk_level,
-                req.market_segment,
-                req.capital
             ),
             timeout=150,
         )
@@ -1565,11 +1556,10 @@ class PredictionResolve(BaseModel):
 
 
 @app.post("/api/predictions")
+@limiter.limit("20/minute")
 async def create_prediction(
     pred: PredictionCreate, request: Request, _=Depends(require_session)
 ):
-@limiter.limit("20/minute")
-async def create_prediction(pred: PredictionCreate, request: Request, _=Depends(require_session)):
     try:
         row_id = db.add_prediction(pred.dict())
         return {"status": "success", "id": row_id}
@@ -1716,7 +1706,6 @@ async def get_prediction_stats(request: Request, _=Depends(require_session)):
         for p in resolved:
             sec = SECTORS_MAP.get(p["symbol"], "Other")
             sector_totals[sec] = sector_totals.get(sec, 0) + 1
-            if p["status"] == "CORRECT":
             if p['status'].upper() in ('CORRECT', 'WIN'):
                 sector_wins[sec] = sector_wins.get(sec, 0) + 1
 
