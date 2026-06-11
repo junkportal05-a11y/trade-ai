@@ -1092,7 +1092,7 @@ function ChatPanel({ symbol, price, changePct }) {
     setMsgs(m => [...m, { role: 'user', text: userMsg }]);
     setBusy(true);
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+      const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: {
@@ -1703,7 +1703,7 @@ export default function App() {
 
   // Warm up backend in the background as soon as the app mounts (during login screen presentation)
   useEffect(() => {
-    const BASE_URL = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+    const BASE_URL = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
     fetch(`${BASE_URL}/`).catch(() => {});
   }, []);
 
@@ -1810,7 +1810,7 @@ export default function App() {
       if (lastShown !== todayStr && (hours > 9 || (hours === 9 && minutes >= 15))) {
         // Market is open or opened already today
         const token = sessionStorage.getItem('apt_token') || '';
-        fetch(`${import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com"}/api/scan`, {
+        fetch(`${import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space"}/api/scan`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Session-Token': token },
           body: JSON.stringify({ symbols: DEFAULT_WATCHLIST.map(w=>w.symbol), interval: '15m', capital: cash })
@@ -1863,7 +1863,7 @@ export default function App() {
 
   const fetchMarketBrief = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+    const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
     const token = sessionStorage.getItem('apt_token') || '';
     setLoadingBrief(true);
     fetch(`${API_BASE}/api/market_brief`, {
@@ -1881,7 +1881,7 @@ export default function App() {
 
   const fetchPredictionStats = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+    const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
     const token = sessionStorage.getItem('apt_token') || '';
     fetch(`${API_BASE}/api/predictions/stats`, {
       headers: { 'X-Session-Token': token }
@@ -1971,7 +1971,7 @@ export default function App() {
     if (!loggedIn) return;
     try {
       const token = sessionStorage.getItem('apt_token') || '';
-      const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+      const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
       const res = await fetch(`${API_BASE}/api/predictions`, {
         headers: { 'X-Session-Token': token }
       });
@@ -1997,7 +1997,7 @@ export default function App() {
   useEffect(() => {
     if (!loggedIn || pendingPredictions.length === 0) return;
 
-    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+    const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
 
     pendingPredictions.forEach(async (pred) => {
       if (resolvingIds.current.has(pred.id)) return;
@@ -2080,7 +2080,7 @@ export default function App() {
     
     const timer = setTimeout(async () => {
       try {
-        const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+        const API_BASE = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
         const cleanedSymbol = selected.replace('.NS', '');
         const currentPrices = pricesRef.current || {};
         const livePrice = currentPrices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
