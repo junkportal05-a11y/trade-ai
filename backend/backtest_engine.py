@@ -10,15 +10,16 @@ import pandas as pd
 import numpy as np
 from signals import download_market_data_df
 
+
 def run_historical_backtest(
-    symbol: str, 
-    period_range: str = "6mo", 
+    symbol: str,
+    period_range: str = "6mo",
     initial_capital: float = 10000.0,
     stop_atr: float = 1.5,
     target_atr: float = 2.5,
     entry_score: int = 5,
     risk_pct: float = 0.02,
-    early_exit: int = -4
+    early_exit: int = -4,
 ) -> dict:
     """
     Runs a historical strategy backtest on Daily (1D) bars with configurable risk/target and early exit thresholds.
@@ -26,7 +27,7 @@ def run_historical_backtest(
     try:
         # Download daily data via unified abstraction layer
         df = download_market_data_df(symbol, period_range, "1d")
-        
+
         if df is None or len(df) < 30:
             return {"error": f"Insufficient historical data fetched for {symbol}."}
 
@@ -47,7 +48,7 @@ def run_historical_backtest(
         # Calculate standard indicator columns
         df["EMA_9"] = close.ewm(span=9, adjust=False).mean()
         df["EMA_21"] = close.ewm(span=21, adjust=False).mean()
-        df["EMA_50"] = close.ewm(span=50, adjust=False).mean() # Daily trend filter
+        df["EMA_50"] = close.ewm(span=50, adjust=False).mean()  # Daily trend filter
 
         # RSI(14)
         delta = close.diff()
@@ -70,11 +71,14 @@ def run_historical_backtest(
         df["BBL"] = bb_mid - 2 * bb_std
 
         # ATR(14)
-        tr = pd.concat([
-            high - low,
-            (high - close.shift()).abs(),
-            (low - close.shift()).abs(),
-        ], axis=1).max(axis=1)
+        tr = pd.concat(
+            [
+                high - low,
+                (high - close.shift()).abs(),
+                (low - close.shift()).abs(),
+            ],
+            axis=1,
+        ).max(axis=1)
         df["ATR"] = tr.rolling(14).mean()
 
         # Supertrend(7, 3.0)
@@ -83,7 +87,7 @@ def run_historical_backtest(
         basic_lower = (high + low) / 2 - 3.0 * atr7
         supert = pd.Series(np.nan, index=df.index)
         supert_dir = pd.Series(1.0, index=df.index)
-        
+
         for i in range(1, len(df)):
             bu = basic_upper.iloc[i]
             bl = basic_lower.iloc[i]
@@ -107,8 +111,16 @@ def run_historical_backtest(
         down_move = -low.diff()
         plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0.0)
         minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0.0)
-        plus_di = 100 * pd.Series(plus_dm, index=df.index).rolling(14).mean() / df["ATR"].replace(0, np.nan)
-        minus_di = 100 * pd.Series(minus_dm, index=df.index).rolling(14).mean() / df["ATR"].replace(0, np.nan)
+        plus_di = (
+            100
+            * pd.Series(plus_dm, index=df.index).rolling(14).mean()
+            / df["ATR"].replace(0, np.nan)
+        )
+        minus_di = (
+            100
+            * pd.Series(minus_dm, index=df.index).rolling(14).mean()
+            / df["ATR"].replace(0, np.nan)
+        )
         dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan)
         df["ADX"] = dx.rolling(14).mean()
 
@@ -123,7 +135,9 @@ def run_historical_backtest(
 
         # ── Chronological Simulation Loop ─────────────────────────────────────
         capital = initial_capital
-        position = None  # None or dict: {entry_price, stop_loss, target, shares, entry_date}
+        position = (
+            None  # None or dict: {entry_price, stop_loss, target, shares, entry_date}
+        )
         trades = []
         equity_curve = []
 
@@ -133,55 +147,70 @@ def run_historical_backtest(
             price = float(close.iloc[i])
             curr_high = float(high.iloc[i])
             curr_low = float(low.iloc[i])
-            
+
             # Record daily equity (value of cash + open positions)
             pos_value = 0
             if position:
                 pos_value = position["shares"] * price
-            equity_curve.append({
-                "date": current_date,
-                "value": round(capital + pos_value, 2)
-            })
+            equity_curve.append(
+                {"date": current_date, "value": round(capital + pos_value, 2)}
+            )
 
             # Check open positions for Exits
             if position:
                 # 1. Check Stop Loss
                 if curr_low <= position["stop_loss"]:
-                    pnl = (position["stop_loss"] - position["entry_price"]) * position["shares"]
-                    capital += (position["shares"] * position["stop_loss"])
-                    trades.append({
-                        "symbol": symbol,
-                        "direction": "BUY",
-                        "entry_date": position["entry_date"],
-                        "exit_date": current_date,
-                        "entry_price": position["entry_price"],
-                        "exit_price": position["stop_loss"],
-                        "shares": position["shares"],
-                        "pnl": round(pnl, 2),
-                        "pnl_pct": round((pnl / (position["entry_price"] * position["shares"])) * 100, 2),
-                        "status": "HIT_STOP",
-                        "reason": "Hard stop-loss level triggered."
-                    })
+                    pnl = (position["stop_loss"] - position["entry_price"]) * position[
+                        "shares"
+                    ]
+                    capital += position["shares"] * position["stop_loss"]
+                    trades.append(
+                        {
+                            "symbol": symbol,
+                            "direction": "BUY",
+                            "entry_date": position["entry_date"],
+                            "exit_date": current_date,
+                            "entry_price": position["entry_price"],
+                            "exit_price": position["stop_loss"],
+                            "shares": position["shares"],
+                            "pnl": round(pnl, 2),
+                            "pnl_pct": round(
+                                (pnl / (position["entry_price"] * position["shares"]))
+                                * 100,
+                                2,
+                            ),
+                            "status": "HIT_STOP",
+                            "reason": "Hard stop-loss level triggered.",
+                        }
+                    )
                     position = None
                     continue
 
                 # 2. Check Profit Target
                 elif curr_high >= position["target"]:
-                    pnl = (position["target"] - position["entry_price"]) * position["shares"]
-                    capital += (position["shares"] * position["target"])
-                    trades.append({
-                        "symbol": symbol,
-                        "direction": "BUY",
-                        "entry_date": position["entry_date"],
-                        "exit_date": current_date,
-                        "entry_price": position["entry_price"],
-                        "exit_price": position["target"],
-                        "shares": position["shares"],
-                        "pnl": round(pnl, 2),
-                        "pnl_pct": round((pnl / (position["entry_price"] * position["shares"])) * 100, 2),
-                        "status": "HIT_TARGET",
-                        "reason": "Take-profit target hit."
-                    })
+                    pnl = (position["target"] - position["entry_price"]) * position[
+                        "shares"
+                    ]
+                    capital += position["shares"] * position["target"]
+                    trades.append(
+                        {
+                            "symbol": symbol,
+                            "direction": "BUY",
+                            "entry_date": position["entry_date"],
+                            "exit_date": current_date,
+                            "entry_price": position["entry_price"],
+                            "exit_price": position["target"],
+                            "shares": position["shares"],
+                            "pnl": round(pnl, 2),
+                            "pnl_pct": round(
+                                (pnl / (position["entry_price"] * position["shares"]))
+                                * 100,
+                                2,
+                            ),
+                            "status": "HIT_TARGET",
+                            "reason": "Take-profit target hit.",
+                        }
+                    )
                     position = None
                     continue
 
@@ -190,7 +219,7 @@ def run_historical_backtest(
             # Indicator values
             rsi_val = float(df["RSI_14"].iloc[i])
             macd_h = float(df["MACDh"].iloc[i])
-            macd_h_prev = float(df["MACDh"].iloc[i-1])
+            macd_h_prev = float(df["MACDh"].iloc[i - 1])
             macd_v = float(df["MACD"].iloc[i])
             macd_s = float(df["MACDs"].iloc[i])
             ema9_v = float(df["EMA_9"].iloc[i])
@@ -226,7 +255,7 @@ def run_historical_backtest(
                 score += 2
             elif macd_h < 0 and macd_h < macd_h_prev:
                 score -= 2
-            if macd_v > macd_s and df["MACD"].iloc[i-1] <= df["MACDs"].iloc[i-1]:
+            if macd_v > macd_s and df["MACD"].iloc[i - 1] <= df["MACDs"].iloc[i - 1]:
                 score += 2
 
             # 4. EMA 9/21 Trend Crossover
@@ -264,8 +293,8 @@ def run_historical_backtest(
                 c_high = float(high.iloc[i])
                 c_low = float(low.iloc[i])
                 c_close = float(close.iloc[i])
-                p_open = float(open_p.iloc[i-1])
-                p_close = float(close.iloc[i-1])
+                p_open = float(open_p.iloc[i - 1])
+                p_close = float(close.iloc[i - 1])
 
                 c_body = abs(c_close - c_open)
                 c_range = (c_high - c_low) if (c_high - c_low) > 0 else 0.001
@@ -277,15 +306,33 @@ def run_historical_backtest(
 
                 if has_vol_anomaly:
                     # Hammer
-                    if l_wick > (2 * c_body) and u_wick < (0.1 * c_range) and c_body > (0.05 * c_range):
+                    if (
+                        l_wick > (2 * c_body)
+                        and u_wick < (0.1 * c_range)
+                        and c_body > (0.05 * c_range)
+                    ):
                         score += 3
                     # Shooting Star
-                    elif u_wick > (2 * c_body) and l_wick < (0.1 * c_range) and c_body > (0.05 * c_range):
+                    elif (
+                        u_wick > (2 * c_body)
+                        and l_wick < (0.1 * c_range)
+                        and c_body > (0.05 * c_range)
+                    ):
                         score -= 3
                     # Engulfing
-                    elif c_close > c_open and p_close < p_open and c_close >= p_open and c_open <= p_close:
+                    elif (
+                        c_close > c_open
+                        and p_close < p_open
+                        and c_close >= p_open
+                        and c_open <= p_close
+                    ):
                         score += 3
-                    elif c_close < c_open and p_close > p_open and c_close <= p_open and c_open >= p_close:
+                    elif (
+                        c_close < c_open
+                        and p_close > p_open
+                        and c_close <= p_open
+                        and c_open >= p_close
+                    ):
                         score -= 3
             except Exception:
                 pass
@@ -298,20 +345,26 @@ def run_historical_backtest(
             if position and score <= early_exit:
                 # Early exit
                 pnl = (price - position["entry_price"]) * position["shares"]
-                capital += (position["shares"] * price)
-                trades.append({
-                    "symbol": symbol,
-                    "direction": "BUY",
-                    "entry_date": position["entry_date"],
-                    "exit_date": current_date,
-                    "entry_price": position["entry_price"],
-                    "exit_price": price,
-                    "shares": position["shares"],
-                    "pnl": round(pnl, 2),
-                    "pnl_pct": round((pnl / (position["entry_price"] * position["shares"])) * 100, 2),
-                    "status": "CLOSED",
-                    "reason": "Early exit on bearish indicators crossover."
-                })
+                capital += position["shares"] * price
+                trades.append(
+                    {
+                        "symbol": symbol,
+                        "direction": "BUY",
+                        "entry_date": position["entry_date"],
+                        "exit_date": current_date,
+                        "entry_price": position["entry_price"],
+                        "exit_price": price,
+                        "shares": position["shares"],
+                        "pnl": round(pnl, 2),
+                        "pnl_pct": round(
+                            (pnl / (position["entry_price"] * position["shares"]))
+                            * 100,
+                            2,
+                        ),
+                        "status": "CLOSED",
+                        "reason": "Early exit on bearish indicators crossover.",
+                    }
+                )
                 position = None
                 continue
 
@@ -320,7 +373,7 @@ def run_historical_backtest(
                 # Risk Sizing Rule
                 stop_loss = round(price - stop_atr * atr_val, 2)
                 target = round(price + target_atr * atr_val, 2)
-                
+
                 risk_per_share = price - stop_loss
                 if risk_per_share <= 0:
                     continue
@@ -338,41 +391,49 @@ def run_historical_backtest(
                         "stop_loss": stop_loss,
                         "target": target,
                         "shares": shares,
-                        "entry_date": current_date
+                        "entry_date": current_date,
                     }
 
         # Handle any left-over active position at end of backtest range
         if position:
             last_price = float(close.iloc[-1])
             pnl = (last_price - position["entry_price"]) * position["shares"]
-            capital += (position["shares"] * last_price)
-            trades.append({
-                "symbol": symbol,
-                "direction": "BUY",
-                "entry_date": position["entry_date"],
-                "exit_date": df.index[-1].strftime("%Y-%m-%d"),
-                "entry_price": position["entry_price"],
-                "exit_price": last_price,
-                "shares": position["shares"],
-                "pnl": round(pnl, 2),
-                "pnl_pct": round((pnl / (position["entry_price"] * position["shares"])) * 100, 2),
-                "status": "PENDING",
-                "reason": "Position active (unresolved at end of simulation timeframe)."
-            })
+            capital += position["shares"] * last_price
+            trades.append(
+                {
+                    "symbol": symbol,
+                    "direction": "BUY",
+                    "entry_date": position["entry_date"],
+                    "exit_date": df.index[-1].strftime("%Y-%m-%d"),
+                    "entry_price": position["entry_price"],
+                    "exit_price": last_price,
+                    "shares": position["shares"],
+                    "pnl": round(pnl, 2),
+                    "pnl_pct": round(
+                        (pnl / (position["entry_price"] * position["shares"])) * 100, 2
+                    ),
+                    "status": "PENDING",
+                    "reason": "Position active (unresolved at end of simulation timeframe).",
+                }
+            )
 
         # Calculate final stats
         total_trades = len(trades)
         wins = len([t for t in trades if t["pnl"] > 0])
         losses = len([t for t in trades if t["pnl"] < 0])
         win_rate = round((wins / total_trades) * 100, 1) if total_trades > 0 else 0.0
-        
+
         total_pnl = round(capital - initial_capital, 2)
         total_pnl_pct = round((total_pnl / initial_capital) * 100, 2)
 
         # Profit factor
         gross_profit = sum(t["pnl"] for t in trades if t["pnl"] > 0)
         gross_loss = abs(sum(t["pnl"] for t in trades if t["pnl"] < 0))
-        profit_factor = round(gross_profit / gross_loss, 2) if gross_loss > 0 else (round(gross_profit, 2) if gross_profit > 0 else 1.00)
+        profit_factor = (
+            round(gross_profit / gross_loss, 2)
+            if gross_loss > 0
+            else (round(gross_profit, 2) if gross_profit > 0 else 1.00)
+        )
 
         # Calculate Max Drawdown %
         equity_series = [eq["value"] for eq in equity_curve]
@@ -401,7 +462,7 @@ def run_historical_backtest(
             "profit_factor": profit_factor,
             "max_drawdown": max_drawdown,
             "trades": trades,
-            "equity_curve": equity_curve
+            "equity_curve": equity_curve,
         }
 
     except Exception as e:
