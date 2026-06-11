@@ -505,6 +505,15 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
         vol_ratio = (volume / vol_avg.replace(0, 1)).iloc[-1]
         vol_r     = float(vol_ratio)
 
+        # Pre-compute Swings and Support/Resistance to avoid duplicate calls later
+        try:
+            import candlestick_patterns
+            cached_sh, cached_sl = candlestick_patterns.detect_swings(df, window=5)
+            cached_support, cached_resistance = candlestick_patterns.find_support_resistance(df, cached_sh, cached_sl)
+        except Exception:
+            cached_sh, cached_sl = [], []
+            cached_support, cached_resistance = None, None
+
         # ── Scoring system (Bullish: positive, Bearish: negative) ─────────────
         if style == "My Strategy":
             # ──────────────────────────────────────────────────────────────────
@@ -520,8 +529,8 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
                 import candlestick_patterns
 
                 # 1. Swings & Support/Resistance
-                swing_highs, swing_lows = candlestick_patterns.detect_swings(df, window=5)
-                support_val, resist_val = candlestick_patterns.find_support_resistance(df, swing_highs, swing_lows)
+                swing_highs, swing_lows = cached_sh, cached_sl
+                support_val, resist_val = cached_support, cached_resistance
 
                 # 2. SMC Structure Breaks (BOS / CHoCH)
                 struct_break, struct_reason = candlestick_patterns.detect_structure_breaks(df, swing_highs, swing_lows)
@@ -886,11 +895,7 @@ def analyse_symbol(symbol: str, name: str, sector: str, style: str = "Intraday M
 
             # Smart Money Stop Loss Setup via calculate_risk_parameters
             import candlestick_patterns
-            try:
-                sh, sl = candlestick_patterns.detect_swings(df, window=5)
-                support, resistance = candlestick_patterns.find_support_resistance(df, sh, sl)
-            except Exception:
-                support, resistance = None, None
+            support, resistance = cached_support, cached_resistance
                 
             is_buy = bull_pts > bear_pts
             signal_type = "BULLISH" if is_buy else "BEARISH"
