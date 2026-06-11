@@ -724,6 +724,8 @@ def reconcile_pending_signals():
     now_utc = datetime.utcnow()
     now_ist = now_utc + timedelta(hours=5, minutes=30)
     
+    signal_updates = []
+
     for sig in pending:
         symbol = sig["symbol"]
         cached = LIVE_PRICES_CACHE.get(symbol)
@@ -767,7 +769,7 @@ def reconcile_pending_signals():
                 pnl = (entry_price - exit_price) / entry_price * 100
                 
         if hit:
-            db.update_signal_status(sig["id"], status, exit_price, pnl)
+            signal_updates.append((status, exit_price, db._now_ist(), pnl, sig["id"]))
             continue
             
         # Check Expiry
@@ -789,7 +791,7 @@ def reconcile_pending_signals():
                     else:
                         pnl_calc = (entry_price - current_price) / entry_price * 100
                         
-                    db.update_signal_status(sig["id"], "EXPIRED", current_price, pnl_calc)
+                    signal_updates.append(("EXPIRED", current_price, db._now_ist(), pnl_calc, sig["id"]))
             else:
                 # OVERNIGHT: 5 days limit
                 days_diff = (now_utc - scanned_dt_utc).days
@@ -800,9 +802,12 @@ def reconcile_pending_signals():
                     else:
                         pnl_calc = (entry_price - current_price) / entry_price * 100
                         
-                    db.update_signal_status(sig["id"], "EXPIRED", current_price, pnl_calc)
+                    signal_updates.append(("EXPIRED", current_price, db._now_ist(), pnl_calc, sig["id"]))
         except Exception:
             pass
+
+    if signal_updates:
+        db.update_signals_batch(signal_updates)
 
 
 AUTO_SCAN_INTERVAL_OPEN   = 60
@@ -852,6 +857,7 @@ async def auto_scan_loop():
 
             # ── 2. Reconcile pending signals vs live prices ──────────────────
             pending = db.get_pending_signals()
+            signal_updates = []
             for trade in pending:
                 live = LIVE_PRICES_CACHE.get(trade["symbol"])
                 if live is None:
@@ -867,10 +873,13 @@ async def auto_scan_loop():
 
                 if hit_target:
                     pnl = db._calc_pnl(trade["signal_type"], trade["entry_price"], price)
-                    db.update_signal(trade["id"], "HIT_TARGET", price, pnl)
+                    signal_updates.append(("HIT_TARGET", price, db._now_ist(), pnl, trade["id"]))
                 elif hit_stop:
                     pnl = db._calc_pnl(trade["signal_type"], trade["entry_price"], price)
-                    db.update_signal(trade["id"], "HIT_STOP", price, pnl)
+                    signal_updates.append(("HIT_STOP", price, db._now_ist(), pnl, trade["id"]))
+
+            if signal_updates:
+                db.update_signals_batch(signal_updates)
 
             # ── 3. Expire stale intraday signals ─────────────────────────────
             db.expire_old_intraday()
