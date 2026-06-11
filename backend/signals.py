@@ -1228,9 +1228,13 @@ def run_scan(
     
     avg_atr_pct = sum((s.get("atr", 0) / s.get("price", 1) * 100) for s in first_pass_results) / len(first_pass_results) if first_pass_results else 1.0
 
-    if pct_above_ema21 > 60 and avg_atr_pct < 2.0:
+    if pct_above_ema21 > 60 and avg_atr_pct < 1.5:
+        market_regime = "LOW_VOLATILITY_BREAKOUT"
+    elif pct_above_ema21 > 70 and avg_atr_pct >= 1.5:
+        market_regime = "HIGH_MOMENTUM"
+    elif pct_above_ema21 > 50 and avg_atr_pct < 2.0:
         market_regime = "TRENDING_BULLISH"
-    elif pct_above_ema21 < 40 and avg_atr_pct < 2.0:
+    elif pct_above_ema21 < 30 and avg_atr_pct < 2.0:
         market_regime = "TRENDING_BEARISH"
     elif avg_atr_pct >= 2.5 and pct_above_ema21 < 30:
         market_regime = "PANIC"
@@ -1270,7 +1274,11 @@ def run_scan(
 
     weights = get_learned_weights()
     results = []
-
+    
+    portfolio_state = db.get_portfolio_state()
+    active_sector_exposures = portfolio_state.get("sector_exposure", {})
+    total_active_positions = len(portfolio_state.get("active_positions", []))
+    
     for r in first_pass_results:
         sec = r["sector"]
         sector_score = sector_scores.get(sec, 10.0)
@@ -1383,14 +1391,24 @@ def run_scan(
         r["expected_move_pct"] = expected_move_pct
         r["estimated_profit"] = estimated_profit
         
-        # Total Risk & Position Size
+        # Phase Omega: Dynamic Position Sizing
+        # Size = Risk Amount / Stop Distance * (Confidence Multiplier) * (PF Multiplier)
         risk_per_share = r.get("risk", 0)
-        total_risk_amount = capital * 0.01  # 1% risk per trade
+        base_risk_amount = capital * 0.01  # 1% risk per trade limit
+        
+        # We assume PF multiplier is 1.0 for now unless strategy health says otherwise.
+        confidence_multiplier = min(1.0, setup_quality / 100.0)
+        total_risk_amount = base_risk_amount * confidence_multiplier
         
         if risk_per_share > 0:
             qty = total_risk_amount / risk_per_share
         else:
             qty = 0
+            
+        # Enforce max 1% single position risk
+        max_investment = capital * 0.20 # E.g. never put more than 20% of capital in one stock
+        if (qty * entry) > max_investment:
+            qty = max_investment / entry
         
         qty_label = f"{int(qty)} Shares" if qty >= 1 else f"{qty:.2f} Shares"
         
@@ -1406,6 +1424,40 @@ def run_scan(
             setup_type = str(r["reasons"][0]).split('(')[0].strip()
         r["setup_type"] = setup_type.upper().replace(' ', '_')
 
+        # Trade Quality Component Scores (0-100)
+        regime_score = market_cond_score
+        sector_score_normalized = min(100.0, (sector_score / 20.0) * 100.0)
+        vol_score_normalized = min(100.0, (r["_volume_score"] / 20.0) * 100.0)
+        rs_score_normalized = min(100.0, max(0.0, 50.0 + (relative_strength * 10.0)))
+        news_score_normalized = min(100.0, max(0.0, (r.get("news_sentiment", 0.0) + 100.0) / 2.0))
+        correlation_score = 100.0 if active_sector_exposures.get(sec, 0) < 1 else 30.0 # simple correlation proxy
+        
+        # Weighted Trade Quality Score
+        trade_quality_score = (
+            regime_score * 0.25 + 
+            sector_score_normalized * 0.20 + 
+            rs_score_normalized * 0.20 + 
+            vol_score_normalized * 0.15 + 
+            news_score_normalized * 0.10 + 
+            correlation_score * 0.10
+        )
+        
+        r["regime_score"] = round(regime_score, 2)
+        r["sector_score"] = round(sector_score_normalized, 2)
+        r["volume_score"] = round(vol_score_normalized, 2)
+        r["rs_score"] = round(rs_score_normalized, 2)
+        r["news_score"] = round(news_score_normalized, 2)
+        r["correlation_score"] = round(correlation_score, 2)
+        r["trade_quality_score"] = round(trade_quality_score, 2)
+
+        # Dynamic Threshold based on Market Regime
+        if market_regime in ["PANIC", "VOLATILE"]:
+            dynamic_tqs_threshold = 85.0
+        elif market_regime in ["HIGH_MOMENTUM", "LOW_VOLATILITY_BREAKOUT"]:
+            dynamic_tqs_threshold = 70.0
+        else:
+            dynamic_tqs_threshold = 75.0
+
         # ── Define Signal Output ──
         score = r["score"]
         if confidence >= 72 and score >= 4:
@@ -1419,34 +1471,71 @@ def run_scan(
         else:
             sig = "HOLD"
 
-        # ── Stock Selection Rules (Phase 3 Strict Filtering) ──
+        # ── Stock Selection Rules (Phase Omega Strict Filtering) ──
+        rejection_reason = None
+        rejection_category = None
         
-        # 1. Market Trend Alignment (Kill trades fighting NIFTY moving averages)
+        # 1. Market Trend Alignment
         if is_buy_signal and nifty_trend_bias == "BEARISH":
             sig = "HOLD"
+            rejection_category = "MACRO_FILTER"
+            rejection_reason = "NIFTY_BEARISH"
             
-        # 2. Sector Strength (Kill trades not in Top 3 strongest sectors)
-        if sec not in top_3_sectors:
+        # 2. Sector Strength 
+        elif sec not in top_3_sectors:
             sig = "HOLD"
+            rejection_category = "SECTOR_FILTER"
+            rejection_reason = "WEAK_SECTOR"
             
-        # 3. Relative Strength (Kill longs underperforming NIFTY, shorts outperforming NIFTY)
-        if is_buy_signal and relative_strength < 0:
+        # 3. Relative Strength
+        elif is_buy_signal and relative_strength < 0:
             sig = "HOLD"
+            rejection_category = "RS_FILTER"
+            rejection_reason = "UNDERPERFORMING_NIFTY"
         elif not is_buy_signal and relative_strength > 0:
             sig = "HOLD"
+            rejection_category = "RS_FILTER"
+            rejection_reason = "OUTPERFORMING_NIFTY"
 
         # 4. Market Regime Safety
-        if market_regime == "PANIC" and is_buy_signal:
+        elif market_regime == "PANIC" and is_buy_signal:
             sig = "HOLD"
+            rejection_category = "REGIME_FILTER"
+            rejection_reason = "PANIC_REGIME_NO_LONGS"
         elif market_regime == "RANGING" and (40 < r.get("rsi", 50) < 60):
-            sig = "HOLD"  # Ignore chopped setups in ranging markets
+            sig = "HOLD"
+            rejection_category = "REGIME_FILTER"
+            rejection_reason = "RANGING_CHOP"
 
         # 5. Core Validation
-        if r["vol_ratio"] < 1.0 or r["rr_ratio"] < 1.5:
+        elif r["vol_ratio"] < 1.0 or r["rr_ratio"] < 1.5:
             sig = "HOLD"
+            rejection_category = "VALIDATION_FILTER"
+            rejection_reason = "LOW_VOLUME_OR_RR"
+            
+        # 6. Trade Quality Score Cutoff
+        elif trade_quality_score < dynamic_tqs_threshold:
+            sig = "HOLD"
+            rejection_category = "QUALITY_FILTER"
+            rejection_reason = f"TQS_BELOW_THRESHOLD_({dynamic_tqs_threshold})"
+            
+        # 7. Portfolio Correlation & Sector Exposure Check
+        elif active_sector_exposures.get(sec, 0) >= 2: # Max 2 open positions per sector
+            sig = "HOLD"
+            rejection_category = "PORTFOLIO_LIMIT"
+            rejection_reason = "MAX_SECTOR_EXPOSURE_REACHED"
 
         r["signal"] = sig
         r["direction"] = sig
+        
+        # Log Rejected Signals into Database for Filter Attribution
+        if sig == "HOLD" and rejection_reason:
+            r["rejection_category"] = rejection_category
+            r["rejection_reason"] = rejection_reason
+            r["signal_price"] = r["price"]
+            r["target_price"] = r["target1"]
+            db.add_rejected_signal(r)
+
         results.append(r)
 
     # Sort results
