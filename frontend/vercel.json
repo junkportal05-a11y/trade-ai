@@ -5,6 +5,11 @@
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
+  "build": {
+    "env": {
+      "VITE_API_URL": "https://apextrade-core-trade-ai-backend.hf.space"
+    }
+  },
   "env": {
     "VITE_API_URL": "https://apextrade-core-trade-ai-backend.hf.space"
   }

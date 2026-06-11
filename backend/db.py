@@ -504,6 +504,8 @@ def get_stats() -> dict:
             for r in dir_rows
         ]
 
+        cache = get_metrics_cache("dashboard_metrics") or {}
+        
         return {
             "total": total,
             "pending": pending,
@@ -516,6 +518,11 @@ def get_stats() -> dict:
             "avg_pnl": avg_pnl,
             "by_sector": by_sector,
             "by_direction": by_direction,
+            "profit_factor": cache.get("profit_factor", 0.0),
+            "ev_pct": cache.get("ev_pct", 0.0),
+            "max_drawdown": cache.get("max_drawdown", 0.0),
+            "avg_r": cache.get("avg_r", 0.0),
+            "leaderboard": cache.get("leaderboard", [])
         }
 
 

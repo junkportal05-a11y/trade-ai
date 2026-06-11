@@ -1750,155 +1750,39 @@ async def delete_prediction_route(
 async def get_prediction_stats(request: Request, _=Depends(require_session)):
     try:
         preds = db.get_predictions()
-        resolved = [p for p in preds if p["status"] != "PENDING"]
-        correct = [p for p in resolved if p["status"] == "CORRECT"]
-
-        win_rate = (
-            round((len(correct) / len(resolved)) * 100, 1) if len(resolved) > 0 else 0.0
-        )
-
-        # Calculate Mean Absolute Error (MAE) between target and actual resolved price
-        total_error = 0.0
-        for p in resolved:
-            actual = p.get("actual_outcome")
-            target = p.get("target_price")
-            if actual is not None and target is not None:
-                total_error += abs(target - actual)
-        avg_error = round(total_error / len(resolved), 2) if len(resolved) > 0 else 0.0
-
         resolved = [p for p in preds if p["status"] not in ("PENDING", "ACTIVE")]
-        correct = [p for p in resolved if p["status"].upper() in ("CORRECT", "WIN")]
         
-        win_rate = round((len(correct) / len(resolved)) * 100, 1) if len(resolved) > 0 else 0.0
+        # Fetch from high-performance cache
+        cache = db.get_metrics_cache("dashboard_metrics") or {}
         
-        # Calculate real financial metrics
-        gross_profit_pct = 0.0
-        gross_loss_pct = 0.0
-        winning_trades_pct = 0.0
-        losing_trades_pct = 0.0
-        win_count = 0
-        loss_count = 0
-        
-        equity_curve = [100.0]  # Base 100 to calculate drawdown %
-        peak_equity = 100.0
-        max_drawdown = 0.0
-        
-        # Sort ascending for time-series calculations
-        resolved_asc = sorted(resolved, key=lambda x: x.get("resolved_at") or x.get("prediction_date"))
-        
-        for p in resolved_asc:
-            is_bullish = p["prediction_type"].upper() in ("BULLISH", "UP")
-            entry = p["entry_price"]
-            actual = p.get("actual_outcome")
-            
-            if not actual or entry == 0:
-                continue
-                
-            # Calculate PnL %
-            if is_bullish:
-                pnl_pct = (actual - entry) / entry * 100
-            else:
-                pnl_pct = (entry - actual) / entry * 100
-                
-            if pnl_pct > 0:
-                gross_profit_pct += pnl_pct
-                winning_trades_pct += pnl_pct
-                win_count += 1
-            else:
-                gross_loss_pct += abs(pnl_pct)
-                losing_trades_pct += abs(pnl_pct)
-                loss_count += 1
-                
-            new_equity = equity_curve[-1] * (1 + (pnl_pct / 100))
-            equity_curve.append(new_equity)
-            
-            if new_equity > peak_equity:
-                peak_equity = new_equity
-                
-            dd = (peak_equity - new_equity) / peak_equity * 100
-            if dd > max_drawdown:
-                max_drawdown = dd
-
-        profit_factor = round(gross_profit_pct / gross_loss_pct, 2) if gross_loss_pct > 0 else (round(gross_profit_pct, 2) if gross_profit_pct > 0 else 0.0)
-        
-        avg_win_pct = round(winning_trades_pct / win_count, 2) if win_count > 0 else 0.0
-        avg_loss_pct = round(losing_trades_pct / loss_count, 2) if loss_count > 0 else 0.0
-        emp_rr_ratio = round(avg_win_pct / avg_loss_pct, 2) if avg_loss_pct > 0 else avg_win_pct
-        
-        ev_pct = round((gross_profit_pct - gross_loss_pct) / len(resolved_asc), 2) if len(resolved_asc) > 0 else 0.0
-        max_drawdown = round(max_drawdown, 2)
-        
-        # Best and worst sectors
-        SECTORS_MAP = {
-            "HAL.NS": "Defence",
-            "BEL.NS": "Defence",
-            "RVNL.NS": "Railways",
-            "IREDA.NS": "Green Energy",
-            "HUDCO.NS": "Finance",
-            "COALINDIA.NS": "Energy",
-            "NHPC.NS": "Power",
-            "ADANIPORTS.NS": "Infrastructure",
-            "TATAPOWER.NS": "Power",
-            "BHEL.NS": "Capital Goods",
-        }
-
-        sector_wins = {}
-        sector_totals = {}
-        for p in resolved:
-            sec = SECTORS_MAP.get(p["symbol"], "Other")
-            sector_totals[sec] = sector_totals.get(sec, 0) + 1
-            if p['status'].upper() in ('CORRECT', 'WIN'):
-                sector_wins[sec] = sector_wins.get(sec, 0) + 1
-
-        best_sector = "None"
-        best_rate = -1.0
-        worst_sector = "None"
-        worst_rate = 101.0
-
-        for sec, total in sector_totals.items():
-            rate = (sector_wins.get(sec, 0) / total) * 100
-            if rate > best_rate:
-                best_rate = rate
-                best_sector = f"{sec} ({rate:.0f}%)"
-            if rate < worst_rate:
-                worst_rate = rate
-                worst_sector = f"{sec} ({rate:.0f}%)"
-
-        # outcomes list for sparkline (last 20 resolved outcomes)
-        recent_outcomes = [p["status"] == "CORRECT" for p in resolved[:20]]
-
-        # Average confidence of predictions
-        avg_conf = (
-            round(sum(p["confidence_score"] for p in preds) / len(preds), 1)
-            if len(preds) > 0
-            else 0.0
-        )
-
+        # Calculate recent outcomes for the sparkline chart
         recent_outcomes = [p["status"].upper() in ("CORRECT", "WIN") for p in resolved[:20]]
+        avg_conf = round(sum(p["confidence_score"] for p in preds) / len(preds), 1) if preds else 0.0
         
-        # Average confidence of predictions
-        avg_conf = round(sum(p["confidence_score"] for p in preds) / len(preds), 1) if len(preds) > 0 else 0.0
-        
-        # Pattern success rates for feedback loop
+        # Get machine learning pattern rates
         pattern_success_rates = db.get_pattern_success_rates()
+        
+        win_rate = round((sum(1 for p in resolved if p["status"].upper() in ("CORRECT", "WIN")) / len(resolved)) * 100, 1) if resolved else 0.0
         
         return {
             "total_predictions": len(preds),
             "resolved_predictions": len(resolved),
             "win_rate": win_rate,
-            "profit_factor": profit_factor,
-            "empirical_rr_ratio": emp_rr_ratio,
-            "expected_value_pct": ev_pct,
-            "max_drawdown_pct": max_drawdown,
-            "average_win_pct": avg_win_pct,
-            "average_loss_pct": avg_loss_pct,
-            "best_sector": best_sector if best_rate >= 0 else "N/A",
-            "worst_sector": worst_sector if worst_rate <= 100 else "N/A",
+            "profit_factor": cache.get("profit_factor", 0.0),
+            "empirical_rr_ratio": cache.get("avg_r", 0.0),
+            "expected_value_pct": cache.get("ev_pct", 0.0),
+            "max_drawdown_pct": cache.get("max_drawdown", 0.0),
+            "average_win_pct": 0.0,  # Deprecated in favor of Avg R
+            "average_loss_pct": 0.0, # Deprecated in favor of Avg R
+            "best_sector": "N/A",    # Handled by strategy leaderboard
+            "worst_sector": "N/A",   # Handled by strategy leaderboard
             "recent_outcomes": recent_outcomes,
             "avg_confidence": avg_conf,
-            "pattern_success_rates": pattern_success_rates
+            "pattern_success_rates": pattern_success_rates,
+            "leaderboard": cache.get("leaderboard", [])
         }
-    except Exception:
+    except Exception as e:
+        print(f"Stats Error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
