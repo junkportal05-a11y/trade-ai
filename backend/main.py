@@ -63,9 +63,10 @@ ALLOWED_ORIGINS = os.getenv(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE", "PUT", "PATCH"],
-    allow_headers=["Content-Type", "X-Session-Token", "X-Admin-Key", "Authorization"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 from auth_helpers import (
