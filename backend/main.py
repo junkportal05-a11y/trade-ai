@@ -164,12 +164,45 @@ def upstox_authorize(state: Optional[str] = Query(None)):
             status_code=400,
             detail="Upstox API key or Redirect URI not configured in the environment."
         )
-    url = upstox_feed.get_login_url(state or "")
-    return RedirectResponse(url)
+
+    import secrets
+    csrf_token = secrets.token_urlsafe(32)
+    original_state = state or ""
+    oauth_state = f"{original_state}|{csrf_token}"
+
+    url = upstox_feed.get_login_url(oauth_state)
+    response = RedirectResponse(url)
+    response.set_cookie(
+        key="oauth_csrf_token",
+        value=csrf_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=600
+    )
+    return response
 
 
 @app.get("/api/upstox/callback")
 def upstox_callback(request: Request, code: str = Query(...), state: Optional[str] = Query(None)):
+    # Validate CSRF token in state
+    cookie_token = request.cookies.get("oauth_csrf_token")
+    if not cookie_token:
+        raise HTTPException(status_code=400, detail="Missing CSRF token in cookies")
+
+    if not state:
+        raise HTTPException(status_code=400, detail="Missing state parameter")
+
+    parts = state.rsplit("|", 1)
+    if len(parts) != 2:
+        raise HTTPException(status_code=400, detail="Invalid state parameter format")
+
+    original_state, state_csrf_token = parts
+
+    import hmac
+    if not hmac.compare_digest(cookie_token, state_csrf_token):
+        raise HTTPException(status_code=400, detail="CSRF token mismatch")
+
     # Reconstruct the exact redirect_uri used for this request to avoid OAuth mismatch
     redirect_uri = str(request.url).split("?")[0]
     if upstox_feed.UPSTOX_REDIRECT_URI.startswith("https://") and redirect_uri.startswith("http://"):
@@ -179,7 +212,7 @@ def upstox_callback(request: Request, code: str = Query(...), state: Optional[st
     if not res:
         raise HTTPException(status_code=400, detail="Failed to exchange authorization code for access token")
     
-    redirect_target = state or ""
+    redirect_target = original_state or ""
     if not redirect_target:
         redirect_uri_conf = upstox_feed.UPSTOX_REDIRECT_URI
         if "localhost" in redirect_uri_conf:
@@ -198,7 +231,9 @@ def upstox_callback(request: Request, code: str = Query(...), state: Optional[st
     else:
         redirect_target += "?broker_login=success"
         
-    return RedirectResponse(redirect_target)
+    response = RedirectResponse(redirect_target)
+    response.delete_cookie("oauth_csrf_token")
+    return response
 
 @app.get("/auth/callback")
 def upstox_callback_alias(request: Request, code: str = Query(...), state: Optional[str] = Query(None)):
@@ -833,6 +868,19 @@ def reconcile_pending_signals():
 AUTO_SCAN_INTERVAL_OPEN   = 60
 AUTO_SCAN_INTERVAL_CLOSED = 3600
 
+async def cleanup_sessions_loop():
+    """
+    Background task to clean up expired sessions periodically.
+    Runs every 1 hour (3600 seconds) to prevent memory leak
+    from unbounded ACTIVE_SESSIONS dictionary.
+    """
+    while True:
+        try:
+            cleanup_sessions()
+        except Exception as e:
+            print(f"[cleanup_sessions_loop] error: {e}")
+        await asyncio.sleep(3600)
+
 async def auto_scan_loop():
     """
     Background task:
@@ -899,6 +947,7 @@ async def startup_event():
     db.init_db()
     asyncio.create_task(fetch_live_quotes_loop())
     asyncio.create_task(auto_scan_loop())
+    asyncio.create_task(cleanup_sessions_loop())
 
 
 @app.websocket("/ws/prices")
