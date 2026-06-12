@@ -107,7 +107,10 @@ export default function LoginScreen({ onLogin }) {
         localStorage.setItem('is_logged_in', 'true');
         
         // Also store session token if provided (fallback for non-cookie auth)
-        if (data.token) sessionStorage.setItem('apt_token', data.token);
+        if (data.token) {
+          sessionStorage.setItem('apt_token', data.token);
+          localStorage.setItem('apt_token', data.token);
+        }
         
         // Propagate user metadata to parent App component
         onLogin(data.username, data.role, data.clearance);

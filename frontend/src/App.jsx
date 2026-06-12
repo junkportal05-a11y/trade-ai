@@ -1162,6 +1162,8 @@ function ChatPanel({ symbol, price, changePct }) {
       if (res.status === 401) {
         localStorage.removeItem('is_logged_in');
         localStorage.removeItem('apex_user');
+        localStorage.removeItem('apt_token');
+        sessionStorage.removeItem('apt_token');
         window.location.reload();
         return;
       }
@@ -1752,6 +1754,8 @@ export default function App() {
     localStorage.removeItem('apex_user');
     localStorage.removeItem('apex_role');
     localStorage.removeItem('apex_clearance');
+    localStorage.removeItem('apt_token');
+    sessionStorage.removeItem('apt_token');
     setLoggedIn(false);
   }, []);
 
