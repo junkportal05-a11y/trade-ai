@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './api';
+import { API_BASE_URL, apiFetch } from './api';
 /**
  * SignalsPanel.jsx
  * Unified Quantitative Scan & Capital Allocation Terminal
@@ -746,12 +746,8 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
     await new Promise(resolve => setTimeout(resolve, 0));
 
     try {
-      const res = await fetch(`${BASE}/api/allocate`, {
-        credentials: 'include',
+      const res = await apiFetch('/api/allocate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ 
           capital: amt,
           trading_style: selectedStyle

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './api';
+import { API_BASE_URL, apiFetch } from './api';
 import React, { useState, useEffect } from 'react';
 
 const BASE = API_BASE_URL;
@@ -49,10 +49,7 @@ export default function JournalPanel() {
   const fetchJournal = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${BASE}/api/journal`, {
-        credentials: 'include',
-        headers: {}
-      });
+      const res = await apiFetch('/api/journal');
       if (!res.ok) throw new Error("Failed to fetch journal entries");
       const data = await res.json();
       setEntries(Array.isArray(data) ? data : (data.entries || []));
@@ -79,10 +76,8 @@ export default function JournalPanel() {
         entry_date: new Date().toISOString()
       };
 
-      const res = await fetch(`${BASE}/api/journal`, {
-        credentials: 'include',
+      const res = await apiFetch('/api/journal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error("Failed to save entry");
@@ -97,10 +92,8 @@ export default function JournalPanel() {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this journal entry?")) return;
     try {
-      const res = await fetch(`${BASE}/api/journal/${id}`, {
-        credentials: 'include',
-        method: 'DELETE',
-        headers: {}
+      const res = await apiFetch(`/api/journal/${id}`, {
+        method: 'DELETE'
       });
       if (!res.ok) throw new Error("Failed to delete");
       fetchJournal();
