@@ -94,8 +94,8 @@ class HistoricalSimulator:
                 if high >= stop_loss:
                     return 'LOSS', stop_loss, idx
                     
-            # Check for end of day (03:15 PM timeout)
-            if idx.hour >= 15 and idx.minute >= 15:
+            # Timeout if it's the last tick of the day
+            if idx == df_forward.index[-1]:
                 return 'TIMEOUT', close, idx
 
         # If loop finishes without hitting
@@ -126,21 +126,23 @@ class HistoricalSimulator:
                 for day in tqdm(days, desc=f"Simulating {symbol}"):
                     df_day = df[df.index.date == day]
                     
-                    # 5-minute ticks from 09:15 to 15:15
-                    for i in range(20, len(df_day)):
+                    for i in range(20, len(df_day) - 5): # Ensure there's some forward data for resolution
                         current_time = df_day.index[i]
-                        
-                        # Only trade between 09:15 and 15:15
-                        if current_time.hour < 9 or (current_time.hour == 9 and current_time.minute < 15):
-                            continue
-                        if current_time.hour > 15 or (current_time.hour == 15 and current_time.minute > 15):
-                            continue
                             
                         # The sliding window
                         historical_window = df_day.iloc[:i+1]
                         
+                        def mock_download_market_data(sym, period, interval):
+                            if interval == "1d":
+                                return None # Ignore daily trend caching for backtesting
+                            return historical_window
+
+                        # Clear macro cache to prevent pollution across symbols and days
+                        if hasattr(signals, "_MACRO_CACHE"):
+                            signals._MACRO_CACHE.clear()
+
                         # Mocking live data fetch and market open check
-                        with mock.patch('signals._download_market_data', return_value=historical_window), \
+                        with mock.patch('signals._download_market_data', side_effect=mock_download_market_data), \
                              mock.patch('signals.is_nse_market_open', return_value=True):
                             
                             try:
