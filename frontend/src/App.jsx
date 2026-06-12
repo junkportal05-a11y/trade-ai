@@ -1,6 +1,6 @@
-import { API_BASE_URL } from './api';
+import { API_BASE_URL, apiFetch } from './api';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { createChart } from 'lightweight-charts';
+import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers, createTextWatermark } from 'lightweight-charts';
 import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
 import SignalsPanel from './SignalsPanel';
 import PerformancePanel from './PerformancePanel';
@@ -105,8 +105,8 @@ const SEED_PRICES = {
 };
 
 const INTERVALS = [
-  { label: '1D',  interval: '5m',  range: '1d' },
-  { label: '1W',  interval: '15m', range: '5d' },
+  { label: '1D',  interval: '30m', range: '1d' },
+  { label: '1W',  interval: '30m', range: '5d' },
   { label: '1M',  interval: '1d',  range: '1mo' },
   { label: '3M',  interval: '1d',  range: '3mo' },
   { label: '1Y',  interval: '1wk', range: '1y' },
@@ -128,6 +128,7 @@ const sign = (v) => v > 0 ? '+' : '';
 // ── Candlestick Chart (with volume and indicators) ────────────────────────
 function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [] }) {
   const mainContainerRef = useRef();
+  const legendRef = useRef();
   const rsiContainerRef = useRef();
   const macdContainerRef = useRef();
   
@@ -137,6 +138,8 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
 
   const candleSeriesRef = useRef();
   const volSeriesRef = useRef();
+  const liveTickRef = useRef();
+  const seriesMarkersRef = useRef();
   
   const { bars, loading, error } = useHistory(symbol, { interval, range, seedPrice: SEED_PRICES[symbol] });
 
@@ -180,7 +183,20 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     });
     mainChartRef.current = mainChart;
 
-    const candleSeries = mainChart.addCandlestickSeries({
+    // Add text watermark in v5
+    createTextWatermark(mainChart.panes()[0], {
+      horzAlign: 'center',
+      vertAlign: 'center',
+      lines: [
+        {
+          text: symbol,
+          color: 'rgba(123, 108, 255, 0.05)',
+          fontSize: 64,
+        }
+      ]
+    });
+
+    const candleSeries = mainChart.addSeries(CandlestickSeries, {
       upColor:       T.green,
       downColor:     T.red,
       borderVisible: false,
@@ -191,6 +207,34 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     candleSeries.setData(bars);
     candleSeriesRef.current = candleSeries;
 
+    // Initialize markers in v5
+    seriesMarkersRef.current = createSeriesMarkers(candleSeries, markers || []);
+
+    mainChart.subscribeCrosshairMove((param) => {
+      const legend = legendRef.current;
+      if (!legend) return;
+      if (!param.time || !param.point || param.point.x < 0 || param.point.y < 0) {
+        legend.style.display = 'none';
+        return;
+      }
+      const data = param.seriesData.get(candleSeries);
+      if (data) {
+        legend.style.display = 'block';
+        const color = data.close >= data.open ? T.green : T.red;
+        legend.innerHTML = `
+          <div style="font-weight: 700; margin-bottom: 4px; color: ${T.text}; font-size: 14px;">${symbol} <span style="color: ${T.textMid}; font-size: 11px;">(${interval})</span></div>
+          <div style="display: flex; gap: 14px; font-size: 12px; color: ${T.text};">
+            <span>O <span style="color: ${color}">${data.open.toFixed(2)}</span></span>
+            <span>H <span style="color: ${color}">${data.high.toFixed(2)}</span></span>
+            <span>L <span style="color: ${color}">${data.low.toFixed(2)}</span></span>
+            <span>C <span style="color: ${color}">${data.close.toFixed(2)}</span></span>
+          </div>
+        `;
+      } else {
+        legend.style.display = 'none';
+      }
+    });
+
     mainChart.subscribeClick((param) => {
       if (!param.point || !drawMode) return;
       const price = candleSeries.coordinateToPrice(param.point.y);
@@ -200,7 +244,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     });
 
     // Volume histogram on main chart
-    const volSeries = mainChart.addHistogramSeries({
+    const volSeries = mainChart.addSeries(HistogramSeries, {
       priceFormat:  { type: 'volume' },
       priceScaleId: 'vol',
       color: 'rgba(77,159,255,0.25)',
@@ -220,7 +264,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     // EMA 9 overlay
     if (indicators.ema9) {
       const ema9Data = calcEMA(bars, 9);
-      const ema9Series = mainChart.addLineSeries({
+      const ema9Series = mainChart.addSeries(LineSeries, {
         color: '#00e5a8',
         lineWidth: 1.5,
         title: 'EMA 9',
@@ -231,7 +275,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     // EMA 21 overlay
     if (indicators.ema21) {
       const ema21Data = calcEMA(bars, 21);
-      const ema21Series = mainChart.addLineSeries({
+      const ema21Series = mainChart.addSeries(LineSeries, {
         color: '#ff9f43',
         lineWidth: 1.5,
         title: 'EMA 21',
@@ -242,16 +286,16 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     // Bollinger Bands overlays
     if (indicators.bb) {
       const bbData = calcBollingerBands(bars, 20, 2);
-      const bbUpSeries = mainChart.addLineSeries({
+      const bbUpSeries = mainChart.addSeries(LineSeries, {
         color: 'rgba(123,108,255,0.6)',
         lineWidth: 1,
       });
-      const bbMidSeries = mainChart.addLineSeries({
+      const bbMidSeries = mainChart.addSeries(LineSeries, {
         color: 'rgba(123,108,255,0.3)',
         lineWidth: 1,
         lineStyle: 2,
       });
-      const bbDownSeries = mainChart.addLineSeries({
+      const bbDownSeries = mainChart.addSeries(LineSeries, {
         color: 'rgba(123,108,255,0.6)',
         lineWidth: 1,
       });
@@ -303,7 +347,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       rsiChartRef.current = rsiChart;
       targets.push(rsiChart);
 
-      const rsiSeries = rsiChart.addLineSeries({
+      const rsiSeries = rsiChart.addSeries(LineSeries, {
         color: '#7b6cff',
         lineWidth: 1.5,
       });
@@ -362,7 +406,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
 
       const macdData = calcMACD(bars);
       
-      const macdHistSeries = macdChart.addHistogramSeries({
+      const macdHistSeries = macdChart.addSeries(HistogramSeries, {
         priceScaleId: 'right',
       });
       const macdHistData = macdData.histogram.map(h => ({
@@ -372,13 +416,13 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       }));
       macdHistSeries.setData(macdHistData);
 
-      const macdLineSeries = macdChart.addLineSeries({
+      const macdLineSeries = macdChart.addSeries(LineSeries, {
         color: '#4da6ff',
         lineWidth: 1.2,
       });
       macdLineSeries.setData(macdData.macdLine.map(m => ({ time: m.time, value: m.value })));
 
-      const macdSigSeries = macdChart.addLineSeries({
+      const macdSigSeries = macdChart.addSeries(LineSeries, {
         color: '#f5c842',
         lineWidth: 1.2,
       });
@@ -414,6 +458,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       mainChart.remove();
       rsiChartRef.current?.remove();
       macdChartRef.current?.remove();
+      seriesMarkersRef.current = null;
     };
   }, [bars, loading, indicators]);
 
@@ -424,29 +469,39 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     if (!lastBar) return;
     
     const price = livePrice.price;
-    const updatedBar = {
-      time: lastBar.time,
-      open: lastBar.open,
-      high: Math.max(lastBar.high, price),
-      low: Math.min(lastBar.low, price),
-      close: price,
-    };
     
-    candleSeriesRef.current.update(updatedBar);
+    // Reset tracking if the base bar time changes
+    if (!liveTickRef.current || liveTickRef.current.time !== lastBar.time) {
+      liveTickRef.current = {
+        time: lastBar.time,
+        open: lastBar.open,
+        high: lastBar.high,
+        low: lastBar.low,
+        close: lastBar.close,
+        volume: lastBar.volume || 0
+      };
+    }
+
+    // Accumulate the extremes dynamically
+    liveTickRef.current.high = Math.max(liveTickRef.current.high, price);
+    liveTickRef.current.low = Math.min(liveTickRef.current.low, price);
+    liveTickRef.current.close = price;
+    
+    candleSeriesRef.current.update(liveTickRef.current);
     
     if (volSeriesRef.current) {
       volSeriesRef.current.update({
-        time: lastBar.time,
-        value: lastBar.volume || 0,
-        color: updatedBar.close >= updatedBar.open ? 'rgba(0,216,160,0.22)' : 'rgba(255,78,106,0.22)',
+        time: liveTickRef.current.time,
+        value: liveTickRef.current.volume,
+        color: liveTickRef.current.close >= liveTickRef.current.open ? 'rgba(0,216,160,0.22)' : 'rgba(255,78,106,0.22)',
       });
     }
   }, [livePrice, bars]);
 
   // Set markers when they change or bars load
   useEffect(() => {
-    if (candleSeriesRef.current && !loading) {
-      candleSeriesRef.current.setMarkers(markers || []);
+    if (seriesMarkersRef.current && !loading) {
+      seriesMarkersRef.current.setMarkers(markers || []);
     }
   }, [markers, loading, bars]);
 
@@ -484,7 +539,10 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       )}
       
       {/* Main Chart Container */}
-      <div ref={mainContainerRef} style={{ flex: 3, minHeight: 0, position: 'relative' }} />
+      <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
+        <div ref={legendRef} style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, fontFamily: "'IBM Plex Mono', monospace", pointerEvents: 'none', background: 'rgba(13,16,24,0.65)', backdropFilter: 'blur(4px)', padding: '8px 12px', borderRadius: 6, display: 'none', border: `1px solid ${T.borderHi}` }} />
+        <div ref={mainContainerRef} style={{ width: '100%', height: '100%' }} />
+      </div>
       
       {/* RSI Container */}
       {indicators.rsi && (
@@ -1093,13 +1151,8 @@ function ChatPanel({ symbol, price, changePct }) {
     setMsgs(m => [...m, { role: 'user', text: userMsg }]);
     setBusy(true);
     try {
-      const API_BASE = API_BASE_URL;
-      const res = await fetch(`${API_BASE}/api/chat`, {
+      const res = await apiFetch('/api/chat', {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           message: userMsg,
           context: { symbol: symbol.replace('.NS', ''), price, changePct },
@@ -1109,6 +1162,8 @@ function ChatPanel({ symbol, price, changePct }) {
       if (res.status === 401) {
         localStorage.removeItem('is_logged_in');
         localStorage.removeItem('apex_user');
+        localStorage.removeItem('apt_token');
+        sessionStorage.removeItem('apt_token');
         window.location.reload();
         return;
       }
@@ -1699,6 +1754,8 @@ export default function App() {
     localStorage.removeItem('apex_user');
     localStorage.removeItem('apex_role');
     localStorage.removeItem('apex_clearance');
+    localStorage.removeItem('apt_token');
+    sessionStorage.removeItem('apt_token');
     setLoggedIn(false);
   }, []);
 
@@ -1810,10 +1867,8 @@ export default function App() {
       
       if (lastShown !== todayStr && (hours > 9 || (hours === 9 && minutes >= 15))) {
         // Market is open or opened already today
-        fetch(`${API_BASE_URL}/api/scan`, {
+        apiFetch('/api/scan', {
           method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json', },
           body: JSON.stringify({ symbols: DEFAULT_WATCHLIST.map(w=>w.symbol), interval: '15m', capital: cash })
         })
         .then(r => r.json())
@@ -1864,12 +1919,7 @@ export default function App() {
 
   const fetchMarketBrief = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = API_BASE_URL;
-    setLoadingBrief(true);
-    fetch(`${API_BASE}/api/market_brief`, {
-      credentials: 'include',
-      headers: { }
-    })
+    apiFetch('/api/market_brief')
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(data => {
       setMarketBrief(data);
@@ -1882,11 +1932,7 @@ export default function App() {
 
   const fetchPredictionStats = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = API_BASE_URL;
-    fetch(`${API_BASE}/api/predictions/stats`, {
-      credentials: 'include',
-      headers: { }
-    })
+    apiFetch('/api/predictions/stats')
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(data => {
       setPredictionStats(data);
@@ -1971,11 +2017,7 @@ export default function App() {
   const fetchPendingPredictions = useCallback(async () => {
     if (!loggedIn) return;
     try {
-      const API_BASE = API_BASE_URL;
-      const res = await fetch(`${API_BASE}/api/predictions`, {
-        credentials: 'include',
-        headers: { }
-      });
+      const res = await apiFetch('/api/predictions');
       if (res.ok) {
         const data = await res.json();
         setPendingPredictions(data.filter(p => p.status === 'PENDING'));
@@ -2015,18 +2057,13 @@ export default function App() {
     
     const timer = setTimeout(async () => {
       try {
-        const API_BASE = API_BASE_URL;
         const cleanedSymbol = selected.replace('.NS', '');
         const currentPrices = pricesRef.current || {};
         const livePrice = currentPrices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
         const pct = currentPrices[selected]?.changePct ?? 0;
-        
-        const res = await fetch(`${API_BASE}/api/chat`, {
+
+        const res = await apiFetch('/api/chat', {
           method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({
             message: `Provide a quick 1-2 sentence technical analyst recommendation for ${cleanedSymbol} at current price ₹${livePrice} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%). Focus on technical metrics like RSI, key levels, or potential triggers. Keep it extremely concise.`,
             context: { symbol: cleanedSymbol, price: livePrice, changePct: pct },

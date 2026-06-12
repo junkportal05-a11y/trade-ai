@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './api';
+import { API_BASE_URL, apiFetch } from './api';
 import React, { useState, useEffect } from 'react';
 
 const T = {
@@ -50,9 +50,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/upstox/status`, {
-          credentials: 'include'
-        });
+        const res = await apiFetch('/api/upstox/status');
         if (res.ok) {
           const data = await res.json();
           setUpstoxStatus(data);

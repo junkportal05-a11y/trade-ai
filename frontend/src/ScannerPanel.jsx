@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './api';
+import { API_BASE_URL, apiFetch } from './api';
 /**
  * ScannerPanel.jsx
  * Unified NSE Smart Scanner — merges signal scanning with capital allocation
@@ -480,10 +480,8 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
     await new Promise(resolve => setTimeout(resolve, 0));
 
     try {
-      const res = await fetch(`${BASE}/api/allocate`, {
-        credentials: 'include',
+      const res = await apiFetch('/api/allocate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ capital: amt }),
       });
       if (!res.ok) throw new Error(`Allocate HTTP ${res.status}`);
@@ -509,8 +507,9 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
     await new Promise(resolve => setTimeout(resolve, 0));
 
     try {
-      const res = await fetch(`${BASE}/api/signals`, {
-        credentials: 'include', signal: abortRef.current.signal });
+      const res = await apiFetch('/api/signals', {
+        signal: abortRef.current.signal
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const data = await res.json();
       if (data.signals && data.signals.length > 0) {

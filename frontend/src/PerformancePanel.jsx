@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './api';
+import { API_BASE_URL, apiFetch } from './api';
 /**
  * PerformancePanel.jsx
  * ─────────────────────────────────────────────────────────────────────────────
@@ -333,7 +333,7 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
 
   const fetchJournal = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE}/api/journal`, { credentials: 'include', headers: {} });
+      const res = await apiFetch('/api/journal');
       if (res.ok) {
         setJournalEntries(await res.json());
       }
@@ -364,10 +364,8 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
         emotion: jEmotion,
         status: 'OPEN'
       };
-      const res = await fetch(`${BASE}/api/journal`, {
-        credentials: 'include',
+      const res = await apiFetch('/api/journal', {
         method: 'POST',
-        headers,
         body: JSON.stringify(entry)
       });
       if (res.ok) {
@@ -387,7 +385,7 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
   const handleDeleteJournal = async (id) => {
     if (!confirm("Are you sure you want to delete this journal entry?")) return;
     try {
-      const res = await fetch(`${BASE}/api/journal/${id}`, { credentials: 'include', method: 'DELETE', headers: {} });
+      const res = await apiFetch(`/api/journal/${id}`, { method: 'DELETE' });
       if (res.ok) {
         await fetchJournal();
       }
@@ -399,8 +397,8 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
   const load = useCallback(async () => {
     try {
       const [sRes, hRes] = await Promise.all([
-        fetch(`${BASE}/api/backtest/stats`, { credentials: 'include', headers: {} }),
-        fetch(`${BASE}/api/backtest/history?limit=200`, { credentials: 'include', headers: {} }),
+        apiFetch('/api/backtest/stats'),
+        apiFetch('/api/backtest/history?limit=200'),
       ]);
       if (sRes.ok) setStats(await sRes.json());
       if (hRes.ok) {
@@ -425,8 +423,7 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
     if (!confirm("Clear all signal history? This cannot be undone.")) return;
     setResetting(true);
     try {
-      await fetch(`${BASE}/api/backtest/reset`, {
-        credentials: 'include',
+      await apiFetch('/api/backtest/reset', {
         method: 'POST',
         headers: { 'X-Admin-Key': 'apextrade_admin_2024_secure' }
       });
@@ -449,10 +446,7 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
 
     try {
       const query = `symbol=${backtestSymbol}&range=${backtestRange}&capital=${capitalAmt}&stop_atr=${backtestStopAtr}&target_atr=${backtestTargetAtr}&entry_score=${backtestEntryScore}&risk_pct=${backtestRiskPct}&early_exit=${backtestEarlyExit}`;
-      const res = await fetch(`${BASE}/api/backtest/run?${query}`, {
-        credentials: 'include',
-        headers: { }
-      });
+      const res = await apiFetch(`/api/backtest/run?${query}`);
       if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
       const data = await res.json();
       if (data.error) {
