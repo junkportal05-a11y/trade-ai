@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './api';
+import { API_BASE_URL, apiFetch } from './api';
 import React, { useState, useEffect, useCallback } from 'react';
 
 const BASE = API_BASE_URL;
@@ -83,10 +83,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
   // Fetch functions
   const fetchPredictions = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE}/api/predictions`, {
-        credentials: 'include',
-        headers: {}
-      });
+      const res = await apiFetch('/api/predictions');
       if (res.ok) {
         const data = await res.json();
         setPredictions(data);
@@ -98,10 +95,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE}/api/predictions/stats`, {
-        credentials: 'include',
-        headers: {}
-      });
+      const res = await apiFetch('/api/predictions/stats');
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -209,10 +203,8 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
     };
 
     try {
-      const res = await fetch(`${BASE}/api/predictions`, {
-        credentials: 'include',
+      const res = await apiFetch('/api/predictions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
@@ -240,10 +232,8 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
     e.preventDefault();
     if (!actualOutcomeInput) return;
     try {
-      const res = await fetch(`${BASE}/api/predictions/${resolvingId}/resolve`, {
-        credentials: 'include',
+      const res = await apiFetch(`/api/predictions/${resolvingId}/resolve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           actual_outcome: parseFloat(actualOutcomeInput),
           status: resolutionStatus
@@ -265,10 +255,8 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
   const handleDelete = async (predId) => {
     if (!window.confirm("Are you sure you want to delete this prediction?")) return;
     try {
-      const res = await fetch(`${BASE}/api/predictions/${predId}`, {
-        credentials: 'include',
-        method: 'DELETE',
-        headers: {}
+      const res = await apiFetch(`/api/predictions/${predId}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
         fetchPredictions();

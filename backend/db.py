@@ -10,7 +10,7 @@ import json
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "trading_platform.db")
+DB_PATH = os.getenv("DB_PATH", "/tmp/trading_platform.db")
 DATABASE_URL = os.getenv("DATABASE_URL")
 IS_POSTGRES = bool(DATABASE_URL)
 
@@ -139,6 +139,44 @@ class DBConnection:
                     pass
         else:
             self._lastrowid = self.cursor_obj.lastrowid
+
+        return self
+
+    def executemany(self, query, params=None):
+        self._lastrowid = None
+
+        # Adapt SQL for PostgreSQL
+        if IS_POSTGRES:
+            query = query.replace("?", "%s")
+            query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+
+            # Translate SQLite PRAGMA table_info to standard ANSI SQL
+            if "PRAGMA table_info" in query:
+                parts = query.split("table_info(")
+                if len(parts) > 1:
+                    tname = parts[1].replace(")", "").strip()
+                    query = f"""
+                        SELECT 0 as cid, column_name as name, data_type as type,
+                               CASE WHEN is_nullable = 'NO' THEN 1 ELSE 0 END as notnull,
+                               column_default as dflt_value, 0 as pk
+                        FROM information_schema.columns
+                        WHERE table_name = '{tname}'
+                    """
+
+            # Translate SQLite INSERT OR REPLACE
+            if "INSERT OR REPLACE INTO app_settings" in query:
+                query = """
+                    INSERT INTO app_settings (key, value, updated_at)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (key)
+                    DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
+                """
+
+        # Execute query
+        if params is not None:
+            self.cursor_obj.executemany(query, params)
+        else:
+            self.cursor_obj.executemany(query)
 
         return self
 
@@ -313,10 +351,24 @@ def init_db():
         ]
         for col_name, col_type in pred_migrations:
             if col_name not in pred_columns:
-                try:
-                    c.execute(f"ALTER TABLE predictions_history ADD COLUMN {col_name} {col_type}")
-                except Exception:
-                    pass
+                c.execute(f"ALTER TABLE predictions_history ADD COLUMN {col_name} {col_type}")
+
+        # Phase Omega: Add missing columns to strategy_health and daily_governance_reports
+        try:
+            sh_columns = [row["name"] for row in c.execute("PRAGMA table_info(strategy_health)").fetchall()]
+            if "edge_score" not in sh_columns:
+                c.execute("ALTER TABLE strategy_health ADD COLUMN edge_score REAL DEFAULT 0.0")
+        except Exception:
+            pass
+
+        try:
+            dgr_columns = [row["name"] for row in c.execute("PRAGMA table_info(daily_governance_reports)").fetchall()]
+            if "data_confidence_score" not in dgr_columns:
+                c.execute("ALTER TABLE daily_governance_reports ADD COLUMN data_confidence_score REAL DEFAULT 100.0")
+            if "created_at" not in dgr_columns:
+                c.execute("ALTER TABLE daily_governance_reports ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP")
+        except Exception:
+            pass
         
         # New tables for advanced metrics
         c.execute("""
@@ -521,6 +573,20 @@ def update_signal(id: int, status: str, exit_price: float, pnl_pct: float):
         )
         c.commit()
 
+def update_signals_batch(updates: list[tuple]):
+    """Batch update multiple signals.
+    updates should be a list of tuples: (status, exit_price, exit_at, pnl_pct, id)
+    """
+    if not updates:
+        return
+    with _conn() as c:
+        c.executemany(
+            """UPDATE signals_history
+               SET status=?, exit_price=?, exit_at=?, pnl_pct=?
+               WHERE id=?""",
+            updates,
+        )
+        c.commit()
 
 # Alias for compatibility with main.py references
 update_signal_status = update_signal

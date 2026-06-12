@@ -23,7 +23,6 @@ from fastapi import (
     Query,
     Request,
     Depends,
-    Header,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -72,7 +71,6 @@ app.add_middleware(
 from auth_helpers import (
     require_session,
     create_session,
-    cleanup_sessions,
     ACTIVE_SESSIONS,
     SESSION_TTL,
     authenticate_user,
@@ -840,6 +838,9 @@ LIVE_PRICES_CACHE = {
 
 _crawl_executor = ThreadPoolExecutor(max_workers=5)
 
+# Track last HTTP request time to keep crawler active during HTTP polling fallback
+last_prices_request_time = 0.0
+
 
 async def fetch_live_quotes_loop():
     """
@@ -847,13 +848,14 @@ async def fetch_live_quotes_loop():
     quotes for all watchlisted NSE stocks and updates LIVE_PRICES_CACHE.
     """
     import functools
-    import pandas as pd
 
     watchlist_symbols = [w["symbol"] for w in sig_engine.NSE_WATCHLIST]
 
     while True:
         # Preserve API rate limits / credits when no active users are online
-        if len(active_connections) == 0:
+        # and no recent HTTP polling requests have been received
+        now = time.time()
+        if len(active_connections) == 0 and (now - last_prices_request_time > 30.0):
             await asyncio.sleep(5)
             continue
 
@@ -908,6 +910,8 @@ def reconcile_pending_signals():
 
     now_utc = datetime.utcnow()
     now_ist = now_utc + timedelta(hours=5, minutes=30)
+    
+    signal_updates = []
 
     for sig in pending:
         symbol = sig["symbol"]
@@ -952,7 +956,7 @@ def reconcile_pending_signals():
                 pnl = (entry_price - exit_price) / entry_price * 100
 
         if hit:
-            db.update_signal_status(sig["id"], status, exit_price, pnl)
+            signal_updates.append((status, exit_price, db._now_ist(), pnl, sig["id"]))
             continue
 
         # Check Expiry
@@ -977,10 +981,8 @@ def reconcile_pending_signals():
                         pnl_calc = (current_price - entry_price) / entry_price * 100
                     else:
                         pnl_calc = (entry_price - current_price) / entry_price * 100
-
-                    db.update_signal_status(
-                        sig["id"], "EXPIRED", current_price, pnl_calc
-                    )
+                        
+                    signal_updates.append(("EXPIRED", current_price, db._now_ist(), pnl_calc, sig["id"]))
             else:
                 # OVERNIGHT: 5 days limit
                 days_diff = (now_utc - scanned_dt_utc).days
@@ -990,12 +992,13 @@ def reconcile_pending_signals():
                         pnl_calc = (current_price - entry_price) / entry_price * 100
                     else:
                         pnl_calc = (entry_price - current_price) / entry_price * 100
-
-                    db.update_signal_status(
-                        sig["id"], "EXPIRED", current_price, pnl_calc
-                    )
+                        
+                    signal_updates.append(("EXPIRED", current_price, db._now_ist(), pnl_calc, sig["id"]))
         except Exception:
             pass
+
+    if signal_updates:
+        db.update_signals_batch(signal_updates)
 
 
 AUTO_SCAN_INTERVAL_OPEN = 60
@@ -1008,6 +1011,7 @@ async def cleanup_sessions_loop():
     Runs every 1 hour (3600 seconds) to prevent memory leak
     from unbounded ACTIVE_SESSIONS dictionary.
     """
+    from auth_helpers import cleanup_sessions
     while True:
         try:
             cleanup_sessions()
@@ -1316,6 +1320,7 @@ async def signal_scanner_worker():
 
             # ── 2. Reconcile signals_history vs live prices ──────────────────
             pending = db.get_pending_signals()
+            signal_updates = []
             for trade in pending:
                 live = LIVE_PRICES_CACHE.get(trade["symbol"])
                 if live is None:
@@ -1326,10 +1331,13 @@ async def signal_scanner_worker():
                 hit_stop = (is_buy and price <= trade["stop_loss"]) or (not is_buy and price >= trade["stop_loss"])
                 if hit_target:
                     pnl = db._calc_pnl(trade["signal_type"], trade["entry_price"], price)
-                    db.update_signal(trade["id"], "HIT_TARGET", price, pnl)
+                    signal_updates.append(("HIT_TARGET", price, db._now_ist(), pnl, trade["id"]))
                 elif hit_stop:
                     pnl = db._calc_pnl(trade["signal_type"], trade["entry_price"], price)
-                    db.update_signal(trade["id"], "HIT_STOP", price, pnl)
+                    signal_updates.append(("HIT_STOP", price, db._now_ist(), pnl, trade["id"]))
+
+            if signal_updates:
+                db.update_signals_batch(signal_updates)
 
             # ── 3. Expire stale intraday signals ─────────────────────────────
             db.expire_old_intraday()
@@ -1355,6 +1363,30 @@ async def startup_event():
     asyncio.create_task(cleanup_sessions_loop())
     asyncio.create_task(governance_worker.governance_loop())
 
+
+@app.get("/api/prices")
+@limiter.limit("30/minute")
+async def get_live_prices(request: Request, _=Depends(require_session)):
+    """
+    HTTP fallback for live prices when WebSocket is unavailable.
+    Returns the full LIVE_PRICES_CACHE dictionary.
+    """
+    global last_prices_request_time
+    last_prices_request_time = time.time()
+    return {
+        "type": "tick",
+        "data": [
+            {
+                "symbol": sym,
+                "price": info["price"],
+                "prev_close": info.get("prev_close", info["price"]),
+                "timestamp": info.get("timestamp", int(time.time() * 1000)),
+            }
+            for sym, info in LIVE_PRICES_CACHE.items()
+            if "." in sym  # Only return full symbol keys like HAL.NS, not clean keys
+        ],
+        "market_status": "OPEN" if is_nse_market_open() else "CLOSED",
+    }
 
 @app.websocket("/ws/prices")
 async def websocket_prices(
@@ -1659,29 +1691,8 @@ async def allocate_capital_quick(
         "Quick allocation using cached prices — run /api/allocate for a full fresh scan."
     )
 
-    # Log generated recommendations in predictions_history database
-    for pos in plan.get("positions", []):
-        try:
-            pred_data = {
-                "symbol": pos["symbol"],
-                "prediction_type": "UP",
-                "entry_price": pos["entry_price"],
-                "target_price": pos["target1"],
-                "stop_loss": pos["stop_loss"],
-                "confidence_score": pos["confidence"],
-                "rsi": pos.get("rsi"),
-                "macd": pos.get("macd_hist"),
-                "adx": pos.get("adx"),
-                "status": "PENDING",
-                "reason": ", ".join(pos.get("reasons", [])),
-            }
-            db.add_prediction(pred_data)
-        except Exception as e:
-            print(
-                f"[api/allocate/quick] Error archiving recommendation for {pos['symbol']}: {e}"
-            )
-
     return plan
+
 
 
 # ── Trade Journal API ────────────────────────────────────────────────────────
