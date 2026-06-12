@@ -24,26 +24,51 @@ access_token: Optional[str] = None
 
 # ── Static Mappings for Watchlisted Symbols ───────────────────────────────────
 STATIC_MAP = {
-    "RELIANCE": "NSE_EQ|INE002A01018",
-    "TCS": "NSE_EQ|INE467B01029",
-    "HDFCBANK": "NSE_EQ|INE040A01034",
-    "INFY": "NSE_EQ|INE009A01021",
-    "ICICIBANK": "NSE_EQ|INE090A01021",
-    "KOTAKBANK": "NSE_EQ|INE237A01036",
-    "SBIN": "NSE_EQ|INE062A01020",
-    "BAJFINANCE": "NSE_EQ|INE296A01032",
-    "WIPRO": "NSE_EQ|INE075A01022",
-    "AXISBANK": "NSE_EQ|INE238A01034",
-    "TATAMOTORS": "NSE_EQ|INE155A01022",
-    "MARUTI": "NSE_EQ|INE585B01010",
-    "SUNPHARMA": "NSE_EQ|INE044A01036",
-    "ADANIENT": "NSE_EQ|INE423A01024",
-    "TITAN": "NSE_EQ|INE280A01028",
-    "ULTRACEMCO": "NSE_EQ|INE481G01011",
+    "RELIANCE":   "NSE_EQ|INE002A01018",
+    "TCS":        "NSE_EQ|INE467B01029",
+    "HDFCBANK":   "NSE_EQ|INE040A01034",
+    "ICICIBANK":  "NSE_EQ|INE090A01021",
+    "INFY":       "NSE_EQ|INE009A01021",
+    "ITC":        "NSE_EQ|INE154A01025",
+    "SBIN":       "NSE_EQ|INE062A01020",
+    "BHARTIARTL": "NSE_EQ|INE397D01024",
+    "KOTAKBANK":  "NSE_EQ|INE237A01028",
+    "BAJFINANCE": "NSE_EQ|INE296A01024",
+    "AXISBANK":   "NSE_EQ|INE238A01034",
+    "LARSEN":     "NSE_EQ|INE018A01030",
     "ASIANPAINT": "NSE_EQ|INE021A01026",
-    "HINDUNILVR": "NSE_EQ|INE030A01027",
-    "ONGC": "NSE_EQ|INE213A01029",
-    "NTPC": "NSE_EQ|INE733E01010",
+    "HUL":        "NSE_EQ|INE030A01027",
+    "MARUTI":     "NSE_EQ|INE585B01010",
+    "SUNPHARMA":  "NSE_EQ|INE044A01036",
+    "TITAN":      "NSE_EQ|INE280A01028",
+    "ULTRACEMCO": "NSE_EQ|INE481G01011",
+    "WIPRO":      "NSE_EQ|INE075A01022",
+    "NESTLEIND":  "NSE_EQ|INE239A01016",
+    "HCLTECH":    "NSE_EQ|INE860A01027",
+    "ONGC":       "NSE_EQ|INE213A01029",
+    "TATAMOTORS": "NSE_EQ|INE155A01022",
+    "POWERGRID":  "NSE_EQ|INE752E01010",
+    "NTPC":       "NSE_EQ|INE733E01010",
+    "M&M":        "NSE_EQ|INE101A01026",
+    "TATASTEEL":  "NSE_EQ|INE081A01012",
+    "HAL":        "NSE_EQ|INE066F01020",
+    "BEL":        "NSE_EQ|INE263A01024",
+    "RVNL":       "NSE_EQ|INE415G01027",
+    "IREDA":      "NSE_EQ|INE268R01014",
+    "HUDCO":      "NSE_EQ|INE031A01017",
+    "COALINDIA":  "NSE_EQ|INE522F01014",
+    "NHPC":       "NSE_EQ|INE848E01016",
+    "ADANIPORTS": "NSE_EQ|INE742F01042",
+    "TATAPOWER":  "NSE_EQ|INE245A01021",
+    "BHEL":       "NSE_EQ|INE257A01026",
+    "JSWSTEEL":   "NSE_EQ|INE019A01038",
+    "HINDALCO":   "NSE_EQ|INE038A01020",
+    "CIPLA":      "NSE_EQ|INE059A01026",
+    "DRREDDY":    "NSE_EQ|INE089A01023",
+    "TECHM":      "NSE_EQ|INE669C01036",
+    "LT":         "NSE_EQ|INE018A01030",
+    "BAJAJFINSV": "NSE_EQ|INE918I01026",
+    "INDUSINDBK": "NSE_EQ|INE095A01012",
 }
 
 _DYNAMIC_MAP = {}
@@ -213,8 +238,8 @@ def get_historical_candles(
         mapped_int = "1minute"
         resample_rule = None
     elif interval in ("5m", "5min", "5minute"):
-        mapped_int = "1minute"
-        resample_rule = "5min"
+        mapped_int = "30minute"
+        resample_rule = None
     elif interval in ("10m", "10min", "10minute"):
         mapped_int = "1minute"
         resample_rule = "10min"
