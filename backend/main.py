@@ -1947,20 +1947,24 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
 
 # ── Historical Backtesting Endpoints ──────────────────────────────────────────
 
+class SimRequest(BaseModel):
+    start_date: str = "2024-01-01"
+    end_date: str = "2024-12-31"
+
 @app.post("/api/admin/run-simulation")
 async def run_historical_simulation(
+    req: SimRequest,
     background_tasks: BackgroundTasks,
-    start_date: str = "2024-01-01",
-    end_date: str = "2024-12-31",
     current_user: dict = Depends(require_admin)
 ):
     """
     Run historical backtesting simulation (ADMIN ONLY)
     
     Args:
-        start_date: Start date (YYYY-MM-DD)
-        end_date: End date (YYYY-MM-DD)
+        req: Start date and End date in JSON body.
     """
+    start_date = req.start_date
+    end_date = req.end_date
     
     # Validate dates
     try:
