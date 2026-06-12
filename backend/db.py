@@ -142,6 +142,44 @@ class DBConnection:
 
         return self
 
+    def executemany(self, query, params=None):
+        self._lastrowid = None
+
+        # Adapt SQL for PostgreSQL
+        if IS_POSTGRES:
+            query = query.replace("?", "%s")
+            query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+
+            # Translate SQLite PRAGMA table_info to standard ANSI SQL
+            if "PRAGMA table_info" in query:
+                parts = query.split("table_info(")
+                if len(parts) > 1:
+                    tname = parts[1].replace(")", "").strip()
+                    query = f"""
+                        SELECT 0 as cid, column_name as name, data_type as type,
+                               CASE WHEN is_nullable = 'NO' THEN 1 ELSE 0 END as notnull,
+                               column_default as dflt_value, 0 as pk
+                        FROM information_schema.columns
+                        WHERE table_name = '{tname}'
+                    """
+
+            # Translate SQLite INSERT OR REPLACE
+            if "INSERT OR REPLACE INTO app_settings" in query:
+                query = """
+                    INSERT INTO app_settings (key, value, updated_at)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (key)
+                    DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
+                """
+
+        # Execute query
+        if params is not None:
+            self.cursor_obj.executemany(query, params)
+        else:
+            self.cursor_obj.executemany(query)
+
+        return self
+
     def fetchall(self):
         rows = self.cursor_obj.fetchall()
         if IS_POSTGRES:
@@ -535,6 +573,20 @@ def update_signal(id: int, status: str, exit_price: float, pnl_pct: float):
         )
         c.commit()
 
+def update_signals_batch(updates: list[tuple]):
+    """Batch update multiple signals.
+    updates should be a list of tuples: (status, exit_price, exit_at, pnl_pct, id)
+    """
+    if not updates:
+        return
+    with _conn() as c:
+        c.executemany(
+            """UPDATE signals_history
+               SET status=?, exit_price=?, exit_at=?, pnl_pct=?
+               WHERE id=?""",
+            updates,
+        )
+        c.commit()
 
 # Alias for compatibility with main.py references
 update_signal_status = update_signal
