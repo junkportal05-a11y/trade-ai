@@ -88,7 +88,7 @@ def authenticate_user(username: str, password: str) -> bool:
             password.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")
         ):
             return user_obj
-    except Exception:
+    except (ValueError, TypeError):
         pass
     return None
 
@@ -99,7 +99,7 @@ def authenticate_by_code(code: str):
             if bcrypt.hashpw(code.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")) == user_obj["pass_hash"].encode("utf-8") or \
                bcrypt.checkpw(code.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")):
                 return username, user_obj
-        except Exception:
+        except (ValueError, TypeError):
             pass
     return None, None
 
@@ -117,6 +117,16 @@ def create_session(username: str) -> str:
 
 def require_session(request: Request):
     x_session_token = request.cookies.get("apt_token")
+    if not x_session_token:
+        x_session_token = request.headers.get("x-session-token")
+    if not x_session_token:
+        auth_header = request.headers.get("authorization")
+        if auth_header:
+            if auth_header.startswith("Bearer "):
+                x_session_token = auth_header[7:]
+            else:
+                x_session_token = auth_header
+
     if not x_session_token:
         raise HTTPException(
             status_code=401, detail="Authentication session token required"
