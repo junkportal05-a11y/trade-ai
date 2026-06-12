@@ -71,7 +71,6 @@ app.add_middleware(
 from auth_helpers import (
     require_session,
     create_session,
-    cleanup_sessions,
     ACTIVE_SESSIONS,
     SESSION_TTL,
     authenticate_user,
@@ -1011,6 +1010,7 @@ async def cleanup_sessions_loop():
     Runs every 1 hour (3600 seconds) to prevent memory leak
     from unbounded ACTIVE_SESSIONS dictionary.
     """
+    from auth_helpers import cleanup_sessions
     while True:
         try:
             cleanup_sessions()
