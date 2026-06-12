@@ -839,6 +839,9 @@ LIVE_PRICES_CACHE = {
 
 _crawl_executor = ThreadPoolExecutor(max_workers=5)
 
+# Track last HTTP request time to keep crawler active during HTTP polling fallback
+last_prices_request_time = 0.0
+
 
 async def fetch_live_quotes_loop():
     """
@@ -851,7 +854,9 @@ async def fetch_live_quotes_loop():
 
     while True:
         # Preserve API rate limits / credits when no active users are online
-        if len(active_connections) == 0:
+        # and no recent HTTP polling requests have been received
+        now = time.time()
+        if len(active_connections) == 0 and (now - last_prices_request_time > 30.0):
             await asyncio.sleep(5)
             continue
 
@@ -1354,6 +1359,30 @@ async def startup_event():
     asyncio.create_task(governance_worker.governance_loop())
 
 
+@app.get("/api/prices")
+@limiter.limit("30/minute")
+async def get_live_prices(request: Request, _=Depends(require_session)):
+    """
+    HTTP fallback for live prices when WebSocket is unavailable.
+    Returns the full LIVE_PRICES_CACHE dictionary.
+    """
+    global last_prices_request_time
+    last_prices_request_time = time.time()
+    return {
+        "type": "tick",
+        "data": [
+            {
+                "symbol": sym,
+                "price": info["price"],
+                "prev_close": info.get("prev_close", info["price"]),
+                "timestamp": info.get("timestamp", int(time.time() * 1000)),
+            }
+            for sym, info in LIVE_PRICES_CACHE.items()
+            if "." in sym  # Only return full symbol keys like HAL.NS, not clean keys
+        ],
+        "market_status": "OPEN" if is_nse_market_open() else "CLOSED",
+    }
+
 @app.websocket("/ws/prices")
 async def websocket_prices(
     websocket: WebSocket,
@@ -1657,29 +1686,8 @@ async def allocate_capital_quick(
         "Quick allocation using cached prices — run /api/allocate for a full fresh scan."
     )
 
-    # Log generated recommendations in predictions_history database
-    for pos in plan.get("positions", []):
-        try:
-            pred_data = {
-                "symbol": pos["symbol"],
-                "prediction_type": "UP",
-                "entry_price": pos["entry_price"],
-                "target_price": pos["target1"],
-                "stop_loss": pos["stop_loss"],
-                "confidence_score": pos["confidence"],
-                "rsi": pos.get("rsi"),
-                "macd": pos.get("macd_hist"),
-                "adx": pos.get("adx"),
-                "status": "PENDING",
-                "reason": ", ".join(pos.get("reasons", [])),
-            }
-            db.add_prediction(pred_data)
-        except Exception as e:
-            print(
-                f"[api/allocate/quick] Error archiving recommendation for {pos['symbol']}: {e}"
-            )
-
     return plan
+
 
 
 # ── Trade Journal API ────────────────────────────────────────────────────────
