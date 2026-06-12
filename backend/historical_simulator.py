@@ -156,14 +156,25 @@ class HistoricalSimulator:
                                     capital=self.BASE_CAPITAL * (self.POSITION_SIZE_PERCENT / 100)
                                 )
                                 
-                                if result and result.get('signal') in ['BUY', 'SELL']:
+                                if result and abs(result.get('score', 0)) >= 4:
                                     simulation_status.stats["total_signals"] += 1
                                     
                                     # Signal Details
-                                    signal_type = result['signal']
+                                    signal_type = 'BUY' if result.get('score', 0) > 0 else 'SELL'
                                     entry_price = result.get('current_price', df_day.iloc[i]['Close'])
+                                    
+                                    # Fallback to ATR-based stops if target/stop is 0
                                     target = result.get('target', 0)
                                     stop_loss = result.get('stop_loss', 0)
+                                    atr = result.get('atr', 20.0)
+                                    if target == 0 or stop_loss == 0:
+                                        if signal_type == 'BUY':
+                                            stop_loss = entry_price - (2 * atr)
+                                            target = entry_price + (4 * atr)
+                                        else:
+                                            stop_loss = entry_price + (2 * atr)
+                                            target = entry_price - (4 * atr)
+                                            
                                     is_long = signal_type == 'BUY'
                                     
                                     # Auto Resolver
