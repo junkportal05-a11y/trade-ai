@@ -138,6 +138,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
 
   const candleSeriesRef = useRef();
   const volSeriesRef = useRef();
+  const liveTickRef = useRef();
   
   const { bars, loading, error } = useHistory(symbol, { interval, range, seedPrice: SEED_PRICES[symbol] });
 
@@ -458,21 +459,31 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     if (!lastBar) return;
     
     const price = livePrice.price;
-    const updatedBar = {
-      time: lastBar.time,
-      open: lastBar.open,
-      high: Math.max(lastBar.high, price),
-      low: Math.min(lastBar.low, price),
-      close: price,
-    };
     
-    candleSeriesRef.current.update(updatedBar);
+    // Reset tracking if the base bar time changes
+    if (!liveTickRef.current || liveTickRef.current.time !== lastBar.time) {
+      liveTickRef.current = {
+        time: lastBar.time,
+        open: lastBar.open,
+        high: lastBar.high,
+        low: lastBar.low,
+        close: lastBar.close,
+        volume: lastBar.volume || 0
+      };
+    }
+
+    // Accumulate the extremes dynamically
+    liveTickRef.current.high = Math.max(liveTickRef.current.high, price);
+    liveTickRef.current.low = Math.min(liveTickRef.current.low, price);
+    liveTickRef.current.close = price;
+    
+    candleSeriesRef.current.update(liveTickRef.current);
     
     if (volSeriesRef.current) {
       volSeriesRef.current.update({
-        time: lastBar.time,
-        value: lastBar.volume || 0,
-        color: updatedBar.close >= updatedBar.open ? 'rgba(0,216,160,0.22)' : 'rgba(255,78,106,0.22)',
+        time: liveTickRef.current.time,
+        value: liveTickRef.current.volume,
+        color: liveTickRef.current.close >= liveTickRef.current.open ? 'rgba(0,216,160,0.22)' : 'rgba(255,78,106,0.22)',
       });
     }
   }, [livePrice, bars]);
