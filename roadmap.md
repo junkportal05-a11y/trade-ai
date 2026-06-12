@@ -6,9 +6,9 @@ All planned features organized by priority. Checkboxes are updated as items are 
 
 ## 🔴 Critical — Do Before Sharing With Anyone
 
-- [x] Fix `pass1/pass2/pass3` weak passwords → moved to Render env vars (`PASS_ADMIN` / `PASS_USER1` / `PASS_USER2` / `PASS_USER3`)
+- [x] Fix `pass1/pass2/pass3` weak passwords → moved to secure env vars (`PASS_ADMIN` / `PASS_USER1` / `PASS_USER2` / `PASS_USER3`)
 - [x] Fix page `<title>frontend</title>` → `ApexTrade — NSE Intraday Signals`
-- [x] Complete Upstox KYC + connect API keys to Render (Completed)
+- [x] Complete Upstox KYC + connect API keys (Completed)
 - [x] Replaced Auth0 SSO with secure local session system (using bcrypt-hashed passwords)
 
 ---
