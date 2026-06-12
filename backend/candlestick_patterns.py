@@ -307,29 +307,54 @@ def detect_swings(
     Detects Swing Highs and Swing Lows from the past N candles.
     Returns (list_of_swing_highs, list_of_swing_lows) as [(index, price), ...]
     """
+    import numpy as np
+    from numpy.lib.stride_tricks import sliding_window_view
+
     highs = df["High"].values
     lows = df["Low"].values
+    n = len(df)
 
     swing_highs = []
     swing_lows = []
 
-    for i in range(window, len(df) - window):
-        # Check swing high
-        val_h = highs[i]
-        if val_h == max(highs[i - window : i + window + 1]):
-            # Verify it's unique in the window to avoid duplicates
-            if all(val_h > highs[j] for j in range(i - window, i)) and all(
-                val_h >= highs[j] for j in range(i + 1, i + window + 1)
-            ):
-                swing_highs.append((i, float(val_h)))
+    if n <= 2 * window:
+        return swing_highs, swing_lows
 
-        # Check swing low
-        val_l = lows[i]
-        if val_l == min(lows[i - window : i + window + 1]):
-            if all(val_l < lows[j] for j in range(i - window, i)) and all(
-                val_l <= lows[j] for j in range(i + 1, i + window + 1)
-            ):
-                swing_lows.append((i, float(val_l)))
+    window_size = 2 * window + 1
+
+    # Sliding windows
+    hw_views = sliding_window_view(highs, window_size)
+    lw_views = sliding_window_view(lows, window_size)
+
+    # Max/min across the window
+    hw_max = np.max(hw_views, axis=1)
+    lw_min = np.min(lw_views, axis=1)
+
+    # Center elements
+    center_highs = highs[window:n-window]
+    center_lows = lows[window:n-window]
+
+    # Find where the center element is the max/min of its window
+    is_swing_high = (center_highs == hw_max)
+    is_swing_low = (center_lows == lw_min)
+
+    # Indices in the sliced array
+    high_idx_sliced = np.where(is_swing_high)[0]
+    low_idx_sliced = np.where(is_swing_low)[0]
+
+    for idx in high_idx_sliced:
+        real_idx = idx + window
+        val_h = highs[real_idx]
+        # Verify it's strictly greater than the left side
+        if not np.any(highs[real_idx - window : real_idx] == val_h):
+            swing_highs.append((int(real_idx), float(val_h)))
+
+    for idx in low_idx_sliced:
+        real_idx = idx + window
+        val_l = lows[real_idx]
+        # Verify it's strictly less than the left side
+        if not np.any(lows[real_idx - window : real_idx] == val_l):
+            swing_lows.append((int(real_idx), float(val_l)))
 
     return swing_highs, swing_lows
 
