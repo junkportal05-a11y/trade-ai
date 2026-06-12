@@ -447,7 +447,17 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
     try {
       const query = `symbol=${backtestSymbol}&range=${backtestRange}&capital=${capitalAmt}&stop_atr=${backtestStopAtr}&target_atr=${backtestTargetAtr}&entry_score=${backtestEntryScore}&risk_pct=${backtestRiskPct}&early_exit=${backtestEarlyExit}`;
       const res = await apiFetch(`/api/backtest/run?${query}`);
-      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+      if (!res.ok) {
+        let errMsg = `HTTP Error ${res.status}`;
+        try {
+          const errData = await res.json();
+          if (errData && errData.detail) {
+            errMsg = errData.detail;
+          }
+        } catch {}
+        setBacktestError(errMsg);
+        return;
+      }
       const data = await res.json();
       if (data.error) {
         setBacktestError(data.error);
@@ -455,7 +465,7 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
         setBacktestResult(data);
       }
     } catch (e) {
-      setBacktestError("Backend not responding. Make sure uvicorn backend server is running.");
+      setBacktestError("Failed to connect to backend. Please check if your server is running.");
     } finally {
       setBacktestLoading(false);
     }
