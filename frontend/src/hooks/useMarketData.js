@@ -103,16 +103,72 @@ export function useLivePrices(symbols = []) {
   const wsRef         = useRef(null);
   const fallbackTimer = useRef(null);
   const seedRef       = useRef({});
+  const wsConnectedRef = useRef(false);
 
   const symbolKey = symbols.join(",");
 
+  // ── HTTP Polling Fallback ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!symbols.length) return;
+
+    // Wait 4 seconds — if WS hasn't connected by then, start HTTP polling
+    const startDelay = setTimeout(() => {
+      if (wsConnectedRef.current) return; // WS is working, skip
+
+      console.log("[useLivePrices] WebSocket not connected — starting HTTP polling fallback");
+
+      async function poll() {
+        try {
+          const res = await fetch(`${BASE_URL}/api/prices`, { credentials: 'include' });
+          if (!res.ok) return;
+          const json = await res.json();
+          if (json.type === "tick" && Array.isArray(json.data)) {
+            setPrices(prev => {
+              const next = { ...prev };
+              json.data.forEach(tick => {
+                const prevClose = tick.prev_close || prev[tick.symbol]?.prevClose || tick.price;
+                const change    = tick.price - prevClose;
+                next[tick.symbol] = {
+                  price:     tick.price,
+                  change,
+                  changePct: prevClose ? (change / prevClose) * 100 : 0,
+                  timestamp: tick.timestamp,
+                  prevClose,
+                };
+              });
+              return next;
+            });
+          }
+        } catch (_) { /* network error — will retry */ }
+      }
+
+      poll(); // first poll immediately
+      fallbackTimer.current = setInterval(() => {
+        if (wsConnectedRef.current) {
+          // WS reconnected — stop polling
+          clearInterval(fallbackTimer.current);
+          fallbackTimer.current = null;
+          return;
+        }
+        poll();
+      }, 2000);
+    }, 4000);
+
+    return () => {
+      clearTimeout(startDelay);
+      if (fallbackTimer.current) {
+        clearInterval(fallbackTimer.current);
+        fallbackTimer.current = null;
+      }
+    };
+  }, [symbolKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── WebSocket (primary) ────────────────────────────────────────────────────
   useEffect(() => {
     if (!symbols.length) return;
 
     let reconnectTimeout = null;
     let isMounted = true;
-
-    // Removed synthetic fallback simulation
 
     function connect() {
       try {
@@ -122,6 +178,12 @@ export function useLivePrices(symbols = []) {
         ws.onopen = () => {
           if (!isMounted) return;
           setConnected(true);
+          wsConnectedRef.current = true;
+          // Stop HTTP polling if it was running
+          if (fallbackTimer.current) {
+            clearInterval(fallbackTimer.current);
+            fallbackTimer.current = null;
+          }
           // Tell backend which symbols we want
           ws.send(JSON.stringify({ action: "subscribe", symbols }));
         };
@@ -153,11 +215,13 @@ export function useLivePrices(symbols = []) {
         ws.onerror = () => {
           if (!isMounted) return;
           setConnected(false);
+          wsConnectedRef.current = false;
         };
 
         ws.onclose = (event) => {
           if (!isMounted) return;
           setConnected(false);
+          wsConnectedRef.current = false;
 
           if (event.code === 4001) {
             console.warn("[WebSocket] Connection closed with code 4001: Session unauthorized/expired.");
@@ -177,6 +241,7 @@ export function useLivePrices(symbols = []) {
         };
       } catch (_) {
         setConnected(false);
+        wsConnectedRef.current = false;
       }
     }
 

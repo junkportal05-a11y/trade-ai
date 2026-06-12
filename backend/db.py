@@ -10,7 +10,7 @@ import json
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "trading_platform.db")
+DB_PATH = os.getenv("DB_PATH", "/tmp/trading_platform.db")
 DATABASE_URL = os.getenv("DATABASE_URL")
 IS_POSTGRES = bool(DATABASE_URL)
 
