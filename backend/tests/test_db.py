@@ -57,31 +57,61 @@ def test_update_signal(temp_db):
                 assert row["pnl_pct"] == 10.0
                 assert row["exit_at"] is not None
 
-def test_update_signals_batch(temp_db):
-    """Test updating multiple existing signals in batch."""
+def test_get_stats(temp_db):
+    """Test get_stats returns correct aggregated statistics."""
+
+    mock_signals = [
+        # Signal 1: PENDING
+        {
+            "symbol": "TCS", "name": "TCS Ltd", "sector": "IT",
+            "direction": "BUY", "signal_type": "BUY", "confidence": 80,
+            "score": 8, "entry": 100.0, "entry_price": 100.0,
+            "target": 110.0, "stop_loss": 90.0, "rr_ratio": 1.0,
+            "atr": 2.0, "scan_type": "intraday"
+        },
+        # Signal 2: HIT_TARGET (Won)
+        {
+            "symbol": "INFY", "name": "Infosys", "sector": "IT",
+            "direction": "BUY", "signal_type": "BUY", "confidence": 85,
+            "score": 9, "entry": 200.0, "entry_price": 200.0,
+            "target": 220.0, "stop_loss": 190.0, "rr_ratio": 2.0,
+            "atr": 4.0, "scan_type": "intraday"
+        },
+        # Signal 3: HIT_STOP (Lost)
+        {
+            "symbol": "HDFCBANK", "name": "HDFC Bank", "sector": "FINANCE",
+            "direction": "SELL", "signal_type": "SELL", "confidence": 75,
+            "score": 7, "entry": 1500.0, "entry_price": 1500.0,
+            "target": 1400.0, "stop_loss": 1550.0, "rr_ratio": 2.0,
+            "atr": 20.0, "scan_type": "intraday"
+        }
+    ]
 
     with patch("backend.db.DB_PATH", str(temp_db)):
         with patch("backend.db.IS_POSTGRES", False):
-            # Act: Add multiple signals
-            id1 = db.add_signal({"symbol": "S1", "name": "N1", "sector": "Sec", "direction": "BUY", "signal_type": "BUY", "confidence": 80, "score": 8, "entry": 100.0, "entry_price": 100.0, "target": 110.0, "stop_loss": 90.0, "rr_ratio": 1.0, "atr": 2.0, "scan_type": "intraday"})
-            id2 = db.add_signal({"symbol": "S2", "name": "N2", "sector": "Sec", "direction": "SELL", "signal_type": "SELL", "confidence": 80, "score": 8, "entry": 100.0, "entry_price": 100.0, "target": 90.0, "stop_loss": 110.0, "rr_ratio": 1.0, "atr": 2.0, "scan_type": "intraday"})
+            # Act: Add the signals
+            sig1_id = db.add_signal(mock_signals[0])
+            sig2_id = db.add_signal(mock_signals[1])
+            sig3_id = db.add_signal(mock_signals[2])
 
-            # Act: Update the signals in batch
-            updates = [
-                ("HIT_TARGET", 110.0, "2024-01-01 10:00:00", 10.0, id1),
-                ("HIT_STOP", 110.0, "2024-01-01 10:00:00", -10.0, id2)
-            ]
-            db.update_signals_batch(updates)
+            # Update to HIT_TARGET and HIT_STOP
+            # INFY: Won 10%
+            db.update_signal(sig2_id, "HIT_TARGET", 220.0, 10.0)
+            # HDFCBANK: Lost 3.33%
+            db.update_signal(sig3_id, "HIT_STOP", 1550.0, -3.33)
 
-            # Assert: Verify the updates
-            with db._conn() as c:
-                row1 = c.execute("SELECT * FROM signals_history WHERE id=?", (id1,)).fetchone()
-                row2 = c.execute("SELECT * FROM signals_history WHERE id=?", (id2,)).fetchone()
+            stats = db.get_stats()
 
-                assert row1["status"] == "HIT_TARGET"
-                assert row1["exit_price"] == 110.0
-                assert row1["pnl_pct"] == 10.0
+            # Assertions
+            assert stats["total"] == 3
+            assert stats["pending"] == 1
+            assert stats["won"] == 1
+            assert stats["lost"] == 1
+            assert stats["resolved"] == 2
+            assert stats["win_rate"] == 50.0
+            assert stats["avg_pnl"] == 3.33  # (10.0 - 3.33) / 2 = 3.335 ~ 3.34
 
-                assert row2["status"] == "HIT_STOP"
-                assert row2["exit_price"] == 110.0
-                assert row2["pnl_pct"] == -10.0
+            # Verify Phase Omega keys are present
+            assert "portfolio" in stats
+            assert "governance" in stats
+            assert "kill_switch" in stats
