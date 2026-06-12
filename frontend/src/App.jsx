@@ -1,9 +1,8 @@
 import { API_BASE_URL, apiFetch } from './api';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers, createTextWatermark } from 'lightweight-charts';
+import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
 import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
 import SignalsPanel from './SignalsPanel';
-import PerformancePanel from './PerformancePanel';
 import IntroSplash from './IntroSplash';
 import LoginScreen from './LoginScreen';
 import AccountPanel from './AccountPanel';
@@ -11,6 +10,7 @@ import OrderBookPanel from './OrderBookPanel';
 import HomePanel from './HomePanel';
 import PredictionsPanel from './PredictionsPanel';
 import JournalPanel from './JournalPanel';
+import SimulatorPanel from './SimulatorPanel';
 
 
 
@@ -183,18 +183,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     });
     mainChartRef.current = mainChart;
 
-    // Add text watermark in v5
-    createTextWatermark(mainChart.panes()[0], {
-      horzAlign: 'center',
-      vertAlign: 'center',
-      lines: [
-        {
-          text: symbol,
-          color: 'rgba(123, 108, 255, 0.05)',
-          fontSize: 64,
-        }
-      ]
-    });
+    // Watermark removed to prevent chart crash
 
     const candleSeries = mainChart.addSeries(CandlestickSeries, {
       upColor:       T.green,
@@ -1268,14 +1257,14 @@ function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, c
       {/* View switcher — CHART | SIGNALS | PREDICTIONS | PERFORMANCE | JOURNAL | ACCOUNT (Hidden on Mobile) */}
       {!isMobile && (
         <div style={{ display: 'flex', background: T.bg, borderRadius: 6, padding: 2, border: `1px solid ${T.border}`, flexShrink: 0 }}>
-          {[['HOME', '🏠'], ['CHART', '📈'], ['SIGNALS', '📡'], ['PREDICTIONS', '🔮 PREDICT'], ['PERFORMANCE', '📊'], ['JOURNAL', '📓'], ['ACCOUNT', '🛡️ SECURITY']].map(([v, icon]) => (
+          {[['HOME', '🏠'], ['CHART', '📈'], ['SIGNALS', '📡'], ['PREDICTIONS', '🔮 PREDICT'], ['JOURNAL', '📓'], ['SIMULATOR', '🤖 TRAIN AI'], ['ACCOUNT', '🛡️ SECURITY']].map(([v, icon]) => (
             <button key={v} onClick={() => onViewChange(v)} style={{
               padding: '4px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
               background: view === v 
-                ? (v === 'SIGNALS' ? T.accentDim : v === 'PERFORMANCE' ? T.greenDim : v === 'ACCOUNT' ? T.accentDim : v === 'PREDICTIONS' ? T.goldDim : v === 'JOURNAL' ? T.blueDim : T.blueDim) 
+                ? (v === 'SIGNALS' ? T.accentDim : v === 'ACCOUNT' ? T.accentDim : v === 'PREDICTIONS' ? T.goldDim : v === 'JOURNAL' ? T.blueDim : T.blueDim) 
                 : 'transparent',
               color: view === v 
-                ? (v === 'SIGNALS' ? T.accentAlt : v === 'PERFORMANCE' ? T.green : v === 'ACCOUNT' ? T.accentAlt : v === 'PREDICTIONS' ? T.gold : v === 'JOURNAL' ? T.blue : T.accent) 
+                ? (v === 'SIGNALS' ? T.accentAlt : v === 'ACCOUNT' ? T.accentAlt : v === 'PREDICTIONS' ? T.gold : v === 'JOURNAL' ? T.blue : T.accent) 
                 : T.textDim,
               fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
               fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
@@ -1739,7 +1728,7 @@ function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, pri
 }
 
 // ── Bottom Tab Bar (mobile-friendly) ─────────────────────────────────────────
-const TABS = ['HOME', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
+const TABS = ['HOME', 'CHART', 'SIGNALS', 'PREDICTIONS', 'JOURNAL', 'SIMULATOR', 'ACCOUNT'];
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
@@ -2514,7 +2503,7 @@ export default function App() {
                       borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
                       marginTop: -1
                     }}>
-                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
+                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'JOURNAL' ? '📓' : tab === 'SIMULATOR' ? '🤖' : '🛡️'}
                     </button>
                   ))}
                 </div>
@@ -2547,29 +2536,6 @@ export default function App() {
             /* PREDICTIONS VIEW — full width */
             <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
               <PredictionsPanel prices={prices} selectedSymbol={selected} onSelectSymbol={setSelected} onViewChange={setView} />
-              {isMobile && (
-                <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {TABS.map(tab => (
-                    <button key={tab} onClick={() => setView(tab)} style={{
-                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
-                      background: 'transparent',
-                      color: view === tab ? T.accent : T.textDim,
-                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
-                      fontFamily: "'Inter', sans-serif",
-                      transition: 'all 0.2s',
-                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
-                      marginTop: -1
-                    }}>
-                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : view === 'PERFORMANCE' ? (
-            /* PERFORMANCE VIEW — full width */
-            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-              <PerformancePanel isMobile={isMobile} />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
                   {TABS.map(tab => (
@@ -2633,7 +2599,30 @@ export default function App() {
                       borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
                       marginTop: -1
                     }}>
-                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
+                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'JOURNAL' ? '📓' : tab === 'SIMULATOR' ? '🤖' : '🛡️'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : view === 'SIMULATOR' ? (
+            /* SIMULATOR VIEW — full width */
+            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              <SimulatorPanel isMobile={isMobile} />
+              {isMobile && (
+                <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                  {TABS.map(tab => (
+                    <button key={tab} onClick={() => setView(tab)} style={{
+                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
+                      background: 'transparent',
+                      color: view === tab ? T.accent : T.textDim,
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                      fontFamily: "'Inter', sans-serif",
+                      transition: 'all 0.2s',
+                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
+                      marginTop: -1
+                    }}>
+                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : tab === 'SIMULATOR' ? '⏱️' : '🛡️'}
                     </button>
                   ))}
                 </div>
@@ -2840,7 +2829,7 @@ export default function App() {
                         borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
                         marginTop: -1
                       }}>
-                        {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'PERFORMANCE' ? '📊 PERF' : '🛡️ SEC'}
+                        {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'SIMULATOR' ? '🤖 TRAIN AI' : '🛡️ SEC'}
                       </button>
                     ))}
                   </div>

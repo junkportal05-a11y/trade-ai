@@ -23,6 +23,8 @@ from fastapi import (
     Query,
     Request,
     Depends,
+    Header,
+    BackgroundTasks,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -36,6 +38,8 @@ import upstox_feed
 import db
 import capital_allocator
 from backtest_routes import backtest_router
+from auth_helpers import require_admin
+from historical_simulator import run_simulation_task, simulation_status
 
 load_dotenv()
 
@@ -1940,3 +1944,60 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
         }
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+# ── Historical Backtesting Endpoints ──────────────────────────────────────────
+
+@app.post("/api/admin/run-simulation")
+async def run_historical_simulation(
+    background_tasks: BackgroundTasks,
+    start_date: str = "2024-01-01",
+    end_date: str = "2024-12-31",
+    current_user: dict = Depends(require_admin)
+):
+    """
+    Run historical backtesting simulation (ADMIN ONLY)
+    
+    Args:
+        start_date: Start date (YYYY-MM-DD)
+        end_date: End date (YYYY-MM-DD)
+    """
+    
+    # Validate dates
+    try:
+        datetime.strptime(start_date, "%Y-%m-%d")
+        datetime.strptime(end_date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+    
+    # Check if simulation is already running
+    if simulation_status.is_running:
+        raise HTTPException(
+            status_code=409, 
+            detail="Simulation already in progress"
+        )
+    
+    # Start background task
+    background_tasks.add_task(
+        run_simulation_task, 
+        start_date, 
+        end_date,
+        "admin"
+    )
+    
+    return {
+        "status": "started",
+        "message": f"Simulating {start_date} to {end_date}",
+        "initiated_by": "admin",
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/api/admin/simulation-status")
+async def get_simulation_status(current_user: dict = Depends(require_admin)):
+    """Get current simulation progress"""
+    return {
+        "is_running": simulation_status.is_running,
+        "progress": simulation_status.progress,
+        "current_symbol": simulation_status.current_symbol,
+        "stats": simulation_status.stats
+    }
+

@@ -159,10 +159,10 @@ def run_historical_backtest(
             if position:
                 # 1. Check Stop Loss
                 if curr_low <= position["stop_loss"]:
-                    pnl = (position["stop_loss"] - position["entry_price"]) * position[
-                        "shares"
-                    ]
-                    capital += position["shares"] * position["stop_loss"]
+                    # Handle gap down: if open price is below stop-loss, we get stopped out at the open price
+                    exit_p = min(float(open_p.iloc[i]), position["stop_loss"])
+                    pnl = (exit_p - position["entry_price"]) * position["shares"]
+                    capital += position["shares"] * exit_p
                     trades.append(
                         {
                             "symbol": symbol,
@@ -170,7 +170,7 @@ def run_historical_backtest(
                             "entry_date": position["entry_date"],
                             "exit_date": current_date,
                             "entry_price": position["entry_price"],
-                            "exit_price": position["stop_loss"],
+                            "exit_price": round(exit_p, 2),
                             "shares": position["shares"],
                             "pnl": round(pnl, 2),
                             "pnl_pct": round(
@@ -179,7 +179,7 @@ def run_historical_backtest(
                                 2,
                             ),
                             "status": "HIT_STOP",
-                            "reason": "Hard stop-loss level triggered.",
+                            "reason": "Hard stop-loss level triggered." if exit_p == position["stop_loss"] else f"Gap down below stop-loss. Filled at open (₹{round(exit_p, 2)}).",
                         }
                     )
                     position = None
@@ -187,10 +187,10 @@ def run_historical_backtest(
 
                 # 2. Check Profit Target
                 elif curr_high >= position["target"]:
-                    pnl = (position["target"] - position["entry_price"]) * position[
-                        "shares"
-                    ]
-                    capital += position["shares"] * position["target"]
+                    # Handle gap up: if open price is above target, we get filled at the open price
+                    exit_p = max(float(open_p.iloc[i]), position["target"])
+                    pnl = (exit_p - position["entry_price"]) * position["shares"]
+                    capital += position["shares"] * exit_p
                     trades.append(
                         {
                             "symbol": symbol,
@@ -198,7 +198,7 @@ def run_historical_backtest(
                             "entry_date": position["entry_date"],
                             "exit_date": current_date,
                             "entry_price": position["entry_price"],
-                            "exit_price": position["target"],
+                            "exit_price": round(exit_p, 2),
                             "shares": position["shares"],
                             "pnl": round(pnl, 2),
                             "pnl_pct": round(
@@ -207,7 +207,7 @@ def run_historical_backtest(
                                 2,
                             ),
                             "status": "HIT_TARGET",
-                            "reason": "Take-profit target hit.",
+                            "reason": "Take-profit target hit." if exit_p == position["target"] else f"Gap up above target. Filled at open (₹{round(exit_p, 2)}).",
                         }
                     )
                     position = None
@@ -369,9 +369,14 @@ def run_historical_backtest(
 
             # Check Entry Condition (Score >= entry_score, long-only)
             if not position and score >= entry_score:
+                if np.isnan(atr_val) or np.isnan(price):
+                    continue
                 # Risk Sizing Rule
                 stop_loss = round(price - stop_atr * atr_val, 2)
                 target = round(price + target_atr * atr_val, 2)
+
+                if np.isnan(stop_loss) or np.isnan(target):
+                    continue
 
                 risk_per_share = price - stop_loss
                 if risk_per_share <= 0:

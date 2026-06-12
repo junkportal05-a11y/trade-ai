@@ -1,0 +1,1 @@
+import('lightweight-charts').then(lc => { const jsdom = require('jsdom'); const dom = new jsdom.JSDOM(); global.document = dom.window.document; global.window = dom.window; const c = lc.createChart(document.createElement('div')); console.log('panes:', typeof c.panes); }).catch(console.error)  
