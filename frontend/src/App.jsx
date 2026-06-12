@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './api';
+import { API_BASE_URL, apiFetch } from './api';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers, createTextWatermark } from 'lightweight-charts';
 import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
@@ -1151,13 +1151,8 @@ function ChatPanel({ symbol, price, changePct }) {
     setMsgs(m => [...m, { role: 'user', text: userMsg }]);
     setBusy(true);
     try {
-      const API_BASE = API_BASE_URL;
-      const res = await fetch(`${API_BASE}/api/chat`, {
+      const res = await apiFetch('/api/chat', {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           message: userMsg,
           context: { symbol: symbol.replace('.NS', ''), price, changePct },
@@ -1868,10 +1863,8 @@ export default function App() {
       
       if (lastShown !== todayStr && (hours > 9 || (hours === 9 && minutes >= 15))) {
         // Market is open or opened already today
-        fetch(`${API_BASE_URL}/api/scan`, {
+        apiFetch('/api/scan', {
           method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json', },
           body: JSON.stringify({ symbols: DEFAULT_WATCHLIST.map(w=>w.symbol), interval: '15m', capital: cash })
         })
         .then(r => r.json())
@@ -1922,12 +1915,7 @@ export default function App() {
 
   const fetchMarketBrief = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = API_BASE_URL;
-    setLoadingBrief(true);
-    fetch(`${API_BASE}/api/market_brief`, {
-      credentials: 'include',
-      headers: { }
-    })
+    apiFetch('/api/market_brief')
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(data => {
       setMarketBrief(data);
@@ -1940,11 +1928,7 @@ export default function App() {
 
   const fetchPredictionStats = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = API_BASE_URL;
-    fetch(`${API_BASE}/api/predictions/stats`, {
-      credentials: 'include',
-      headers: { }
-    })
+    apiFetch('/api/predictions/stats')
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(data => {
       setPredictionStats(data);
@@ -2029,11 +2013,7 @@ export default function App() {
   const fetchPendingPredictions = useCallback(async () => {
     if (!loggedIn) return;
     try {
-      const API_BASE = API_BASE_URL;
-      const res = await fetch(`${API_BASE}/api/predictions`, {
-        credentials: 'include',
-        headers: { }
-      });
+      const res = await apiFetch('/api/predictions');
       if (res.ok) {
         const data = await res.json();
         setPendingPredictions(data.filter(p => p.status === 'PENDING'));
@@ -2073,18 +2053,13 @@ export default function App() {
     
     const timer = setTimeout(async () => {
       try {
-        const API_BASE = API_BASE_URL;
         const cleanedSymbol = selected.replace('.NS', '');
         const currentPrices = pricesRef.current || {};
         const livePrice = currentPrices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
         const pct = currentPrices[selected]?.changePct ?? 0;
-        
-        const res = await fetch(`${API_BASE}/api/chat`, {
+
+        const res = await apiFetch('/api/chat', {
           method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({
             message: `Provide a quick 1-2 sentence technical analyst recommendation for ${cleanedSymbol} at current price ₹${livePrice} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%). Focus on technical metrics like RSI, key levels, or potential triggers. Keep it extremely concise.`,
             context: { symbol: cleanedSymbol, price: livePrice, changePct: pct },
