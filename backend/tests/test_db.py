@@ -1,10 +1,8 @@
-import os
 import pytest
-import sqlite3
 from unittest.mock import patch
-from datetime import datetime
 
 import backend.db as db
+
 
 @pytest.fixture
 def temp_db(tmp_path):
@@ -15,6 +13,7 @@ def temp_db(tmp_path):
         with patch("backend.db.IS_POSTGRES", False):
             db.init_db()
             yield test_db_path
+
 
 def test_update_signal(temp_db):
     """Test updating an existing signal's status, exit price, and pnl_pct."""
@@ -33,7 +32,7 @@ def test_update_signal(temp_db):
         "stop_loss": 90.0,
         "rr_ratio": 1.0,
         "atr": 2.0,
-        "scan_type": "intraday"
+        "scan_type": "intraday",
     }
 
     with patch("backend.db.DB_PATH", str(temp_db)):
@@ -47,7 +46,9 @@ def test_update_signal(temp_db):
 
             # Assert: Verify the update
             with db._conn() as c:
-                row = c.execute("SELECT * FROM signals_history WHERE id=?", (signal_id,)).fetchone()
+                row = c.execute(
+                    "SELECT * FROM signals_history WHERE id=?", (signal_id,)
+                ).fetchone()
                 assert row is not None
 
                 # Check updated fields

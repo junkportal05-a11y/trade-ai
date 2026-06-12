@@ -1,3 +1,4 @@
+import { API_BASE_URL, apiFetch } from './api';
 /**
  * ScannerPanel.jsx
  * Unified NSE Smart Scanner — merges signal scanning with capital allocation
@@ -15,7 +16,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 /* ─── Base URL ──────────────────────────────────────────────────────────────── */
-const BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+const BASE = API_BASE_URL;
 
 /* ─── Design Tokens ─────────────────────────────────────────────────────────── */
 const T = {
@@ -474,10 +475,13 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
   const fetchAllocation = useCallback(async (amt) => {
     if (!amt || amt < 500) return;
     setAllocLoading(true);
+
+    // Yield to the browser event loop to paint allocation status immediately (fixes INP)
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     try {
-      const res = await fetch(`${BASE}/api/allocate`, {
+      const res = await apiFetch('/api/allocate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ capital: amt }),
       });
       if (!res.ok) throw new Error(`Allocate HTTP ${res.status}`);
@@ -499,8 +503,13 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
     setLoading(true);
     setError(null);
 
+    // Yield to the browser event loop to paint scanning status immediately (fixes INP)
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     try {
-      const res = await fetch(`${BASE}/api/signals`, { signal: abortRef.current.signal });
+      const res = await apiFetch('/api/signals', {
+        signal: abortRef.current.signal
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const data = await res.json();
       if (data.signals && data.signals.length > 0) {

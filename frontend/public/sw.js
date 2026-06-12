@@ -3,11 +3,11 @@
  * ========================
  * Strategy:
  *   - Static assets (JS, CSS, HTML, icons, fonts) → Cache First
- *   - API calls to Render backend                  → Network Only (never cache)
+ *   - API calls to Hugging Face backend            → Network Only (never cache)
  *   - Google Fonts                                 → Cache First (once loaded)
  */
 
-const CACHE_VERSION = 'apextrade-v1';
+const CACHE_VERSION = 'apextrade-v2';
 const STATIC_CACHE  = `${CACHE_VERSION}-static`;
 const FONT_CACHE    = `${CACHE_VERSION}-fonts`;
 
@@ -23,7 +23,7 @@ const PRECACHE_ASSETS = [
 
 // Never cache these — always go to network
 const NETWORK_ONLY_PATTERNS = [
-  /onrender\.com/,          // Render backend API
+  /hf\.space/,              // Hugging Face Space backend
   /localhost:8000/,         // Local dev backend
   /api\//,                  // Any /api/ route
   /ws\//,                   // WebSocket

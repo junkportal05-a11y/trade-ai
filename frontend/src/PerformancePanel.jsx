@@ -1,3 +1,4 @@
+import { API_BASE_URL, apiFetch } from './api';
 /**
  * PerformancePanel.jsx
  * ─────────────────────────────────────────────────────────────────────────────
@@ -7,7 +8,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 
-const BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+const BASE = API_BASE_URL;
 
 const T = {
   bg:       '#080a0f',
@@ -63,7 +64,7 @@ const WATCHLIST_STOCKS = [
   { symbol: 'ICICIBANK.NS', name: 'ICICI Bank' },
   { symbol: 'SBIN.NS', name: 'SBI' },
   { symbol: 'TATAMOTORS.NS', name: 'Tata Motors' },
-  { symbol: 'BHARTIARTEL.NS', name: 'Bharti Airtel' },
+  { symbol: 'BHARTIARTL.NS', name: 'Bharti Airtel' },
   { symbol: 'ITC.NS', name: 'ITC' },
   { symbol: 'LT.NS', name: 'L&T' },
   { symbol: 'ADANIENT.NS', name: 'Adani Ent' },
@@ -332,8 +333,7 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
 
   const fetchJournal = useCallback(async () => {
     try {
-      const headers = { 'X-Session-Token': sessionStorage.getItem('apt_token') || '' };
-      const res = await fetch(`${BASE}/api/journal`, { headers });
+      const res = await apiFetch('/api/journal');
       if (res.ok) {
         setJournalEntries(await res.json());
       }
@@ -354,7 +354,6 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
     try {
       const headers = {
         'Content-Type': 'application/json',
-        'X-Session-Token': sessionStorage.getItem('apt_token') || ''
       };
       const entry = {
         symbol: jSymbol,
@@ -365,9 +364,8 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
         emotion: jEmotion,
         status: 'OPEN'
       };
-      const res = await fetch(`${BASE}/api/journal`, {
+      const res = await apiFetch('/api/journal', {
         method: 'POST',
-        headers,
         body: JSON.stringify(entry)
       });
       if (res.ok) {
@@ -387,11 +385,7 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
   const handleDeleteJournal = async (id) => {
     if (!confirm("Are you sure you want to delete this journal entry?")) return;
     try {
-      const headers = { 'X-Session-Token': sessionStorage.getItem('apt_token') || '' };
-      const res = await fetch(`${BASE}/api/journal/${id}`, {
-        method: 'DELETE',
-        headers
-      });
+      const res = await apiFetch(`/api/journal/${id}`, { method: 'DELETE' });
       if (res.ok) {
         await fetchJournal();
       }
@@ -402,10 +396,9 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
 
   const load = useCallback(async () => {
     try {
-      const headers = { 'X-Session-Token': sessionStorage.getItem('apt_token') || '' };
       const [sRes, hRes] = await Promise.all([
-        fetch(`${BASE}/api/backtest/stats`, { headers }),
-        fetch(`${BASE}/api/backtest/history?limit=200`, { headers }),
+        apiFetch('/api/backtest/stats'),
+        apiFetch('/api/backtest/history?limit=200'),
       ]);
       if (sRes.ok) setStats(await sRes.json());
       if (hRes.ok) {
@@ -430,7 +423,7 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
     if (!confirm("Clear all signal history? This cannot be undone.")) return;
     setResetting(true);
     try {
-      await fetch(`${BASE}/api/backtest/reset`, {
+      await apiFetch('/api/backtest/reset', {
         method: 'POST',
         headers: { 'X-Admin-Key': 'apextrade_admin_2024_secure' }
       });
@@ -453,9 +446,7 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
 
     try {
       const query = `symbol=${backtestSymbol}&range=${backtestRange}&capital=${capitalAmt}&stop_atr=${backtestStopAtr}&target_atr=${backtestTargetAtr}&entry_score=${backtestEntryScore}&risk_pct=${backtestRiskPct}&early_exit=${backtestEarlyExit}`;
-      const res = await fetch(`${BASE}/api/backtest/run?${query}`, {
-        headers: { 'X-Session-Token': sessionStorage.getItem('apt_token') || '' }
-      });
+      const res = await apiFetch(`/api/backtest/run?${query}`);
       if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
       const data = await res.json();
       if (data.error) {
@@ -791,21 +782,18 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
         </div>
       ) : (
         <>
-          {/* KPI Cards */}
+          {/* Institutional Dashboard KPIs */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <KpiCard
-              label="WIN RATE"
-              value={`${stats.win_rate}%`}
-              sub={`${stats.won} wins / ${stats.lost} losses`}
-              color={stats.win_rate >= 60 ? T.green : stats.win_rate >= 40 ? T.gold : T.red}
-              big
-            />
-            <KpiCard label="TOTAL SIGNALS" value={stats.total}
-              sub={`${stats.pending} active`} />
-            <KpiCard label="AVG P&L" value={pct(stats.avg_pnl)}
-              color={clr(stats.avg_pnl)} sub="per resolved trade" />
-            <KpiCard label="RESOLVED" value={stats.resolved}
-              sub={`${stats.expired} expired · ${stats.closed} closed`} />
+            <KpiCard label="PORTFOLIO EQUITY" value={`₹${fmt(stats.portfolio?.current_equity || 0)}`} color={stats.portfolio?.current_equity >= stats.portfolio?.daily_equity ? T.green : T.red} big />
+            <KpiCard label="PORTFOLIO DD" value={`-${fmt(((stats.portfolio?.peak_equity - stats.portfolio?.current_equity) / (stats.portfolio?.peak_equity || 1)) * 100)}%`} color={T.gold} big />
+            <KpiCard label="KILL SWITCH" value={stats.kill_switch || "SAFE"} color={stats.kill_switch === "ACTIVE" ? T.red : T.green} big />
+            <KpiCard label="MARKET REGIME" value={stats.current_regime || "UNKNOWN"} color={T.accent} big />
+            
+            <KpiCard label="WIN RATE" value={`${stats.win_rate}%`} sub={`${stats.won} wins / ${stats.lost} losses`} color={stats.win_rate >= 60 ? T.green : stats.win_rate >= 40 ? T.gold : T.red} />
+            <KpiCard label="PROFIT FACTOR" value={`${stats.profit_factor}x`} color={stats.profit_factor >= 1.5 ? T.green : stats.profit_factor >= 1.0 ? T.gold : T.red} sub="Gross Win / Loss" />
+            <KpiCard label="EXPECTED VALUE" value={`${stats.ev_pct > 0 ? '+' : ''}${stats.ev_pct}%`} color={stats.ev_pct > 0 ? T.green : T.red} sub="Avg Expected Return" />
+            <KpiCard label="CALIBRATION ERR" value={`${stats.calibration_error}%`} sub="Expected vs Actual" color={stats.calibration_error < 10 ? T.green : T.red} />
+            <KpiCard label="STRATEGY HEALTH" value={stats.strategy_health || "ACTIVE"} color={stats.strategy_health === "DECAY_WARNING" ? T.gold : stats.strategy_health === "QUARANTINED" ? T.red : T.green} />
           </div>
 
           {/* Breakdown charts */}
@@ -860,6 +848,46 @@ export default function PerformancePanel({ isMobile = window.innerWidth <= 960 }
                     <div style={{ fontSize: 9, color: T.textDim, marginTop: 4 }}>EXPIRED</div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* STRATEGY LEADERBOARD */}
+          <div style={{ marginTop: 24, background: T.panel, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
+              🏆 SETUP LEADERBOARD (LIVE PERFORMANCE)
+            </h3>
+            <div style={{ overflowX: 'auto' }}>
+              <div style={{ minWidth: '700px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', padding: '8px 12px', borderBottom: `1px solid ${T.border}`, fontSize: 9, color: T.textMid, letterSpacing: '0.08em', ...mono }}>
+                  <span>SETUP TYPE</span>
+                  <span>WIN RATE</span>
+                  <span>PROFIT FACTOR</span>
+                  <span>EXPECTED VALUE</span>
+                  <span>STATUS</span>
+                </div>
+                {stats.leaderboard && stats.leaderboard.length > 0 ? (
+                  stats.leaderboard.map((item, idx) => {
+                    const isActive = item.profit_factor >= 1.0;
+                    return (
+                      <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', padding: '12px 12px', borderBottom: `1px solid ${T.border}`, fontSize: 11, ...mono, alignItems: 'center' }}>
+                        <span style={{ color: T.text, fontWeight: 700 }}>{item.setup_type}</span>
+                        <span style={{ color: item.win_rate >= 50 ? T.green : T.textMid }}>{item.win_rate.toFixed(1)}% ({item.wins}/{item.trades})</span>
+                        <span style={{ color: item.profit_factor >= 1.5 ? T.green : item.profit_factor >= 1.0 ? T.gold : T.red, fontWeight: 700 }}>{item.profit_factor.toFixed(2)}x</span>
+                        <span style={{ color: item.ev_pct > 0 ? T.green : T.red }}>{item.ev_pct > 0 ? '+' : ''}{item.ev_pct.toFixed(2)}%</span>
+                        <span>
+                          {isActive ? (
+                            <span style={{ background: T.greenDim, color: T.green, padding: '2px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700, border: `1px solid ${T.green}30` }}>ACTIVE</span>
+                          ) : (
+                            <span style={{ background: T.redDim, color: T.red, padding: '2px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700, border: `1px solid ${T.red}30` }}>QUARANTINED (PF &lt; 1.0)</span>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div style={{ padding: '20px 0', textAlign: 'center', color: T.textDim, fontSize: 11, ...mono }}>No setups recorded yet. Ensure trades are tagged with setup_type.</div>
+                )}
               </div>
             </div>
           </div>

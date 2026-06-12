@@ -1,0 +1,14 @@
+.git/
+.venv/
+.env
+frontend/
+node_modules/
+backend/.venv/
+backend/__pycache__/
+backend/trading_platform.db
+backend/tests/__pycache__/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.DS_Store

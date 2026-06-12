@@ -1,3 +1,4 @@
+import { API_BASE_URL, apiFetch } from './api';
 import React, { useState, useEffect } from 'react';
 
 const T = {
@@ -49,14 +50,13 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://trade-ai-nkqv.onrender.com'}/api/upstox/status`);
+        const res = await apiFetch('/api/upstox/status');
         if (res.ok) {
           const data = await res.json();
           setUpstoxStatus(data);
         }
       } catch (e) {
         console.error("Failed to fetch Upstox status:", e);
-      } finally {
         setUpstoxStatus({
           authorized: false,
           api_key_configured: false,
@@ -64,6 +64,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
           updated_at: null,
           user_name: null
         });
+      } finally {
         setLoadingStatus(false);
       }
     };
@@ -103,7 +104,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
       { type: 'SEC', msg: 'Risk sizing protocol checked: active constraints validated.' },
       { type: 'AUTH', msg: 'Active sessions audit: 0 failed login attempts in last 30 min.' },
       { type: 'SYS', msg: 'Backtest cache refreshed: 12 strategy indexes updated.' },
-      { type: 'NET', msg: 'Render cloud endpoint keep-alive payload dispatched.' }
+      { type: 'NET', msg: 'Hugging Face Space keep-alive payload dispatched.' }
     ];
 
     const interval = setInterval(() => {
@@ -275,8 +276,8 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
 
                 <button
                   onClick={() => {
-                    const baseUrl = import.meta.env.VITE_API_URL || 'https://trade-ai-nkqv.onrender.com';
-                    const state = window.location.origin;
+                    const baseUrl = API_BASE_URL;
+                    const state = encodeURIComponent(window.location.origin);
                     window.location.href = `${baseUrl}/api/upstox/authorize?state=${state}`;
                   }}
                   style={{

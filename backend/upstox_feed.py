@@ -15,8 +15,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 # ── API Credentials ───────────────────────────────────────────────────────────
-UPSTOX_API_KEY      = os.getenv("UPSTOX_API_KEY", "")
-UPSTOX_SECRET_KEY   = os.getenv("UPSTOX_SECRET_KEY", "")
+UPSTOX_API_KEY = os.getenv("UPSTOX_API_KEY", "")
+UPSTOX_SECRET_KEY = os.getenv("UPSTOX_SECRET_KEY", "")
 UPSTOX_REDIRECT_URI = os.getenv("UPSTOX_REDIRECT_URI", "")
 
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), "upstox_token.json")
@@ -27,33 +27,60 @@ STATIC_MAP = {
     "RELIANCE":   "NSE_EQ|INE002A01018",
     "TCS":        "NSE_EQ|INE467B01029",
     "HDFCBANK":   "NSE_EQ|INE040A01034",
-    "INFY":       "NSE_EQ|INE009A01021",
     "ICICIBANK":  "NSE_EQ|INE090A01021",
-    "KOTAKBANK":  "NSE_EQ|INE237A01036",
+    "INFY":       "NSE_EQ|INE009A01021",
+    "ITC":        "NSE_EQ|INE154A01025",
     "SBIN":       "NSE_EQ|INE062A01020",
-    "BAJFINANCE": "NSE_EQ|INE296A01032",
-    "WIPRO":      "NSE_EQ|INE075A01022",
+    "BHARTIARTL": "NSE_EQ|INE397D01024",
+    "KOTAKBANK":  "NSE_EQ|INE237A01028",
+    "BAJFINANCE": "NSE_EQ|INE296A01024",
     "AXISBANK":   "NSE_EQ|INE238A01034",
-    "TATAMOTORS": "NSE_EQ|INE155A01022",
+    "LARSEN":     "NSE_EQ|INE018A01030",
+    "ASIANPAINT": "NSE_EQ|INE021A01026",
+    "HUL":        "NSE_EQ|INE030A01027",
     "MARUTI":     "NSE_EQ|INE585B01010",
     "SUNPHARMA":  "NSE_EQ|INE044A01036",
-    "ADANIENT":   "NSE_EQ|INE423A01024",
     "TITAN":      "NSE_EQ|INE280A01028",
     "ULTRACEMCO": "NSE_EQ|INE481G01011",
-    "ASIANPAINT": "NSE_EQ|INE021A01026",
-    "HINDUNILVR": "NSE_EQ|INE030A01027",
+    "WIPRO":      "NSE_EQ|INE075A01022",
+    "NESTLEIND":  "NSE_EQ|INE239A01016",
+    "HCLTECH":    "NSE_EQ|INE860A01027",
     "ONGC":       "NSE_EQ|INE213A01029",
+    "TATAMOTORS": "NSE_EQ|INE155A01022",
+    "POWERGRID":  "NSE_EQ|INE752E01010",
     "NTPC":       "NSE_EQ|INE733E01010",
+    "M&M":        "NSE_EQ|INE101A01026",
+    "TATASTEEL":  "NSE_EQ|INE081A01012",
+    "HAL":        "NSE_EQ|INE066F01020",
+    "BEL":        "NSE_EQ|INE263A01024",
+    "RVNL":       "NSE_EQ|INE415G01027",
+    "IREDA":      "NSE_EQ|INE268R01014",
+    "HUDCO":      "NSE_EQ|INE031A01017",
+    "COALINDIA":  "NSE_EQ|INE522F01014",
+    "NHPC":       "NSE_EQ|INE848E01016",
+    "ADANIPORTS": "NSE_EQ|INE742F01042",
+    "TATAPOWER":  "NSE_EQ|INE245A01021",
+    "BHEL":       "NSE_EQ|INE257A01026",
+    "JSWSTEEL":   "NSE_EQ|INE019A01038",
+    "HINDALCO":   "NSE_EQ|INE038A01020",
+    "CIPLA":      "NSE_EQ|INE059A01026",
+    "DRREDDY":    "NSE_EQ|INE089A01023",
+    "TECHM":      "NSE_EQ|INE669C01036",
+    "LT":         "NSE_EQ|INE018A01030",
+    "BAJAJFINSV": "NSE_EQ|INE918I01026",
+    "INDUSINDBK": "NSE_EQ|INE095A01012",
 }
 
 _DYNAMIC_MAP = {}
 
+
 # Load token at module import
 def load_token() -> Optional[str]:
     global access_token
-    # Try DB first (survives Render deploys)
+    # Try DB first (survives Hugging Face deploys)
     try:
         import db
+
         token = db.get_upstox_token()
         if token:
             access_token = token
@@ -71,27 +98,41 @@ def load_token() -> Optional[str]:
             pass
     return None
 
+
 load_token()
 
+
+_last_token_check = 0
 def is_authorized() -> bool:
+    global access_token, _last_token_check
+    if access_token is None:
+        now = time.time()
+        if now - _last_token_check > 5:
+            _last_token_check = now
+            load_token()
     return access_token is not None
 
+
 def get_login_url(state: str = "") -> str:
-    url = (
-        f"https://api.upstox.com/v2/login/authorization/dialog"
-        f"?response_type=code&client_id={UPSTOX_API_KEY}&redirect_uri={UPSTOX_REDIRECT_URI}"
-    )
+    from urllib.parse import urlencode
+    params = {
+        "response_type": "code",
+        "client_id": UPSTOX_API_KEY,
+        "redirect_uri": UPSTOX_REDIRECT_URI,
+    }
     if state:
-        from urllib.parse import quote
-        url += f"&state={quote(state)}"
+        params["state"] = state
+    url = f"https://api.upstox.com/v2/login/authorization/dialog?{urlencode(params)}"
     return url
+
 
 def save_token(token: str, details: dict = None):
     global access_token
     access_token = token
-    # Save to DB (persists on Render)
+    # Save to DB (persists on Hugging Face Space)
     try:
         import db
+
         db.save_upstox_token(token, details or {})
     except Exception as e:
         print(f"[Upstox] DB save failed: {e}")
@@ -105,18 +146,21 @@ def save_token(token: str, details: dict = None):
     except Exception:
         pass
 
-def exchange_code_for_token(code: str, redirect_uri: Optional[str] = None) -> Optional[dict]:
+
+def exchange_code_for_token(
+    code: str, redirect_uri: Optional[str] = None
+) -> Optional[dict]:
     url = "https://api.upstox.com/v2/login/authorization/token"
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
-        "accept": "application/json"
+        "accept": "application/json",
     }
     data = {
-        "code":          code,
-        "client_id":     UPSTOX_API_KEY,
+        "code": code,
+        "client_id": UPSTOX_API_KEY,
         "client_secret": UPSTOX_SECRET_KEY,
-        "redirect_uri":  redirect_uri or UPSTOX_REDIRECT_URI,
-        "grant_type":    "authorization_code"
+        "redirect_uri": redirect_uri or UPSTOX_REDIRECT_URI,
+        "grant_type": "authorization_code",
     }
     try:
         r = requests.post(url, headers=headers, data=data, timeout=15)
@@ -131,16 +175,17 @@ def exchange_code_for_token(code: str, redirect_uri: Optional[str] = None) -> Op
         print(f"[Upstox Auth] Error exchanging token: {e}")
     return None
 
+
 def get_instrument_key(symbol: str) -> Optional[str]:
     # Clean symbol: remove suffixes like .NS, .BO, :NSE, :BSE
     clean = symbol.upper().split(".")[0].split(":")[0]
     if clean in STATIC_MAP:
         return STATIC_MAP[clean]
-    
+
     global _DYNAMIC_MAP
     if clean in _DYNAMIC_MAP:
         return _DYNAMIC_MAP[clean]
-        
+
     # Try loading dynamic cache from disk
     cache_path = os.path.join(os.path.dirname(__file__), "upstox_instruments.json")
     if not _DYNAMIC_MAP and os.path.exists(cache_path):
@@ -149,13 +194,15 @@ def get_instrument_key(symbol: str) -> Optional[str]:
                 _DYNAMIC_MAP = json.load(f)
         except Exception:
             pass
-            
+
     if clean in _DYNAMIC_MAP:
         return _DYNAMIC_MAP[clean]
-        
+
     # Download and extract from GZ master
     try:
-        print(f"[Upstox Feed] Cache miss for '{symbol}'. Downloading master instruments list...")
+        print(
+            f"[Upstox Feed] Cache miss for '{symbol}'. Downloading master instruments list..."
+        )
         url = "https://assets.upstox.com/market-quote/instruments/exchange/NSE.json.gz"
         r = requests.get(url, timeout=10)
         data = gzip.decompress(r.content)
@@ -173,35 +220,38 @@ def get_instrument_key(symbol: str) -> Optional[str]:
         print(f"[Upstox Feed] Dynamic mapping failed for {symbol}: {e}")
     return None
 
-def get_historical_candles(symbol: str, period_or_range: str, interval: str) -> Optional[pd.DataFrame]:
+
+def get_historical_candles(
+    symbol: str, period_or_range: str, interval: str
+) -> Optional[pd.DataFrame]:
     global access_token
     if not access_token:
         return None
-        
+
     key = get_instrument_key(symbol)
     if not key:
         return None
-        
+
     # Map interval to Upstox API format
     # Upstox supports: 1minute, 5minute, 10minute, 15minute, 30minute, 60minute, day, week, month
     if interval in ("1m", "1min", "1minute"):
         mapped_int = "1minute"
         resample_rule = None
     elif interval in ("5m", "5min", "5minute"):
-        mapped_int = "1minute"
-        resample_rule = "5min"
+        mapped_int = "30minute"
+        resample_rule = None
     elif interval in ("10m", "10min", "10minute"):
-        mapped_int = "1minute"
-        resample_rule = "10min"
+        mapped_int = "30minute"
+        resample_rule = None
     elif interval in ("15m", "15min", "15minute"):
-        mapped_int = "1minute"
-        resample_rule = "15min"
+        mapped_int = "30minute"
+        resample_rule = None
     elif interval in ("30m", "30min", "30minute"):
         mapped_int = "30minute"
         resample_rule = None
     elif interval in ("1h", "60m", "60min", "60minute", "1hour"):
-        mapped_int = "1minute"
-        resample_rule = "60min"
+        mapped_int = "60minute"
+        resample_rule = None
     elif interval in ("1d", "day", "1day"):
         mapped_int = "day"
         resample_rule = None
@@ -214,14 +264,14 @@ def get_historical_candles(symbol: str, period_or_range: str, interval: str) -> 
     else:
         mapped_int = "day"
         resample_rule = None
-    
+
     # Calculate date range
     to_dt = datetime.now(timezone.utc)
     days_back = 5
-    
+
     # Check if we are requesting daily or longer interval bars
     is_daily_or_longer = mapped_int in ("day", "week", "month")
-    
+
     if is_daily_or_longer:
         if period_or_range == "1mo":
             days_back = 90  # Fetch 90 days to ensure enough bars (~60 trading days) for indicator warm-up
@@ -240,25 +290,26 @@ def get_historical_candles(symbol: str, period_or_range: str, interval: str) -> 
         else:
             days_back = 365 * 2
     else:
-        # Intraday (1m, 5m, 15m, 30m, 60m)
+        # Intraday (30min, 60min)
+        # Upstox provides max ~100 days of intraday data
         if period_or_range == "1d":
-            days_back = 1
+            days_back = 2    # fetch 2 days to ensure today's data is included
         elif period_or_range == "5d":
             days_back = 7
         elif period_or_range == "1mo":
             days_back = 30
         else:
-            days_back = 10
-            
+            days_back = 7
+
     from_dt = to_dt - timedelta(days=days_back)
     to_str = to_dt.strftime("%Y-%m-%d")
     from_str = from_dt.strftime("%Y-%m-%d")
-    
+
     try:
         url = f"https://api.upstox.com/v2/historical-candle/{key}/{mapped_int}/{to_str}/{from_str}"
         headers = {
             "Accept": "application/json",
-            "Authorization": f"Bearer {access_token}"
+            "Authorization": f"Bearer {access_token}",
         }
         r = requests.get(url, headers=headers, timeout=10)
         if r.status_code == 200:
@@ -267,41 +318,53 @@ def get_historical_candles(symbol: str, period_or_range: str, interval: str) -> 
                 candles = res.get("data", {}).get("candles")
                 if not candles:
                     return None
-                
+
                 # Upstox returns candles newest first (reverse chronological order)
-                df = pd.DataFrame(candles, columns=["Date", "Open", "High", "Low", "Close", "Volume", "OI"])
+                df = pd.DataFrame(
+                    candles,
+                    columns=["Date", "Open", "High", "Low", "Close", "Volume", "OI"],
+                )
                 df["Date"] = pd.to_datetime(df["Date"])
                 df.set_index("Date", inplace=True)
                 df.sort_index(inplace=True)
-                df = df.astype({
-                    "Open": float,
-                    "High": float,
-                    "Low": float,
-                    "Close": float,
-                    "Volume": float
-                })
-                
+                df = df.astype(
+                    {
+                        "Open": float,
+                        "High": float,
+                        "Low": float,
+                        "Close": float,
+                        "Volume": float,
+                    }
+                )
+
                 if resample_rule:
-                    df = df.resample(resample_rule).agg({
-                        "Open": "first",
-                        "High": "max",
-                        "Low": "min",
-                        "Close": "last",
-                        "Volume": "sum",
-                        "OI": "last"
-                    }).dropna(subset=["Open"])
-                    
+                    df = (
+                        df.resample(resample_rule)
+                        .agg(
+                            {
+                                "Open": "first",
+                                "High": "max",
+                                "Low": "min",
+                                "Close": "last",
+                                "Volume": "sum",
+                                "OI": "last",
+                            }
+                        )
+                        .dropna(subset=["Open"])
+                    )
+
                 return df
         print(f"[Upstox Candles] Fetch failed ({r.status_code}): {r.text}")
     except Exception as e:
         print(f"[Upstox Candles] Error fetching candles for {symbol}: {e}")
     return None
 
+
 def get_live_quotes(symbols: list) -> dict:
     global access_token
     if not access_token:
         return {}
-        
+
     keys = []
     sym_by_key = {}
     for s in symbols:
@@ -309,15 +372,15 @@ def get_live_quotes(symbols: list) -> dict:
         if k:
             keys.append(k)
             sym_by_key[k] = s
-            
+
     if not keys:
         return {}
-        
+
     try:
         url = f"https://api.upstox.com/v2/market-quote/quotes?instrument_key={','.join(keys)}"
         headers = {
             "Accept": "application/json",
-            "Authorization": f"Bearer {access_token}"
+            "Authorization": f"Bearer {access_token}",
         }
         r = requests.get(url, headers=headers, timeout=10)
         if r.status_code == 200:
@@ -335,23 +398,23 @@ def get_live_quotes(symbols: list) -> dict:
                         high = float(ohlc.get("high") or price)
                         low = float(ohlc.get("low") or price)
                         volume = int(val.get("volume", 0))
-                        
+
                         change = price - prev_close
                         change_pct = (change / prev_close * 100) if prev_close else 0.0
-                        
+
                         results[sym] = {
-                            "symbol":     sym,
-                            "name":       val.get("name", sym),
-                            "price":      round(price, 2),
-                            "change":     round(change, 2),
+                            "symbol": sym,
+                            "name": val.get("name", sym),
+                            "price": round(price, 2),
+                            "change": round(change, 2),
                             "change_pct": round(change_pct, 2),
-                            "volume":     volume,
-                            "open":       round(open_p, 2),
-                            "high":       round(high, 2),
-                            "low":        round(low, 2),
+                            "volume": volume,
+                            "open": round(open_p, 2),
+                            "high": round(high, 2),
+                            "low": round(low, 2),
                             "prev_close": round(prev_close, 2),
-                            "source":     "upstox",
-                            "sector":     "NSE Stock"
+                            "source": "upstox",
+                            "sector": "NSE Stock",
                         }
                 return results
     except Exception as e:
