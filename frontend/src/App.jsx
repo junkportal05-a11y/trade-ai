@@ -1,6 +1,6 @@
 import { API_BASE_URL } from './api';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { createChart, CandlestickSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
+import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers, createTextWatermark } from 'lightweight-charts';
 import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
 import SignalsPanel from './SignalsPanel';
 import PerformancePanel from './PerformancePanel';
@@ -139,6 +139,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
   const candleSeriesRef = useRef();
   const volSeriesRef = useRef();
   const liveTickRef = useRef();
+  const seriesMarkersRef = useRef();
   
   const { bars, loading, error } = useHistory(symbol, { interval, range, seedPrice: SEED_PRICES[symbol] });
 
@@ -162,14 +163,6 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
         fontSize: 11,
         fontFamily: "'IBM Plex Mono', monospace",
       },
-      watermark: {
-        visible: true,
-        fontSize: 64,
-        horzAlign: 'center',
-        vertAlign: 'center',
-        color: 'rgba(123, 108, 255, 0.05)',
-        text: symbol,
-      },
       grid: {
         vertLines: { color: T.border },
         horzLines: { color: T.border },
@@ -190,6 +183,19 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     });
     mainChartRef.current = mainChart;
 
+    // Add text watermark in v5
+    createTextWatermark(mainChart.panes()[0], {
+      horzAlign: 'center',
+      vertAlign: 'center',
+      lines: [
+        {
+          text: symbol,
+          color: 'rgba(123, 108, 255, 0.05)',
+          fontSize: 64,
+        }
+      ]
+    });
+
     const candleSeries = mainChart.addSeries(CandlestickSeries, {
       upColor:       T.green,
       downColor:     T.red,
@@ -201,10 +207,13 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     candleSeries.setData(bars);
     candleSeriesRef.current = candleSeries;
 
+    // Initialize markers in v5
+    seriesMarkersRef.current = createSeriesMarkers(candleSeries, markers || []);
+
     mainChart.subscribeCrosshairMove((param) => {
       const legend = legendRef.current;
       if (!legend) return;
-      if (!param.time || param.point.x < 0 || param.point.y < 0) {
+      if (!param.time || !param.point || param.point.x < 0 || param.point.y < 0) {
         legend.style.display = 'none';
         return;
       }
@@ -449,6 +458,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       mainChart.remove();
       rsiChartRef.current?.remove();
       macdChartRef.current?.remove();
+      seriesMarkersRef.current = null;
     };
   }, [bars, loading, indicators]);
 
@@ -490,8 +500,8 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
 
   // Set markers when they change or bars load
   useEffect(() => {
-    if (candleSeriesRef.current && !loading) {
-      candleSeriesRef.current.setMarkers(markers || []);
+    if (seriesMarkersRef.current && !loading) {
+      seriesMarkersRef.current.setMarkers(markers || []);
     }
   }, [markers, loading, bars]);
 
