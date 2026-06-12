@@ -37,7 +37,7 @@ export function useQuote(symbol) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${BASE_URL}/api/quote?symbol=${symbol}`, { credentials: 'include' });
+      const res = await fetch(`${BASE_URL}/api/quote?symbol=${symbol}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData(await res.json());
     } catch (e) {
@@ -70,7 +70,7 @@ export function useHistory(symbol, { interval = "1d", range = "3mo", seedPrice =
       setError(null);
       try {
         const url = `${BASE_URL}/api/history?symbol=${symbol}&interval=${interval}&range=${range}`;
-        const res = await fetch(url, { credentials: 'include' });
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         if (!cancelled) {
@@ -172,7 +172,8 @@ export function useLivePrices(symbols = []) {
 
     function connect() {
       try {
-        const ws = new WebSocket(`${WS_URL}/ws/prices?symbols=${symbolKey}`);
+        const token = sessionStorage.getItem('apt_token') || '';
+        const ws = new WebSocket(`${WS_URL}/ws/prices?symbols=${symbolKey}&token=${token}`);
         wsRef.current = ws;
 
         ws.onopen = () => {
