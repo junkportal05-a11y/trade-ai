@@ -1,6 +1,6 @@
 import { API_BASE_URL } from './api';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { createChart } from 'lightweight-charts';
+import { createChart, CandlestickSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
 import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
 import SignalsPanel from './SignalsPanel';
 import PerformancePanel from './PerformancePanel';
@@ -105,8 +105,8 @@ const SEED_PRICES = {
 };
 
 const INTERVALS = [
-  { label: '1D',  interval: '5m',  range: '1d' },
-  { label: '1W',  interval: '15m', range: '5d' },
+  { label: '1D',  interval: '30m', range: '1d' },
+  { label: '1W',  interval: '30m', range: '5d' },
   { label: '1M',  interval: '1d',  range: '1mo' },
   { label: '3M',  interval: '1d',  range: '3mo' },
   { label: '1Y',  interval: '1wk', range: '1y' },
@@ -190,7 +190,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     });
     mainChartRef.current = mainChart;
 
-    const candleSeries = mainChart.addCandlestickSeries({
+    const candleSeries = mainChart.addSeries(CandlestickSeries, {
       upColor:       T.green,
       downColor:     T.red,
       borderVisible: false,
@@ -235,7 +235,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     });
 
     // Volume histogram on main chart
-    const volSeries = mainChart.addHistogramSeries({
+    const volSeries = mainChart.addSeries(HistogramSeries, {
       priceFormat:  { type: 'volume' },
       priceScaleId: 'vol',
       color: 'rgba(77,159,255,0.25)',
@@ -255,7 +255,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     // EMA 9 overlay
     if (indicators.ema9) {
       const ema9Data = calcEMA(bars, 9);
-      const ema9Series = mainChart.addLineSeries({
+      const ema9Series = mainChart.addSeries(LineSeries, {
         color: '#00e5a8',
         lineWidth: 1.5,
         title: 'EMA 9',
@@ -266,7 +266,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     // EMA 21 overlay
     if (indicators.ema21) {
       const ema21Data = calcEMA(bars, 21);
-      const ema21Series = mainChart.addLineSeries({
+      const ema21Series = mainChart.addSeries(LineSeries, {
         color: '#ff9f43',
         lineWidth: 1.5,
         title: 'EMA 21',
@@ -277,16 +277,16 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     // Bollinger Bands overlays
     if (indicators.bb) {
       const bbData = calcBollingerBands(bars, 20, 2);
-      const bbUpSeries = mainChart.addLineSeries({
+      const bbUpSeries = mainChart.addSeries(LineSeries, {
         color: 'rgba(123,108,255,0.6)',
         lineWidth: 1,
       });
-      const bbMidSeries = mainChart.addLineSeries({
+      const bbMidSeries = mainChart.addSeries(LineSeries, {
         color: 'rgba(123,108,255,0.3)',
         lineWidth: 1,
         lineStyle: 2,
       });
-      const bbDownSeries = mainChart.addLineSeries({
+      const bbDownSeries = mainChart.addSeries(LineSeries, {
         color: 'rgba(123,108,255,0.6)',
         lineWidth: 1,
       });
@@ -338,7 +338,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       rsiChartRef.current = rsiChart;
       targets.push(rsiChart);
 
-      const rsiSeries = rsiChart.addLineSeries({
+      const rsiSeries = rsiChart.addSeries(LineSeries, {
         color: '#7b6cff',
         lineWidth: 1.5,
       });
@@ -397,7 +397,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
 
       const macdData = calcMACD(bars);
       
-      const macdHistSeries = macdChart.addHistogramSeries({
+      const macdHistSeries = macdChart.addSeries(HistogramSeries, {
         priceScaleId: 'right',
       });
       const macdHistData = macdData.histogram.map(h => ({
@@ -407,13 +407,13 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       }));
       macdHistSeries.setData(macdHistData);
 
-      const macdLineSeries = macdChart.addLineSeries({
+      const macdLineSeries = macdChart.addSeries(LineSeries, {
         color: '#4da6ff',
         lineWidth: 1.2,
       });
       macdLineSeries.setData(macdData.macdLine.map(m => ({ time: m.time, value: m.value })));
 
-      const macdSigSeries = macdChart.addLineSeries({
+      const macdSigSeries = macdChart.addSeries(LineSeries, {
         color: '#f5c842',
         lineWidth: 1.2,
       });

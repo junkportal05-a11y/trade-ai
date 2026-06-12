@@ -241,17 +241,17 @@ def get_historical_candles(
         mapped_int = "30minute"
         resample_rule = None
     elif interval in ("10m", "10min", "10minute"):
-        mapped_int = "1minute"
-        resample_rule = "10min"
+        mapped_int = "30minute"
+        resample_rule = None
     elif interval in ("15m", "15min", "15minute"):
-        mapped_int = "1minute"
-        resample_rule = "15min"
+        mapped_int = "30minute"
+        resample_rule = None
     elif interval in ("30m", "30min", "30minute"):
         mapped_int = "30minute"
         resample_rule = None
     elif interval in ("1h", "60m", "60min", "60minute", "1hour"):
-        mapped_int = "1minute"
-        resample_rule = "60min"
+        mapped_int = "60minute"
+        resample_rule = None
     elif interval in ("1d", "day", "1day"):
         mapped_int = "day"
         resample_rule = None
@@ -290,15 +290,16 @@ def get_historical_candles(
         else:
             days_back = 365 * 2
     else:
-        # Intraday (1m, 5m, 15m, 30m, 60m)
+        # Intraday (30min, 60min)
+        # Upstox provides max ~100 days of intraday data
         if period_or_range == "1d":
-            days_back = 1
+            days_back = 2    # fetch 2 days to ensure today's data is included
         elif period_or_range == "5d":
             days_back = 7
         elif period_or_range == "1mo":
             days_back = 30
         else:
-            days_back = 10
+            days_back = 7
 
     from_dt = to_dt - timedelta(days=days_back)
     to_str = to_dt.strftime("%Y-%m-%d")
