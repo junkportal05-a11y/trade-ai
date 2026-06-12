@@ -7,25 +7,34 @@ Downloads daily data, computes quant signals, and runs a chronological trade sim
 import math
 import pandas as pd
 import numpy as np
+from dataclasses import dataclass
 from signals import download_market_data_df
+
+
+@dataclass
+class BacktestConfig:
+    period_range: str = "6mo"
+    initial_capital: float = 10000.0
+    stop_atr: float = 1.5
+    target_atr: float = 2.5
+    entry_score: int = 5
+    risk_pct: float = 0.02
+    early_exit: int = -4
 
 
 def run_historical_backtest(
     symbol: str,
-    period_range: str = "6mo",
-    initial_capital: float = 10000.0,
-    stop_atr: float = 1.5,
-    target_atr: float = 2.5,
-    entry_score: int = 5,
-    risk_pct: float = 0.02,
-    early_exit: int = -4,
+    config: BacktestConfig = None,
 ) -> dict:
     """
     Runs a historical strategy backtest on Daily (1D) bars with configurable risk/target and early exit thresholds.
     """
+    if config is None:
+        config = BacktestConfig()
+
     try:
         # Download daily data via unified abstraction layer
-        df = download_market_data_df(symbol, period_range, "1d")
+        df = download_market_data_df(symbol, config.period_range, "1d")
 
         if df is None or len(df) < 30:
             return {"error": f"Insufficient historical data fetched for {symbol}."}
@@ -133,7 +142,7 @@ def run_historical_backtest(
         df["VOL_SMA"] = volume.rolling(20).mean()
 
         # ── Chronological Simulation Loop ─────────────────────────────────────
-        capital = initial_capital
+        capital = config.initial_capital
         position = (
             None  # None or dict: {entry_price, stop_loss, target, shares, entry_date}
         )
@@ -341,7 +350,7 @@ def run_historical_backtest(
                 score += 1 if score > 0 else -1
 
             # Check early exits on existing position if trend turns
-            if position and score <= early_exit:
+            if position and score <= config.early_exit:
                 # Early exit
                 pnl = (price - position["entry_price"]) * position["shares"]
                 capital += position["shares"] * price
@@ -367,13 +376,13 @@ def run_historical_backtest(
                 position = None
                 continue
 
-            # Check Entry Condition (Score >= entry_score, long-only)
-            if not position and score >= entry_score:
+            # Check Entry Condition (Score >= config.entry_score, long-only)
+            if not position and score >= config.entry_score:
                 if np.isnan(atr_val) or np.isnan(price):
                     continue
                 # Risk Sizing Rule
-                stop_loss = round(price - stop_atr * atr_val, 2)
-                target = round(price + target_atr * atr_val, 2)
+                stop_loss = round(price - config.stop_atr * atr_val, 2)
+                target = round(price + config.target_atr * atr_val, 2)
 
                 if np.isnan(stop_loss) or np.isnan(target):
                     continue
@@ -382,7 +391,7 @@ def run_historical_backtest(
                 if risk_per_share <= 0:
                     continue
 
-                max_risk_money = capital * risk_pct
+                max_risk_money = capital * config.risk_pct
                 shares_by_risk = math.floor(max_risk_money / risk_per_share)
                 shares_by_cap = math.floor((capital * 0.95) / price)
                 shares = min(shares_by_risk, shares_by_cap)
@@ -427,8 +436,8 @@ def run_historical_backtest(
         losses = len([t for t in trades if t["pnl"] < 0])
         win_rate = round((wins / total_trades) * 100, 1) if total_trades > 0 else 0.0
 
-        total_pnl = round(capital - initial_capital, 2)
-        total_pnl_pct = round((total_pnl / initial_capital) * 100, 2)
+        total_pnl = round(capital - config.initial_capital, 2)
+        total_pnl_pct = round((total_pnl / config.initial_capital) * 100, 2)
 
         # Profit factor
         gross_profit = sum(t["pnl"] for t in trades if t["pnl"] > 0)
@@ -454,8 +463,8 @@ def run_historical_backtest(
 
         return {
             "symbol": symbol,
-            "period": period_range,
-            "initial_capital": initial_capital,
+            "period": config.period_range,
+            "initial_capital": config.initial_capital,
             "final_capital": round(capital, 2),
             "total_pnl": total_pnl,
             "total_pnl_pct": total_pnl_pct,
