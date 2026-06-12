@@ -1,6 +1,7 @@
+import { API_BASE_URL, apiFetch } from './api';
 import React, { useState, useEffect, useCallback } from 'react';
 
-const BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+const BASE = API_BASE_URL;
 
 const T = {
   bg:         '#080a0f',
@@ -34,7 +35,7 @@ const WATCHLIST = [
   'HAL.NS', 'BEL.NS', 'RVNL.NS', 'IREDA.NS', 'HUDCO.NS',
   'COALINDIA.NS', 'NHPC.NS', 'ADANIPORTS.NS', 'TATAPOWER.NS', 'BHEL.NS',
   'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS',
-  'SBIN.NS', 'TATAMOTORS.NS', 'BHARTIARTEL.NS', 'ITC.NS', 'LT.NS',
+  'SBIN.NS', 'TATAMOTORS.NS', 'BHARTIARTL.NS', 'ITC.NS', 'LT.NS',
   'ADANIENT.NS', 'ADANIPOWER.NS', 'IRFC.NS', 'PFC.NS', 'REC.NS',
   'ZOMATO.NS', 'TATASTEEL.NS', 'SAIL.NS', 'WIPRO.NS', 'JIOFIN.NS',
   'SJVN.NS', 'GMRINFRA.NS', 'NBCC.NS', 'JINDALSTEL.NS', 'JSWSTEEL.NS',
@@ -48,10 +49,15 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
     resolved_predictions: 0,
     win_rate: 0.0,
     avg_error: 0.0,
+    profit_factor: 0.0,
+    empirical_rr_ratio: 0.0,
+    expected_value_pct: 0.0,
+    max_drawdown_pct: 0.0,
     best_sector: 'N/A',
     worst_sector: 'N/A',
     recent_outcomes: [],
-    avg_confidence: 0.0
+    avg_confidence: 0.0,
+    leaderboard: []
   });
 
   const [filter, setFilter] = useState('ALL'); // 'ALL', 'PENDING', 'RESOLVED'
@@ -77,10 +83,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
   // Fetch functions
   const fetchPredictions = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
-      const res = await fetch(`${BASE}/api/predictions`, {
-        headers: { 'X-Session-Token': token }
-      });
+      const res = await apiFetch('/api/predictions');
       if (res.ok) {
         const data = await res.json();
         setPredictions(data);
@@ -92,10 +95,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
 
   const fetchStats = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
-      const res = await fetch(`${BASE}/api/predictions/stats`, {
-        headers: { 'X-Session-Token': token }
-      });
+      const res = await apiFetch('/api/predictions/stats');
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -203,13 +203,8 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
     };
 
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
-      const res = await fetch(`${BASE}/api/predictions`, {
+      const res = await apiFetch('/api/predictions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Session-Token': token
-        },
         body: JSON.stringify(payload)
       });
 
@@ -237,13 +232,8 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
     e.preventDefault();
     if (!actualOutcomeInput) return;
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
-      const res = await fetch(`${BASE}/api/predictions/${resolvingId}/resolve`, {
+      const res = await apiFetch(`/api/predictions/${resolvingId}/resolve`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Session-Token': token
-        },
         body: JSON.stringify({
           actual_outcome: parseFloat(actualOutcomeInput),
           status: resolutionStatus
@@ -265,10 +255,8 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
   const handleDelete = async (predId) => {
     if (!window.confirm("Are you sure you want to delete this prediction?")) return;
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
-      const res = await fetch(`${BASE}/api/predictions/${predId}`, {
-        method: 'DELETE',
-        headers: { 'X-Session-Token': token }
+      const res = await apiFetch(`/api/predictions/${predId}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
         fetchPredictions();
@@ -332,40 +320,59 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
           </div>
         </div>
 
-        {/* Metric 2: Mean Absolute Error */}
+        {/* Metric 2: Profit Factor */}
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>MEAN ABSOLUTE ERROR</div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: T.blue, letterSpacing: '-0.02em', ...mono }}>
-              ₹{fmt(stats.avg_error)}
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>PROFIT FACTOR</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: stats.profit_factor >= 1.5 ? T.green : stats.profit_factor >= 1.0 ? T.gold : T.red, letterSpacing: '-0.02em', ...mono }}>
+              {stats.profit_factor.toFixed(2)}x
             </div>
           </div>
           <div style={{ fontSize: 10, color: T.textDim, borderTop: `1px solid ${T.border}`, paddingTop: 10, marginTop: 10 }}>
-            Average discrepancy to target level
+            Gross Profit / Gross Loss (Ideal &gt; 1.5x)
           </div>
         </div>
 
-        {/* Metric 3: Sector Breakdown */}
+        {/* Metric 3: Expected Value (EV) */}
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 8 }}>SECTOR ANALYTICS</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
-                <span style={{ color: T.textMid }}>Best Sector:</span>
-                <span style={{ color: T.green, fontWeight: 700 }}>{stats.best_sector}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
-                <span style={{ color: T.textMid }}>Worst Sector:</span>
-                <span style={{ color: T.red, fontWeight: 700 }}>{stats.worst_sector}</span>
-              </div>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>EXPECTED VALUE (EV)</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: stats.expected_value_pct > 0 ? T.green : T.red, letterSpacing: '-0.02em', ...mono }}>
+              {stats.expected_value_pct > 0 ? '+' : ''}{stats.expected_value_pct.toFixed(2)}%
             </div>
           </div>
           <div style={{ fontSize: 10, color: T.textDim, borderTop: `1px solid ${T.border}`, paddingTop: 10, marginTop: 10 }}>
-            Based on resolved Nifty categories
+            Average expected return per trade
           </div>
         </div>
 
-        {/* Metric 4: Confidence & Outcomes */}
+        {/* Metric 4: Max Drawdown */}
+        <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>MAX DRAWDOWN</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: stats.max_drawdown_pct <= 10 ? T.green : T.red, letterSpacing: '-0.02em', ...mono }}>
+              -{stats.max_drawdown_pct.toFixed(2)}%
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: T.textDim, borderTop: `1px solid ${T.border}`, paddingTop: 10, marginTop: 10 }}>
+            Largest peak-to-trough capital drop
+          </div>
+        </div>
+
+        {/* Metric 5: Empirical R */}
+        <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>REALIZED R-MULTIPLE</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: stats.empirical_rr_ratio >= 1.5 ? T.green : T.gold, letterSpacing: '-0.02em', ...mono }}>
+              {stats.empirical_rr_ratio.toFixed(2)}R
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: T.textDim, borderTop: `1px solid ${T.border}`, paddingTop: 10, marginTop: 10 }}>
+            Actual Average Win / Average Loss
+          </div>
+        </div>
+
+        {/* Metric 6: Confidence & Outcomes */}
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 6 }}>RECENT OUTCOMES</div>
@@ -395,6 +402,49 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
           </div>
         </div>
 
+      </div>
+
+      {/* STRATEGY LEADERBOARD */}
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20 }}>
+        <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
+          🏆 SETUP LEADERBOARD (LIVE PERFORMANCE)
+        </h3>
+        <div style={{ overflowX: 'auto' }}>
+          <div style={{ minWidth: '700px' }}>
+            {/* Header */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', padding: '8px 12px', borderBottom: `1px solid ${T.border}`, fontSize: 9, color: T.textMid, letterSpacing: '0.08em', ...mono }}>
+              <span>SETUP TYPE</span>
+              <span>WIN RATE</span>
+              <span>PROFIT FACTOR</span>
+              <span>EXPECTED VALUE</span>
+              <span>STATUS</span>
+            </div>
+            
+            {/* Rows */}
+            {stats.leaderboard && stats.leaderboard.length > 0 ? (
+              stats.leaderboard.map((item, idx) => {
+                const isActive = item.profit_factor >= 1.0;
+                return (
+                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', padding: '12px 12px', borderBottom: `1px solid ${T.border}`, fontSize: 11, ...mono, alignItems: 'center' }}>
+                    <span style={{ color: T.text, fontWeight: 700 }}>{item.setup_type}</span>
+                    <span style={{ color: item.win_rate >= 50 ? T.green : T.textMid }}>{item.win_rate.toFixed(1)}% ({item.wins}/{item.trades})</span>
+                    <span style={{ color: item.profit_factor >= 1.5 ? T.green : item.profit_factor >= 1.0 ? T.gold : T.red, fontWeight: 700 }}>{item.profit_factor.toFixed(2)}x</span>
+                    <span style={{ color: item.ev_pct > 0 ? T.green : T.red }}>{item.ev_pct > 0 ? '+' : ''}{item.ev_pct.toFixed(2)}%</span>
+                    <span>
+                      {isActive ? (
+                        <span style={{ background: T.greenDim, color: T.green, padding: '2px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700, border: `1px solid ${T.green}30` }}>ACTIVE</span>
+                      ) : (
+                        <span style={{ background: T.redDim, color: T.red, padding: '2px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700, border: `1px solid ${T.red}30` }}>QUARANTINED (PF &lt; 1.0)</span>
+                      )}
+                    </span>
+                  </div>
+                );
+              })
+            ) : (
+              <div style={{ padding: '20px 0', textAlign: 'center', color: T.textDim, fontSize: 11, ...mono }}>No setups recorded yet. Ensure trades are tagged with setup_type.</div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Main UI Layout: Form on left/top, History on right/bottom */}
@@ -822,12 +872,25 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
                     </div>
 
                     {/* Indicators details */}
-                    {(pred.rsi || pred.macd || pred.adx) && (
-                      <div style={{ display: 'flex', gap: 12, fontSize: 9, color: T.textMid, ...mono }}>
-                        {pred.rsi && <span>RSI: <strong style={{ color: T.text }}>{pred.rsi}</strong></span>}
-                        {pred.macd && <span>MACD Hist: <strong style={{ color: T.text }}>{pred.macd}</strong></span>}
-                        {pred.adx && <span>ADX: <strong style={{ color: T.text }}>{pred.adx}</strong></span>}
-                        <span>Confidence: <strong style={{ color: T.gold }}>{pred.confidence_score}%</strong></span>
+                    {(pred.rsi || pred.macd || pred.adx || pred.trade_quality_score) && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 9, color: T.textMid, ...mono }}>
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                          {pred.rsi && <span>RSI: <strong style={{ color: T.text }}>{pred.rsi}</strong></span>}
+                          {pred.macd && <span>MACD Hist: <strong style={{ color: T.text }}>{pred.macd}</strong></span>}
+                          {pred.adx && <span>ADX: <strong style={{ color: T.text }}>{pred.adx}</strong></span>}
+                          <span>Confidence: <strong style={{ color: T.gold }}>{pred.confidence_score}%</strong></span>
+                        </div>
+                        
+                        {/* Phase Omega: Trade Quality Engine */}
+                        {pred.trade_quality_score > 0 && (
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '6px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', border: `1px solid ${T.borderHi}` }}>
+                            <span style={{ color: T.accent, fontWeight: 'bold' }}>TQS: {pred.trade_quality_score}</span>
+                            <span>| Regime: {pred.regime_score}</span>
+                            <span>| Sector: {pred.sector_score}</span>
+                            <span>| RS: {pred.rs_score}</span>
+                            <span>| Correl: {pred.correlation_score}</span>
+                          </div>
+                        )}
                       </div>
                     )}
 

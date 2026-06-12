@@ -1,4 +1,14 @@
+import { API_BASE_URL } from './api';
 import React, { useState } from 'react';
+
+function getTimeoutSignal(ms) {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms);
+  }
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}
 
 const T = {
   bg:         '#05070c',
@@ -18,52 +28,110 @@ const T = {
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
 export default function LoginScreen({ onLogin }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [accessCode, setAccessCode] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+
+  const BASE_URL = API_BASE_URL;
+  const [serverReady, setServerReady] = useState(false);
+  const [waking, setWaking] = useState(true);
+
+  // Pre-warm the backend on mount (HF Spaces auto-sleep after inactivity)
+  React.useEffect(() => {
+    let cancelled = false;
+    const wake = async () => {
+      for (let i = 0; i < 5; i++) {
+        try {
+          // Use mode: 'no-cors' to bypass CORS blocks on raw waker hit
+          const r = await fetch(BASE_URL + "/", { 
+            method: "GET", 
+            mode: "no-cors",
+            signal: getTimeoutSignal(10000) 
+          });
+          // Any non-throwing response (including opaque 0) means server is active and reachable
+          if (r && !cancelled) { 
+            setServerReady(true); 
+            setWaking(false); 
+            return; 
+          }
+        } catch (_) { /* server still waking */ }
+        if (!cancelled) await new Promise(ok => setTimeout(ok, 2000 * (i + 1)));
+      }
+      if (!cancelled) { setServerReady(false); setWaking(false); }
+    };
+    wake();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
-    const u = username.trim();
-    const p = password.trim();
-    if (!u || !p) {
-      setError("Please fill in all security fields.");
+    const code = accessCode.trim();
+    if (!code) {
+      setError("Please enter your security access code.");
       return;
     }
 
     setLoading(true);
 
-    try {
-      const BASE_URL = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
-      const res = await fetch(`${BASE_URL}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: u, password: p })
-      });
-      
-      if (!res.ok) {
-        let errMessage = "AUTHENTICATION FAILED: Invalid credentials.";
-        try {
-          const errData = await res.json();
-          if (errData && errData.detail) errMessage = "ERROR: " + errData.detail;
-        } catch (e) {}
-        throw new Error(errMessage);
+    const MAX_RETRIES = 3;
+    const payload = JSON.stringify({ username: "code", password: code });
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const res = await fetch(`${BASE_URL}/api/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: payload,
+          signal: getTimeoutSignal(15000),
+        });
+        
+        if (!res.ok) {
+          let errMessage = "AUTHENTICATION FAILED: Invalid access code.";
+          try {
+            const errData = await res.json();
+            if (errData && errData.detail) errMessage = "ERROR: " + errData.detail;
+          } catch (_) {}
+          // Auth errors are not retryable — break immediately
+          setError(errMessage);
+          setLoading(false);
+          return;
+        }
+        
+        const data = await res.json();
+        
+        // Store a flag indicating we are logged in (actual token is in HttpOnly cookie)
+        localStorage.setItem('is_logged_in', 'true');
+        
+        // Also store session token if provided (fallback for non-cookie auth)
+        if (data.token) {
+          sessionStorage.setItem('apt_token', data.token);
+          localStorage.setItem('apt_token', data.token);
+        }
+        
+        // Propagate user metadata to parent App component
+        onLogin(data.username, data.role, data.clearance);
+        return; // success — exit
+      } catch (err) {
+        const isNetworkError = err.name === "TypeError" || err.name === "AbortError" || (err.message && err.message.toLowerCase().includes("failed to fetch"));
+        if (isNetworkError && attempt < MAX_RETRIES) {
+          // Server likely sleeping — wait and retry
+          setError(`SERVER WAKING UP — Retry ${attempt}/${MAX_RETRIES}...`);
+          await new Promise(ok => setTimeout(ok, 3000 * attempt));
+          continue;
+        }
+        // Final attempt or non-network error
+        setError(
+          isNetworkError
+            ? "CONNECTION FAILED: Server is unreachable. It may be starting up — please wait 30 seconds and try again."
+            : (err.message || "AUTHENTICATION FAILED: Connection error.")
+        );
+        setLoading(false);
+        return;
       }
-      
-      const data = await res.json();
-      
-      // Store session token in sessionStorage (in-memory only, clears on tab close)
-      sessionStorage.setItem('apt_token', data.token);
-      
-      // Propagate user metadata to parent App component
-      onLogin(u, data.role, data.clearance);
-    } catch (err) {
-      setError(err.message || "AUTHENTICATION FAILED: Connection error.");
-      setLoading(false);
     }
   };
 
@@ -125,7 +193,17 @@ export default function LoginScreen({ onLogin }) {
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f5c842' }} />
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.green }} />
           </div>
-          <span style={{ fontSize: 7.5, color: T.textDim, letterSpacing: '0.15em', ...mono }}>SECURITY GATEWAY v1.0.8</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: waking ? '#f5c842' : serverReady ? T.green : T.red,
+              boxShadow: waking ? '0 0 6px #f5c842' : serverReady ? `0 0 6px ${T.green}` : `0 0 6px ${T.red}`,
+              animation: waking ? 'pulse 1.2s ease-in-out infinite' : 'none',
+            }} />
+            <span style={{ fontSize: 7.5, color: T.textDim, letterSpacing: '0.15em', ...mono }}>
+              {waking ? 'CONNECTING...' : serverReady ? 'SERVER ONLINE' : 'SERVER OFFLINE'}
+            </span>
+          </div>
         </div>
 
         {/* Branding Logo */}
@@ -154,40 +232,10 @@ export default function LoginScreen({ onLogin }) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* User ID Input */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 8.5, color: T.textMid, letterSpacing: '0.08em', ...mono }}>SECURITY USER ID</label>
-            <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: T.textDim, fontSize: 12 }}>👤</span>
-              <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="Enter ID..."
-                disabled={loading}
-                style={{
-                  width: '100%',
-                  background: 'rgba(5, 7, 12, 0.8)',
-                  color: T.text,
-                  border: `1px solid ${T.border}`,
-                  borderRadius: 8,
-                  padding: '10px 12px 10px 36px',
-                  fontSize: 12,
-                  outline: 'none',
-                  transition: 'border 0.2s',
-                  boxSizing: 'border-box',
-                  ...mono,
-                }}
-                onFocus={e => e.target.style.borderColor = T.accent}
-                onBlur={e => e.target.style.borderColor = T.border}
-              />
-            </div>
-          </div>
-
-          {/* Password Input */}
+          {/* Single Access Code Input */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ fontSize: 8.5, color: T.textMid, letterSpacing: '0.08em', ...mono }}>SECURITY KEY (PASSWORD)</label>
+              <label style={{ fontSize: 8.5, color: T.textMid, letterSpacing: '0.08em', ...mono }}>ENTER ACCESS SECURITY CODE</label>
               <button 
                 type="button" 
                 onClick={() => setShowPassword(!showPassword)}
@@ -200,9 +248,9 @@ export default function LoginScreen({ onLogin }) {
               <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: T.textDim, fontSize: 12 }}>🔒</span>
               <input
                 type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Enter password..."
+                value={accessCode}
+                onChange={e => setAccessCode(e.target.value)}
+                placeholder="Enter access code..."
                 disabled={loading}
                 style={{
                   width: '100%',
@@ -273,6 +321,20 @@ export default function LoginScreen({ onLogin }) {
               </>
             ) : "DECRYPT & ENTER TERMINAL"}
           </button>
+          
+          {/* Target backend URL display (debugging context) */}
+          <div style={{
+            fontSize: 7.5,
+            color: T.textDim,
+            textAlign: 'center',
+            marginTop: 4,
+            ...mono,
+            opacity: 0.6,
+            letterSpacing: '0.04em',
+            wordBreak: 'break-all'
+          }}>
+            NODE_ADDR: {BASE_URL}
+          </div>
         </form>
       </div>
 
@@ -281,6 +343,10 @@ export default function LoginScreen({ onLogin }) {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
         }
       `}</style>
     </div>

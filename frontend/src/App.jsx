@@ -1,5 +1,6 @@
+import { API_BASE_URL, apiFetch } from './api';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { createChart, CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
+import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers, createTextWatermark } from 'lightweight-charts';
 import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
 import SignalsPanel from './SignalsPanel';
 import PerformancePanel from './PerformancePanel';
@@ -9,7 +10,7 @@ import AccountPanel from './AccountPanel';
 import OrderBookPanel from './OrderBookPanel';
 import HomePanel from './HomePanel';
 import PredictionsPanel from './PredictionsPanel';
-
+import JournalPanel from './JournalPanel';
 
 
 
@@ -61,7 +62,7 @@ const DEFAULT_WATCHLIST = [
   { symbol: 'ICICIBANK.NS',  name: 'ICICI Bank',     sector: 'Banking' },
   { symbol: 'SBIN.NS',       name: 'SBI',            sector: 'Banking' },
   { symbol: 'TATAMOTORS.NS', name: 'Tata Motors',    sector: 'Auto' },
-  { symbol: 'BHARTIARTEL.NS',name: 'Bharti Airtel',   sector: 'Telecom' },
+  { symbol: 'BHARTIARTL.NS',name: 'Bharti Airtel',   sector: 'Telecom' },
   { symbol: 'ITC.NS',        name: 'ITC',            sector: 'FMCG' },
   { symbol: 'LT.NS',         name: 'L&T',            sector: 'Infrastructure' },
   { symbol: 'ADANIENT.NS',   name: 'Adani Ent',      sector: 'Conglomerate' },
@@ -93,7 +94,7 @@ const SEED_PRICES = {
   'BHEL.NS': 305,
   'RELIANCE.NS': 2950, 'TCS.NS': 3850, 'HDFCBANK.NS': 1600,
   'INFY.NS': 1480, 'ICICIBANK.NS': 1120, 'SBIN.NS': 830,
-  'TATAMOTORS.NS': 970, 'BHARTIARTEL.NS': 1380, 'ITC.NS': 430,
+  'TATAMOTORS.NS': 970, 'BHARTIARTL.NS': 1380, 'ITC.NS': 430,
   'LT.NS': 3550, 'ADANIENT.NS': 3200, 'ADANIPOWER.NS': 720,
   'IRFC.NS': 175, 'PFC.NS': 480, 'REC.NS': 520,
   'ZOMATO.NS': 190, 'TATASTEEL.NS': 170, 'SAIL.NS': 150,
@@ -104,8 +105,8 @@ const SEED_PRICES = {
 };
 
 const INTERVALS = [
-  { label: '1D',  interval: '5m',  range: '1d' },
-  { label: '1W',  interval: '15m', range: '5d' },
+  { label: '1D',  interval: '30m', range: '1d' },
+  { label: '1W',  interval: '30m', range: '5d' },
   { label: '1M',  interval: '1d',  range: '1mo' },
   { label: '3M',  interval: '1d',  range: '3mo' },
   { label: '1Y',  interval: '1wk', range: '1y' },
@@ -127,6 +128,7 @@ const sign = (v) => v > 0 ? '+' : '';
 // ── Candlestick Chart (with volume and indicators) ────────────────────────
 function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [] }) {
   const mainContainerRef = useRef();
+  const legendRef = useRef();
   const rsiContainerRef = useRef();
   const macdContainerRef = useRef();
   
@@ -136,6 +138,8 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
 
   const candleSeriesRef = useRef();
   const volSeriesRef = useRef();
+  const liveTickRef = useRef();
+  const seriesMarkersRef = useRef();
   
   const { bars, loading, error } = useHistory(symbol, { interval, range, seedPrice: SEED_PRICES[symbol] });
 
@@ -179,6 +183,19 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     });
     mainChartRef.current = mainChart;
 
+    // Add text watermark in v5
+    createTextWatermark(mainChart.panes()[0], {
+      horzAlign: 'center',
+      vertAlign: 'center',
+      lines: [
+        {
+          text: symbol,
+          color: 'rgba(123, 108, 255, 0.05)',
+          fontSize: 64,
+        }
+      ]
+    });
+
     const candleSeries = mainChart.addSeries(CandlestickSeries, {
       upColor:       T.green,
       downColor:     T.red,
@@ -189,6 +206,34 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     });
     candleSeries.setData(bars);
     candleSeriesRef.current = candleSeries;
+
+    // Initialize markers in v5
+    seriesMarkersRef.current = createSeriesMarkers(candleSeries, markers || []);
+
+    mainChart.subscribeCrosshairMove((param) => {
+      const legend = legendRef.current;
+      if (!legend) return;
+      if (!param.time || !param.point || param.point.x < 0 || param.point.y < 0) {
+        legend.style.display = 'none';
+        return;
+      }
+      const data = param.seriesData.get(candleSeries);
+      if (data) {
+        legend.style.display = 'block';
+        const color = data.close >= data.open ? T.green : T.red;
+        legend.innerHTML = `
+          <div style="font-weight: 700; margin-bottom: 4px; color: ${T.text}; font-size: 14px;">${symbol} <span style="color: ${T.textMid}; font-size: 11px;">(${interval})</span></div>
+          <div style="display: flex; gap: 14px; font-size: 12px; color: ${T.text};">
+            <span>O <span style="color: ${color}">${data.open.toFixed(2)}</span></span>
+            <span>H <span style="color: ${color}">${data.high.toFixed(2)}</span></span>
+            <span>L <span style="color: ${color}">${data.low.toFixed(2)}</span></span>
+            <span>C <span style="color: ${color}">${data.close.toFixed(2)}</span></span>
+          </div>
+        `;
+      } else {
+        legend.style.display = 'none';
+      }
+    });
 
     mainChart.subscribeClick((param) => {
       if (!param.point || !drawMode) return;
@@ -413,6 +458,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       mainChart.remove();
       rsiChartRef.current?.remove();
       macdChartRef.current?.remove();
+      seriesMarkersRef.current = null;
     };
   }, [bars, loading, indicators]);
 
@@ -423,29 +469,39 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     if (!lastBar) return;
     
     const price = livePrice.price;
-    const updatedBar = {
-      time: lastBar.time,
-      open: lastBar.open,
-      high: Math.max(lastBar.high, price),
-      low: Math.min(lastBar.low, price),
-      close: price,
-    };
     
-    candleSeriesRef.current.update(updatedBar);
+    // Reset tracking if the base bar time changes
+    if (!liveTickRef.current || liveTickRef.current.time !== lastBar.time) {
+      liveTickRef.current = {
+        time: lastBar.time,
+        open: lastBar.open,
+        high: lastBar.high,
+        low: lastBar.low,
+        close: lastBar.close,
+        volume: lastBar.volume || 0
+      };
+    }
+
+    // Accumulate the extremes dynamically
+    liveTickRef.current.high = Math.max(liveTickRef.current.high, price);
+    liveTickRef.current.low = Math.min(liveTickRef.current.low, price);
+    liveTickRef.current.close = price;
+    
+    candleSeriesRef.current.update(liveTickRef.current);
     
     if (volSeriesRef.current) {
       volSeriesRef.current.update({
-        time: lastBar.time,
-        value: lastBar.volume || 0,
-        color: updatedBar.close >= updatedBar.open ? 'rgba(0,216,160,0.22)' : 'rgba(255,78,106,0.22)',
+        time: liveTickRef.current.time,
+        value: liveTickRef.current.volume,
+        color: liveTickRef.current.close >= liveTickRef.current.open ? 'rgba(0,216,160,0.22)' : 'rgba(255,78,106,0.22)',
       });
     }
   }, [livePrice, bars]);
 
   // Set markers when they change or bars load
   useEffect(() => {
-    if (candleSeriesRef.current && !loading) {
-      candleSeriesRef.current.setMarkers(markers || []);
+    if (seriesMarkersRef.current && !loading) {
+      seriesMarkersRef.current.setMarkers(markers || []);
     }
   }, [markers, loading, bars]);
 
@@ -483,7 +539,10 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       )}
       
       {/* Main Chart Container */}
-      <div ref={mainContainerRef} style={{ flex: 3, minHeight: 0, position: 'relative' }} />
+      <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
+        <div ref={legendRef} style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, fontFamily: "'IBM Plex Mono', monospace", pointerEvents: 'none', background: 'rgba(13,16,24,0.65)', backdropFilter: 'blur(4px)', padding: '8px 12px', borderRadius: 6, display: 'none', border: `1px solid ${T.borderHi}` }} />
+        <div ref={mainContainerRef} style={{ width: '100%', height: '100%' }} />
+      </div>
       
       {/* RSI Container */}
       {indicators.rsi && (
@@ -1092,13 +1151,8 @@ function ChatPanel({ symbol, price, changePct }) {
     setMsgs(m => [...m, { role: 'user', text: userMsg }]);
     setBusy(true);
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
-      const res = await fetch(`${API_BASE}/api/chat`, {
+      const res = await apiFetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Session-Token': sessionStorage.getItem('apt_token') || ''
-        },
         body: JSON.stringify({
           message: userMsg,
           context: { symbol: symbol.replace('.NS', ''), price, changePct },
@@ -1106,8 +1160,10 @@ function ChatPanel({ symbol, price, changePct }) {
         }),
       });
       if (res.status === 401) {
-        sessionStorage.removeItem('apt_token');
+        localStorage.removeItem('is_logged_in');
         localStorage.removeItem('apex_user');
+        localStorage.removeItem('apt_token');
+        sessionStorage.removeItem('apt_token');
         window.location.reload();
         return;
       }
@@ -1688,22 +1744,24 @@ const TABS = ['HOME', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   // Security Authentication Gate
-  const [loggedIn, setLoggedIn] = useState(() => sessionStorage.getItem('apt_token') !== null);
+  const [loggedIn, setLoggedIn] = useState(() => localStorage.getItem('is_logged_in') === 'true');
   const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('apex_user') || 'apex_head_quant');
   const [userRole, setUserRole] = useState(() => localStorage.getItem('apex_role') || 'Master Quant / Administrator');
   const [userClearance, setUserClearance] = useState(() => localStorage.getItem('apex_clearance') || 'LEVEL_4_ROOT');
 
   const handleLogout = useCallback(() => {
-    sessionStorage.removeItem('apt_token');
+    localStorage.removeItem('is_logged_in');
     localStorage.removeItem('apex_user');
     localStorage.removeItem('apex_role');
     localStorage.removeItem('apex_clearance');
+    localStorage.removeItem('apt_token');
+    sessionStorage.removeItem('apt_token');
     setLoggedIn(false);
   }, []);
 
   // Warm up backend in the background as soon as the app mounts (during login screen presentation)
   useEffect(() => {
-    const BASE_URL = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+    const BASE_URL = API_BASE_URL;
     fetch(`${BASE_URL}/`).catch(() => {});
   }, []);
 
@@ -1809,10 +1867,8 @@ export default function App() {
       
       if (lastShown !== todayStr && (hours > 9 || (hours === 9 && minutes >= 15))) {
         // Market is open or opened already today
-        const token = sessionStorage.getItem('apt_token') || '';
-        fetch(`${import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com"}/api/scan`, {
+        apiFetch('/api/scan', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Session-Token': token },
           body: JSON.stringify({ symbols: DEFAULT_WATCHLIST.map(w=>w.symbol), interval: '15m', capital: cash })
         })
         .then(r => r.json())
@@ -1863,12 +1919,7 @@ export default function App() {
 
   const fetchMarketBrief = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
-    const token = sessionStorage.getItem('apt_token') || '';
-    setLoadingBrief(true);
-    fetch(`${API_BASE}/api/market_brief`, {
-      headers: { 'X-Session-Token': token }
-    })
+    apiFetch('/api/market_brief')
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(data => {
       setMarketBrief(data);
@@ -1881,11 +1932,7 @@ export default function App() {
 
   const fetchPredictionStats = useCallback(() => {
     if (!loggedIn) return;
-    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
-    const token = sessionStorage.getItem('apt_token') || '';
-    fetch(`${API_BASE}/api/predictions/stats`, {
-      headers: { 'X-Session-Token': token }
-    })
+    apiFetch('/api/predictions/stats')
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(data => {
       setPredictionStats(data);
@@ -1970,11 +2017,7 @@ export default function App() {
   const fetchPendingPredictions = useCallback(async () => {
     if (!loggedIn) return;
     try {
-      const token = sessionStorage.getItem('apt_token') || '';
-      const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
-      const res = await fetch(`${API_BASE}/api/predictions`, {
-        headers: { 'X-Session-Token': token }
-      });
+      const res = await apiFetch('/api/predictions');
       if (res.ok) {
         const data = await res.json();
         setPendingPredictions(data.filter(p => p.status === 'PENDING'));
@@ -1992,72 +2035,6 @@ export default function App() {
       return () => clearInterval(interval);
     }
   }, [fetchPendingPredictions, loggedIn, view]);
-
-  // Tick Matching Resolution Engine
-  useEffect(() => {
-    if (!loggedIn || pendingPredictions.length === 0) return;
-
-    const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
-
-    pendingPredictions.forEach(async (pred) => {
-      if (resolvingIds.current.has(pred.id)) return;
-
-      const livePriceData = prices[pred.symbol];
-      if (!livePriceData || livePriceData.price == null) return;
-
-      const currentPrice = livePriceData.price;
-      const isUp = pred.prediction_type === 'UP';
-      let shouldResolve = false;
-      let status = '';
-
-      if (isUp) {
-        if (currentPrice >= pred.target_price) {
-          shouldResolve = true;
-          status = 'CORRECT';
-        } else if (currentPrice <= pred.stop_loss) {
-          shouldResolve = true;
-          status = 'INCORRECT';
-        }
-      } else {
-        // Bearish prediction
-        if (currentPrice <= pred.target_price) {
-          shouldResolve = true;
-          status = 'CORRECT';
-        } else if (currentPrice >= pred.stop_loss) {
-          shouldResolve = true;
-          status = 'INCORRECT';
-        }
-      }
-
-      if (shouldResolve) {
-        resolvingIds.current.add(pred.id);
-        try {
-          const token = sessionStorage.getItem('apt_token') || '';
-          const res = await fetch(`${API_BASE}/api/predictions/${pred.id}/resolve`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Session-Token': token
-            },
-            body: JSON.stringify({
-              actual_outcome: currentPrice,
-              status: status
-            })
-          });
-
-          if (res.ok) {
-            showToast(`🔮 Prediction resolved: ${pred.symbol.replace('.NS', '')} hit ${status === 'CORRECT' ? 'Target' : 'Stop Loss'}!`, status === 'CORRECT' ? 'success' : 'error');
-            setPendingPredictions(prev => prev.filter(p => p.id !== pred.id));
-          } else {
-            resolvingIds.current.delete(pred.id);
-          }
-        } catch (err) {
-          console.error("Error auto-resolving prediction:", err);
-          resolvingIds.current.delete(pred.id);
-        }
-      }
-    });
-  }, [prices, pendingPredictions, loggedIn, showToast]);
 
 
 
@@ -2080,18 +2057,13 @@ export default function App() {
     
     const timer = setTimeout(async () => {
       try {
-        const API_BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
         const cleanedSymbol = selected.replace('.NS', '');
         const currentPrices = pricesRef.current || {};
         const livePrice = currentPrices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
         const pct = currentPrices[selected]?.changePct ?? 0;
-        
-        const res = await fetch(`${API_BASE}/api/chat`, {
+
+        const res = await apiFetch('/api/chat', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Session-Token': sessionStorage.getItem('apt_token') || ''
-          },
           body: JSON.stringify({
             message: `Provide a quick 1-2 sentence technical analyst recommendation for ${cleanedSymbol} at current price ₹${livePrice} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%). Focus on technical metrics like RSI, key levels, or potential triggers. Keep it extremely concise.`,
             context: { symbol: cleanedSymbol, price: livePrice, changePct: pct },
@@ -2484,8 +2456,8 @@ export default function App() {
             letterSpacing: '0.04em',
             flexShrink: 0
           }}>
-            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: T.gold, animation: 'pulse 1.5s infinite' }} />
-            BACKEND OFFLINE — WAITING FOR RENDER SERVER TO WAKE UP (THIS TAKES 30–50 SECONDS)
+            <span style={{ display: 'inline-block', width: 12, height: 12, border: `2px solid rgba(245,200,66,0.3)`, borderTopColor: T.gold, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            ESTABLISHING SECURE CONNECTION TO QUANT SERVER...
           </div>
         )}
 

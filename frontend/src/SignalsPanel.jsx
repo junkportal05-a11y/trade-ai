@@ -1,3 +1,4 @@
+import { API_BASE_URL, apiFetch } from './api';
 /**
  * SignalsPanel.jsx
  * Unified Quantitative Scan & Capital Allocation Terminal
@@ -8,7 +9,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
-const BASE = import.meta.env.VITE_API_URL || "https://trade-ai-nkqv.onrender.com";
+const BASE = API_BASE_URL;
 
 const T = {
   bg:         '#080a0f',
@@ -96,7 +97,7 @@ function generateFallbackSignals() {
     { symbol: 'ICICIBANK.NS', name: 'ICICI Bank', sector: 'Banking' },
     { symbol: 'SBIN.NS', name: 'SBI', sector: 'Banking' },
     { symbol: 'TATAMOTORS.NS', name: 'Tata Motors', sector: 'Auto' },
-    { symbol: 'BHARTIARTEL.NS', name: 'Bharti Airtel', sector: 'Telecom' },
+    { symbol: 'BHARTIARTL.NS', name: 'Bharti Airtel', sector: 'Telecom' },
     { symbol: 'ITC.NS', name: 'ITC', sector: 'FMCG' },
     { symbol: 'LT.NS', name: 'L&T', sector: 'Infrastructure' },
     { symbol: 'ADANIENT.NS', name: 'Adani Ent', sector: 'Conglomerate' },
@@ -426,7 +427,7 @@ function ScanProgress({ elapsed }) {
           fontFamily: "'IBM Plex Mono', monospace",
           animation: 'shimmer 2s infinite ease-in-out'
         }}>
-          💡 Cloud server cold-start detected. Waking up server threads on Render. This can take up to 45 seconds on the free tier. Please stand by...
+          💡 Cloud server cold-start detected. Waking up server threads on Hugging Face. This can take up to 45 seconds on the free tier. Please stand by...
         </div>
       )}
     </div>
@@ -740,13 +741,13 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
 
     setLoading(true);
     setError(null);
+
+    // Yield to the browser event loop to paint loading UI immediately (fixes INP issues)
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     try {
-      const res = await fetch(`${BASE}/api/allocate`, {
+      const res = await apiFetch('/api/allocate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Session-Token': sessionStorage.getItem('apt_token') || ''
-        },
         body: JSON.stringify({ 
           capital: amt,
           trading_style: selectedStyle
@@ -754,8 +755,10 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
         signal: abortRef.current.signal,
       });
       if (res.status === 401) {
-        sessionStorage.removeItem('apt_token');
+        localStorage.removeItem('is_logged_in');
         localStorage.removeItem('apex_user');
+        localStorage.removeItem('apt_token');
+        sessionStorage.removeItem('apt_token');
         window.location.reload();
         return;
       }

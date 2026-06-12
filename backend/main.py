@@ -14,7 +14,16 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Request, Depends, Header
+from fastapi import (
+    Response,
+    FastAPI,
+    WebSocket,
+    WebSocketDisconnect,
+    HTTPException,
+    Query,
+    Request,
+    Depends,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -31,8 +40,15 @@ from backtest_routes import backtest_router
 load_dotenv()
 
 
-
 limiter = Limiter(key_func=get_remote_address)
+
+def get_user_or_ip(request: Request) -> str:
+    token = request.headers.get("x-session-token")
+    if token:
+        return f"user:{token}"
+    return get_remote_address(request)
+
+limiter = Limiter(key_func=get_user_or_ip)
 
 app = FastAPI(title="ApexTrade API", version="2.0.0")
 app.state.limiter = limiter
@@ -40,32 +56,30 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,https://trade-ai-beta.vercel.app"
+    "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,https://trade-ai-beta.vercel.app,https://frontend-two-tau-82.vercel.app",
 ).split(",")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "X-Session-Token", "X-Admin-Key"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 from auth_helpers import (
-    require_admin,
     require_session,
     create_session,
-    cleanup_sessions,
     ACTIVE_SESSIONS,
     SESSION_TTL,
-    ADMIN_KEY,
-    USER_REGISTRY,
-    authenticate_user
+    authenticate_user,
 )
 
 # Optional Gemini AI integration (google-genai SDK)
 try:
     from google import genai as _genai
+
     _GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
     if _GEMINI_KEY:
         _genai_client = _genai.Client(api_key=_GEMINI_KEY)
@@ -80,32 +94,67 @@ app.include_router(backtest_router)
 # ── Active WebSocket connections ───────────────────────────────────────────────
 active_connections: list[WebSocket] = []
 
+
 class LoginRequest(BaseModel):
     username: str
     password: str
 
+
 @app.post("/api/login")
 @limiter.limit("10/minute")
-async def login(req: LoginRequest, request: Request):
-    u = req.username.strip()
-    user_obj = authenticate_user(u, req.password)
-    if not user_obj:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+async def login(req: LoginRequest, request: Request, response: Response):
+    from auth_helpers import authenticate_by_code
     
+    u = req.username.strip()
+    p = req.password.strip()
+    
+    # Check if a single access code is sent (no username or generic username)
+    if not u or u.lower() in ("code", "login", "admin", "apex_head_quant"):
+        matched_user, user_obj = authenticate_by_code(p)
+        if matched_user:
+            u = matched_user
+        else:
+            # Try to authenticate standard admin fallback
+            user_obj = authenticate_user("apex_head_quant", p)
+            if user_obj:
+                u = "apex_head_quant"
+    else:
+        user_obj = authenticate_user(u, p)
+        
+    if not user_obj:
+        raise HTTPException(status_code=401, detail="Invalid access code or credentials")
+
     token = create_session(u)
+    response.set_cookie(
+        key="apt_token",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=SESSION_TTL,
+    )
     return {
         "token": token,
         "username": u,
         "role": user_obj["role"],
         "clearance": user_obj["clearance"],
-        "expires_in": SESSION_TTL
+        "expires_in": SESSION_TTL,
     }
 
+
 @app.post("/api/logout")
-async def logout(x_session_token: str = Header(None)):
+async def logout(request: Request, response: Response):
+    x_session_token = request.cookies.get("apt_token")
     if x_session_token and x_session_token in ACTIVE_SESSIONS:
         del ACTIVE_SESSIONS[x_session_token]
+    response.delete_cookie(
+        key="apt_token",
+        httponly=True,
+        secure=True,
+        samesite="none"
+    )
     return {"status": "logged out"}
+
 
 @app.get("/api/auth/verify")
 async def verify(token: str = Depends(require_session)):
@@ -116,6 +165,7 @@ async def verify(token: str = Depends(require_session)):
 #  REST ENDPOINTS
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @app.get("/")
 def root():
     return {"status": "ok", "message": "Trading Platform API is running"}
@@ -124,16 +174,17 @@ def root():
 @app.get("/api/keepalive")
 def keep_alive():
     """
-    Keep-alive endpoint to prevent Render free tier cold starts.
+    Keep-alive endpoint to prevent Hugging Face Space free tier sleep/shutdown.
     Configure a free cron-job (e.g., via cron-job.org) targeting this endpoint
     to run every 10 minutes between 9:10 AM and 3:40 PM IST, Monday to Friday.
     """
     from datetime import datetime, timezone, timedelta
+
     now_utc = datetime.now(timezone.utc)
     now_ist = now_utc + timedelta(hours=5, minutes=30)
-    
+
     market_open = sig_engine.is_nse_market_open()
-    
+
     return {
         "status": "active",
         "message": "ApexTrade keep-alive handshake successful.",
@@ -144,8 +195,8 @@ def keep_alive():
             "schedule": "Every 10 minutes",
             "active_hours": "09:10 AM to 03:40 PM IST (03:40 to 10:10 UTC)",
             "active_days": "Monday to Friday",
-            "purpose": "Keeps backend node warm during NSE trading session to eliminate 5m candle latency."
-        }
+            "purpose": "Keeps backend node warm during NSE trading session to eliminate 5m candle latency.",
+        },
     }
 
 
@@ -162,10 +213,11 @@ def upstox_authorize(state: Optional[str] = Query(None)):
     if not upstox_feed.UPSTOX_API_KEY or not upstox_feed.UPSTOX_REDIRECT_URI:
         raise HTTPException(
             status_code=400,
-            detail="Upstox API key or Redirect URI not configured in the environment."
+            detail="Upstox API key or Redirect URI not configured in the environment.",
         )
 
     import secrets
+
     csrf_token = secrets.token_urlsafe(32)
     original_state = state or ""
     oauth_state = f"{original_state}|{csrf_token}"
@@ -178,13 +230,15 @@ def upstox_authorize(state: Optional[str] = Query(None)):
         httponly=True,
         secure=True,
         samesite="lax",
-        max_age=600
+        max_age=600,
     )
     return response
 
 
 @app.get("/api/upstox/callback")
-def upstox_callback(request: Request, code: str = Query(...), state: Optional[str] = Query(None)):
+def upstox_callback(
+    request: Request, code: str = Query(...), state: Optional[str] = Query(None)
+):
     # Validate CSRF token in state
     cookie_token = request.cookies.get("oauth_csrf_token")
     if not cookie_token:
@@ -200,43 +254,54 @@ def upstox_callback(request: Request, code: str = Query(...), state: Optional[st
     original_state, state_csrf_token = parts
 
     import hmac
+
     if not hmac.compare_digest(cookie_token, state_csrf_token):
         raise HTTPException(status_code=400, detail="CSRF token mismatch")
 
     # Reconstruct the exact redirect_uri used for this request to avoid OAuth mismatch
     redirect_uri = str(request.url).split("?")[0]
-    if upstox_feed.UPSTOX_REDIRECT_URI.startswith("https://") and redirect_uri.startswith("http://"):
+    if upstox_feed.UPSTOX_REDIRECT_URI.startswith(
+        "https://"
+    ) and redirect_uri.startswith("http://"):
         redirect_uri = redirect_uri.replace("http://", "https://")
-        
+    # Use the configured redirect URI directly to bypass proxy header issues
+    redirect_uri = upstox_feed.UPSTOX_REDIRECT_URI
+
     res = upstox_feed.exchange_code_for_token(code, redirect_uri=redirect_uri)
     if not res:
-        raise HTTPException(status_code=400, detail="Failed to exchange authorization code for access token")
-    
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to exchange authorization code for access token",
+        )
+
     redirect_target = original_state or ""
     if not redirect_target:
         redirect_uri_conf = upstox_feed.UPSTOX_REDIRECT_URI
         if "localhost" in redirect_uri_conf:
             redirect_target = "http://localhost:5173/account"
         else:
-            redirect_target = "https://trade-ai-beta.vercel.app/account"
+            redirect_target = "https://frontend-two-tau-82.vercel.app/account"
     else:
         if not redirect_target.endswith("/account"):
             if redirect_target.endswith("/"):
                 redirect_target += "account"
             else:
                 redirect_target += "/account"
-                
+
     if "?" in redirect_target:
         redirect_target += "&broker_login=success"
     else:
         redirect_target += "?broker_login=success"
-        
+
     response = RedirectResponse(redirect_target)
     response.delete_cookie("oauth_csrf_token")
     return response
 
+
 @app.get("/auth/callback")
-def upstox_callback_alias(request: Request, code: str = Query(...), state: Optional[str] = Query(None)):
+def upstox_callback_alias(
+    request: Request, code: str = Query(...), state: Optional[str] = Query(None)
+):
     return upstox_callback(request=request, code=code, state=state)
 
 
@@ -250,10 +315,13 @@ def upstox_status():
     }
     if authorized:
         try:
-            with open(upstox_feed.TOKEN_FILE, "r") as f:
-                data = json.load(f)
-                status_data["updated_at"] = data.get("updated_at")
-                status_data["user_name"] = data.get("user_name")
+            import db
+            with db._conn() as c:
+                row = c.execute("SELECT value FROM app_settings WHERE key='upstox_token'").fetchone()
+                if row:
+                    data = json.loads(row["value"])
+                    status_data["updated_at"] = data.get("updated_at")
+                    status_data["user_name"] = data.get("user_name")
         except Exception:
             pass
     return status_data
@@ -262,7 +330,9 @@ def upstox_status():
 @app.get("/api/history")
 def get_history(
     symbol: str = Query(..., description="Ticker symbol, e.g. AAPL"),
-    interval: str = Query("1d", description="Bar interval: 1m,5m,15m,30m,1h,1d,1wk,1mo"),
+    interval: str = Query(
+        "1d", description="Bar interval: 1m,5m,15m,30m,1h,1d,1wk,1mo"
+    ),
     range: str = Query("3mo", description="Date range: 1d,5d,1mo,3mo,6mo,1y,2y,5y,max"),
 ):
     """
@@ -271,13 +341,42 @@ def get_history(
     Lightweight Charts expects:
       { time: 'YYYY-MM-DD' | unix_timestamp, open, high, low, close, volume }
     """
-    VALID_INTERVALS = {"1m", "2m", "5m", "15m", "30m", "60m", "1h", "1d", "5d", "1wk", "1mo", "3mo"}
-    VALID_RANGES = {"1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"}
+    VALID_INTERVALS = {
+        "1m",
+        "2m",
+        "5m",
+        "15m",
+        "30m",
+        "60m",
+        "1h",
+        "1d",
+        "5d",
+        "1wk",
+        "1mo",
+        "3mo",
+    }
+    VALID_RANGES = {
+        "1d",
+        "5d",
+        "1mo",
+        "3mo",
+        "6mo",
+        "1y",
+        "2y",
+        "5y",
+        "10y",
+        "ytd",
+        "max",
+    }
 
     if interval not in VALID_INTERVALS:
-        raise HTTPException(status_code=400, detail=f"Invalid interval. Choose from: {VALID_INTERVALS}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid interval. Choose from: {VALID_INTERVALS}"
+        )
     if range not in VALID_RANGES:
-        raise HTTPException(status_code=400, detail=f"Invalid range. Choose from: {VALID_RANGES}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid range. Choose from: {VALID_RANGES}"
+        )
 
     try:
         df = sig_engine.download_market_data_df(symbol, period=range, interval=interval)
@@ -287,7 +386,10 @@ def get_history(
         # Drop NaN values in OHLC columns to prevent JSON serialization crash
         df = df.dropna(subset=["Open", "High", "Low", "Close"])
         if df.empty:
-            raise HTTPException(status_code=404, detail=f"No history data found for {symbol} after filtering NaNs")
+            raise HTTPException(
+                status_code=404,
+                detail=f"No history data found for {symbol} after filtering NaNs",
+            )
 
         # For intraday intervals, use Unix timestamps; for daily+, use date strings
         use_unix = interval not in {"1d", "5d", "1wk", "1mo", "3mo"}
@@ -299,14 +401,16 @@ def get_history(
             else:
                 t = ts.strftime("%Y-%m-%d")
 
-            bars.append({
-                "time": t,
-                "open": round(float(row["Open"]), 4),
-                "high": round(float(row["High"]), 4),
-                "low": round(float(row["Low"]), 4),
-                "close": round(float(row["Close"]), 4),
-                "volume": int(row["Volume"]),
-            })
+            bars.append(
+                {
+                    "time": t,
+                    "open": round(float(row["Open"]), 4),
+                    "high": round(float(row["High"]), 4),
+                    "low": round(float(row["Low"]), 4),
+                    "close": round(float(row["Close"]), 4),
+                    "volume": int(row["Volume"]),
+                }
+            )
 
         return {
             "symbol": symbol.upper(),
@@ -317,8 +421,8 @@ def get_history(
         }
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/search")
@@ -349,12 +453,16 @@ _executor = ThreadPoolExecutor(max_workers=2)
 
 
 @app.get("/api/signals")
-@limiter.limit("5/minute")
+@limiter.limit("15/minute")
+@limiter.limit("5/10 seconds")
 async def get_signals(
     request: Request,
-    symbols: Optional[str] = Query(None, description="Comma-separated NSE symbols, e.g. RELIANCE.NS,TCS.NS. Omit for full scan."),
-    limit:   int = Query(20, ge=1, le=50, description="Max results to return"),
-    _=Depends(require_session)
+    symbols: Optional[str] = Query(
+        None,
+        description="Comma-separated NSE symbols, e.g. RELIANCE.NS,TCS.NS. Omit for full scan.",
+    ),
+    limit: int = Query(20, ge=1, le=50, description="Max results to return"),
+    _=Depends(require_session),
 ):
     """
     Scans NSE stocks and returns ranked intraday signals.
@@ -365,18 +473,81 @@ async def get_signals(
     if symbols:
         sym_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
         # Map to watchlist entries or create minimal ones
-        wl_map   = {w["symbol"]: w for w in sig_engine.NSE_WATCHLIST}
-        watchlist = [wl_map.get(s, {"symbol": s, "name": s.replace(".NS", ""), "sector": "NSE"}) for s in sym_list]
+        wl_map = {w["symbol"]: w for w in sig_engine.NSE_WATCHLIST}
+        watchlist = [
+            wl_map.get(s, {"symbol": s, "name": s.replace(".NS", ""), "sector": "NSE"})
+            for s in sym_list
+        ]
     else:
         watchlist = sig_engine.NSE_WATCHLIST
 
     # Run analysis concurrently in thread pool (scanning is blocking I/O)
-    import functools
+
     try:
         results = await asyncio.wait_for(
             loop.run_in_executor(
                 _executor,
                 functools.partial(sig_engine.run_scan, watchlist),
+            ),
+            timeout=85
+        )
+    except asyncio.TimeoutError:
+        return {
+            "error": "Scan took too long (backend cold start)",
+            "total": 0,
+            "signals": [],
+            "message": "First scan on free tier takes 2 min. Try again in 30s when backend is warm.",
+        }
+
+    return {
+        "market": "NSE",
+        "type": "intraday",
+        "scan_time": datetime.utcnow().isoformat() + "Z",
+        "total": len(results),
+        "signals": results[:limit],
+        "disclaimer": "Algorithmic signals only — not financial advice. Always apply your own judgement and risk management.",
+    }
+
+
+class ScanRequest(BaseModel):
+    symbols: List[str]
+    interval: str = "15m"
+    capital: float = 100000.0
+    trading_style: str = "Intraday Momentum"
+    risk_level: str = "Medium"
+    market_segment: str = "NSE"
+
+
+@app.post("/api/scan")
+@limiter.limit("15/minute")
+@limiter.limit("5/10 seconds")
+async def post_scan(
+    req: ScanRequest,
+    request: Request,
+    _=Depends(require_session)
+):
+    """
+    Scans a list of symbols and returns ranked intraday signals (POST alternative).
+    """
+    loop = asyncio.get_event_loop()
+    
+    # Map raw symbol strings to NSE_WATCHLIST structure
+    wl_map = {w["symbol"]: w for w in sig_engine.NSE_WATCHLIST}
+    watchlist = [wl_map.get(s.upper(), {"symbol": s.upper(), "name": s.upper().replace(".NS", ""), "sector": "NSE"}) for s in req.symbols]
+
+    try:
+        results = await asyncio.wait_for(
+            loop.run_in_executor(
+                _executor,
+                functools.partial(
+                    sig_engine.run_scan,
+                    watchlist,
+                    req.interval,
+                    req.trading_style,
+                    req.risk_level,
+                    req.market_segment,
+                    req.capital
+                )
             ),
             timeout=85
         )
@@ -393,13 +564,13 @@ async def get_signals(
         "type":        "intraday",
         "scan_time":   datetime.utcnow().isoformat() + "Z",
         "total":       len(results),
-        "signals":     results[:limit],
+        "signals":     results,
         "disclaimer":  "Algorithmic signals only — not financial advice. Always apply your own judgement and risk management.",
     }
 
 
 @app.get("/api/signal/{symbol}")
-async def get_signal_single(symbol: str):
+async def get_signal_single(symbol: str, _=Depends(require_session)):
     """
     Full technical analysis for a single NSE symbol.
     Accepts symbol with or without .NS suffix.
@@ -409,24 +580,29 @@ async def get_signal_single(symbol: str):
         sym = sym + ".NS"
 
     wl_map = {w["symbol"]: w for w in sig_engine.NSE_WATCHLIST}
-    meta   = wl_map.get(sym, {"symbol": sym, "name": sym.replace(".NS", ""), "sector": "NSE"})
+    meta = wl_map.get(
+        sym, {"symbol": sym, "name": sym.replace(".NS", ""), "sector": "NSE"}
+    )
 
-    loop   = asyncio.get_event_loop()
+    loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         _executor,
         lambda: sig_engine.analyse_symbol(meta["symbol"], meta["name"], meta["sector"]),
     )
 
     if result is None:
-        raise HTTPException(status_code=404, detail=f"Could not fetch data for {sym}. Market may be closed or symbol invalid.")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Could not fetch data for {sym}. Market may be closed or symbol invalid.",
+        )
 
     return result
-
 
 
 class ChatMessage(BaseModel):
     role: str
     text: str
+
 
 class ChatRequest(BaseModel):
     message: str
@@ -435,14 +611,15 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/api/chat")
-@limiter.limit("20/minute")
+@limiter.limit("30/minute")
+@limiter.limit("10/10 seconds")
 async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
     """
     AI trading assistant. Uses Gemini if GEMINI_API_KEY is set,
     otherwise falls back to a context-aware heuristic engine.
     """
-    symbol  = (req.context or {}).get("symbol", "the market")
-    price   = (req.context or {}).get("price", None)
+    symbol = (req.context or {}).get("symbol", "the market")
+    price = (req.context or {}).get("price", None)
     chg_pct = (req.context or {}).get("changePct", None)
 
     # ── Try Gemini (google-genai SDK) ────────────────────────────────────────
@@ -450,7 +627,9 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
         try:
             # Load custom trading knowledge base
             knowledge_content = ""
-            knowledge_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "trading_knowledge.txt"))
+            knowledge_path = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "trading_knowledge.txt")
+            )
             if os.path.exists(knowledge_path):
                 try:
                     # Limit context size to allow the entire codebase blueprint and PDF manuals (up to 140000 chars)
@@ -464,6 +643,7 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
             if symbol and symbol != "the market":
                 try:
                     import news_feed
+
                     articles = news_feed.fetch_ticker_news(symbol)
                     if articles:
                         news_context = "--- LATEST NEWS CONTEXT ---\n"
@@ -487,16 +667,18 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
                 + ". \n\n"
                 "IMPORTANT: The user may ask you about this active stock, or they may ask general questions about candlestick patterns, indicators, risk management, or other stocks. Answer any of these questions freely. Do not restrict your answers only to the active stock unless they ask about it. Provide concise, highly actionable advice. Never provide direct financial advice — always remind them this is educational. Keep responses under 180 words. Use **bold** sparingly for key terms."
             )
-            
+
             # Construct chat thread including history
             formatted_history = ""
             if req.history:
                 for h in req.history:
                     role_label = "User" if h.role == "user" else "Assistant"
                     formatted_history += f"{role_label}: {h.text}\n"
-            
-            prompt = f"{system_ctx}\n\n{formatted_history}User: {req.message}\nAssistant:"
-            
+
+            prompt = (
+                f"{system_ctx}\n\n{formatted_history}User: {req.message}\nAssistant:"
+            )
+
             response = _genai_client.models.generate_content(
                 model="gemini-2.0-flash",
                 contents=prompt,
@@ -508,7 +690,7 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
     # ── Heuristic fallback engine ─────────────────────────────────────────────
     msg_lower = req.message.lower()
     price_str = f"₹{price:,.2f}" if price else "current levels"
-    chg_str   = f"{chg_pct:+.2f}%" if chg_pct is not None else "unchanged"
+    chg_str = f"{chg_pct:+.2f}%" if chg_pct is not None else "unchanged"
 
     # ── Custom Knowledge Base Heuristic Matches ──────────────────────────────
     if "hammer" in msg_lower:
@@ -555,7 +737,10 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
             "prioritizes recent prices for faster responses. Watch for crossover triggers (e.g. 9 EMA crossing 21 EMA) to confirm trend shifts. "
             "*(Local fallback response - set GEMINI_API_KEY for full AI mentoring)*"
         )
-    elif any(w in msg_lower for w in ["stop", "sl", "risk", "size", "sizing", "capital", "money"]):
+    elif any(
+        w in msg_lower
+        for w in ["stop", "sl", "risk", "size", "sizing", "capital", "money"]
+    ):
         reply = (
             "**Risk Management Policy** — Limit risk to 1-2% of total capital per trade. Calculate your position size dynamically: "
             "Position Size = (Capital * Risk %) / (Entry Price - Stop Loss Price). Place stop losses below recent swing lows or moving average lines. "
@@ -617,43 +802,44 @@ def is_nse_market_open() -> bool:
     IST is UTC + 5:30.
     """
     from datetime import datetime, timedelta, timezone
+
     now_utc = datetime.now(timezone.utc)
     now_ist = now_utc + timedelta(hours=5, minutes=30)
-    
+
     if now_ist.weekday() >= 5:
         return False
-        
+
     minutes_since_midnight = now_ist.hour * 60 + now_ist.minute
     start_minutes = 9 * 60 + 15
     end_minutes = 15 * 60 + 30
-    
+
     return start_minutes <= minutes_since_midnight <= end_minutes
 
 
 # Fallback seed prices for Indian stocks if provider feed fails
 SEED_PRICES = {
-    'HAL.NS': 4550.0,
-    'BEL.NS': 295.0,
-    'RVNL.NS': 385.0,
-    'IREDA.NS': 185.0,
-    'HUDCO.NS': 275.0,
-    'COALINDIA.NS': 485.0,
-    'NHPC.NS': 95.0,
-    'ADANIPORTS.NS': 1405.0,
-    'TATAPOWER.NS': 445.0,
-    'BHEL.NS': 305.0,
+    "HAL.NS": 4550.0,
+    "BEL.NS": 295.0,
+    "RVNL.NS": 385.0,
+    "IREDA.NS": 185.0,
+    "HUDCO.NS": 275.0,
+    "COALINDIA.NS": 485.0,
+    "NHPC.NS": 95.0,
+    "ADANIPORTS.NS": 1405.0,
+    "TATAPOWER.NS": 445.0,
+    "BHEL.NS": 305.0,
 }
 
 # Live prices cache seeded initially with baseline seed prices
 LIVE_PRICES_CACHE = {
-    sym: {
-        "price": price,
-        "prev_close": price,
-        "timestamp": int(time.time() * 1000)
-    } for sym, price in SEED_PRICES.items()
+    sym: {"price": price, "prev_close": price, "timestamp": int(time.time() * 1000)}
+    for sym, price in SEED_PRICES.items()
 }
 
 _crawl_executor = ThreadPoolExecutor(max_workers=5)
+
+# Track last HTTP request time to keep crawler active during HTTP polling fallback
+last_prices_request_time = 0.0
 
 
 async def fetch_live_quotes_loop():
@@ -662,25 +848,26 @@ async def fetch_live_quotes_loop():
     quotes for all watchlisted NSE stocks and updates LIVE_PRICES_CACHE.
     """
     import functools
-    import requests
-    import pandas as pd
+
     watchlist_symbols = [w["symbol"] for w in sig_engine.NSE_WATCHLIST]
-    
+
     while True:
         # Preserve API rate limits / credits when no active users are online
-        if len(active_connections) == 0:
+        # and no recent HTTP polling requests have been received
+        now = time.time()
+        if len(active_connections) == 0 and (now - last_prices_request_time > 30.0):
             await asyncio.sleep(5)
             continue
 
         sleep_time = 10
         try:
             loop = asyncio.get_event_loop()
-            
+
             if upstox_feed.is_authorized():
                 # Fetch live quotes from Upstox
                 quotes = await loop.run_in_executor(
                     _crawl_executor,
-                    functools.partial(upstox_feed.get_live_quotes, watchlist_symbols)
+                    functools.partial(upstox_feed.get_live_quotes, watchlist_symbols),
                 )
                 if quotes:
                     for sym in watchlist_symbols:
@@ -689,7 +876,7 @@ async def fetch_live_quotes_loop():
                             data = {
                                 "price": quote["price"],
                                 "prev_close": quote["prev_close"],
-                                "timestamp": int(time.time() * 1000)
+                                "timestamp": int(time.time() * 1000),
                             }
                             LIVE_PRICES_CACHE[sym] = data
                             # Also cache clean key for easier frontend lookup
@@ -702,13 +889,13 @@ async def fetch_live_quotes_loop():
                 sleep_time = 10
         except Exception as e:
             print(f"[fetch_live_quotes_loop] Error: {e}")
-            
+
         # Reconcile pending signals after prices update
         try:
             reconcile_pending_signals()
         except Exception:
             pass
-            
+
         await asyncio.sleep(sleep_time)
 
 
@@ -720,7 +907,7 @@ def reconcile_pending_signals():
     pending = db.get_pending_signals()
     if not pending:
         return
-        
+
     now_utc = datetime.utcnow()
     now_ist = now_utc + timedelta(hours=5, minutes=30)
     
@@ -731,7 +918,7 @@ def reconcile_pending_signals():
         cached = LIVE_PRICES_CACHE.get(symbol)
         if not cached:
             continue
-            
+
         current_price = cached["price"]
         entry_price = sig["entry_price"]
         target = sig["target"]
@@ -739,12 +926,12 @@ def reconcile_pending_signals():
         signal_type = sig["signal_type"]
         scan_type = sig["scan_type"]
         scanned_at_str = sig["scanned_at"]
-        
+
         hit = False
         status = "PENDING"
         exit_price = current_price
         pnl = 0.0
-        
+
         if "BUY" in signal_type:
             if current_price >= target:
                 hit = True
@@ -767,11 +954,11 @@ def reconcile_pending_signals():
                 status = "HIT_STOP"
                 exit_price = stop_loss
                 pnl = (entry_price - exit_price) / entry_price * 100
-                
+
         if hit:
             signal_updates.append((status, exit_price, db._now_ist(), pnl, sig["id"]))
             continue
-            
+
         # Check Expiry
         try:
             clean_ts = scanned_at_str.replace("Z", "")
@@ -779,12 +966,16 @@ def reconcile_pending_signals():
                 clean_ts = clean_ts.split("+")[0]
             scanned_dt_utc = datetime.fromisoformat(clean_ts)
             scanned_dt_ist = scanned_dt_utc + timedelta(hours=5, minutes=30)
-            
+
             if scan_type == "INTRADAY":
                 is_future_day = now_ist.date() > scanned_dt_ist.date()
-                is_past_market_close = now_ist.hour > 15 or (now_ist.hour == 15 and now_ist.minute >= 30)
-                
-                if is_future_day or (now_ist.date() == scanned_dt_ist.date() and is_past_market_close):
+                is_past_market_close = now_ist.hour > 15 or (
+                    now_ist.hour == 15 and now_ist.minute >= 30
+                )
+
+                if is_future_day or (
+                    now_ist.date() == scanned_dt_ist.date() and is_past_market_close
+                ):
                     pnl_calc = 0.0
                     if "BUY" in signal_type:
                         pnl_calc = (current_price - entry_price) / entry_price * 100
@@ -810,8 +1001,9 @@ def reconcile_pending_signals():
         db.update_signals_batch(signal_updates)
 
 
-AUTO_SCAN_INTERVAL_OPEN   = 60
+AUTO_SCAN_INTERVAL_OPEN = 60
 AUTO_SCAN_INTERVAL_CLOSED = 3600
+
 
 async def cleanup_sessions_loop():
     """
@@ -819,6 +1011,7 @@ async def cleanup_sessions_loop():
     Runs every 1 hour (3600 seconds) to prevent memory leak
     from unbounded ACTIVE_SESSIONS dictionary.
     """
+    from auth_helpers import cleanup_sessions
     while True:
         try:
             cleanup_sessions()
@@ -826,20 +1019,242 @@ async def cleanup_sessions_loop():
             print(f"[cleanup_sessions_loop] error: {e}")
         await asyncio.sleep(3600)
 
-async def auto_scan_loop():
+
+async def prediction_resolver_worker():
+    """
+    Batched resolution engine that bypasses LIVE_PRICES_CACHE.
+    Fetches unique symbols directly from API to prevent DDoS.
+    """
+    loop = asyncio.get_event_loop()
+    while True:
+        try:
+            predictions = db.get_predictions()
+            pending = [p for p in predictions if p.get("status") == "PENDING"]
+            
+            # Phase Omega: Filter Attribution Engine (resolve rejected signals)
+            rejected_pending = db.get_pending_rejected_signals()
+            
+            symbols = list(set([p["symbol"] for p in pending] + [r["symbol"] for r in rejected_pending]))
+            
+            if symbols:
+                # Fetch quotes synchronously in thread pool
+                quotes = await loop.run_in_executor(
+                    _executor,
+                    functools.partial(upstox_feed.get_live_quotes, symbols)
+                )
+                
+                if quotes:
+                    for pred in pending:
+                        symbol = pred["symbol"]
+                        live = quotes.get(symbol)
+                        if not live:
+                            continue
+                            
+                        price = live["price"]
+                        is_bullish = pred["prediction_type"].upper() == "BULLISH"
+                        target = pred["target_price"]
+                        stop = pred["stop_loss"]
+                        entry = pred["entry_price"]
+                        
+                        hit_target = (is_bullish and price >= target) or (not is_bullish and price <= target)
+                        hit_stop = (is_bullish and price <= stop) or (not is_bullish and price >= stop)
+                        
+                        pred_date_str = pred["prediction_date"]
+                        expired = False
+                        holding_time_minutes = 0.0
+                        try:
+                            from dateutil import parser
+                            pred_time = parser.parse(pred_date_str)
+                            if pred_time.tzinfo is None:
+                                ist_tz = timezone(timedelta(hours=5, minutes=30))
+                                pred_time = pred_time.replace(tzinfo=ist_tz)
+                            now_ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
+                            delta = now_ist - pred_time
+                            holding_time_minutes = delta.total_seconds() / 60.0
+                            if delta > timedelta(hours=24):
+                                expired = True
+                        except Exception:
+                            pass
+                            
+                        if hit_target or hit_stop or expired:
+                            resolution_reason = "EXPIRED"
+                            if hit_target:
+                                resolution_reason = "TARGET_HIT"
+                                status = "WIN"
+                            elif hit_stop:
+                                resolution_reason = "STOP_HIT"
+                                status = "LOSS"
+                            else:
+                                status = "TIMEOUT"
+                                
+                            # Calculate PnL
+                            pnl_pct = 0.0
+                            if entry > 0:
+                                if is_bullish:
+                                    pnl_pct = ((price - entry) / entry) * 100
+                                else:
+                                    pnl_pct = ((entry - price) / entry) * 100
+                                    
+                            pnl_pct = round(pnl_pct, 2)
+                            risk_amount = pred.get("risk_amount") or 0.0
+                            pnl_inr = 0.0
+                            r_multiple = 0.0
+                            
+                            if risk_amount > 0:
+                                qty = risk_amount / abs(entry - stop) if abs(entry - stop) > 0 else 0
+                                pnl_inr = round(qty * abs(price - entry) * (1 if pnl_pct >= 0 else -1), 2)
+                                r_multiple = round(pnl_inr / risk_amount, 2)
+                                
+                            # Slippage Calculation: difference between target/stop and actual fill price
+                            slippage_pct = 0.0
+                            if hit_target and target > 0:
+                                slippage_pct = abs(price - target) / target * 100.0
+                            elif hit_stop and stop > 0:
+                                slippage_pct = abs(price - stop) / stop * 100.0
+                                
+                            db.resolve_prediction(
+                                pred_id=pred["id"], 
+                                actual_outcome=price, 
+                                status=status,
+                                exit_price=price,
+                                holding_time_minutes=round(holding_time_minutes, 1),
+                                pnl_pct=pnl_pct,
+                                pnl_inr=pnl_inr,
+                                r_multiple=r_multiple,
+                                resolution_reason=resolution_reason,
+                                fill_time=now_ist.isoformat(),
+                                slippage_pct=round(slippage_pct, 4)
+                            )
+                            
+                            # Update Equity Curve sequentially
+                            if pnl_inr != 0:
+                                eq_after, peak = db.get_latest_equity()
+                                new_eq = eq_after + pnl_inr
+                                new_peak = max(peak, new_eq)
+                                drawdown = round(((new_peak - new_eq) / new_peak) * 100, 2) if new_peak > 0 else 0.0
+                                db.add_equity_curve(pred["id"], eq_after, new_eq, new_peak, drawdown)
+                                
+        except Exception as e:
+            print(f"[prediction_resolver_worker] error: {e}")
+            
+        await asyncio.sleep(60)
+
+
+async def metrics_worker():
+    """
+    Asynchronously aggregates analytics and populates the metrics_cache.
+    Ensures dashboard loads instantly without recomputing all historical trades.
+    """
+    while True:
+        try:
+            predictions = db.get_predictions()
+            resolved = [p for p in predictions if p.get("status") in ["WIN", "LOSS", "TIMEOUT", "CORRECT", "INCORRECT"]]
+            
+            total_wins = sum(1 for p in resolved if p.get("pnl_inr", 0) > 0 or p["status"] in ["WIN", "CORRECT"])
+            total_losses = sum(1 for p in resolved if p.get("pnl_inr", 0) < 0 or p["status"] in ["LOSS", "INCORRECT"])
+            
+            winning_pnl = sum(p.get("pnl_inr", 0) for p in resolved if p.get("pnl_inr", 0) > 0)
+            losing_pnl = abs(sum(p.get("pnl_inr", 0) for p in resolved if p.get("pnl_inr", 0) < 0))
+            
+            profit_factor = round(winning_pnl / losing_pnl, 2) if losing_pnl > 0 else (999.0 if winning_pnl > 0 else 0)
+            
+            win_rate = (total_wins / len(resolved) * 100) if resolved else 0.0
+            loss_rate = (total_losses / len(resolved) * 100) if resolved else 0.0
+            
+            avg_win_pct = sum(p.get("pnl_pct", 0) for p in resolved if p.get("pnl_pct", 0) > 0) / total_wins if total_wins else 0
+            avg_loss_pct = sum(p.get("pnl_pct", 0) for p in resolved if p.get("pnl_pct", 0) < 0) / total_losses if total_losses else 0
+            
+            ev_pct = round((win_rate/100 * avg_win_pct) - (loss_rate/100 * abs(avg_loss_pct)), 2)
+            avg_r = round(sum(p.get("r_multiple", 0) for p in resolved) / len(resolved), 2) if resolved else 0.0
+            
+            holding_times = [p.get("holding_time_minutes", 0) for p in resolved if p.get("holding_time_minutes")]
+            avg_holding = round(sum(holding_times) / len(holding_times), 1) if holding_times else 0.0
+            
+            fastest_win = min([p.get("holding_time_minutes", 0) for p in resolved if p.get("pnl_inr", 0) > 0 and p.get("holding_time_minutes")], default=0)
+            longest_win = max([p.get("holding_time_minutes", 0) for p in resolved if p.get("pnl_inr", 0) > 0 and p.get("holding_time_minutes")], default=0)
+            longest_loss = max([p.get("holding_time_minutes", 0) for p in resolved if p.get("pnl_inr", 0) < 0 and p.get("holding_time_minutes")], default=0)
+            
+            _, peak = db.get_latest_equity()
+            eq_after, _ = db.get_latest_equity()
+            max_drawdown = round(((peak - eq_after) / peak) * 100, 2) if peak > 0 else 0.0
+            
+            setups = {}
+            for p in resolved:
+                stype = p.get("setup_type", "UNKNOWN")
+                if stype not in setups:
+                    setups[stype] = {"trades": 0, "wins": 0, "winning_pnl": 0, "losing_pnl": 0, "r_sum": 0}
+                setups[stype]["trades"] += 1
+                if p.get("pnl_inr", 0) > 0:
+                    setups[stype]["wins"] += 1
+                    setups[stype]["winning_pnl"] += p.get("pnl_inr", 0)
+                else:
+                    setups[stype]["losing_pnl"] += abs(p.get("pnl_inr", 0))
+                setups[stype]["r_sum"] += p.get("r_multiple", 0)
+                
+            leaderboard = []
+            for stype, sdata in setups.items():
+                trades = sdata["trades"]
+                wr = round((sdata["wins"] / trades) * 100, 1) if trades else 0
+                pf = round(sdata["winning_pnl"] / sdata["losing_pnl"], 2) if sdata["losing_pnl"] > 0 else (99.0 if sdata["winning_pnl"] > 0 else 0)
+                avg_r_setup = round(sdata["r_sum"] / trades, 2) if trades else 0
+                leaderboard.append({
+                    "setup": stype,
+                    "trades": trades,
+                    "win_rate": wr,
+                    "profit_factor": pf,
+                    "avg_r": avg_r_setup
+                })
+            leaderboard.sort(key=lambda x: x["avg_r"], reverse=True)
+            
+            cache_data = {
+                "total_resolved": len(resolved),
+                "profit_factor": profit_factor,
+                "ev_pct": ev_pct,
+                "avg_r": avg_r,
+                "avg_holding": avg_holding,
+                "fastest_win": fastest_win,
+                "longest_win": longest_win,
+                "longest_loss": longest_loss,
+                "max_drawdown": max_drawdown,
+                "leaderboard": leaderboard
+            }
+            db.set_metrics_cache("dashboard_metrics", cache_data)
+        except Exception as e:
+            print(f"[metrics_worker] error: {e}")
+            import traceback
+            traceback.print_exc()
+            
+        await asyncio.sleep(60)
+
+
+async def signal_scanner_worker():
     """
     Background task:
       - Market OPEN  → scan every 60 s, log signals to DB
       - Market CLOSED → scan every 60 min for overnight signals
-    Also reconciles pending signals against LIVE_PRICES_CACHE every cycle.
     """
-    import functools
     loop = asyncio.get_event_loop()
-
     while True:
         try:
             market_open = is_nse_market_open()
-            scan_type   = "INTRADAY" if market_open else "OVERNIGHT"
+            scan_type = "INTRADAY" if market_open else "OVERNIGHT"
+
+            # Phase Omega: Dual Kill Switch Check
+            risk_settings = db.get_risk_settings()
+            portfolio = db.get_portfolio_state()
+            
+            # Simple daily drawdown check
+            current_eq = portfolio.get("current_equity", 100000.0)
+            daily_start = portfolio.get("daily_equity", 100000.0)
+            peak_eq = portfolio.get("peak_equity", 100000.0)
+            
+            daily_loss_pct = ((current_eq - daily_start) / daily_start) * 100
+            peak_dd_pct = ((current_eq - peak_eq) / peak_eq) * 100
+            
+            if daily_loss_pct <= risk_settings["daily_loss_limit"] or peak_dd_pct <= risk_settings["daily_drawdown_limit"]:
+                print(f"[signal_scanner_worker] KILL SWITCH ACTIVE. Daily Loss: {daily_loss_pct:.2f}%, Peak DD: {peak_dd_pct:.2f}%")
+                await asyncio.sleep(60 * 5) # Sleep 5 minutes and retry (maybe admin reset it)
+                continue
 
             # ── 1. Run signal scan ───────────────────────────────────────────
             results = await loop.run_in_executor(
@@ -847,30 +1262,73 @@ async def auto_scan_loop():
                 functools.partial(sig_engine.run_scan, sig_engine.NSE_WATCHLIST),
             )
 
-            # Log BUY / SELL signals with confidence >= 60
+            sentiment_pct = 50
+            nifty_trend_bias = "CONSOLIDATION"
+            if results:
+                nifty_trend_bias = results[0].get("nifty_trend", "CONSOLIDATION")
+                buys_count = sum(1 for s in results if s.get("score", 0) > 0)
+                sentiment_pct = int(buys_count / len(results) * 100) if results else 50
+
+            valid_signals = []
             for sig in results:
                 if sig.get("signal") in ("BUY", "SELL") and sig.get("confidence", 0) >= 60:
                     sig["direction"]  = sig["signal"]
-                    sig["entry"]      = sig.get("price",      sig.get("entry", 0))
+                    sig["entry"]      = sig.get("price", sig.get("entry", 0))
                     sig["scan_type"]  = scan_type
-                    db.add_signal(sig)
+                    valid_signals.append(sig)
 
-            # ── 2. Reconcile pending signals vs live prices ──────────────────
+            if valid_signals:
+                db.add_signals_batch(valid_signals)
+                for sig in valid_signals:
+                    try:
+                        vwap_dist = ((sig["price"] - sig["vwap"]) / sig["vwap"] * 100) if sig.get("vwap") else 0.0
+                        pred_data = {
+                            "symbol": sig["symbol"],
+                            "prediction_type": "BULLISH" if sig["signal"] == "BUY" else "BEARISH",
+                            "entry_price": sig["entry"],
+                            "target_price": sig["target"],
+                            "stop_loss": sig["stop_loss"],
+                            "confidence_score": sig["confidence"],
+                            "rsi": sig.get("rsi"),
+                            "macd": sig.get("macd_hist"),
+                            "adx": sig.get("adx"),
+                            "sector": sig.get("sector"),
+                            "market_cap": sig.get("market_cap"),
+                            "volume_ratio": sig.get("vol_ratio"),
+                            "vwap_distance": vwap_dist,
+                            "atr": sig.get("atr"),
+                            "news_score": sig.get("news_sentiment", 0.0),
+                            "market_breadth": float(sentiment_pct),
+                            "sector_strength": float(sig.get("sector_score", 10.0)),
+                            "nifty_trend": nifty_trend_bias,
+                            "status": "PENDING",
+                            "reason": sig.get("reasoning", ""),
+                            "setup_type": sig.get("setup_type", "SYSTEM_EDGE"),
+                            "market_regime_snapshot": sig.get("market_regime", "UNKNOWN"),
+                            "risk_amount": sig.get("risk_amount", 0.0),
+                            "confidence_probability": sig.get("confidence_probability", 0.0),
+                            "regime_score": sig.get("regime_score", 0.0),
+                            "sector_score": sig.get("sector_score", 0.0),
+                            "volume_score": sig.get("volume_score", 0.0),
+                            "rs_score": sig.get("rs_score", 0.0),
+                            "trade_quality_score": sig.get("trade_quality_score", 0.0),
+                            "correlation_score": sig.get("correlation_score", 0.0)
+                        }
+                        db.add_prediction(pred_data)
+                    except Exception as pe:
+                        print(f"[signal_scanner_worker] Failed to log prediction: {pe}")
+
+            # ── 2. Reconcile signals_history vs live prices ──────────────────
             pending = db.get_pending_signals()
             signal_updates = []
             for trade in pending:
                 live = LIVE_PRICES_CACHE.get(trade["symbol"])
                 if live is None:
                     continue
-
-                price  = live["price"]
+                price = live["price"]
                 is_buy = "BUY" in trade["signal_type"]
-
-                hit_target = (is_buy  and price >= trade["target"]) or \
-                             (not is_buy and price <= trade["target"])
-                hit_stop   = (is_buy  and price <= trade["stop_loss"]) or \
-                             (not is_buy and price >= trade["stop_loss"])
-
+                hit_target = (is_buy and price >= trade["target"]) or (not is_buy and price <= trade["target"])
+                hit_stop = (is_buy and price <= trade["stop_loss"]) or (not is_buy and price >= trade["stop_loss"])
                 if hit_target:
                     pnl = db._calc_pnl(trade["signal_type"], trade["entry_price"], price)
                     signal_updates.append(("HIT_TARGET", price, db._now_ist(), pnl, trade["id"]))
@@ -885,7 +1343,7 @@ async def auto_scan_loop():
             db.expire_old_intraday()
 
         except Exception as e:
-            print(f"[auto_scan_loop] error: {e}")
+            print(f"[signal_scanner_worker] error: {e}")
 
         sleep_dur = AUTO_SCAN_INTERVAL_OPEN if is_nse_market_open() else AUTO_SCAN_INTERVAL_CLOSED
         await asyncio.sleep(sleep_dur)
@@ -894,38 +1352,80 @@ async def auto_scan_loop():
 @app.on_event("startup")
 async def startup_event():
     db.init_db()
+    
+    # Import governance worker
+    import governance_worker
+    
     asyncio.create_task(fetch_live_quotes_loop())
-    asyncio.create_task(auto_scan_loop())
+    asyncio.create_task(signal_scanner_worker())
+    asyncio.create_task(prediction_resolver_worker())
+    asyncio.create_task(metrics_worker())
     asyncio.create_task(cleanup_sessions_loop())
+    asyncio.create_task(governance_worker.governance_loop())
 
+
+@app.get("/api/prices")
+@limiter.limit("30/minute")
+async def get_live_prices(request: Request, _=Depends(require_session)):
+    """
+    HTTP fallback for live prices when WebSocket is unavailable.
+    Returns the full LIVE_PRICES_CACHE dictionary.
+    """
+    global last_prices_request_time
+    last_prices_request_time = time.time()
+    return {
+        "type": "tick",
+        "data": [
+            {
+                "symbol": sym,
+                "price": info["price"],
+                "prev_close": info.get("prev_close", info["price"]),
+                "timestamp": info.get("timestamp", int(time.time() * 1000)),
+            }
+            for sym, info in LIVE_PRICES_CACHE.items()
+            if "." in sym  # Only return full symbol keys like HAL.NS, not clean keys
+        ],
+        "market_status": "OPEN" if is_nse_market_open() else "CLOSED",
+    }
 
 @app.websocket("/ws/prices")
 async def websocket_prices(
     websocket: WebSocket,
-    token: str = Query(None),
-    symbols: str = "HAL.NS,BEL.NS,RVNL.NS,IREDA.NS,HUDCO.NS,COALINDIA.NS,NHPC.NS,ADANIPORTS.NS,TATAPOWER.NS,BHEL.NS"
+    symbols: str = "HAL.NS,BEL.NS,RVNL.NS,IREDA.NS,HUDCO.NS,COALINDIA.NS,NHPC.NS,ADANIPORTS.NS,TATAPOWER.NS,BHEL.NS",
 ):
     await websocket.accept()
 
-    # Validate session token — soft check (warn but allow during cold starts)
+    # Validate session token via cookie
+    token = websocket.cookies.get("apt_token")
     if token and token.startswith("apt_"):
         if token not in ACTIVE_SESSIONS:
             import logging
-            logging.warning(f"[WS] Token not found in active sessions (may be stale after restart)")
+            logging.warning(
+                "[WS] Token not found in active sessions (may be stale after restart)"
+            )
     elif not token:
         import logging
-        logging.warning("[WS] No token provided — anonymous WebSocket connection")
+        logging.warning("[WS] No token provided via cookie — anonymous WebSocket connection")
+        # You could also close the connection here if auth is strict:
+        # await websocket.close(code=4001)
+        # return
 
     active_connections.append(websocket)
 
     watch = [s.strip().upper() for s in symbols.split(",") if s.strip()]
-    
+
     # Store local tracking price states to simulate smooth tick transitions
     local_prices: dict[str, float] = {}
     local_prev_closes: dict[str, float] = {}
 
     for sym in watch:
-        cached = LIVE_PRICES_CACHE.get(sym, {"price": SEED_PRICES.get(sym, 150.0), "prev_close": SEED_PRICES.get(sym, 150.0)})
+        cached = LIVE_PRICES_CACHE.get(
+            sym,
+            {
+                "price": SEED_PRICES.get(sym, 150.0),
+                "prev_close": SEED_PRICES.get(sym, 150.0),
+            },
+        )
         local_prices[sym] = cached["price"]
         local_prev_closes[sym] = cached["prev_close"]
 
@@ -939,7 +1439,13 @@ async def websocket_prices(
                     new_syms = [s.strip().upper() for s in msg["symbols"] if s.strip()]
                     for sym in new_syms:
                         if sym not in local_prices:
-                            cached = LIVE_PRICES_CACHE.get(sym, {"price": SEED_PRICES.get(sym, 150.0), "prev_close": SEED_PRICES.get(sym, 150.0)})
+                            cached = LIVE_PRICES_CACHE.get(
+                                sym,
+                                {
+                                    "price": SEED_PRICES.get(sym, 150.0),
+                                    "prev_close": SEED_PRICES.get(sym, 150.0),
+                                },
+                            )
                             local_prices[sym] = cached["price"]
                             local_prev_closes[sym] = cached["prev_close"]
                     watch = new_syms
@@ -966,18 +1472,22 @@ async def websocket_prices(
                     price = baseline_price
                     local_prices[sym] = price
 
-                ticks.append({
-                    "symbol": sym,
-                    "price": round(price, 4),
-                    "prev_close": round(local_prev_closes.get(sym, price), 4),
-                    "timestamp": int(time.time() * 1000),
-                })
+                ticks.append(
+                    {
+                        "symbol": sym,
+                        "price": round(price, 4),
+                        "prev_close": round(local_prev_closes.get(sym, price), 4),
+                        "timestamp": int(time.time() * 1000),
+                    }
+                )
 
-            await websocket.send_json({
-                "type": "tick",
-                "data": ticks,
-                "market_status": "OPEN" if market_open else "CLOSED"
-            })
+            await websocket.send_json(
+                {
+                    "type": "tick",
+                    "data": ticks,
+                    "market_status": "OPEN" if market_open else "CLOSED",
+                }
+            )
             await asyncio.sleep(1)
 
     except WebSocketDisconnect:
@@ -1006,6 +1516,7 @@ def _simulate_tick(last_price: float) -> float:
 #  CAPITAL ALLOCATION ENDPOINT
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class CapitalRequest(BaseModel):
     capital: float
     interval: str = "5m"
@@ -1017,7 +1528,9 @@ class CapitalRequest(BaseModel):
 
 @app.post("/api/allocate")
 @limiter.limit("3/minute")
-async def allocate_capital(req: CapitalRequest, request: Request, _=Depends(require_session)):
+async def allocate_capital(
+    req: CapitalRequest, request: Request, _=Depends(require_session)
+):
     """
     Scan HIGH_VOLATILITY_UNIVERSE matched to capital size.
     Small capital → cheap volatile stocks (YESBANK, SUZLON, RVNL…)
@@ -1026,7 +1539,7 @@ async def allocate_capital(req: CapitalRequest, request: Request, _=Depends(requ
     if req.capital < 500:
         raise HTTPException(status_code=400, detail="Minimum capital is ₹500")
 
-    import functools
+
     loop = asyncio.get_event_loop()
 
     # Pick the right universe based on capital size
@@ -1045,8 +1558,8 @@ async def allocate_capital(req: CapitalRequest, request: Request, _=Depends(requ
                     req.trading_style,
                     req.risk_level,
                     req.market_segment,
-                    req.capital
-                ),
+                    req.capital,
+                )
             ),
             timeout=150
         )
@@ -1054,25 +1567,27 @@ async def allocate_capital(req: CapitalRequest, request: Request, _=Depends(requ
         return {
             "error": "Scan took too long (backend cold start)",
             "positions": [],
-            "message": "First scan on free tier takes 2 min. Try again in 30s when backend is warm."
+            "message": "First scan on free tier takes 2 min. Try again in 30s when backend is warm.",
         }
 
     # Normalise signal fields so allocator can read them
     normalised = []
     for s in signals:
-        normalised.append({
-            **s,
-            "direction":   s.get("signal", s.get("direction", "")),
-            "entry":       s.get("price", s.get("entry", s.get("entry_price", 0))),
-            "entry_price": s.get("price", s.get("entry", s.get("entry_price", 0))),
-        })
+        normalised.append(
+            {
+                **s,
+                "direction": s.get("signal", s.get("direction", "")),
+                "entry": s.get("price", s.get("entry", s.get("entry_price", 0))),
+                "entry_price": s.get("price", s.get("entry", s.get("entry_price", 0))),
+            }
+        )
 
     plan = capital_allocator.allocate(
         req.capital,
         normalised,
         style=req.trading_style,
         risk=req.risk_level,
-        max_recommendations=req.max_recommendations
+        max_recommendations=req.max_recommendations,
     )
     plan["all_signals"] = normalised
 
@@ -1090,64 +1605,75 @@ async def allocate_capital(req: CapitalRequest, request: Request, _=Depends(requ
                 "macd": pos.get("macd_hist"),
                 "adx": pos.get("adx"),
                 "status": "PENDING",
-                "reason": ", ".join(pos.get("reasons", []))
+                "reason": ", ".join(pos.get("reasons", [])),
             }
             db.add_prediction(pred_data)
         except Exception as e:
-            print(f"[api/allocate] Error archiving recommendation for {pos['symbol']}: {e}")
+            print(
+                f"[api/allocate] Error archiving recommendation for {pos['symbol']}: {e}"
+            )
 
     return plan
 
 
 @app.post("/api/allocate/quick")
 @limiter.limit("3/minute")
-async def allocate_capital_quick(req: CapitalRequest, request: Request, _=Depends(require_session)):
+async def allocate_capital_quick(
+    req: CapitalRequest, request: Request, _=Depends(require_session)
+):
     """
     Fast allocation using already-cached live prices (no fresh yfinance scan).
     Returns instantly if LIVE_PRICES_CACHE is warm; falls back to full scan otherwise.
     """
     if req.capital < 500:
-        raise HTTPException(
-            status_code=400,
-            detail="Minimum capital is ₹500"
-        )
+        raise HTTPException(status_code=400, detail="Minimum capital is ₹500")
 
     # Build lightweight signals from the live price cache
     quick_signals = []
     for entry in sig_engine.NSE_WATCHLIST:
-        sym   = entry["symbol"]
-        
+        sym = entry["symbol"]
+
         # Apply segment filter
         if req.market_segment == "BSE" and not sym.endswith(".BO"):
             continue
-        elif req.market_segment == "F&O" and sym not in ["HAL.NS", "BEL.NS", "RVNL.NS", "COALINDIA.NS", "ADANIPORTS.NS", "TATAPOWER.NS", "BHEL.NS"]:
+        elif req.market_segment == "F&O" and sym not in [
+            "HAL.NS",
+            "BEL.NS",
+            "RVNL.NS",
+            "COALINDIA.NS",
+            "ADANIPORTS.NS",
+            "TATAPOWER.NS",
+            "BHEL.NS",
+        ]:
             continue
 
         cached = LIVE_PRICES_CACHE.get(sym)
         if not cached:
             continue
         price = cached["price"]
-        quick_signals.append({
-            "symbol":     sym,
-            "name":       entry["name"],
-            "sector":     entry["sector"],
-            "direction":  "BUY",   # optimistic placeholder
-            "entry":      price,
-            "entry_price": price,
-            "target":     round(price * 1.025, 2),
-            "target1":    round(price * 1.025, 2),
-            "target2":    round(price * 1.045, 2),
-            "stop_loss":  round(price * 0.985, 2),
-            "confidence": 60,
-            "atr":        round(price * 0.012, 2),
-            "rr_ratio":   1.67,
-            "rsi":        50,
-            "macd_hist":  0.0,
-            "adx":        20,
-            "reasons":    ["Cached Live Price Signal"],
-            "sector_strength": "Medium",
-            "expected_move_pct": 2.5,
-        })
+        quick_signals.append(
+            {
+                "symbol": sym,
+                "name": entry["name"],
+                "sector": entry["sector"],
+                "direction": "BUY",  # optimistic placeholder
+                "entry": price,
+                "entry_price": price,
+                "target": round(price * 1.025, 2),
+                "target1": round(price * 1.025, 2),
+                "target2": round(price * 1.045, 2),
+                "stop_loss": round(price * 0.985, 2),
+                "confidence": 60,
+                "atr": round(price * 0.012, 2),
+                "rr_ratio": 1.67,
+                "rsi": 50,
+                "macd_hist": 0.0,
+                "adx": 20,
+                "reasons": ["Cached Live Price Signal"],
+                "sector_strength": "Medium",
+                "expected_move_pct": 2.5,
+            }
+        )
 
     if not quick_signals:
         # Cache not warm yet — fall back to full scan
@@ -1158,35 +1684,19 @@ async def allocate_capital_quick(req: CapitalRequest, request: Request, _=Depend
         quick_signals,
         style=req.trading_style,
         risk=req.risk_level,
-        max_recommendations=req.max_recommendations
+        max_recommendations=req.max_recommendations,
     )
     plan["all_signals"] = quick_signals
-    plan["note"] = "Quick allocation using cached prices — run /api/allocate for a full fresh scan."
-
-    # Log generated recommendations in predictions_history database
-    for pos in plan.get("positions", []):
-        try:
-            pred_data = {
-                "symbol": pos["symbol"],
-                "prediction_type": "UP",
-                "entry_price": pos["entry_price"],
-                "target_price": pos["target1"],
-                "stop_loss": pos["stop_loss"],
-                "confidence_score": pos["confidence"],
-                "rsi": pos.get("rsi"),
-                "macd": pos.get("macd_hist"),
-                "adx": pos.get("adx"),
-                "status": "PENDING",
-                "reason": ", ".join(pos.get("reasons", []))
-            }
-            db.add_prediction(pred_data)
-        except Exception as e:
-            print(f"[api/allocate/quick] Error archiving recommendation for {pos['symbol']}: {e}")
+    plan["note"] = (
+        "Quick allocation using cached prices — run /api/allocate for a full fresh scan."
+    )
 
     return plan
 
 
+
 # ── Trade Journal API ────────────────────────────────────────────────────────
+
 
 class JournalEntryCreate(BaseModel):
     symbol: str
@@ -1200,32 +1710,41 @@ class JournalEntryCreate(BaseModel):
     status: Optional[str] = "OPEN"
     pnl: Optional[float] = None
 
+
 @app.post("/api/journal")
 @limiter.limit("10/minute")
-async def create_journal(entry: JournalEntryCreate, request: Request, _=Depends(require_session)):
+async def create_journal(
+    entry: JournalEntryCreate, request: Request, _=Depends(require_session)
+):
     try:
         row_id = db.add_journal_entry(entry.dict())
         return {"status": "success", "id": row_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 
 @app.get("/api/journal")
 async def list_journal(request: Request, _=Depends(require_session)):
     try:
         return db.get_journal_entries()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
+@app.delete("/api/journal/{entry_id}")
+async def delete_journal_entry(entry_id: int, request: Request, _=Depends(require_session)):
+    try:
+        success = db.delete_journal_entry(entry_id)
         if not success:
             raise HTTPException(status_code=404, detail="Journal entry not found")
         return {"status": "success"}
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ── Predictions Tracking API ──────────────────────────────────────────────────
+
 
 class PredictionCreate(BaseModel):
     symbol: str
@@ -1239,30 +1758,36 @@ class PredictionCreate(BaseModel):
     adx: Optional[float] = None
     reason: Optional[str] = ""
 
+
 class PredictionResolve(BaseModel):
     actual_outcome: float
     status: str  # 'CORRECT' or 'INCORRECT' or 'FLAT'
 
 
 @app.post("/api/predictions")
-async def create_prediction(pred: PredictionCreate, request: Request, _=Depends(require_session)):
+@limiter.limit("20/minute")
+async def create_prediction(
+    pred: PredictionCreate, request: Request, _=Depends(require_session)
+):
     try:
         row_id = db.add_prediction(pred.dict())
         return {"status": "success", "id": row_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/predictions")
 async def list_predictions(request: Request, _=Depends(require_session)):
     try:
         return db.get_predictions()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.post("/api/predictions/{pred_id}/resolve")
-async def resolve_prediction_route(pred_id: int, req: PredictionResolve, request: Request, _=Depends(require_session)):
+async def resolve_prediction_route(
+    pred_id: int, req: PredictionResolve, request: Request, _=Depends(require_session)
+):
     try:
         success = db.resolve_prediction(pred_id, req.actual_outcome, req.status)
         if not success:
@@ -1270,12 +1795,14 @@ async def resolve_prediction_route(pred_id: int, req: PredictionResolve, request
         return {"status": "success"}
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.delete("/api/predictions/{pred_id}")
-async def delete_prediction_route(pred_id: int, request: Request, _=Depends(require_session)):
+async def delete_prediction_route(
+    pred_id: int, request: Request, _=Depends(require_session)
+):
     try:
         success = db.delete_prediction(pred_id)
         if not success:
@@ -1283,76 +1810,48 @@ async def delete_prediction_route(pred_id: int, request: Request, _=Depends(requ
         return {"status": "success"}
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/predictions/stats")
 async def get_prediction_stats(request: Request, _=Depends(require_session)):
     try:
         preds = db.get_predictions()
-        resolved = [p for p in preds if p["status"] != "PENDING"]
-        correct = [p for p in resolved if p["status"] == "CORRECT"]
+        resolved = [p for p in preds if p["status"] not in ("PENDING", "ACTIVE")]
         
-        win_rate = round((len(correct) / len(resolved)) * 100, 1) if len(resolved) > 0 else 0.0
+        # Fetch from high-performance cache
+        cache = db.get_metrics_cache("dashboard_metrics") or {}
         
-        # Calculate Mean Absolute Error (MAE) between target and actual resolved price
-        total_error = 0.0
-        for p in resolved:
-            actual = p.get("actual_outcome")
-            target = p.get("target_price")
-            if actual is not None and target is not None:
-                total_error += abs(target - actual)
-        avg_error = round(total_error / len(resolved), 2) if len(resolved) > 0 else 0.0
+        # Calculate recent outcomes for the sparkline chart
+        recent_outcomes = [p["status"].upper() in ("CORRECT", "WIN") for p in resolved[:20]]
+        avg_conf = round(sum(p["confidence_score"] for p in preds) / len(preds), 1) if preds else 0.0
         
-        # Best and worst sectors
-        SECTORS_MAP = {
-            'HAL.NS': 'Defence', 'BEL.NS': 'Defence', 'RVNL.NS': 'Railways',
-            'IREDA.NS': 'Green Energy', 'HUDCO.NS': 'Finance', 'COALINDIA.NS': 'Energy',
-            'NHPC.NS': 'Power', 'ADANIPORTS.NS': 'Infrastructure', 'TATAPOWER.NS': 'Power',
-            'BHEL.NS': 'Capital Goods'
-        }
+        # Get machine learning pattern rates
+        pattern_success_rates = db.get_pattern_success_rates()
         
-        sector_wins = {}
-        sector_totals = {}
-        for p in resolved:
-            sec = SECTORS_MAP.get(p['symbol'], 'Other')
-            sector_totals[sec] = sector_totals.get(sec, 0) + 1
-            if p['status'] == 'CORRECT':
-                sector_wins[sec] = sector_wins.get(sec, 0) + 1
-                
-        best_sector = "None"
-        best_rate = -1.0
-        worst_sector = "None"
-        worst_rate = 101.0
-        
-        for sec, total in sector_totals.items():
-            rate = (sector_wins.get(sec, 0) / total) * 100
-            if rate > best_rate:
-                best_rate = rate
-                best_sector = f"{sec} ({rate:.0f}%)"
-            if rate < worst_rate:
-                worst_rate = rate
-                worst_sector = f"{sec} ({rate:.0f}%)"
-                
-        # outcomes list for sparkline (last 20 resolved outcomes)
-        recent_outcomes = [p["status"] == "CORRECT" for p in resolved[:20]]
-        
-        # Average confidence of predictions
-        avg_conf = round(sum(p["confidence_score"] for p in preds) / len(preds), 1) if len(preds) > 0 else 0.0
+        win_rate = round((sum(1 for p in resolved if p["status"].upper() in ("CORRECT", "WIN")) / len(resolved)) * 100, 1) if resolved else 0.0
         
         return {
             "total_predictions": len(preds),
             "resolved_predictions": len(resolved),
             "win_rate": win_rate,
-            "avg_error": avg_error,
-            "best_sector": best_sector if best_rate >= 0 else "N/A",
-            "worst_sector": worst_sector if worst_rate <= 100 else "N/A",
+            "profit_factor": cache.get("profit_factor", 0.0),
+            "empirical_rr_ratio": cache.get("avg_r", 0.0),
+            "expected_value_pct": cache.get("ev_pct", 0.0),
+            "max_drawdown_pct": cache.get("max_drawdown", 0.0),
+            "average_win_pct": 0.0,  # Deprecated in favor of Avg R
+            "average_loss_pct": 0.0, # Deprecated in favor of Avg R
+            "best_sector": "N/A",    # Handled by strategy leaderboard
+            "worst_sector": "N/A",   # Handled by strategy leaderboard
             "recent_outcomes": recent_outcomes,
-            "avg_confidence": avg_conf
+            "avg_confidence": avg_conf,
+            "pattern_success_rates": pattern_success_rates,
+            "leaderboard": cache.get("leaderboard", [])
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Stats Error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/market_brief")
@@ -1360,17 +1859,25 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
     try:
         # Get latest indicators via scan
         try:
-            signals = sig_engine.run_scan()
+            loop = asyncio.get_event_loop()
+            signals = await loop.run_in_executor(
+                _executor,
+                functools.partial(sig_engine.run_scan, sig_engine.NSE_WATCHLIST),
+            )
         except Exception:
             signals = []
-            
+
         buys = [s for s in signals if s.get("signal") in ("BUY", "WEAK BUY")]
         sentiment_pct = int(len(buys) / len(signals) * 100) if signals else 50
-        
+
         # Find best Opportunities
-        top_ops = [s for s in signals if s.get("signal") in ("BUY", "SELL", "WEAK BUY", "WEAK SELL")]
+        top_ops = [
+            s
+            for s in signals
+            if s.get("signal") in ("BUY", "SELL", "WEAK BUY", "WEAK SELL")
+        ]
         top_ops.sort(key=lambda x: -x.get("confidence", 0))
-        
+
         # Nifty overall trend based on watchlist sentiment
         if sentiment_pct >= 60:
             trend_bias = "BULLISH"
@@ -1381,14 +1888,14 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
         else:
             trend_bias = "CONSOLIDATION"
             heuristic_brief = "Sideways consolidation range observed. Low trend strength (ADX under 20) with prices clustering near middle Bollinger Band levels. Favor range-bound mean-reversion tactics."
-            
+
         briefing_text = heuristic_brief
-        
+
         # Try to generate using Gemini if available
         if _genai_client and signals:
             try:
                 opp_summary = "\n".join(
-                    f"- {s['symbol'].replace('.NS','')}: {s['signal']} (Conf: {s['confidence']}%, Price: ₹{s['price']:.1f}, Reasoning: {s['reasoning']})"
+                    f"- {s['symbol'].replace('.NS', '')}: {s['signal']} (Conf: {s['confidence']}%, Price: ₹{s['price']:.1f}, Reasoning: {s['reasoning']})"
                     for s in signals[:5]
                 )
                 prompt = (
@@ -1408,18 +1915,18 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
                 if gemini_text:
                     briefing_text = gemini_text
             except Exception:
-                pass # Fall back to heuristic
-                
+                pass  # Fall back to heuristic
+
         return {
             "nifty_trend": trend_bias,
             "market_sentiment_pct": sentiment_pct,
             "top_opportunities": [
                 {
-                    "symbol": s["symbol"].replace('.NS', ''),
+                    "symbol": s["symbol"].replace(".NS", ""),
                     "name": s["name"],
                     "signal": s["signal"],
                     "confidence": s["confidence"],
-                    "price": s["price"]
+                    "price": s["price"],
                 }
                 for s in top_ops[:3]
             ],
@@ -1427,10 +1934,9 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
                 "RBI Monetary Policy Committee Rate Announcement (Upcoming)",
                 "US Core CPI inflation data report (Scheduled release)",
                 "Nifty Index Weekly Options Expiry (Thursday)",
-                "Federal Reserve Open Market Committee Interest Rate decision"
+                "Federal Reserve Open Market Committee Interest Rate decision",
             ],
-            "briefing_text": briefing_text
+            "briefing_text": briefing_text,
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
