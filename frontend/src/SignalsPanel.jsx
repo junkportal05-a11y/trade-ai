@@ -757,6 +757,8 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
       if (res.status === 401) {
         localStorage.removeItem('is_logged_in');
         localStorage.removeItem('apex_user');
+        localStorage.removeItem('apt_token');
+        sessionStorage.removeItem('apt_token');
         window.location.reload();
         return;
       }

@@ -172,7 +172,7 @@ export function useLivePrices(symbols = []) {
 
     function connect() {
       try {
-        const token = sessionStorage.getItem('apt_token') || '';
+        const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
         const ws = new WebSocket(`${WS_URL}/ws/prices?symbols=${symbolKey}&token=${token}`);
         wsRef.current = ws;
 

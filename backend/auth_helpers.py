@@ -118,6 +118,16 @@ def create_session(username: str) -> str:
 def require_session(request: Request):
     x_session_token = request.cookies.get("apt_token")
     if not x_session_token:
+        x_session_token = request.headers.get("x-session-token")
+    if not x_session_token:
+        auth_header = request.headers.get("authorization")
+        if auth_header:
+            if auth_header.startswith("Bearer "):
+                x_session_token = auth_header[7:]
+            else:
+                x_session_token = auth_header
+
+    if not x_session_token:
         raise HTTPException(
             status_code=401, detail="Authentication session token required"
         )
