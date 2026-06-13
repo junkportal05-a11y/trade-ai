@@ -35,6 +35,7 @@ from pydantic import BaseModel
 import signals as sig_engine
 import upstox_feed
 import db
+from angelone_feed import get_angelone_feed
 import capital_allocator
 from backtest_routes import backtest_router
 from auth_helpers import require_admin
@@ -327,6 +328,51 @@ def upstox_status():
                     status_data["user_name"] = data.get("user_name")
         except Exception:
             pass
+    return status_data
+
+
+class AngelOneCredentials(BaseModel):
+    api_key: str
+    client_code: str
+    pin: str
+    totp_secret: str
+
+@app.post("/api/angelone/login")
+def angelone_login(creds: AngelOneCredentials, _=Depends(require_session)):
+    feed = get_angelone_feed()
+    result = feed.login(
+        api_key=creds.api_key,
+        client_code=creds.client_code,
+        pin=creds.pin,
+        totp_secret=creds.totp_secret
+    )
+    if result["status"] == "success":
+        import db
+        db.save_angelone_session({
+            "api_key": creds.api_key,
+            "client_code": creds.client_code,
+            "pin": creds.pin,
+            "totp_secret": creds.totp_secret,
+            "session_token": result["session_token"],
+            "refresh_token": result["refresh_token"],
+            "feed_token": result["feed_token"],
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        })
+        return {
+            "status": "success",
+            "client_code": creds.client_code
+        }
+    else:
+        raise HTTPException(status_code=400, detail=result.get("message", "Login failed"))
+
+@app.get("/api/angelone/status")
+def angelone_status():
+    feed = get_angelone_feed()
+    connected = feed.is_authorized()
+    status_data = {
+        "connected": connected,
+        "client_code": feed.client_code
+    }
     return status_data
 
 

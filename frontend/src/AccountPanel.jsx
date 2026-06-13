@@ -1,5 +1,6 @@
 import { API_BASE_URL, apiFetch } from './api';
 import React, { useState, useEffect } from 'react';
+import BrokerSettings from './BrokerSettings';
 
 const T = {
   bg:         '#080a0f',
@@ -313,6 +314,9 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
               </div>
             )}
           </div>
+
+          {/* AngelOne Card */}
+          <BrokerSettings apiFetch={apiFetch} />
 
           {/* Security Controls */}
           <div style={{

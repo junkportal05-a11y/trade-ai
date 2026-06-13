@@ -1069,6 +1069,45 @@ def get_upstox_token() -> Optional[str]:
     return None
 
 
+def save_angelone_session(session_data: dict):
+    with _conn() as c:
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_at TEXT
+            )
+        """)
+        c.execute(
+            """
+            INSERT OR REPLACE INTO app_settings (key, value, updated_at)
+            VALUES (?, ?, ?)
+        """,
+            (
+                "angelone_session",
+                json.dumps(session_data),
+                _now_ist(),
+            ),
+        )
+        c.commit()
+
+
+def get_angelone_session() -> Optional[dict]:
+    try:
+        with _conn() as c:
+            c.execute(
+                "CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT)"
+            )
+            row = c.execute(
+                "SELECT value FROM app_settings WHERE key='angelone_session'"
+            ).fetchone()
+            if row:
+                return json.loads(row["value"])
+    except Exception:
+        pass
+    return None
+
+
 def add_signals_batch(signals: list[dict]) -> None:
     """
     Batch insert new pending signals.
