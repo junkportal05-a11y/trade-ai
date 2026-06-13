@@ -30,16 +30,17 @@ def run_backtest(
     sym = symbol.upper().strip()
     if not sym.endswith(".NS"):
         sym = sym + ".NS"
-    return backtest_engine.run_historical_backtest(
-        sym,
-        range,
-        capital,
-        stop_atr,
-        target_atr,
-        entry_score,
-        risk_pct / 100.0,
-        early_exit,
+
+    config = backtest_engine.BacktestConfig(
+        period_range=range,
+        initial_capital=capital,
+        stop_atr=stop_atr,
+        target_atr=target_atr,
+        entry_score=entry_score,
+        risk_pct=risk_pct / 100.0,
+        early_exit=early_exit,
     )
+    return backtest_engine.run_historical_backtest(sym, config)
 
 
 @backtest_router.get("/stats", dependencies=[Depends(require_session)])

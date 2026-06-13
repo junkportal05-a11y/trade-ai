@@ -186,36 +186,13 @@ def generate_mentor_advice(
     return advice
 
 
-def allocate(
-    capital: float,
-    signals: list,
-    style: str = "Intraday Momentum",
-    risk: str = "Medium",
-    max_recommendations: int = 5,
-) -> dict:
-    """
-    Build a high-return allocation plan targeting 10-20% on invested capital.
-
-    Key differences from standard allocator:
-    1. Score = confidence × ATR% (prefer HIGH VOLATILITY stocks)
-    2. Target = 10-15% gain on position (not ATR × 2)
-    3. Stop  = 4-5% loss max (wider stop for volatile stocks)
-    4. Min profit target per position = 8% of amount invested
-    5. Filter out stocks where max profit < 8% of invested amount
-    """
-
-    if capital <= 0:
-        return {"error": "Capital must be > 0", "positions": []}
-    if not signals:
-        return {"error": "No signals", "positions": []}
-
-    # ── Tier config ────────────────────────────────────────────────────────────
+def _get_tier_config(capital: float, risk: str, max_recommendations: int) -> tuple:
     if capital < 2_000:
         max_positions = 1
         cash_buffer = 0.02
-        risk_pct = 0.08  # allow 8% stop on tiny accounts (volatile stocks)
+        risk_pct = 0.08
         max_per_stock = 0.98
-        min_profit_target = capital * 0.08  # at least 8% return
+        min_profit_target = capital * 0.08
     elif capital < 5_000:
         max_positions = 1
         cash_buffer = 0.03
@@ -227,7 +204,7 @@ def allocate(
         cash_buffer = 0.04
         risk_pct = 0.05
         max_per_stock = 0.65
-        min_profit_target = capital * 0.04  # per position
+        min_profit_target = capital * 0.04
     elif capital < 50_000:
         max_positions = 3
         cash_buffer = 0.05
@@ -247,25 +224,24 @@ def allocate(
         max_per_stock = 0.25
         min_profit_target = capital * 0.015
 
-    # Adjust risk_pct based on risk level
     if risk == "Low":
         risk_pct = risk_pct * 0.7
     elif risk == "High":
         risk_pct = risk_pct * 1.3
 
-    # Cap max positions by user specified max_recommendations
     max_positions = max(1, min(max_positions, max_recommendations))
-
     deployable = capital * (1 - cash_buffer)
 
-    # ── Filter signals ─────────────────────────────────────────────────────
+    return max_positions, deployable, risk_pct, max_per_stock, min_profit_target
+
+
+def _filter_and_score_signals(signals: list, deployable: float, max_positions: int) -> list:
     candidates = []
     for s in signals:
         raw_signal = s.get("direction") or s.get("signal") or ""
-        # Accept BUY and WEAK BUY
         if "BUY" not in raw_signal.upper():
             continue
-        if s.get("confidence", 0) < 45:  # lower threshold — market may be closed
+        if s.get("confidence", 0) < 45:
             continue
 
         entry = s.get("entry") or s.get("entry_price") or s.get("price", 0)
@@ -276,22 +252,18 @@ def allocate(
         if entry <= 0:
             continue
         if stop <= 0 or stop >= entry:
-            # Generate a stop if missing (2% below entry)
             stop = round(entry * 0.98, 2)
         if target <= 0 or target <= entry:
-            # Generate a target if missing (3% above entry)
             target = round(entry * 1.03, 2)
         if entry > deployable:
-            continue  # can't even buy 1 share
+            continue
 
-        # ATR% = how volatile is this stock?
         atr_pct = (atr / entry * 100) if entry > 0 else 0
         profit_pct = (target - entry) / entry * 100
 
-        # Score: confidence × volatility bonus × profit potential
         score = s["confidence"] * (1 + atr_pct * 0.3) * (1 + min(profit_pct, 20) * 0.05)
 
-        s = dict(s)  # copy to avoid mutating original
+        s = dict(s)
         s["direction"] = "BUY"
         s["entry"] = entry
         s["stop_loss"] = stop
@@ -301,24 +273,11 @@ def allocate(
         s["_score"] = score
         candidates.append(s)
 
-    if not candidates:
-        return {
-            "capital": round(capital, 2),
-            "deployable": round(deployable, 2),
-            "positions": [],
-            "position_count": 0,
-            "message": (
-                "No high-return BUY signals found right now. "
-                "The market may be closed or in a bearish/sideways phase. "
-                "Best scan time: 9:30–11:00 AM IST for intraday momentum."
-            ),
-        }
-
-    # Sort by score descending — best opportunity first
     candidates.sort(key=lambda x: x["_score"], reverse=True)
-    candidates = candidates[:max_positions]
+    return candidates[:max_positions]
 
-    # ── Build positions ────────────────────────────────────────────────────────
+
+def _build_positions(candidates: list, capital: float, deployable: float, max_per_stock: float, risk_pct: float, min_profit_target: float) -> tuple:
     total_score = sum(c["_score"] for c in candidates)
     positions = []
     deployed = 0
@@ -336,15 +295,12 @@ def allocate(
         remaining = deployable - deployed
 
         budget = min(capped_alloc, remaining)
-        # Allow fractional shares down to 0.01 shares
         if budget < entry * 0.01:
             continue
 
-        # Position sizing: risk-based
         risk_per_share = abs(entry - stop)
         max_risk_money = capital * risk_pct
 
-        # Support fractional shares (2 decimal places) for high-precision capital allocation
         shares_by_cap = round(budget / entry, 2)
         shares_by_risk = (
             round(max_risk_money / risk_per_share, 2)
@@ -353,7 +309,6 @@ def allocate(
         )
         shares = min(shares_by_risk, shares_by_cap)
 
-        # Recheck affordability
         if shares * entry > remaining:
             shares = round(remaining / entry, 2)
         if shares < 0.01:
@@ -369,9 +324,7 @@ def allocate(
         )
         profit_on_cap = round((pot_profit / capital) * 100, 2)
 
-        # Skip if profit is too small relative to capital — no point
         if pot_profit < min_profit_target:
-            # Try to bump shares to hit minimum
             needed_shares = (
                 round(min_profit_target / (target1 - entry), 2)
                 if (target1 - entry) > 0
@@ -435,6 +388,55 @@ def allocate(
             }
         )
         deployed += actual_cost
+
+    return positions, deployed
+
+
+def allocate(
+    capital: float,
+    signals: list,
+    style: str = "Intraday Momentum",
+    risk: str = "Medium",
+    max_recommendations: int = 5,
+) -> dict:
+    """
+    Build a high-return allocation plan targeting 10-20% on invested capital.
+
+    Key differences from standard allocator:
+    1. Score = confidence × ATR% (prefer HIGH VOLATILITY stocks)
+    2. Target = 10-15% gain on position (not ATR × 2)
+    3. Stop  = 4-5% loss max (wider stop for volatile stocks)
+    4. Min profit target per position = 8% of amount invested
+    5. Filter out stocks where max profit < 8% of invested amount
+    """
+
+    if capital <= 0:
+        return {"error": "Capital must be > 0", "positions": []}
+    if not signals:
+        return {"error": "No signals", "positions": []}
+
+    max_positions, deployable, risk_pct, max_per_stock, min_profit_target = _get_tier_config(
+        capital, risk, max_recommendations
+    )
+
+    candidates = _filter_and_score_signals(signals, deployable, max_positions)
+
+    if not candidates:
+        return {
+            "capital": round(capital, 2),
+            "deployable": round(deployable, 2),
+            "positions": [],
+            "position_count": 0,
+            "message": (
+                "No high-return BUY signals found right now. "
+                "The market may be closed or in a bearish/sideways phase. "
+                "Best scan time: 9:30–11:00 AM IST for intraday momentum."
+            ),
+        }
+
+    positions, deployed = _build_positions(
+        candidates, capital, deployable, max_per_stock, risk_pct, min_profit_target
+    )
 
     if not positions:
         return {

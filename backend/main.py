@@ -23,7 +23,6 @@ from fastapi import (
     Query,
     Request,
     Depends,
-    Header,
     BackgroundTasks,
 )
 from fastapi.middleware.cors import CORSMiddleware
@@ -614,84 +613,9 @@ class ChatRequest(BaseModel):
     history: Optional[List[ChatMessage]] = None
 
 
-@app.post("/api/chat")
-@limiter.limit("30/minute")
-@limiter.limit("10/10 seconds")
-async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
-    """
-    AI trading assistant. Uses Gemini if GEMINI_API_KEY is set,
-    otherwise falls back to a context-aware heuristic engine.
-    """
-    symbol = (req.context or {}).get("symbol", "the market")
-    price = (req.context or {}).get("price", None)
-    chg_pct = (req.context or {}).get("changePct", None)
 
-    # ── Try Gemini (google-genai SDK) ────────────────────────────────────────
-    if _genai_client:
-        try:
-            # Load custom trading knowledge base
-            knowledge_content = ""
-            knowledge_path = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "trading_knowledge.txt")
-            )
-            if os.path.exists(knowledge_path):
-                try:
-                    # Limit context size to allow the entire codebase blueprint and PDF manuals (up to 140000 chars)
-                    with open(knowledge_path, "r", encoding="utf-8") as kf:
-                        knowledge_content = kf.read(140000)
-                except Exception:
-                    pass
-
-            # Fetch NewsAPI headlines for viewed symbol
-            news_context = ""
-            if symbol and symbol != "the market":
-                try:
-                    import news_feed
-
-                    articles = news_feed.fetch_ticker_news(symbol)
-                    if articles:
-                        news_context = "--- LATEST NEWS CONTEXT ---\n"
-                        for art in articles[:3]:  # Top 3 headlines
-                            news_context += f"• {art.get('title')} (Published: {art.get('publishedAt')[:10]})\n"
-                        news_context += "---------------------------\n\n"
-                except Exception:
-                    pass
-
-            system_ctx = (
-                f"You are an expert trading mentor and assistant embedded in the APEXTRADE platform. "
-                f"You have been trained on the user's custom trading guides and PDFs (candlesticks, risk management, stop losses, etc.). "
-                f"Use the following knowledge context to answer any trading query, explain strategies, and mentor the user: \n\n"
-                f"--- KNOWLEDGE BASE EXTRACTS ---\n"
-                f"{knowledge_content}\n"
-                f"-------------------------------\n\n"
-                f"{news_context}"
-                f"Active Context: The user is currently viewing {symbol}"
-                + (f" trading at ₹{price:.2f}" if price else "")
-                + (f" ({chg_pct:+.2f}% today)" if chg_pct is not None else "")
-                + ". \n\n"
-                "IMPORTANT: The user may ask you about this active stock, or they may ask general questions about candlestick patterns, indicators, risk management, or other stocks. Answer any of these questions freely. Do not restrict your answers only to the active stock unless they ask about it. Provide concise, highly actionable advice. Never provide direct financial advice — always remind them this is educational. Keep responses under 180 words. Use **bold** sparingly for key terms."
-            )
-
-            # Construct chat thread including history
-            formatted_history = ""
-            if req.history:
-                for h in req.history:
-                    role_label = "User" if h.role == "user" else "Assistant"
-                    formatted_history += f"{role_label}: {h.text}\n"
-
-            prompt = (
-                f"{system_ctx}\n\n{formatted_history}User: {req.message}\nAssistant:"
-            )
-
-            response = _genai_client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt,
-            )
-            return {"reply": response.text.strip(), "source": "gemini"}
-        except Exception:
-            pass  # fall through to heuristic
-
-    # ── Heuristic fallback engine ─────────────────────────────────────────────
+def _get_heuristic_reply(req: ChatRequest, symbol: str, price: Optional[float], chg_pct: Optional[float]) -> dict:
+    """Fallback heuristic engine when Gemini is unavailable or fails."""
     msg_lower = req.message.lower()
     price_str = f"₹{price:,.2f}" if price else "current levels"
     chg_str = f"{chg_pct:+.2f}%" if chg_pct is not None else "unchanged"
@@ -798,6 +722,93 @@ async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
         )
 
     return {"reply": reply, "source": "heuristic"}
+
+def _get_gemini_reply(req: ChatRequest, symbol: str, price: Optional[float], chg_pct: Optional[float]) -> Optional[dict]:
+    """Attempts to get a reply from Gemini AI."""
+    if not _genai_client:
+        return None
+    try:
+        # Load custom trading knowledge base
+        knowledge_content = ""
+        knowledge_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "trading_knowledge.txt")
+        )
+        if os.path.exists(knowledge_path):
+            try:
+                # Limit context size to allow the entire codebase blueprint and PDF manuals (up to 140000 chars)
+                with open(knowledge_path, "r", encoding="utf-8") as kf:
+                    knowledge_content = kf.read(140000)
+            except Exception:
+                pass
+
+        # Fetch NewsAPI headlines for viewed symbol
+        news_context = ""
+        if symbol and symbol != "the market":
+            try:
+                import news_feed
+
+                articles = news_feed.fetch_ticker_news(symbol)
+                if articles:
+                    news_context = "--- LATEST NEWS CONTEXT ---\n"
+                    for art in articles[:3]:  # Top 3 headlines
+                        news_context += f"• {art.get('title')} (Published: {art.get('publishedAt')[:10]})\n"
+                    news_context += "---------------------------\n\n"
+            except Exception:
+                pass
+
+        system_ctx = (
+            f"You are an expert trading mentor and assistant embedded in the APEXTRADE platform. "
+            f"You have been trained on the user's custom trading guides and PDFs (candlesticks, risk management, stop losses, etc.). "
+            f"Use the following knowledge context to answer any trading query, explain strategies, and mentor the user: \n\n"
+            f"--- KNOWLEDGE BASE EXTRACTS ---\n"
+            f"{knowledge_content}\n"
+            f"-------------------------------\n\n"
+            f"{news_context}"
+            f"Active Context: The user is currently viewing {symbol}"
+            + (f" trading at ₹{price:.2f}" if price else "")
+            + (f" ({chg_pct:+.2f}% today)" if chg_pct is not None else "")
+            + ". \n\n"
+            "IMPORTANT: The user may ask you about this active stock, or they may ask general questions about candlestick patterns, indicators, risk management, or other stocks. Answer any of these questions freely. Do not restrict your answers only to the active stock unless they ask about it. Provide concise, highly actionable advice. Never provide direct financial advice — always remind them this is educational. Keep responses under 180 words. Use **bold** sparingly for key terms."
+        )
+
+        # Construct chat thread including history
+        formatted_history = ""
+        if req.history:
+            for h in req.history:
+                role_label = "User" if h.role == "user" else "Assistant"
+                formatted_history += f"{role_label}: {h.text}\n"
+
+        prompt = (
+            f"{system_ctx}\n\n{formatted_history}User: {req.message}\nAssistant:"
+        )
+
+        response = _genai_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
+        return {"reply": response.text.strip(), "source": "gemini"}
+    except Exception:
+        return None
+
+
+@app.post("/api/chat")
+@limiter.limit("30/minute")
+@limiter.limit("10/10 seconds")
+async def chat(req: ChatRequest, request: Request, _=Depends(require_session)):
+    """
+    AI trading assistant. Uses Gemini if GEMINI_API_KEY is set,
+    otherwise falls back to a context-aware heuristic engine.
+    """
+    symbol = (req.context or {}).get("symbol", "the market")
+    price = (req.context or {}).get("price", None)
+    chg_pct = (req.context or {}).get("changePct", None)
+
+    # ── Try Gemini (google-genai SDK) ────────────────────────────────────────
+    gemini_reply = _get_gemini_reply(req, symbol, price, chg_pct)
+    if gemini_reply:
+        return gemini_reply
+
+    return _get_heuristic_reply(req, symbol, price, chg_pct)
 
 
 def is_nse_market_open() -> bool:
