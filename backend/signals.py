@@ -931,6 +931,7 @@ def _score_default_indicator(
         "rr_ratio": rr_ratio,
         "position_size": position_size,
         "news_sentiment": news_sentiment,
+        "signal_type": signal_type,
     }
 
 def _score_my_strategy(
@@ -1206,6 +1207,7 @@ def _score_my_strategy(
         "rr_ratio": rr_ratio,
         "position_size": position_size,
         "news_sentiment": news_sentiment,
+        "signal_type": signal_type,
     }
 
 
@@ -1409,7 +1411,8 @@ def analyse_symbol(
                 macro_bullish=macro_bullish,
                 cached_support=cached_support,
                 cached_resistance=cached_resistance,
->>>>>>> 64d921b66ee8dada1e3582ddf8e363016bd910e7
+                atr_multiplier=atr_multiplier,
+                rr_target=rr_target,
             )
             score = res["score"]
             reasons_bull = res["reasons_bull"]
@@ -1432,6 +1435,7 @@ def analyse_symbol(
             all_reasons = reasons_bull + reasons_bear
             reasoning = " | ".join(all_reasons[:4])
 
+        signal_type = res["signal_type"]
         rr_ratio = round(reward / risk_amount, 2) if risk_amount > 0 else 1.0
         target_pct = round((target1 - price) / price * 100, 2)
 
