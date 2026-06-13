@@ -34,10 +34,16 @@ export default function BrokerSettings({ apiFetch }) {
 
   const checkConnectionStatus = async () => {
     try {
-      const data = await apiFetch('/api/angelone/status');
-      setStatus(data || { connected: false });
+      const res = await apiFetch('/api/angelone/status');
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data || { connected: false });
+      } else {
+        setStatus({ connected: false });
+      }
     } catch (err) {
       console.error('Status check failed:', err);
+      setStatus({ connected: false });
     }
   };
 
@@ -47,24 +53,38 @@ export default function BrokerSettings({ apiFetch }) {
     setError('');
 
     try {
-      const response = await apiFetch('/api/angelone/login', {
+      const res = await apiFetch('/api/angelone/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials)
       });
 
-      if (response && response.status === 'success') {
-        setStatus({ connected: true, client_code: response.client_code });
-        // Clear credentials from state for security
-        setCredentials({
-          api_key: '',
-          client_code: response.client_code,
-          pin: '',
-          totp_secret: ''
-        });
-      } else {
-        setError(response?.detail || response?.message || 'Connection failed');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.status === 'success') {
+          setStatus({ connected: true, client_code: data.client_code });
+          // Clear credentials from state for security
+          setCredentials({
+            api_key: '',
+            client_code: data.client_code,
+            pin: '',
+            totp_secret: ''
+          });
+          return;
+        }
       }
+
+      // If we reach here, it failed. Try to parse error detail
+      let errMessage = 'Connection failed';
+      try {
+        const errData = await res.json();
+        if (errData && errData.detail) {
+          errMessage = errData.detail;
+        } else if (errData && errData.message) {
+          errMessage = errData.message;
+        }
+      } catch (_) {}
+      setError(errMessage);
     } catch (err) {
       setError(err.message || 'Connection failed');
     } finally {
