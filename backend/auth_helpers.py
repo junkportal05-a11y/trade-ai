@@ -5,7 +5,7 @@ import secrets
 from fastapi import HTTPException, Header, Request
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 ADMIN_KEY = os.getenv("ADMIN_KEY")
 if not ADMIN_KEY:

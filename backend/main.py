@@ -41,7 +41,7 @@ from backtest_routes import backtest_router
 from auth_helpers import require_admin
 from historical_simulator import run_simulation_task, simulation_status
 
-load_dotenv()
+load_dotenv(override=True)
 
 
 limiter = Limiter(key_func=get_remote_address)
