@@ -169,18 +169,39 @@ def check_trend_strength(df: pd.DataFrame, adx_threshold: int = 20) -> bool:
     Ensure market is trending (ADX ≥ 20)
     Prevents signals in choppy/sideways markets
     """
-    import pandas_ta as ta
     if len(df) < 30:  # ADX needs 14+ periods
         return False
     
-    # We use pandas-ta instead of talib as talib is unavailable
-    adx_df = ta.adx(df['High'], df['Low'], df['Close'], length=14)
-    if adx_df is None or adx_df.empty:
-        return False
+    try:
+        high = df['High']
+        low = df['Low']
+        close = df['Close']
         
-    current_adx = adx_df.iloc[-1, 0]
-    
-    return current_adx >= adx_threshold  # PHASE 1: Minimum trend strength
+        up_move = high.diff()
+        down_move = -low.diff()
+        plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0.0)
+        minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0.0)
+        
+        tr = pd.concat([
+            high - low,
+            (high - close.shift()).abs(),
+            (low - close.shift()).abs()
+        ], axis=1).max(axis=1)
+        atr = tr.rolling(14).mean()
+        
+        plus_di = 100 * pd.Series(plus_dm, index=df.index).rolling(14).mean() / atr.replace(0, np.nan)
+        minus_di = 100 * pd.Series(minus_dm, index=df.index).rolling(14).mean() / atr.replace(0, np.nan)
+        dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan)
+        adx_series = dx.rolling(14).mean()
+        
+        if adx_series.empty or np.isnan(adx_series.iloc[-1]):
+            return False
+            
+        current_adx = float(adx_series.iloc[-1])
+        return current_adx >= adx_threshold
+    except Exception as e:
+        print(f"[check_trend_strength] Error calculating ADX: {e}")
+        return False
 
 def validate_risk_reward(entry: float, stop: float, target: float, min_rr: float = 2.0) -> bool:
     """
