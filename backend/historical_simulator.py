@@ -84,15 +84,18 @@ class HistoricalSimulator:
             close = row['Close']
 
             if is_long:
-                if high >= target:
-                    return 'WIN', target, idx
-                if low <= stop_loss:
-                    return 'LOSS', stop_loss, idx
+                target_hit = high >= target
+                stop_hit = low <= stop_loss
             else:
-                if low <= target:
-                    return 'WIN', target, idx
-                if high >= stop_loss:
-                    return 'LOSS', stop_loss, idx
+                target_hit = low <= target
+                stop_hit = high >= stop_loss
+
+            if target_hit and stop_hit:
+                return 'LOSS', stop_loss, idx
+            elif stop_hit:
+                return 'LOSS', stop_loss, idx
+            elif target_hit:
+                return 'WIN', target, idx
                     
             # Timeout if it's the last tick of the day
             if idx == df_forward.index[-1]:
@@ -101,7 +104,7 @@ class HistoricalSimulator:
         # If loop finishes without hitting
         return 'TIMEOUT', df_forward.iloc[-1]['Close'], df_forward.index[-1]
 
-    async def simulate(self, start_date: str, end_date: str):
+    async def simulate(self, start_date: str, end_date: str, atr_multiplier: float = 1.0, rr_target: float = 1.5):
         try:
             simulation_status.is_running = True
             simulation_status.stats = {
@@ -153,7 +156,9 @@ class HistoricalSimulator:
                                     style="Intraday Momentum",
                                     risk="Medium",
                                     segment="NSE",
-                                    capital=self.BASE_CAPITAL * (self.POSITION_SIZE_PERCENT / 100)
+                                    capital=self.BASE_CAPITAL * (self.POSITION_SIZE_PERCENT / 100),
+                                    atr_multiplier=atr_multiplier,
+                                    rr_target=rr_target
                                 )
                                 
                                 if result and abs(result.get('score', 0)) >= 4:
@@ -169,16 +174,24 @@ class HistoricalSimulator:
                                     atr = result.get('atr', 20.0)
                                     if target == 0 or stop_loss == 0:
                                         if signal_type == 'BUY':
-                                            stop_loss = entry_price - (2 * atr)
-                                            target = entry_price + (4 * atr)
+                                            stop_loss = entry_price - (atr_multiplier * atr)
+                                            target = entry_price + (rr_target * atr_multiplier * atr)
                                         else:
-                                            stop_loss = entry_price + (2 * atr)
-                                            target = entry_price - (4 * atr)
+                                            stop_loss = entry_price + (atr_multiplier * atr)
+                                            target = entry_price - (rr_target * atr_multiplier * atr)
                                             
                                     is_long = signal_type == 'BUY'
                                     
-                                    # Auto Resolver
-                                    df_forward = df_day.iloc[i+1:]
+                                    # Hybrid Trading Model - Tier 1 vs Tier 2
+                                    target_pct = abs((target - entry_price) / entry_price) * 100
+                                    
+                                    if target_pct > 5.0:
+                                        # Tier 2: Swing Trade (Allow up to 10 days hold)
+                                        df_forward = df.iloc[i+1 : i+1+(75*10)]
+                                    else:
+                                        # Tier 1: Intraday Trade (Close EOD)
+                                        df_forward = df_day.iloc[i+1:]
+                                        
                                     if df_forward.empty:
                                         continue
                                         
@@ -197,8 +210,14 @@ class HistoricalSimulator:
                                     else:
                                         pnl_pct = ((entry_price - exit_price) / entry_price) * 100
                                         
-                                    capital_deployed = self.BASE_CAPITAL * (self.POSITION_SIZE_PERCENT / 100)
-                                    risk_amount = self.BASE_CAPITAL * (self.RISK_PERCENT / 100)
+                                    quantity = result.get('quantity', 0)
+                                    if quantity > 0:
+                                        capital_deployed = quantity * entry_price
+                                    else:
+                                        # Fallback if CME didn't set it
+                                        capital_deployed = self.BASE_CAPITAL * (self.POSITION_SIZE_PERCENT / 100)
+                                        
+                                    risk_amount = result.get('risk_amount', self.BASE_CAPITAL * (self.RISK_PERCENT / 100))
                                     pnl_inr = capital_deployed * (pnl_pct / 100)
                                     
                                     # Construct trade record
@@ -271,9 +290,33 @@ class HistoricalSimulator:
             print(f"Wins: {simulation_status.stats['wins']} ({simulation_status.stats['wins']/total*100:.2f}%)")
             print(f"Losses: {simulation_status.stats['losses']} ({simulation_status.stats['losses']/total*100:.2f}%)")
             print(f"Timeouts: {simulation_status.stats['timeouts']} ({simulation_status.stats['timeouts']/total*100:.2f}%)")
-        print(f"Errors: {simulation_status.stats['errors']}")
+        print(f"Errors (Data Corruptions): {simulation_status.stats['errors']}")
+        
+        # Data Confidence Score Calculation
+        # Base 100
+        # Penalties: timeouts (-1 point each), errors (-5 points each)
+        # Scaled by total signals so it's realistic
+        if total > 0:
+            penalty = (simulation_status.stats['timeouts'] * 1 + simulation_status.stats['errors'] * 5) / max(total * 0.1, 1)
+            dcs = max(0, min(100, 100 - penalty))
+            print("="*50)
+            print(f"DATA CONFIDENCE SCORE: {dcs:.2f}/100")
+            if dcs < 90:
+                print("WARNING: Data Confidence < 90. Strategy analytics cannot be trusted.")
+        
         print("="*50)
 
-def run_simulation_task(start_date: str, end_date: str, user: str):
+def run_simulation_task(start_date: str, end_date: str, user: str, symbols: list = None):
     simulator = HistoricalSimulator()
     asyncio.run(simulator.simulate(start_date, end_date))
+
+if __name__ == "__main__":
+    import sys
+    
+    start = "2024-11-01"
+    end = "2024-12-31"
+    
+    if "--phase1" in sys.argv:
+        print("Running Phase 1 validation on core watchlist...")
+    
+    run_simulation_task(start, end, "admin")

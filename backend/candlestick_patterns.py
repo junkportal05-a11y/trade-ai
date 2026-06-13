@@ -433,6 +433,8 @@ def calculate_risk_parameters(
     capital: float,
     risk_pct: float = 0.01,
     is_macro_aligned: bool = True,
+    atr_multiplier: float = 1.0,
+    rr_target: float = 1.5,
 ) -> Tuple[float, float, int, float]:
     """
     Calculates Stop Loss, Target, Position Size, and Risk/Reward Ratio.
@@ -440,31 +442,19 @@ def calculate_risk_parameters(
     """
     # 1. Stop Loss Placement
     atr = float(df["ATRr_14"].iloc[-1]) if "ATRr_14" in df.columns else (price * 0.01)
-    rr_target = 1.5
 
     if signal_type == "BULLISH":
-        sl_base = support if support else float(df["Low"].iloc[-3:].min())
-        stop_loss = sl_base - (atr * 0.3)
-        stop_loss = _avoid_round_numbers(stop_loss, atr, is_buy=True)
-
+        # PHASE 1: Exact multipliers as requested
+        stop_loss = price - (atr * 1.8)
+        target = price + (atr * 3.5)
         risk_per_share = price - stop_loss
-        if risk_per_share <= 0:
-            risk_per_share = atr
-            stop_loss = price - risk_per_share
-
-        target = price + (rr_target * risk_per_share)
-
     else:  # BEARISH
-        sl_base = resistance if resistance else float(df["High"].iloc[-3:].max())
-        stop_loss = sl_base + (atr * 0.3)
-        stop_loss = _avoid_round_numbers(stop_loss, atr, is_buy=False)
-
+        # PHASE 1: Exact multipliers as requested
+        stop_loss = price + (atr * 1.8)
+        target = price - (atr * 3.5)
         risk_per_share = stop_loss - price
-        if risk_per_share <= 0:
-            risk_per_share = atr
-            stop_loss = price + risk_per_share
 
-        target = price - (rr_target * risk_per_share)
+    rr_target = abs(target - price) / risk_per_share if risk_per_share > 0 else 0
 
     # 2. Position Sizing
     max_loss = capital * risk_pct

@@ -29,16 +29,12 @@ class MarketDataCollector:
             logger.info(f"Fetching {symbol} from {start_date} to {end_date}...")
             
             try:
-                # 5min candles
-                df = yf.download(
-                    symbol, 
-                    start=start_date,
-                    end=end_date,
-                    interval="5m",        # 5 minute candles
-                    auto_adjust=True
-                )
+                import upstox_feed
                 
-                if df.empty:
+                # Fetch 60 days of 5-minute data from Upstox
+                df = upstox_feed.get_historical_candles(symbol, "60d", "5m")
+                
+                if df is None or df.empty:
                     logger.warning(f"❌ {symbol}: No data found for given period.")
                     continue
 
@@ -200,4 +196,4 @@ if __name__ == "__main__":
     for symbol, df in all_data.items():
         collector.save_to_parquet(df, symbol, year=year)
     
-    print(f"✅ Saved {len(all_data)} symbols to parquet files")
+    print(f"SUCCESS: Saved {len(all_data)} symbols to parquet files")

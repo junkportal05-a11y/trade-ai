@@ -149,6 +149,54 @@ def _generate_mock_history(symbol: str, period: str, interval: str) -> pd.DataFr
     return df
 
 
+def check_volume_surge(df: pd.DataFrame, lookback: int = 20) -> bool:
+    """
+    Verify volume is 1.2x above recent average
+    Confirms institutional participation
+    """
+    if len(df) < lookback:
+        return False
+    
+    current_volume = df['Volume'].iloc[-1]
+    avg_volume = df['Volume'].iloc[-lookback:-1].mean()
+    
+    volume_ratio = current_volume / avg_volume if avg_volume > 0 else 0
+    
+    return volume_ratio >= 1.2  # PHASE 1: Minimum volume surge threshold
+
+def check_trend_strength(df: pd.DataFrame, adx_threshold: int = 20) -> bool:
+    """
+    Ensure market is trending (ADX ≥ 20)
+    Prevents signals in choppy/sideways markets
+    """
+    import pandas_ta as ta
+    if len(df) < 30:  # ADX needs 14+ periods
+        return False
+    
+    # We use pandas-ta instead of talib as talib is unavailable
+    adx_df = ta.adx(df['High'], df['Low'], df['Close'], length=14)
+    if adx_df is None or adx_df.empty:
+        return False
+        
+    current_adx = adx_df.iloc[-1, 0]
+    
+    return current_adx >= adx_threshold  # PHASE 1: Minimum trend strength
+
+def validate_risk_reward(entry: float, stop: float, target: float, min_rr: float = 2.0) -> bool:
+    """
+    Ensure risk:reward ratio meets minimum threshold
+    Phase 1: Require at least 1:2 R:R
+    """
+    risk = abs(entry - stop)
+    reward = abs(target - entry)
+    
+    if risk == 0:
+        return False
+    
+    rr_ratio = reward / risk
+    return rr_ratio >= min_rr
+
+
 def download_market_data_df(
     symbol: str,
     period: str = "5d",
@@ -364,48 +412,12 @@ def _supertrend(
 
 # ── NSE Intraday Watchlist ────────────────────────────────────────────────────
 NSE_WATCHLIST = [
-    {"symbol": "HAL.NS", "name": "HAL", "sector": "Defence"},
-    {"symbol": "BEL.NS", "name": "BEL", "sector": "Defence"},
-    {"symbol": "RVNL.NS", "name": "RVNL", "sector": "Railways"},
-    {"symbol": "IREDA.NS", "name": "IREDA", "sector": "Green Energy"},
-    {"symbol": "HUDCO.NS", "name": "HUDCO", "sector": "Finance"},
-    {"symbol": "COALINDIA.NS", "name": "Coal India", "sector": "Energy"},
-    {"symbol": "NHPC.NS", "name": "NHPC", "sector": "Power"},
-    {"symbol": "ADANIPORTS.NS", "name": "Adani Ports", "sector": "Infrastructure"},
-    {"symbol": "TATAPOWER.NS", "name": "Tata Power", "sector": "Power"},
-    {"symbol": "BHEL.NS", "name": "BHEL", "sector": "Capital Goods"},
-    {"symbol": "RELIANCE.NS", "name": "Reliance", "sector": "Energy"},
-    {"symbol": "TCS.NS", "name": "TCS", "sector": "IT"},
-    {"symbol": "HDFCBANK.NS", "name": "HDFC Bank", "sector": "Banking"},
-    {"symbol": "INFY.NS", "name": "Infosys", "sector": "IT"},
-    {"symbol": "ICICIBANK.NS", "name": "ICICI Bank", "sector": "Banking"},
-    {"symbol": "SBIN.NS", "name": "SBI", "sector": "Banking"},
-    {"symbol": "TATAMOTORS.NS", "name": "Tata Motors", "sector": "Auto"},
-    {"symbol": "BHARTIARTL.NS", "name": "Bharti Airtel", "sector": "Telecom"},
-    {"symbol": "ITC.NS", "name": "ITC", "sector": "FMCG"},
-    {"symbol": "LT.NS", "name": "L&T", "sector": "Infrastructure"},
-    {"symbol": "ADANIENT.NS", "name": "Adani Ent", "sector": "Conglomerate"},
-    {"symbol": "ADANIPOWER.NS", "name": "Adani Power", "sector": "Power"},
-    {"symbol": "IRFC.NS", "name": "IRFC", "sector": "Railways"},
-    {"symbol": "PFC.NS", "name": "PFC", "sector": "Finance"},
-    {"symbol": "REC.NS", "name": "REC", "sector": "Finance"},
-    {"symbol": "ZOMATO.NS", "name": "Zomato", "sector": "Consumer Tech"},
+    {"symbol": "YESBANK.NS", "name": "Yes Bank", "sector": "Banking"},
     {"symbol": "TATASTEEL.NS", "name": "Tata Steel", "sector": "Metals"},
-    {"symbol": "SAIL.NS", "name": "SAIL", "sector": "Metals"},
-    {"symbol": "WIPRO.NS", "name": "Wipro", "sector": "IT"},
-    {"symbol": "JIOFIN.NS", "name": "Jio Financial", "sector": "Finance"},
-    {"symbol": "SJVN.NS", "name": "SJVN", "sector": "Power"},
-    {"symbol": "GMRINFRA.NS", "name": "GMR Infra", "sector": "Infrastructure"},
-    {"symbol": "NBCC.NS", "name": "NBCC", "sector": "Infrastructure"},
-    {"symbol": "JINDALSTEL.NS", "name": "Jindal Steel", "sector": "Metals"},
-    {"symbol": "JSWSTEEL.NS", "name": "JSW Steel", "sector": "Metals"},
-    {"symbol": "HINDALCO.NS", "name": "Hindalco", "sector": "Metals"},
-    {"symbol": "BPCL.NS", "name": "BPCL", "sector": "Energy"},
-    {"symbol": "IOC.NS", "name": "IOC", "sector": "Energy"},
-    {"symbol": "ONGC.NS", "name": "ONGC", "sector": "Energy"},
-    {"symbol": "NTPC.NS", "name": "NTPC", "sector": "Power"},
+    {"symbol": "BANKBARODA.NS", "name": "Bank of Baroda", "sector": "Banking"},
+    {"symbol": "TATAPOWER.NS", "name": "Tata Power", "sector": "Power"},
+    {"symbol": "SBIN.NS", "name": "SBI", "sector": "Banking"},
 ]
-
 
 def is_nse_market_open() -> bool:
     """
@@ -499,6 +511,8 @@ def analyse_symbol(
     risk: str = "Medium",
     segment: str = "NSE",
     capital: float = 1000.0,
+    atr_multiplier: float = 1.8, # Stop loss width
+    rr_target: float = 1.944,    # Equivalent to target 3.5 / stop 1.8
 ) -> Optional[dict]:
     """
     Download market data for a symbol and calculate advanced signals using pandas-ta.
@@ -728,6 +742,17 @@ def analyse_symbol(
             cached_sh, cached_sl = [], []
             cached_support, cached_resistance = None, None
 
+        # ── EARLY EXIT FILTERS (Calibration) ────────────────────────
+        if not check_volume_surge(df):
+            import logging
+            logging.getLogger("signals").info(f"Skipping {symbol}: Insufficient volume surge")
+            return None
+            
+        if not check_trend_strength(df):
+            import logging
+            logging.getLogger("signals").info(f"Skipping {symbol}: ADX below 20 (choppy market)")
+            return None
+            
         # ── Scoring system (Bullish: positive, Bearish: negative) ─────────────
         if style == "My Strategy":
             # ──────────────────────────────────────────────────────────────────
@@ -943,6 +968,8 @@ def analyse_symbol(
                         resistance=resist_val,
                         capital=capital,
                         risk_pct=0.01,
+                        atr_multiplier=atr_multiplier,
+                        rr_target=rr_target,
                     )
                 )
                 entry = round(price, 2)
@@ -1146,13 +1173,15 @@ def analyse_symbol(
             except Exception as e:
                 print(f"[signals] Failed to run news sentiment scanner: {e}")
 
-            # Strict VWAP Filter
+            # Strict VWAP Filter - True Veto
             if bull_pts > bear_pts and price < vwap_val:
-                bear_pts += 100  # Penalize heavily to reject
-                reasons_bear.append("REJECTED: Price is below VWAP")
+                bull_pts = 0
+                bear_pts = 0
+                reasons_bear.append("CANCELLED: Bullish setup but price is below VWAP")
             elif bear_pts > bull_pts and price > vwap_val:
-                bull_pts += 100  # Penalize heavily to reject
-                reasons_bull.append("REJECTED: Price is above VWAP")
+                bull_pts = 0
+                bear_pts = 0
+                reasons_bull.append("CANCELLED: Bearish setup but price is above VWAP")
 
             # Confidence Formula
             total_pts = bull_pts + bear_pts
@@ -1168,6 +1197,13 @@ def analyse_symbol(
             score = (
                 bull_pts - bear_pts
             ) // 10  # proxy score for compatibility if needed
+
+            # ── TREND ALIGNMENT FILTER ──────────────────────────────────────
+            # Only trade with momentum, not against it
+            if score > 0 and price < ema9_val:
+                return None
+            if score < 0 and price > ema9_val:
+                return None
 
             # Define Component Scores for pass 2 compatibility
             market_score = 10 if macro_bullish else 4
@@ -1203,6 +1239,8 @@ def analyse_symbol(
                     is_macro_aligned=(macro_bullish if is_buy else not macro_bullish)
                     if macro_bullish is not None
                     else True,
+                    atr_multiplier=atr_multiplier,
+                    rr_target=rr_target,
                 )
             )
             target2 = target1 + (target1 - price)  # basic 2nd target
@@ -1226,6 +1264,33 @@ def analyse_symbol(
 
         all_reasons = reasons_bull + reasons_bear
         reasoning = " | ".join(all_reasons[:4])
+
+        # PHASE 1: Risk:Reward Validation
+        if signal_type in ["BULLISH", "BEARISH"]:
+            if not validate_risk_reward(entry, stop, target1, min_rr=2.0):
+                import logging
+                logging.getLogger("signals").info(f"Skipping {symbol}: Risk:Reward below 1:2")
+                return None
+                
+            # PHASE 1: Detailed Logging
+            import logging
+            sig_name = "BUY" if signal_type == "BULLISH" else "SELL"
+            # Since confidence is finalized in pass 2, we approximate it here or leave it blank
+            # For logging purposes, we'll use the raw score
+            logging.getLogger("signals").info(f"""
+        ╔══════════════════════════════════════════╗
+        ║  PHASE 1 SIGNAL GENERATED                ║
+        ╠══════════════════════════════════════════╣
+        ║  Symbol:         {symbol:12s}           ║
+        ║  Signal:         {sig_name:4s}        ║
+        ║  Entry:          ₹{entry:.2f}      ║
+        ║  Stop Loss:      ₹{stop:.2f}        ║
+        ║  Target:         ₹{target1:.2f}           ║
+        ║  Risk:Reward:    1:{rr_ratio:.2f} ║
+        ║  ADX:            {adx_val:.1f}       ║
+        ║  Volume Surge:   {vol_r:.2f}x     ║
+        ╚══════════════════════════════════════════╝
+            """)
 
         return {
             "symbol": symbol,
@@ -1580,25 +1645,57 @@ def run_scan(
         r["correlation_score"] = round(correlation_score, 2)
         r["trade_quality_score"] = round(trade_quality_score, 2)
 
-        # Dynamic Threshold based on Market Regime
-        if market_regime in ["PANIC", "VOLATILE"]:
-            dynamic_tqs_threshold = 85.0
-        elif market_regime in ["HIGH_MOMENTUM", "LOW_VOLATILITY_BREAKOUT"]:
-            dynamic_tqs_threshold = 70.0
+        # ── Trade Quality & Capital Management Engine Integration ──
+        import trade_quality
+        import capital_manager
+        
+        is_long = score >= 0
+        tqe_result = trade_quality.TradeQualityEngine.calculate_tqs(
+            confidence_score=r.get("confidence", 50),
+            is_long=is_long,
+            regime=market_regime,
+            volatility=r.get("_volume_score", 0),
+            volume_expansion=r.get("volume_score", 1.0)
+        )
+        
+        tqs_final = tqe_result["score"]
+        classification = tqe_result["classification"]
+        
+        r["trade_quality_score"] = tqs_final
+        r["tqe_classification"] = classification
+        
+        # Override Base Sizing with CME
+        cme_risk_pct = capital_manager.CapitalManagementEngine.calculate_risk_percentage(classification)
+        r["cme_risk_pct"] = cme_risk_pct
+        
+        if cme_risk_pct > 0:
+            price = r.get("price", 100)
+            stop_loss = r.get("stop_loss", price * 0.99)
+            risk_per_share = abs(price - stop_loss) if abs(price - stop_loss) > 0 else (price * 0.01)
+            
+            base_capital = 100000.0 # Standard unit
+            max_loss = base_capital * cme_risk_pct
+            qty = max_loss / risk_per_share
+            
+            r["quantity"] = round(qty, 2)
+            r["quantity_label"] = f"{int(qty)} Shares" if qty >= 1 else f"{qty:.2f} Shares"
+            r["risk_amount"] = round(max_loss, 2)
         else:
-            dynamic_tqs_threshold = 75.0
-
+            r["quantity"] = 0
+            r["quantity_label"] = "0 Shares (REJECTED)"
+            r["risk_amount"] = 0
+            score = 0 # Cancel signal
+            
         # ── Define Signal Output ──
-        score = r["score"]
-        if confidence >= 72 and score >= 4:
-            sig = "BUY"
-        elif confidence >= 55 and score >= 2:
-            sig = "WEAK BUY"
-        elif confidence <= 28 and score <= -4:
-            sig = "SELL"
-        elif confidence <= 42 and score <= -2:
-            sig = "WEAK SELL"
+        if classification in ["ELITE_CANDIDATE", "INTRADAY_CANDIDATE"]:
+            sig = "BUY" if is_long else "SELL"
+        elif classification == "WATCHLIST":
+            sig = "WEAK BUY" if is_long else "WEAK SELL"
         else:
+            sig = "HOLD"
+            
+        # PHASE 1: Strictly enforce Confidence >= 72
+        if r.get("confidence", 50) < 72:
             sig = "HOLD"
 
         # ── Stock Selection Rules (Phase Omega Strict Filtering) ──

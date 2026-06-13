@@ -1950,6 +1950,7 @@ async def get_market_brief(request: Request, _=Depends(require_session)):
 class SimRequest(BaseModel):
     start_date: str = "2024-01-01"
     end_date: str = "2024-12-31"
+    symbols: Optional[list] = None
 
 @app.post("/api/admin/run-simulation")
 async def run_historical_simulation(
