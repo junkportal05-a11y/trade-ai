@@ -96,7 +96,7 @@ def compile_system_blueprint(project_dir):
     py_files = [
         "signals.py",
         "main.py",
-        "upstox_feed.py",
+        "angelone_feed.py",
         "backtest_engine.py",
         "capital_allocator.py",
         "db.py",

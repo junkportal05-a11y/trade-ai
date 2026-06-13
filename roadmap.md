@@ -8,7 +8,7 @@ All planned features organized by priority. Checkboxes are updated as items are 
 
 - [x] Fix `pass1/pass2/pass3` weak passwords → moved to secure env vars (`PASS_ADMIN` / `PASS_USER1` / `PASS_USER2` / `PASS_USER3`)
 - [x] Fix page `<title>frontend</title>` → `ApexTrade — NSE Intraday Signals`
-- [x] Complete Upstox KYC + connect API keys (Completed)
+- [x] Complete AngelOne SmartAPI integration (Completed)
 - [x] Replaced Auth0 SSO with secure local session system (using bcrypt-hashed passwords)
 
 ---
@@ -44,7 +44,7 @@ All planned features organized by priority. Checkboxes are updated as items are 
 - [ ] News sentiment per signal stock — fetch headlines, score sentiment, add to signal
 - [ ] Backtesting with custom date ranges — not just live auto-scan
 - [ ] Android app via Capacitor (wrap existing React as APK)
-- [ ] Real broker execution via Upstox order API (live trading, not paper)
+- [ ] Real broker execution via AngelOne order API (live trading, not paper)
 
 ---
 

@@ -1029,44 +1029,6 @@ def _calc_pnl(signal_type: str, entry: float, exit_price: float) -> float:
         return round(((entry - exit_price) / entry) * 100, 2)
 
 
-def save_upstox_token(token: str, raw: dict = None):
-    with _conn() as c:
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS app_settings (
-                key TEXT PRIMARY KEY,
-                value TEXT,
-                updated_at TEXT
-            )
-        """)
-        c.execute(
-            """
-            INSERT OR REPLACE INTO app_settings (key, value, updated_at)
-            VALUES (?, ?, ?)
-        """,
-            (
-                "upstox_token",
-                json.dumps({"access_token": token, **(raw or {})}),
-                _now_ist(),
-            ),
-        )
-        c.commit()
-
-
-def get_upstox_token() -> Optional[str]:
-    try:
-        with _conn() as c:
-            c.execute(
-                "CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT)"
-            )
-            row = c.execute(
-                "SELECT value FROM app_settings WHERE key='upstox_token'"
-            ).fetchone()
-            if row:
-                data = json.loads(row["value"])
-                return data.get("access_token")
-    except Exception:
-        pass
-    return None
 
 
 def save_angelone_session(session_data: dict):

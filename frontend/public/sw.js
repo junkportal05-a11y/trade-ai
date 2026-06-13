@@ -28,8 +28,6 @@ const NETWORK_ONLY_PATTERNS = [
   /api\//,                  // Any /api/ route
   /ws\//,                   // WebSocket
   /wss?:\/\//,              // WebSocket protocol
-  /auth\/callback/,         // Upstox OAuth callback
-  /upstox/,                 // Upstox API
   /googleapis\.com/,        // Google APIs (not fonts)
 ];
 

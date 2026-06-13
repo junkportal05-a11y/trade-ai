@@ -515,7 +515,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
           <span style={{ fontSize: 24 }}>⚠️</span>
           <div style={{ fontWeight: 600 }}>ERROR LOADING MARKET DATA: {error}</div>
           <div style={{ fontSize: 11, color: T.textDim, marginTop: 4, maxWidth: 300, lineHeight: 1.4 }}>
-            Yahoo Finance fallback failed. Please go to the <strong>ACCOUNT</strong> panel to authorize <strong>Upstox Broker</strong> for live data.
+            Live market data unavailable. Please go to the <strong>ACCOUNT</strong> panel to authenticate with <strong>AngelOne Broker</strong>.
           </div>
         </div>
       )}

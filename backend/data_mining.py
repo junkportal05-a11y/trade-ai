@@ -29,10 +29,11 @@ class MarketDataCollector:
             logger.info(f"Fetching {symbol} from {start_date} to {end_date}...")
             
             try:
-                import upstox_feed
+                from angelone_feed import get_angelone_feed
                 
-                # Fetch 60 days of 5-minute data from Upstox
-                df = upstox_feed.get_historical_candles(symbol, "60d", "5m")
+                # Fetch 60 days of 5-minute data from AngelOne
+                feed = get_angelone_feed()
+                df = feed.get_historical_candles(symbol, "60d", "5m")
                 
                 if df is None or df.empty:
                     logger.warning(f"❌ {symbol}: No data found for given period.")

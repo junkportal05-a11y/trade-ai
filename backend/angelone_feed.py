@@ -237,13 +237,15 @@ class AngelOneFeed:
     def get_historical_candles(
         self, 
         symbol: str, 
+        period_or_range: str = "5d",
         interval: str = "FIVE_MINUTE",
         from_date: str = None,
         to_date: str = None,
-        days_back: int = 1
+        days_back: Optional[int] = None
     ) -> Optional[pd.DataFrame]:
         """
-        Fetch historical OHLC candles from AngelOne
+        Fetch historical OHLC candles from AngelOne.
+        Supports drop-in replacement for Upstox feed signatures.
         """
         try:
             if not self.ensure_api_client():
@@ -265,6 +267,37 @@ class AngelOneFeed:
             }
             mapped_interval = interval_map.get(interval, interval)
             
+            if days_back is None:
+                p = str(period_or_range).lower()
+                if p == "1d":
+                    days_back = 2
+                elif p == "5d":
+                    days_back = 7
+                elif p == "60d":
+                    days_back = 90
+                elif p == "1mo":
+                    days_back = 30
+                elif p == "3mo":
+                    days_back = 90
+                elif p == "6mo":
+                    days_back = 180
+                elif p == "1y":
+                    days_back = 365
+                elif p == "2y":
+                    days_back = 365 * 2
+                elif p == "5y":
+                    days_back = 365 * 5
+                elif p == "max":
+                    days_back = 365 * 10
+                else:
+                    if p.endswith("d"):
+                        try:
+                            days_back = int(p[:-1]) + 2
+                        except:
+                            days_back = 7
+                    else:
+                        days_back = 7
+
             if not from_date or not to_date:
                 to_dt = datetime.now()
                 from_dt = to_dt - timedelta(days=days_back)
@@ -294,15 +327,17 @@ class AngelOneFeed:
                 logger.warning(f"No candles returned for {symbol}")
                 return None
             
+            # Use Capitalized columns as expected by indicators in signals.py & data_mining.py
             df = pd.DataFrame(
                 candles,
-                columns=['timestamp', 'open', 'high', 'low', 'close', 'volume']
+                columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
             )
             
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-            df.set_index('timestamp', inplace=True)
+            df['Date'] = pd.to_datetime(df['Date'])
+            df.set_index('Date', inplace=True)
+            df.sort_index(inplace=True)
             
-            for col in ['open', 'high', 'low', 'close', 'volume']:
+            for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
             
             logger.info(f"✅ Fetched {len(df)} candles for {symbol}")
@@ -319,27 +354,62 @@ class AngelOneFeed:
     
     def get_live_quotes(self, symbols: List[str]) -> Dict:
         """
-        Get real-time LTP for multiple symbols
+        Get real-time quotes for multiple symbols using AngelOne's batch getMarketData
         """
         try:
             quotes = {}
             if not self.ensure_api_client():
                 return {}
             
+            # Group tokens by exchange (NSE only)
+            tokens = []
+            token_to_symbol = {}
             for symbol in symbols:
-                token = self.get_instrument_token(symbol)
-                if not token:
-                    continue
-                
-                ltp_data = self.smart_api.ltpData("NSE", symbol, token)
-                
-                if ltp_data and ltp_data['status']:
-                    data = ltp_data['data']
-                    quotes[symbol] = {
-                        "ltp": float(data['ltp']),
-                        "close": float(data.get('close', data['ltp']))
-                    }
+                clean_sym = symbol.replace("-EQ", "").replace(".NS", "").upper() + "-EQ"
+                token = self.get_instrument_token(clean_sym)
+                if token:
+                    tokens.append(token)
+                    token_to_symbol[token] = symbol  # map token back to requested symbol format
             
+            if not tokens:
+                return {}
+            
+            # Call getMarketData in batches of 50 to respect API limitations
+            batch_size = 50
+            for i in range(0, len(tokens), batch_size):
+                batch_tokens = tokens[i:i+batch_size]
+                response = self.smart_api.getMarketData('FULL', {'NSE': batch_tokens})
+                
+                if response and response.get('status') and response.get('data'):
+                    fetched = response['data'].get('fetched') or []
+                    for item in fetched:
+                        token = item.get('symbolToken')
+                        orig_symbol = token_to_symbol.get(token)
+                        if orig_symbol:
+                            price = float(item.get('ltp') or item.get('lastPrice') or 0.0)
+                            open_p = float(item.get('open') or price)
+                            high = float(item.get('high') or price)
+                            low = float(item.get('low') or price)
+                            prev_close = float(item.get('close') or price)
+                            volume = int(item.get('tradeVolume') or item.get('volume') or 0)
+                            
+                            net_change = float(item.get('netChange') or (price - prev_close))
+                            percent_change = float(item.get('percentChange') or ((net_change / prev_close * 100) if prev_close else 0.0))
+                            
+                            quotes[orig_symbol] = {
+                                "symbol": orig_symbol,
+                                "name": orig_symbol,
+                                "price": round(price, 2),
+                                "change": round(net_change, 2),
+                                "change_pct": round(percent_change, 2),
+                                "volume": volume,
+                                "open": round(open_p, 2),
+                                "high": round(high, 2),
+                                "low": round(low, 2),
+                                "prev_close": round(prev_close, 2),
+                                "source": "angelone",
+                                "sector": "NSE Stock",
+                            }
             return quotes
             
         except Exception as e:

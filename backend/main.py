@@ -33,7 +33,6 @@ from slowapi.errors import RateLimitExceeded
 from pydantic import BaseModel
 
 import signals as sig_engine
-import upstox_feed
 import db
 from angelone_feed import get_angelone_feed
 import capital_allocator
@@ -212,124 +211,6 @@ def get_quote(symbol: str = Query(...)):
     return result
 
 
-@app.get("/api/upstox/authorize")
-def upstox_authorize(state: Optional[str] = Query(None)):
-    if not upstox_feed.UPSTOX_API_KEY or not upstox_feed.UPSTOX_REDIRECT_URI:
-        raise HTTPException(
-            status_code=400,
-            detail="Upstox API key or Redirect URI not configured in the environment.",
-        )
-
-    import secrets
-
-    csrf_token = secrets.token_urlsafe(32)
-    original_state = state or ""
-    oauth_state = f"{original_state}|{csrf_token}"
-
-    url = upstox_feed.get_login_url(oauth_state)
-    response = RedirectResponse(url)
-    response.set_cookie(
-        key="oauth_csrf_token",
-        value=csrf_token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=600,
-    )
-    return response
-
-
-@app.get("/api/upstox/callback")
-def upstox_callback(
-    request: Request, code: str = Query(...), state: Optional[str] = Query(None)
-):
-    # Validate CSRF token in state
-    cookie_token = request.cookies.get("oauth_csrf_token")
-    if not cookie_token:
-        raise HTTPException(status_code=400, detail="Missing CSRF token in cookies")
-
-    if not state:
-        raise HTTPException(status_code=400, detail="Missing state parameter")
-
-    parts = state.rsplit("|", 1)
-    if len(parts) != 2:
-        raise HTTPException(status_code=400, detail="Invalid state parameter format")
-
-    original_state, state_csrf_token = parts
-
-    import hmac
-
-    if not hmac.compare_digest(cookie_token, state_csrf_token):
-        raise HTTPException(status_code=400, detail="CSRF token mismatch")
-
-    # Reconstruct the exact redirect_uri used for this request to avoid OAuth mismatch
-    redirect_uri = str(request.url).split("?")[0]
-    if upstox_feed.UPSTOX_REDIRECT_URI.startswith(
-        "https://"
-    ) and redirect_uri.startswith("http://"):
-        redirect_uri = redirect_uri.replace("http://", "https://")
-    # Use the configured redirect URI directly to bypass proxy header issues
-    redirect_uri = upstox_feed.UPSTOX_REDIRECT_URI
-
-    res = upstox_feed.exchange_code_for_token(code, redirect_uri=redirect_uri)
-    if not res:
-        raise HTTPException(
-            status_code=400,
-            detail="Failed to exchange authorization code for access token",
-        )
-
-    redirect_target = original_state or ""
-    if not redirect_target:
-        redirect_uri_conf = upstox_feed.UPSTOX_REDIRECT_URI
-        if "localhost" in redirect_uri_conf:
-            redirect_target = "http://localhost:5173/account"
-        else:
-            redirect_target = "https://frontend-two-tau-82.vercel.app/account"
-    else:
-        if not redirect_target.endswith("/account"):
-            if redirect_target.endswith("/"):
-                redirect_target += "account"
-            else:
-                redirect_target += "/account"
-
-    if "?" in redirect_target:
-        redirect_target += "&broker_login=success"
-    else:
-        redirect_target += "?broker_login=success"
-
-    response = RedirectResponse(redirect_target)
-    response.delete_cookie("oauth_csrf_token")
-    return response
-
-
-@app.get("/auth/callback")
-def upstox_callback_alias(
-    request: Request, code: str = Query(...), state: Optional[str] = Query(None)
-):
-    return upstox_callback(request=request, code=code, state=state)
-
-
-@app.get("/api/upstox/status")
-def upstox_status():
-    authorized = upstox_feed.is_authorized()
-    status_data = {
-        "authorized": authorized,
-        "api_key_configured": bool(upstox_feed.UPSTOX_API_KEY),
-        "redirect_uri_configured": bool(upstox_feed.UPSTOX_REDIRECT_URI),
-    }
-    if authorized:
-        try:
-            import db
-            with db._conn() as c:
-                row = c.execute("SELECT value FROM app_settings WHERE key='upstox_token'").fetchone()
-                if row:
-                    data = json.loads(row["value"])
-                    status_data["updated_at"] = data.get("updated_at")
-                    status_data["user_name"] = data.get("user_name")
-        except Exception:
-            pass
-    return status_data
-
 
 class AngelOneCredentials(BaseModel):
     api_key: str
@@ -477,10 +358,10 @@ def get_history(
 @app.get("/api/search")
 def search_symbols(q: str = Query(..., min_length=1, description="Search query")):
     """
-    Search symbols against the Upstox static instrument list.
+    Search symbols against the AngelOne static instrument list.
     """
     symbol = q.upper().strip().replace(".NS", "")
-    key = upstox_feed.get_instrument_key(symbol)
+    key = get_angelone_feed().get_instrument_token(symbol)
     if key:
         return {
             "results": [
@@ -924,11 +805,12 @@ async def fetch_live_quotes_loop():
         try:
             loop = asyncio.get_event_loop()
 
-            if upstox_feed.is_authorized():
-                # Fetch live quotes from Upstox
+            feed = get_angelone_feed()
+            if feed.is_authorized():
+                # Fetch live quotes from AngelOne
                 quotes = await loop.run_in_executor(
                     _crawl_executor,
-                    functools.partial(upstox_feed.get_live_quotes, watchlist_symbols),
+                    functools.partial(feed.get_live_quotes, watchlist_symbols),
                 )
                 if quotes:
                     for sym in watchlist_symbols:
@@ -943,10 +825,10 @@ async def fetch_live_quotes_loop():
                             # Also cache clean key for easier frontend lookup
                             clean_sym = sym.replace(".NS", "").replace(".BO", "")
                             LIVE_PRICES_CACHE[clean_sym] = data
-                # Sleep for 2 seconds when Upstox is active to fetch ticks
+                # Sleep for 2 seconds when AngelOne is active to fetch ticks
                 sleep_time = 2
             else:
-                print("[live quotes] Upstox not authorized — no live prices")
+                print("[live quotes] AngelOne not authorized — no live prices")
                 sleep_time = 10
         except Exception as e:
             print(f"[fetch_live_quotes_loop] Error: {e}")
@@ -1099,9 +981,10 @@ async def prediction_resolver_worker():
             
             if symbols:
                 # Fetch quotes synchronously in thread pool
+                feed = get_angelone_feed()
                 quotes = await loop.run_in_executor(
                     _executor,
-                    functools.partial(upstox_feed.get_live_quotes, symbols)
+                    functools.partial(feed.get_live_quotes, symbols)
                 )
                 
                 if quotes:
@@ -1514,7 +1397,7 @@ async def websocket_prices(
                 pass
 
             market_open = is_nse_market_open()
-            use_upstox = upstox_feed.is_authorized()
+            use_angelone = get_angelone_feed().is_authorized()
             ticks = []
             for sym in watch:
                 cached = LIVE_PRICES_CACHE.get(sym)
@@ -1524,12 +1407,12 @@ async def websocket_prices(
                 else:
                     baseline_price = local_prices.get(sym, SEED_PRICES.get(sym, 150.0))
 
-                if market_open and not use_upstox:
+                if market_open and not use_angelone:
                     # Stream simulated tick fluctuations around the live baseline price (fallback only)
                     price = _simulate_tick(baseline_price)
                     local_prices[sym] = price
                 else:
-                    # Gating: Closed market or Upstox authorized (use true live tick prices)
+                    # Gating: Closed market or AngelOne authorized (use true live tick prices)
                     price = baseline_price
                     local_prices[sym] = price
 

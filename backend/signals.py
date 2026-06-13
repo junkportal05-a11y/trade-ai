@@ -24,7 +24,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timezone, timedelta
 from typing import Optional
-import upstox_feed
+from angelone_feed import get_angelone_feed
 
 # ── Batch cache — populated once per scan, read by worker threads ─────────────
 _BATCH_CANDLE_CACHE: dict[str, pd.DataFrame] = {}
@@ -235,17 +235,18 @@ def download_market_data_df(
         if age < CACHE_TTL:
             return cached
 
-    # Upstox only
-    if upstox_feed.is_authorized():
+    # AngelOne only
+    feed = get_angelone_feed()
+    if feed.is_authorized():
         try:
-            df = upstox_feed.get_historical_candles(symbol, period, interval)
+            df = feed.get_historical_candles(symbol, period, interval)
             if df is not None and not df.empty:
                 _BATCH_CANDLE_CACHE[cache_key] = df
                 _CACHE_TIMESTAMP[cache_key] = time.time()
                 return df
-            print(f"[signals] Upstox returned no data for {symbol}")
+            print(f"[signals] AngelOne returned no data for {symbol}")
         except Exception as e:
-            print(f"[signals] Upstox fetch error for {symbol}: {e}")
+            print(f"[signals] AngelOne fetch error for {symbol}: {e}")
 
     # Mock fallback
     print(f"[signals] Generating mock market data fallback for {symbol} ({interval}, {period})")
@@ -322,13 +323,14 @@ def get_symbol_quote(symbol: str) -> Optional[dict]:
     """
     Get current price + change for a symbol — Upstox with Mock Fallback.
     """
-    if upstox_feed.is_authorized():
+    feed = get_angelone_feed()
+    if feed.is_authorized():
         try:
-            quotes = upstox_feed.get_live_quotes([symbol])
+            quotes = feed.get_live_quotes([symbol])
             if quotes and symbol in quotes:
                 return quotes[symbol]
         except Exception as e:
-            print(f"[Upstox quote] Failed for {symbol}: {e}")
+            print(f"[AngelOne quote] Failed for {symbol}: {e}")
 
     # Fallback to mock quote
     return _generate_mock_quote(symbol)

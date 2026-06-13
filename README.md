@@ -21,7 +21,7 @@ This repository hosts the code for both the **FastAPI backend** (deployed as a D
 ApexTrade is divided into two primary services:
 
 1. **FastAPI Backend (`/backend`)**
-   - **Real-Time Data Feed:** Integrates with the Upstox API to stream live quotes and historical candlestick data.
+   - **Real-Time Data Feed:** Integrates with the AngelOne SmartAPI to stream live quotes and historical candlestick data.
    - **Quant Signal Engine:** Calculates complex technical indicators (VWAP, RSI, MACD, EMA) using vectorized NumPy computations for sub-millisecond execution times.
    - **Candlestick Pattern Analyzer:** Recognizes standard candlestick patterns (Doji, Engulfing, Hammer, Shooting Star, etc.) in real-time.
    - **Capital Allocator:** Features algorithmic risk management and allocation guidelines for open trade entries.
@@ -32,7 +32,7 @@ ApexTrade is divided into two primary services:
    - **ApexCharts Terminal:** High-performance charting terminal with interactive crosshair overlays and symbol watermarks.
    - **Trade Journal:** Glassmorphic trade tracker with real-time performance analytics (Total PnL, Win Rate, Best/Worst Trade metrics).
    - **Signals Panel:** Interactive dashboard display of live bullish/bearish scanner alerts.
-   - **Account Settings:** Simplified code-based authentication and Upstox API integration settings.
+   - **Account Settings:** Simplified code-based authentication and AngelOne API integration settings.
 
 ---
 
@@ -45,7 +45,7 @@ trade-ai/
 │   ├── main.py               # Main application entry point & routing
 │   ├── db.py                 # SQLite ORM & database interactions
 │   ├── signals.py            # Vectorized indicator calculations (RSI, MACD, OBV, etc.)
-│   ├── upstox_feed.py        # WebSockets consumer for Upstox real-time feeds
+│   ├── angelone_feed.py      # WebSockets consumer for AngelOne real-time feeds
 │   ├── news_feed.py          # News aggregation & sentiment classification
 │   ├── backtest_routes.py    # Backtesting api execution endpoints
 │   ├── Dockerfile            # Container deployment specification
@@ -95,9 +95,10 @@ cp .env.example .env  # or manually create it
 ```env
 DATABASE_URL=postgresql://...  # Supabase Postgres or local SQLite path
 JWT_SECRET=your_jwt_secret
-UPSTOX_API_KEY=your_upstox_api_key
-UPSTOX_API_SECRET=your_upstox_api_secret
-UPSTOX_REDIRECT_URI=http://localhost:5173/auth/callback
+ANGEL_API_KEY=your_angelone_api_key
+ANGEL_CLIENT_CODE=your_angelone_client_code
+ANGEL_PIN=your_angelone_pin
+ANGEL_TOTP_SECRET=your_angelone_totp_secret
 GEMINI_API_KEY=your_gemini_api_key
 ```
 
