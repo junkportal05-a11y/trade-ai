@@ -16,3 +16,5 @@ python-jose[cryptography]==3.3.0
 tqdm>=4.65.0
 yfinance>=0.2.30
 pyarrow>=14.0.0
+pyotp==2.9.0
+smartapi-python==1.5.5
