@@ -100,3 +100,65 @@ def test_clear_history(temp_db):
                     "SELECT COUNT(*) FROM signals_history"
                 ).fetchone()
                 assert row[0] == 0
+
+def test_expire_old_intraday(temp_db):
+    """Test expiring intraday signals from previous days."""
+
+    with patch("backend.db.DB_PATH", str(temp_db)):
+        with patch("backend.db.IS_POSTGRES", False):
+            # We need to insert a few signals with specific dates
+            with db._conn() as c:
+                # 1. Intraday, PENDING, yesterday - SHOULD EXPIRE
+                c.execute(
+                    """INSERT INTO signals_history
+                       (symbol, scan_type, status, scanned_at, signal_type, entry_price, name, sector, confidence, score, target, stop_loss)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    ("EXPIRE_ME", "INTRADAY", "PENDING", "2023-01-01 10:00:00", "BUY", 100.0, "EXPIRE_ME", "IT", 80, 8, 110.0, 90.0)
+                )
+
+                # 2. Intraday, PENDING, today - SHOULD STAY PENDING
+                c.execute(
+                    """INSERT INTO signals_history
+                       (symbol, scan_type, status, scanned_at, signal_type, entry_price, name, sector, confidence, score, target, stop_loss)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    ("KEEP_ME", "INTRADAY", "PENDING", "2023-01-02 10:00:00", "BUY", 100.0, "KEEP_ME", "IT", 80, 8, 110.0, 90.0)
+                )
+
+                # 3. SWING, PENDING, yesterday - SHOULD STAY PENDING
+                c.execute(
+                    """INSERT INTO signals_history
+                       (symbol, scan_type, status, scanned_at, signal_type, entry_price, name, sector, confidence, score, target, stop_loss)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    ("SWING_ME", "SWING", "PENDING", "2023-01-01 10:00:00", "BUY", 100.0, "SWING_ME", "IT", 80, 8, 110.0, 90.0)
+                )
+
+                # 4. Intraday, PROFIT, yesterday - SHOULD STAY PROFIT
+                c.execute(
+                    """INSERT INTO signals_history
+                       (symbol, scan_type, status, scanned_at, signal_type, entry_price, name, sector, confidence, score, target, stop_loss)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    ("PROFIT_ME", "INTRADAY", "PROFIT", "2023-01-01 10:00:00", "BUY", 100.0, "PROFIT_ME", "IT", 80, 8, 110.0, 90.0)
+                )
+                c.commit()
+
+            # Act: expire old intraday signals pretending today is 2023-01-02
+            with patch("backend.db._now_ist", return_value="2023-01-02 15:30:00"):
+                db.expire_old_intraday()
+
+            # Assert
+            with db._conn() as c:
+                rows = c.execute("SELECT symbol, status, exit_at FROM signals_history").fetchall()
+
+                # Check status
+                status_map = {r["symbol"]: r["status"] for r in rows}
+                exit_at_map = {r["symbol"]: r["exit_at"] for r in rows}
+
+                assert status_map["EXPIRE_ME"] == "EXPIRED"
+                assert exit_at_map["EXPIRE_ME"] == "2023-01-02 15:30:00"
+
+                assert status_map["KEEP_ME"] == "PENDING"
+                assert exit_at_map["KEEP_ME"] is None
+
+                assert status_map["SWING_ME"] == "PENDING"
+
+                assert status_map["PROFIT_ME"] == "PROFIT"

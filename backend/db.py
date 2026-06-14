@@ -1203,7 +1203,7 @@ def get_pattern_success_rates() -> dict:
                     pattern = f"{r['prediction_type']}_{r['rsi_bucket']}_{r['macd_bucket']}"
                     results[pattern] = round((r["wins"] / r["total"]) * 100, 1)
             return results
-    except Exception as e:
+    except Exception:
         return {}
 
 def get_general_win_rate() -> float:
@@ -1217,5 +1217,5 @@ def get_general_win_rate() -> float:
             wins_row = c.execute("SELECT COUNT(*) FROM predictions_history WHERE status IN ('WIN', 'CORRECT')").fetchone()
             wins = wins_row[0] if wins_row else 0
             return round((wins / total) * 100, 1)
-    except Exception as e:
+    except Exception:
         return 50.0
