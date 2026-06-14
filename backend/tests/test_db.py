@@ -100,3 +100,44 @@ def test_clear_history(temp_db):
                     "SELECT COUNT(*) FROM signals_history"
                 ).fetchone()
                 assert row[0] == 0
+
+
+def test_add_journal_entry(temp_db):
+    """Test adding a trade journal entry."""
+
+    mock_entry = {
+        "symbol": "INFY",
+        "direction": "SELL",
+        "entry_price": "1500.50",
+        "exit_price": "1450.00",
+        "qty": "50",
+        "entry_date": "2024-06-14T10:00:00Z",
+        "reason": "Technical Breakout",
+        "emotion": "Confident",
+        "status": "CLOSED",
+        "pnl": "2525.0",
+    }
+
+    with patch("backend.db.DB_PATH", str(temp_db)):
+        with patch("backend.db.IS_POSTGRES", False):
+            # Act: Add journal entry
+            entry_id = db.add_journal_entry(mock_entry)
+            assert entry_id is not None
+
+            # Assert: Verify the entry was added
+            with db._conn() as c:
+                row = c.execute(
+                    "SELECT * FROM trade_journal WHERE id=?", (entry_id,)
+                ).fetchone()
+
+                assert row is not None
+                assert row["symbol"] == "INFY"
+                assert row["direction"] == "SELL"
+                assert row["entry_price"] == 1500.50
+                assert row["exit_price"] == 1450.00
+                assert row["qty"] == 50
+                assert row["entry_date"] == "2024-06-14T10:00:00Z"
+                assert row["reason"] == "Technical Breakout"
+                assert row["emotion"] == "Confident"
+                assert row["status"] == "CLOSED"
+                assert row["pnl"] == 2525.0
