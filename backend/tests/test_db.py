@@ -100,3 +100,45 @@ def test_clear_history(temp_db):
                     "SELECT COUNT(*) FROM signals_history"
                 ).fetchone()
                 assert row[0] == 0
+
+
+def test_get_history(temp_db):
+    """Test retrieving history with and without filters."""
+    mock_signal_1 = {
+        "symbol": "TCS", "name": "TCS Ltd", "sector": "IT", "direction": "BUY",
+        "signal_type": "BUY", "confidence": 80, "score": 8, "entry": 100.0,
+        "entry_price": 100.0, "target": 110.0, "stop_loss": 90.0, "rr_ratio": 1.0,
+        "atr": 2.0, "scan_type": "intraday",
+    }
+    mock_signal_2 = {
+        "symbol": "RELIANCE", "name": "Reliance", "sector": "Energy", "direction": "SELL",
+        "signal_type": "SELL", "confidence": 90, "score": 9, "entry": 2500.0,
+        "entry_price": 2500.0, "target": 2400.0, "stop_loss": 2600.0, "rr_ratio": 1.0,
+        "atr": 50.0, "scan_type": "intraday",
+    }
+
+    with patch("backend.db.DB_PATH", str(temp_db)):
+        with patch("backend.db.IS_POSTGRES", False):
+            id1 = db.add_signal(mock_signal_1)
+            id2 = db.add_signal(mock_signal_2)
+
+            # Update signal 1 to PROFIT status
+            db.update_signal(id1, "PROFIT", 110.0, 10.0)
+
+            # Test getting all history
+            history = db.get_history()
+            assert len(history) == 2
+
+            # Test symbol filter
+            tcs_history = db.get_history(symbol="TCS")
+            assert len(tcs_history) == 1
+            assert tcs_history[0]["symbol"] == "TCS"
+
+            # Test status filter
+            profit_history = db.get_history(status="PROFIT")
+            assert len(profit_history) == 1
+            assert profit_history[0]["status"] == "PROFIT"
+
+            # Test limit
+            limited_history = db.get_history(limit=1)
+            assert len(limited_history) == 1
