@@ -15,6 +15,47 @@ def temp_db(tmp_path):
             yield test_db_path
 
 
+def test_init_db(tmp_path):
+    """Test that the init_db function creates the required database tables correctly."""
+    test_db_path = tmp_path / "test_init_db.db"
+
+    with patch("backend.db.DB_PATH", str(test_db_path)):
+        with patch("backend.db.IS_POSTGRES", False):
+            # Act: Initialize the database
+            db.init_db()
+
+            # Assert: Verify that the expected tables were created
+            with db._conn() as c:
+                # Check signals_history
+                c.execute("PRAGMA table_info(signals_history)")
+                sig_columns = [row[1] for row in c.fetchall()]
+                assert len(sig_columns) > 0
+                assert "id" in sig_columns
+                assert "symbol" in sig_columns
+                assert "rr_ratio" in sig_columns # Checks migration worked
+
+                # Check predictions_history
+                c.execute("PRAGMA table_info(predictions_history)")
+                pred_columns = [row[1] for row in c.fetchall()]
+                assert len(pred_columns) > 0
+                assert "id" in pred_columns
+                assert "symbol" in pred_columns
+                assert "sector" in pred_columns # Checks migration worked
+
+                # Check trade_journal
+                c.execute("PRAGMA table_info(trade_journal)")
+                trade_columns = [row[1] for row in c.fetchall()]
+                assert len(trade_columns) > 0
+                assert "id" in trade_columns
+                assert "symbol" in trade_columns
+
+                # Check metrics_cache
+                c.execute("PRAGMA table_info(metrics_cache)")
+                metrics_columns = [row[1] for row in c.fetchall()]
+                assert len(metrics_columns) > 0
+                assert "key" in metrics_columns
+
+
 def test_update_signal(temp_db):
     """Test updating an existing signal's status, exit price, and pnl_pct."""
 
