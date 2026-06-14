@@ -100,3 +100,61 @@ def test_clear_history(temp_db):
                     "SELECT COUNT(*) FROM signals_history"
                 ).fetchone()
                 assert row[0] == 0
+
+def test_get_pending_signals(temp_db):
+    """Test retrieving pending signals."""
+
+    mock_signal_1 = {
+        "symbol": "HDFCBANK",
+        "name": "HDFC Bank",
+        "sector": "Banking",
+        "direction": "BUY",
+        "signal_type": "BUY",
+        "confidence": 85,
+        "score": 8,
+        "entry": 1600.0,
+        "entry_price": 1600.0,
+        "target": 1650.0,
+        "stop_loss": 1550.0,
+        "rr_ratio": 1.0,
+        "atr": 10.0,
+        "scan_type": "intraday",
+    }
+
+    mock_signal_2 = {
+        "symbol": "ICICIBANK",
+        "name": "ICICI Bank",
+        "sector": "Banking",
+        "direction": "SELL",
+        "signal_type": "SELL",
+        "confidence": 75,
+        "score": 7,
+        "entry": 1000.0,
+        "entry_price": 1000.0,
+        "target": 950.0,
+        "stop_loss": 1050.0,
+        "rr_ratio": 1.0,
+        "atr": 8.0,
+        "scan_type": "intraday",
+    }
+
+    with patch("backend.db.DB_PATH", str(temp_db)):
+        with patch("backend.db.IS_POSTGRES", False):
+            # Act: Add two signals
+            signal_id_1 = db.add_signal(mock_signal_1)
+            signal_id_2 = db.add_signal(mock_signal_2)
+
+            assert signal_id_1 is not None
+            assert signal_id_2 is not None
+
+            # Update the first signal to not be PENDING
+            db.update_signal(signal_id_1, "PROFIT", 1650.0, 3.12)
+
+            # Act: Get pending signals
+            pending_signals = db.get_pending_signals()
+
+            # Assert: Verify only the second signal is returned
+            assert len(pending_signals) == 1
+            assert pending_signals[0]["id"] == signal_id_2
+            assert pending_signals[0]["symbol"] == "ICICIBANK"
+            assert pending_signals[0]["status"] == "PENDING"
