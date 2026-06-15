@@ -1065,8 +1065,10 @@ def get_angelone_session() -> Optional[dict]:
             ).fetchone()
             if row:
                 return json.loads(row["value"])
-    except Exception:
-        pass
+    except Exception as e:
+        import traceback
+        print("Error in get_angelone_session:", e)
+        traceback.print_exc()
     return None
 
 
