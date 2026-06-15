@@ -38,6 +38,15 @@ export default function BrokerSettings({ apiFetch }) {
       if (res.ok) {
         const data = await res.json();
         setStatus(data || { connected: false });
+        if (data) {
+          setCredentials(prev => ({
+            ...prev,
+            api_key: data.saved_api_key || prev.api_key,
+            client_code: data.saved_client_code || prev.client_code,
+            pin: data.saved_pin || prev.pin,
+            totp_secret: data.saved_totp_secret || prev.totp_secret
+          }));
+        }
       } else {
         setStatus({ connected: false });
       }

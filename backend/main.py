@@ -250,9 +250,15 @@ def angelone_login(creds: AngelOneCredentials, _=Depends(require_session)):
 def angelone_status():
     feed = get_angelone_feed()
     connected = feed.is_authorized(force_check=True)
+    import db
+    saved = db.get_angelone_session() or {}
     status_data = {
         "connected": connected,
-        "client_code": feed.client_code
+        "client_code": feed.client_code or saved.get("client_code", ""),
+        "saved_api_key": saved.get("api_key", ""),
+        "saved_client_code": saved.get("client_code", ""),
+        "saved_pin": saved.get("pin", ""),
+        "saved_totp_secret": saved.get("totp_secret", "")
     }
     return status_data
 
