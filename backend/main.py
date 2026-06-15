@@ -1221,7 +1221,7 @@ async def signal_scanner_worker():
 
             valid_signals = []
             for sig in results:
-                if sig.get("signal") in ("BUY", "SELL") and sig.get("confidence", 0) >= 60:
+                if sig.get("signal") in ("BUY", "SELL") and sig.get("confidence", 0) >= 72:
                     sig["direction"]  = sig["signal"]
                     sig["entry"]      = sig.get("price", sig.get("entry", 0))
                     sig["scan_type"]  = scan_type
@@ -1613,7 +1613,7 @@ async def allocate_capital_quick(
                 "target1": round(price * 1.025, 2),
                 "target2": round(price * 1.045, 2),
                 "stop_loss": round(price * 0.985, 2),
-                "confidence": 60,
+                "confidence": 72,
                 "atr": round(price * 0.012, 2),
                 "rr_ratio": 1.67,
                 "rsi": 50,
