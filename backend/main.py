@@ -1413,14 +1413,8 @@ async def websocket_prices(
                 else:
                     baseline_price = local_prices.get(sym, SEED_PRICES.get(sym, 150.0))
 
-                if market_open and not use_angelone:
-                    # Stream simulated tick fluctuations around the live baseline price (fallback only)
-                    price = _simulate_tick(baseline_price)
-                    local_prices[sym] = price
-                else:
-                    # Gating: Closed market or AngelOne authorized (use true live tick prices)
-                    price = baseline_price
-                    local_prices[sym] = price
+                price = baseline_price
+                local_prices[sym] = price
 
                 ticks.append(
                     {

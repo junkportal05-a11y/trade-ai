@@ -2190,7 +2190,7 @@ export default function App() {
 
 
   // Execute market/limit orders
-  const handleExecuteOrder = (order) => {
+  const handleExecuteOrder = async (order) => {
     const qty = parseFloat(order.qty);
     if (isNaN(qty) || qty <= 0) {
       alert("Please enter a valid share quantity!");
@@ -2241,6 +2241,25 @@ export default function App() {
         setCash(prev => prev + cost);
         addTradeMarker(order.symbol, 'sell', qty, price);
       }
+
+      // Persist to backend Journal
+      try {
+        await apiFetch('/api/journal', {
+          method: 'POST',
+          body: JSON.stringify({
+            symbol: order.symbol,
+            direction: order.side.toUpperCase(),
+            entry_price: price,
+            qty: qty,
+            reason: 'Manual Paper Trade',
+            status: order.side === 'buy' ? 'OPEN' : 'CLOSED',
+            emotion: 'Calm'
+          })
+        });
+      } catch (e) {
+        console.error("Failed to log paper trade to journal", e);
+      }
+
       return 'filled';
     } else {
       // limit order

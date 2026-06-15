@@ -248,13 +248,6 @@ def download_market_data_df(
         except Exception as e:
             print(f"[signals] AngelOne fetch error for {symbol}: {e}")
 
-    # Mock fallback
-    print(f"[signals] Generating mock market data fallback for {symbol} ({interval}, {period})")
-    df = _generate_mock_history(symbol, period, interval)
-    if df is not None and not df.empty:
-        _BATCH_CANDLE_CACHE[cache_key] = df
-        _CACHE_TIMESTAMP[cache_key] = time.time()
-        return df
     return None
 
 

@@ -768,18 +768,14 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
       if (data.all_signals && data.all_signals.length > 0) {
         setPlan(data);
       } else {
-        const fallbacks = generateFallbackSignals();
-        const mockPlan = simulateAllocation(amt, fallbacks);
-        setPlan(mockPlan);
-        setError("Backend signal engine returning empty. Displaying local quant simulations.");
+        setPlan({ all_signals: [], allocations: [] });
+        setError("Backend signal engine returning empty. No active market signals.");
       }
       setNextScan(Date.now() + REFRESH_MS);
     } catch (e) {
       if (e.name !== 'AbortError') {
-        const fallbacks = generateFallbackSignals();
-        const mockPlan = simulateAllocation(amt, fallbacks);
-        setPlan(mockPlan);
-        setError("Backend unavailable. Displaying local quant scan simulations (₹ Format Active).");
+        setPlan({ all_signals: [], allocations: [] });
+        setError("Backend unavailable or scan failed. No signals to display.");
         setNextScan(Date.now() + REFRESH_MS);
       }
     } finally {
