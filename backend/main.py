@@ -249,7 +249,7 @@ def angelone_login(creds: AngelOneCredentials, _=Depends(require_session)):
 @app.get("/api/angelone/status")
 def angelone_status():
     feed = get_angelone_feed()
-    connected = feed.is_authorized()
+    connected = feed.is_authorized(force_check=True)
     status_data = {
         "connected": connected,
         "client_code": feed.client_code
