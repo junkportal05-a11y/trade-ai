@@ -45,63 +45,16 @@ const T = {
 
 // ── NSE Watchlist ────────────────────────────────────────────────────────────────
 const DEFAULT_WATCHLIST = [
-  { symbol: 'HAL.NS',        name: 'HAL',            sector: 'Defence' },
-  { symbol: 'BEL.NS',        name: 'BEL',            sector: 'Defence' },
-  { symbol: 'RVNL.NS',       name: 'RVNL',           sector: 'Railways' },
-  { symbol: 'IREDA.NS',      name: 'IREDA',          sector: 'Green Energy' },
-  { symbol: 'HUDCO.NS',      name: 'HUDCO',          sector: 'Finance' },
-  { symbol: 'COALINDIA.NS',  name: 'Coal India',     sector: 'Energy' },
-  { symbol: 'NHPC.NS',       name: 'NHPC',           sector: 'Power' },
-  { symbol: 'ADANIPORTS.NS', name: 'Adani Ports',    sector: 'Infrastructure' },
-  { symbol: 'TATAPOWER.NS',  name: 'Tata Power',     sector: 'Power' },
-  { symbol: 'BHEL.NS',       name: 'BHEL',           sector: 'Capital Goods' },
-  { symbol: 'RELIANCE.NS',   name: 'Reliance',       sector: 'Energy' },
-  { symbol: 'TCS.NS',        name: 'TCS',            sector: 'IT' },
-  { symbol: 'HDFCBANK.NS',   name: 'HDFC Bank',      sector: 'Banking' },
-  { symbol: 'INFY.NS',       name: 'Infosys',        sector: 'IT' },
-  { symbol: 'ICICIBANK.NS',  name: 'ICICI Bank',     sector: 'Banking' },
-  { symbol: 'SBIN.NS',       name: 'SBI',            sector: 'Banking' },
-  { symbol: 'TATAMOTORS.NS', name: 'Tata Motors',    sector: 'Auto' },
-  { symbol: 'BHARTIARTL.NS',name: 'Bharti Airtel',   sector: 'Telecom' },
-  { symbol: 'ITC.NS',        name: 'ITC',            sector: 'FMCG' },
-  { symbol: 'LT.NS',         name: 'L&T',            sector: 'Infrastructure' },
-  { symbol: 'ADANIENT.NS',   name: 'Adani Ent',      sector: 'Conglomerate' },
-  { symbol: 'ADANIPOWER.NS', name: 'Adani Power',    sector: 'Power' },
-  { symbol: 'IRFC.NS',       name: 'IRFC',           sector: 'Railways' },
-  { symbol: 'PFC.NS',        name: 'PFC',            sector: 'Finance' },
-  { symbol: 'REC.NS',        name: 'REC',            sector: 'Finance' },
-  { symbol: 'ZOMATO.NS',     name: 'Zomato',         sector: 'Consumer Tech' },
+  { symbol: 'YESBANK.NS',    name: 'Yes Bank',       sector: 'Banking' },
   { symbol: 'TATASTEEL.NS',  name: 'Tata Steel',     sector: 'Metals' },
-  { symbol: 'SAIL.NS',       name: 'SAIL',           sector: 'Metals' },
-  { symbol: 'WIPRO.NS',      name: 'Wipro',          sector: 'IT' },
-  { symbol: 'JIOFIN.NS',     name: 'Jio Financial',  sector: 'Finance' },
-  { symbol: 'SJVN.NS',       name: 'SJVN',           sector: 'Power' },
-  { symbol: 'GMRINFRA.NS',   name: 'GMR Infra',      sector: 'Infrastructure' },
-  { symbol: 'NBCC.NS',       name: 'NBCC',           sector: 'Infrastructure' },
-  { symbol: 'JINDALSTEL.NS', name: 'Jindal Steel',   sector: 'Metals' },
-  { symbol: 'JSWSTEEL.NS',   name: 'JSW Steel',      sector: 'Metals' },
-  { symbol: 'HINDALCO.NS',   name: 'Hindalco',       sector: 'Metals' },
-  { symbol: 'BPCL.NS',       name: 'BPCL',           sector: 'Energy' },
-  { symbol: 'IOC.NS',        name: 'IOC',            sector: 'Energy' },
-  { symbol: 'ONGC.NS',       name: 'ONGC',           sector: 'Energy' },
-  { symbol: 'NTPC.NS',       name: 'NTPC',           sector: 'Power' },
+  { symbol: 'BANKBARODA.NS', name: 'Bank of Baroda', sector: 'Banking' },
+  { symbol: 'TATAPOWER.NS',  name: 'Tata Power',     sector: 'Power' },
+  { symbol: 'SBIN.NS',       name: 'SBI',            sector: 'Banking' },
 ];
 
 const SEED_PRICES = {
-  'HAL.NS': 4550, 'BEL.NS': 295, 'RVNL.NS': 385,
-  'IREDA.NS': 185, 'HUDCO.NS': 275, 'COALINDIA.NS': 485,
-  'NHPC.NS': 95, 'ADANIPORTS.NS': 1405, 'TATAPOWER.NS': 445,
-  'BHEL.NS': 305,
-  'RELIANCE.NS': 2950, 'TCS.NS': 3850, 'HDFCBANK.NS': 1600,
-  'INFY.NS': 1480, 'ICICIBANK.NS': 1120, 'SBIN.NS': 830,
-  'TATAMOTORS.NS': 970, 'BHARTIARTL.NS': 1380, 'ITC.NS': 430,
-  'LT.NS': 3550, 'ADANIENT.NS': 3200, 'ADANIPOWER.NS': 720,
-  'IRFC.NS': 175, 'PFC.NS': 480, 'REC.NS': 520,
-  'ZOMATO.NS': 190, 'TATASTEEL.NS': 170, 'SAIL.NS': 150,
-  'WIPRO.NS': 460, 'JIOFIN.NS': 350, 'SJVN.NS': 130,
-  'GMRINFRA.NS': 90, 'NBCC.NS': 140, 'JINDALSTEL.NS': 950,
-  'JSWSTEEL.NS': 910, 'HINDALCO.NS': 660, 'BPCL.NS': 610,
-  'IOC.NS': 165, 'ONGC.NS': 260, 'NTPC.NS': 360
+  'YESBANK.NS': 25, 'TATASTEEL.NS': 170, 'BANKBARODA.NS': 280,
+  'TATAPOWER.NS': 445, 'SBIN.NS': 830
 };
 
 const INTERVALS = [
@@ -1161,11 +1114,7 @@ function ChatPanel({ symbol, price, changePct }) {
       setAiSource(data.source);
       setMsgs(m => [...m, { role: 'assistant', text: data.reply || 'No response.' }]);
     } catch {
-      const fallback = [
-        `**AI Assistant** — The backend isn't running or timed out. Start it with \`uvicorn main:app --reload\` to enable real-time mentor features.`,
-        `Risk Management Advice: Always apply the 2% maximum risk rule from your SL Guide. Sizing is key!`,
-      ];
-      setMsgs(m => [...m, { role: 'assistant', text: fallback[Math.floor(Math.random() * fallback.length)] }]);
+      setMsgs(m => [...m, { role: 'assistant', text: "AI Mentor is currently unavailable. Please check backend connection." }]);
     }
     setBusy(false);
   }, [input, busy, symbol, price, changePct]);
@@ -1762,7 +1711,7 @@ export default function App() {
     return 'HOME';
   });   // 'HOME' is default now, but routing-aware
 
-  const [selected, setSelected] = useState('HAL.NS');
+  const [selected, setSelected] = useState('YESBANK.NS');
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
   const [rightTab, setRightTab] = useState('TRADE');
   
@@ -1939,7 +1888,7 @@ export default function App() {
   // Watchlist favorites state
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('apex_favorites');
-    return saved ? JSON.parse(saved) : ['HAL.NS', 'BEL.NS'];
+    return saved ? JSON.parse(saved) : ['YESBANK.NS', 'BEL.NS'];
   });
 
   // AI Analyst embedded card states
@@ -1953,7 +1902,7 @@ export default function App() {
 
   // Signals state (pre-seeded fallback, fresh scan manually triggered in Signals tab)
   const [signals, setSignals] = useState([
-    { symbol: 'HAL.NS', name: 'HAL', signal: 'BUY', confidence: 88, rr_ratio: 2.5, reasoning: 'RSI oversold trigger on daily candle chart. Volume spike supports reversal.' },
+    { symbol: 'YESBANK.NS', name: 'HAL', signal: 'BUY', confidence: 88, rr_ratio: 2.5, reasoning: 'RSI oversold trigger on daily candle chart. Volume spike supports reversal.' },
     { symbol: 'BEL.NS', name: 'BEL', signal: 'BUY', confidence: 75, rr_ratio: 1.8, reasoning: 'Moving average convergence crossover signals strong bullish momentum.' },
     { symbol: 'RVNL.NS', name: 'RVNL', signal: 'BUY', confidence: 82, rr_ratio: 2.1, reasoning: 'Breakout patterns on high volume confirmation.' }
   ]);
@@ -2064,15 +2013,13 @@ export default function App() {
           setAiRecommendation(data.reply);
           aiRecommendationCache.current[selected] = data.reply;
         } else if (active) {
-          const fallbackVal = `RSI and moving averages suggest neutral-to-bullish momentum for ${cleanedSymbol}. Set key support levels at ₹${(livePrice * 0.98).toFixed(1)}.`;
+          const fallbackVal = `AI Recommendation unavailable (Backend Error).`;
           setAiRecommendation(fallbackVal);
           aiRecommendationCache.current[selected] = fallbackVal;
         }
       } catch (err) {
         if (active) {
-          const currentPrices = pricesRef.current || {};
-          const livePrice = currentPrices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
-          const fallbackVal = `Support pivot found around ₹${(livePrice * 0.97).toFixed(1)} with overhead resistance at ₹${(livePrice * 1.03).toFixed(1)}.`;
+          const fallbackVal = `AI Recommendation unavailable (Network Error).`;
           setAiRecommendation(fallbackVal);
           aiRecommendationCache.current[selected] = fallbackVal;
         }

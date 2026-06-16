@@ -34,7 +34,7 @@ CACHE_TTL = 300  # 5 minutes
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  UNIFIED DATA FETCHER — Upstox ONLY
+#  UNIFIED DATA FETCHER — AngelOne ONLY
 # ══════════════════════════════════════════════════════════════════════════════
 
 
@@ -43,7 +43,7 @@ def _generate_mock_history(symbol: str, period: str, interval: str) -> pd.DataFr
 
     # 1. Determine baseline price
     seeds = {
-        'HAL.NS': 4550.0, 'BEL.NS': 295.0, 'RVNL.NS': 385.0,
+        'BEL.NS': 295.0, 'RVNL.NS': 385.0,
         'IREDA.NS': 185.0, 'HUDCO.NS': 275.0, 'COALINDIA.NS': 485.0,
         'NHPC.NS': 95.0, 'ADANIPORTS.NS': 1405.0, 'TATAPOWER.NS': 445.0,
         'BHEL.NS': 305.0, 'RELIANCE.NS': 2450.0, 'TCS.NS': 3850.0,
@@ -224,7 +224,7 @@ def download_market_data_df(
     interval: str = "5m",
 ) -> Optional[pd.DataFrame]:
     """
-    Fetch OHLCV data — Upstox with Mock Fallback.
+    Fetch OHLCV data — AngelOne.
     """
     cache_key = f"{symbol}_{interval}"
 
@@ -256,65 +256,9 @@ def download_market_data_df(
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def _generate_mock_quote(symbol: str) -> Optional[dict]:
-    import random
-
-    seeds = {
-        'HAL.NS': 4550.0, 'BEL.NS': 295.0, 'RVNL.NS': 385.0,
-        'IREDA.NS': 185.0, 'HUDCO.NS': 275.0, 'COALINDIA.NS': 485.0,
-        'NHPC.NS': 95.0, 'ADANIPORTS.NS': 1405.0, 'TATAPOWER.NS': 445.0,
-        'BHEL.NS': 305.0, 'RELIANCE.NS': 2450.0, 'TCS.NS': 3850.0,
-        'HDFCBANK.NS': 1650.0, 'INFY.NS': 1500.0, 'ICICIBANK.NS': 1150.0,
-        'SBIN.NS': 830.0, 'TATAMOTORS.NS': 980.0, 'BHARTIARTL.NS': 1380.0
-    }
-
-    clean_sym = symbol.upper()
-    if clean_sym not in seeds:
-        clean_base = clean_sym.split('.')[0]
-        for k, v in seeds.items():
-            if k.split('.')[0] == clean_base:
-                clean_sym = k
-                break
-
-    base_price = seeds.get(clean_sym, 150.0)
-
-    latest_price = base_price
-    try:
-        from main import LIVE_PRICES_CACHE
-        if clean_sym in LIVE_PRICES_CACHE:
-            latest_price = LIVE_PRICES_CACHE[clean_sym]["price"]
-        elif symbol.upper() in LIVE_PRICES_CACHE:
-            latest_price = LIVE_PRICES_CACHE[symbol.upper()]["price"]
-    except Exception:
-        pass
-
-    change_pct = random.uniform(-0.015, 0.02)
-    prev_close = latest_price / (1 + change_pct)
-    change = latest_price - prev_close
-    open_p = prev_close * (1 + random.uniform(-0.005, 0.005))
-    high = max(open_p, latest_price) * (1 + random.uniform(0, 0.005))
-    low = min(open_p, latest_price) * (1 - random.uniform(0, 0.005))
-    volume = random.randint(10000, 500000)
-
-    return {
-        "symbol": symbol.upper(),
-        "name": symbol.upper().split(".")[0],
-        "price": round(latest_price, 2),
-        "change": round(change, 2),
-        "change_pct": round(change_pct * 100, 2),
-        "volume": volume,
-        "open": round(open_p, 2),
-        "high": round(high, 2),
-        "low": round(low, 2),
-        "prev_close": round(prev_close, 2),
-        "source": "mock",
-        "sector": "Mock Sector",
-    }
-
-
 def get_symbol_quote(symbol: str) -> Optional[dict]:
     """
-    Get current price + change for a symbol — Upstox with Mock Fallback.
+    Get current price + change for a symbol — AngelOne.
     """
     feed = get_angelone_feed()
     if feed.is_authorized():
@@ -323,10 +267,10 @@ def get_symbol_quote(symbol: str) -> Optional[dict]:
             if quotes and symbol in quotes:
                 return quotes[symbol]
         except Exception as e:
-            print(f"[AngelOne quote] Failed for {symbol}: {e}")
+            import logging
+            logging.getLogger("signals").error(f"[AngelOne quote] Failed for {symbol}: {e}")
 
-    # Fallback to mock quote
-    return _generate_mock_quote(symbol)
+    return None
 
 
 # ── Pure pandas/numpy indicator helpers ───────────────────────────────────────
@@ -696,14 +640,7 @@ def _score_default_indicator(
     except Exception as e:
         print(f"[signals] Pattern scoring failed: {e}")
 
-    # 1. VWAP position (strong weight for intraday)
-    if price > vwap_val * 1.002:
-        bull_pts += 15
-        reasons_bull.append(f"Price above VWAP ₹{vwap_val:.1f}")
-    elif price < vwap_val * 0.998:
-        bear_pts += 15
-        reasons_bear.append(f"Price below VWAP ₹{vwap_val:.1f}")
-
+    # 1. VWAP position (Veto handled below, removed points generation)
     # 2. RSI Overbought/Oversold
     if 45 <= rsi_val <= 65:
         bull_pts += 5
@@ -839,13 +776,6 @@ def _score_default_indicator(
     except Exception as e:
         print(f"[signals] Failed to run news sentiment scanner: {e}")
 
-    # Strict VWAP Filter
-    if bull_pts > bear_pts and price < vwap_val:
-        bear_pts += 100  # Penalize heavily to reject
-        reasons_bear.append("REJECTED: Price is below VWAP")
-    elif bear_pts > bull_pts and price > vwap_val:
-        bull_pts += 100  # Penalize heavily to reject
-        reasons_bull.append("REJECTED: Price is above VWAP")
 
     # Confidence Formula
     total_pts = bull_pts + bear_pts
@@ -1168,11 +1098,11 @@ def _score_my_strategy(
             reward = round(price - target1, 2)
     except Exception as e:
         print(f"[signals] PDF Risk calculation failed, using fallback: {e}")
-        atr_stop = 2.0 * atr_val
+        atr_stop = 1.8 * atr_val
         stop = round(price - atr_stop if is_buy else price + atr_stop, 2)
         risk_amount = round(abs(price - stop), 2)
         target1 = round(
-            price + 2.0 * risk_amount if is_buy else price - 2.0 * risk_amount,
+            price + 1.944 * risk_amount if is_buy else price - 1.944 * risk_amount,
             2,
         )
         target2 = round(
@@ -1284,6 +1214,18 @@ def analyse_symbol(
 
         df = df.dropna(subset=["Close", "High", "Low", "Open", "Volume"])
         if len(df) < 20:
+            return None
+            
+        # ── DEEP DATA VALIDATION ────────────────────────────────────
+        try:
+            import data_validator
+            data_conf = data_validator.calculate_confidence(df, interval)
+            if data_conf < 72.0:
+                import logging
+                logging.getLogger("signals").info(f"Skipping {symbol}: Data Confidence ({data_conf}%) below 72% threshold.")
+                return None
+        except Exception as e:
+            print(f"[signals] Data validation failed for {symbol}: {e}")
             return None
 
         change_pct = ((df["Close"].iloc[-1] - df["Close"].iloc[0]) / df["Close"].iloc[0] * 100) if len(df) > 0 else 0.0
@@ -1437,6 +1379,17 @@ def analyse_symbol(
         all_reasons = reasons_bull + reasons_bear
         reasoning = " | ".join(all_reasons[:4])
 
+        # ── ABSOLUTE VWAP VETO ──────────────────────────────────────────
+        if signal_type == "BULLISH" and price < vwap_val:
+            import logging
+            logging.getLogger("signals").info(f"Skipping {symbol}: Bullish signal vetoed because price is below VWAP")
+            return None
+        if signal_type == "BEARISH" and price > vwap_val:
+            import logging
+            logging.getLogger("signals").info(f"Skipping {symbol}: Bearish signal vetoed because price is above VWAP")
+            return None
+        # ────────────────────────────────────────────────────────────────
+
         # PHASE 1: Risk:Reward Validation
         if signal_type in ["BULLISH", "BEARISH"]:
             if not validate_risk_reward(entry, stop, target1, min_rr=2.0):
@@ -1546,7 +1499,6 @@ def run_scan(
         if segment == "BSE" and not sym.endswith(".BO"):
             return None
         elif segment == "F&O" and sym not in [
-            "HAL.NS",
             "BEL.NS",
             "RVNL.NS",
             "COALINDIA.NS",
