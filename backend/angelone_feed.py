@@ -425,6 +425,8 @@ class AngelOneFeed:
                         if self.auto_login():
                             logger.info("Auto-login successful. Retrying getCandleData...")
                             response = self.smart_api.getCandleData(historic_param)
+                        else:
+                            self.session_token = None
             
             if not response or response.get('status') == False:
                 error_msg = response.get('message', 'Unknown error') if response else 'No response'
@@ -502,6 +504,8 @@ class AngelOneFeed:
                             if self.auto_login():
                                 logger.info("Auto-login successful. Retrying getMarketData...")
                                 response = self.smart_api.getMarketData('FULL', {'NSE': batch_tokens})
+                            else:
+                                self.session_token = None
                 
                 if response and response.get('status') and response.get('data'):
                     fetched = response['data'].get('fetched') or []
