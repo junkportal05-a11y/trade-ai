@@ -21,7 +21,7 @@ async def trading_agent_loop():
             
             # Weekend check
             if now_ist.weekday() >= 5:
-                print(f"[trading_agent] Market closed (weekend). Next check in 1 hour.")
+                print("[trading_agent] Market closed (weekend). Next check in 1 hour.")
                 await asyncio.sleep(3600)
                 continue
                 
@@ -31,13 +31,13 @@ async def trading_agent_loop():
             
             # Auto-square off at 3:20 PM
             if minutes_since_midnight == end_minutes:
-                print(f"[trading_agent] 3:20 PM reached. Executing auto-square off.")
+                print("[trading_agent] 3:20 PM reached. Executing auto-square off.")
                 _square_off_all(now_ist)
                 await asyncio.sleep(60) # prevent multiple triggers
                 continue
                 
             if minutes_since_midnight > end_minutes or minutes_since_midnight < start_minutes:
-                print(f"[trading_agent] Market closed. Next check in 30 minutes.")
+                print("[trading_agent] Market closed. Next check in 30 minutes.")
                 await asyncio.sleep(1800)
                 continue
                 
@@ -67,25 +67,38 @@ async def trading_agent_loop():
                         break
                         
                     # Place paper trade
-                    prediction_id = db.add_prediction(
-                        symbol=sig["symbol"],
-                        prediction_type=sig["signal"],
-                        target_price=sig["target1"],
-                        stop_loss=sig["stop"],
-                        confidence=sig["confidence"],
-                        timeframe="5m",
-                        entry_price=sig["price"],
-                        risk_amount=sig.get("risk_amount", 0.0),
-                        position_size=sig.get("position_size", 1)
-                    )
+                    pred_dict = {
+                        "symbol": sig["symbol"],
+                        "prediction_type": sig["signal"],
+                        "target_price": sig["target1"],
+                        "stop_loss": sig["stop"],
+                        "confidence_score": sig["confidence"],
+                        "entry_price": sig["price"],
+                        "rsi": sig.get("rsi", 50),
+                        "macd": sig.get("macd", 0),
+                        "adx": sig.get("adx", 0),
+                        "sector": sig.get("sector", "NSE"),
+                        "market_cap": sig.get("market_cap", 0),
+                        "volume_ratio": sig.get("volume_ratio", 1.0),
+                        "vwap_distance": sig.get("vwap_distance", 0.0),
+                        "risk_amount": sig.get("risk_amount", 0.0),
+                        "position_size": sig.get("position_size", 1)
+                    }
+                    _ = db.add_prediction(pred_dict)
                     
-                    db.add_journal_entry(
-                        symbol=sig["symbol"],
-                        action="BUY" if sig["signal"] == "BULLISH" else "SELL",
-                        price=sig["price"],
-                        quantity=sig.get("position_size", 1),
-                        notes=f"Auto-executed. Target: {sig['target1']}, Stop: {sig['stop']}"
-                    )
+                    journal_dict = {
+                        "symbol": sig["symbol"],
+                        "direction": "BUY" if sig["signal"] == "BULLISH" else "SELL",
+                        "entry_price": sig["price"],
+                        "exit_price": 0.0,
+                        "qty": sig.get("position_size", 1),
+                        "entry_date": now_ist.strftime("%Y-%m-%d %H:%M:%S"),
+                        "reason": f"Auto-executed. Target: {sig['target1']}, Stop: {sig['stop']}",
+                        "emotion": "Neutral",
+                        "status": "OPEN",
+                        "pnl": 0.0
+                    }
+                    db.add_journal_entry(journal_dict)
                     print(f"[trading_agent] Placed paper trade for {sig['symbol']} at {sig['price']}")
                     open_positions.append(sig)
                     
