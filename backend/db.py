@@ -288,88 +288,6 @@ def init_db():
             )
         """)
 
-        # Self-healing migration for existing databases:
-        cursor = c.cursor()
-        cursor.execute("PRAGMA table_info(signals_history)")
-        columns = [row[1] for row in cursor.fetchall()]
-
-        # Check signals_history
-        cursor.execute("PRAGMA table_info(signals_history)")
-        sig_columns = [row[1] for row in cursor.fetchall()]
-        if "rr_ratio" not in sig_columns:
-            try:
-                c.execute(
-                    "ALTER TABLE signals_history ADD COLUMN rr_ratio REAL NOT NULL DEFAULT 0"
-                )
-            except Exception:
-                pass
-        if "atr" not in sig_columns:
-            try:
-                c.execute(
-                    "ALTER TABLE signals_history ADD COLUMN atr REAL NOT NULL DEFAULT 0"
-                )
-            except Exception:
-                pass
-                
-        # Check predictions_history
-        cursor.execute("PRAGMA table_info(predictions_history)")
-        pred_columns = [row[1] for row in cursor.fetchall()]
-        pred_migrations = [
-            ("sector", "TEXT"),
-            ("market_cap", "REAL"),
-            ("volume_ratio", "REAL"),
-            ("vwap_distance", "REAL"),
-            ("atr", "REAL"),
-            ("news_score", "REAL"),
-            ("market_breadth", "REAL"),
-            ("sector_strength", "REAL"),
-            ("nifty_trend", "TEXT"),
-            ("manual_override_reason", "TEXT"),
-            ("setup_type", "TEXT"),
-            ("market_regime_snapshot", "TEXT"),
-            ("risk_amount", "REAL"),
-            ("confidence_probability", "REAL"),
-            ("r_multiple", "REAL"),
-            ("exit_price", "REAL"),
-            ("holding_time_minutes", "REAL"),
-            ("pnl_pct", "REAL"),
-            ("pnl_inr", "REAL"),
-            ("resolution_reason", "TEXT"),
-            ("regime_score", "REAL"),
-            ("sector_score", "REAL"),
-            ("volume_score", "REAL"),
-            ("news_score", "REAL"),
-            ("rs_score", "REAL"),
-            ("trade_quality_score", "REAL"),
-            ("correlation_score", "REAL"),
-            ("signal_time", "TEXT"),
-            ("order_time", "TEXT"),
-            ("fill_time", "TEXT"),
-            ("fill_price", "REAL"),
-            ("slippage_pct", "REAL"),
-            ("broker_failure_reason", "TEXT"),
-        ]
-        for col_name, col_type in pred_migrations:
-            if col_name not in pred_columns:
-                c.execute(f"ALTER TABLE predictions_history ADD COLUMN {col_name} {col_type}")
-
-        # Phase Omega: Add missing columns to strategy_health and daily_governance_reports
-        try:
-            sh_columns = [row["name"] for row in c.execute("PRAGMA table_info(strategy_health)").fetchall()]
-            if "edge_score" not in sh_columns:
-                c.execute("ALTER TABLE strategy_health ADD COLUMN edge_score REAL DEFAULT 0.0")
-        except Exception:
-            pass
-
-        try:
-            dgr_columns = [row["name"] for row in c.execute("PRAGMA table_info(daily_governance_reports)").fetchall()]
-            if "data_confidence_score" not in dgr_columns:
-                c.execute("ALTER TABLE daily_governance_reports ADD COLUMN data_confidence_score REAL DEFAULT 100.0")
-            if "created_at" not in dgr_columns:
-                c.execute("ALTER TABLE daily_governance_reports ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP")
-        except Exception:
-            pass
-        
         # New tables for advanced metrics
         c.execute("""
             CREATE TABLE IF NOT EXISTS equity_curve (
@@ -469,6 +387,104 @@ def init_db():
                 scanned_at TEXT NOT NULL
             )
         """)
+
+        c.commit()
+
+        # Self-healing migration for existing databases:
+        cursor = c.cursor()
+        cursor.execute("PRAGMA table_info(signals_history)")
+        columns = [row[1] for row in cursor.fetchall()]
+
+        # Check signals_history
+        cursor.execute("PRAGMA table_info(signals_history)")
+        sig_columns = [row[1] for row in cursor.fetchall()]
+        if "rr_ratio" not in sig_columns:
+            try:
+                c.execute(
+                    "ALTER TABLE signals_history ADD COLUMN rr_ratio REAL NOT NULL DEFAULT 0"
+                )
+                c.commit()
+            except Exception:
+                if IS_POSTGRES:
+                    c.conn.rollback()
+        if "atr" not in sig_columns:
+            try:
+                c.execute(
+                    "ALTER TABLE signals_history ADD COLUMN atr REAL NOT NULL DEFAULT 0"
+                )
+                c.commit()
+            except Exception:
+                if IS_POSTGRES:
+                    c.conn.rollback()
+
+        # Check predictions_history
+        cursor.execute("PRAGMA table_info(predictions_history)")
+        pred_columns = [row[1] for row in cursor.fetchall()]
+        pred_migrations = [
+            ("sector", "TEXT"),
+            ("market_cap", "REAL"),
+            ("volume_ratio", "REAL"),
+            ("vwap_distance", "REAL"),
+            ("atr", "REAL"),
+            ("news_score", "REAL"),
+            ("market_breadth", "REAL"),
+            ("sector_strength", "REAL"),
+            ("nifty_trend", "TEXT"),
+            ("manual_override_reason", "TEXT"),
+            ("setup_type", "TEXT"),
+            ("market_regime_snapshot", "TEXT"),
+            ("risk_amount", "REAL"),
+            ("confidence_probability", "REAL"),
+            ("r_multiple", "REAL"),
+            ("exit_price", "REAL"),
+            ("holding_time_minutes", "REAL"),
+            ("pnl_pct", "REAL"),
+            ("pnl_inr", "REAL"),
+            ("resolution_reason", "TEXT"),
+            ("regime_score", "REAL"),
+            ("sector_score", "REAL"),
+            ("volume_score", "REAL"),
+            ("news_score", "REAL"),
+            ("rs_score", "REAL"),
+            ("trade_quality_score", "REAL"),
+            ("correlation_score", "REAL"),
+            ("signal_time", "TEXT"),
+            ("order_time", "TEXT"),
+            ("fill_time", "TEXT"),
+            ("fill_price", "REAL"),
+            ("slippage_pct", "REAL"),
+            ("broker_failure_reason", "TEXT"),
+        ]
+        for col_name, col_type in pred_migrations:
+            if col_name not in pred_columns:
+                try:
+                    c.execute(f"ALTER TABLE predictions_history ADD COLUMN {col_name} {col_type}")
+                    c.commit()
+                except Exception:
+                    if IS_POSTGRES:
+                        c.conn.rollback()
+
+        # Phase Omega: Add missing columns to strategy_health and daily_governance_reports
+        try:
+            sh_columns = [row["name"] for row in c.execute("PRAGMA table_info(strategy_health)").fetchall()]
+            if "edge_score" not in sh_columns:
+                c.execute("ALTER TABLE strategy_health ADD COLUMN edge_score REAL DEFAULT 0.0")
+                c.commit()
+        except Exception:
+            if IS_POSTGRES:
+                c.conn.rollback()
+
+        try:
+            dgr_columns = [row["name"] for row in c.execute("PRAGMA table_info(daily_governance_reports)").fetchall()]
+            if "data_confidence_score" not in dgr_columns:
+                c.execute("ALTER TABLE daily_governance_reports ADD COLUMN data_confidence_score REAL DEFAULT 100.0")
+                c.commit()
+            if "created_at" not in dgr_columns:
+                c.execute("ALTER TABLE daily_governance_reports ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP")
+                c.commit()
+        except Exception:
+            if IS_POSTGRES:
+                c.conn.rollback()
         
         # Initialize default risk settings if empty
         row = c.execute("SELECT COUNT(*) as count FROM risk_settings").fetchone()
