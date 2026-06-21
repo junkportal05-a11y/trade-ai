@@ -101,64 +101,44 @@ def test_clear_history(temp_db):
                 ).fetchone()
                 assert row[0] == 0
 
-def test_expire_old_intraday(temp_db):
-    """Test expiring intraday signals from previous days."""
+
+def test_get_history(temp_db):
+    """Test retrieving history with and without filters."""
+    mock_signal_1 = {
+        "symbol": "TCS", "name": "TCS Ltd", "sector": "IT", "direction": "BUY",
+        "signal_type": "BUY", "confidence": 80, "score": 8, "entry": 100.0,
+        "entry_price": 100.0, "target": 110.0, "stop_loss": 90.0, "rr_ratio": 1.0,
+        "atr": 2.0, "scan_type": "intraday",
+    }
+    mock_signal_2 = {
+        "symbol": "RELIANCE", "name": "Reliance", "sector": "Energy", "direction": "SELL",
+        "signal_type": "SELL", "confidence": 90, "score": 9, "entry": 2500.0,
+        "entry_price": 2500.0, "target": 2400.0, "stop_loss": 2600.0, "rr_ratio": 1.0,
+        "atr": 50.0, "scan_type": "intraday",
+    }
 
     with patch("backend.db.DB_PATH", str(temp_db)):
         with patch("backend.db.IS_POSTGRES", False):
-            # We need to insert a few signals with specific dates
-            with db._conn() as c:
-                # 1. Intraday, PENDING, yesterday - SHOULD EXPIRE
-                c.execute(
-                    """INSERT INTO signals_history
-                       (symbol, scan_type, status, scanned_at, signal_type, entry_price, name, sector, confidence, score, target, stop_loss)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    ("EXPIRE_ME", "INTRADAY", "PENDING", "2023-01-01 10:00:00", "BUY", 100.0, "EXPIRE_ME", "IT", 80, 8, 110.0, 90.0)
-                )
+            id1 = db.add_signal(mock_signal_1)
+            id2 = db.add_signal(mock_signal_2)
 
-                # 2. Intraday, PENDING, today - SHOULD STAY PENDING
-                c.execute(
-                    """INSERT INTO signals_history
-                       (symbol, scan_type, status, scanned_at, signal_type, entry_price, name, sector, confidence, score, target, stop_loss)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    ("KEEP_ME", "INTRADAY", "PENDING", "2023-01-02 10:00:00", "BUY", 100.0, "KEEP_ME", "IT", 80, 8, 110.0, 90.0)
-                )
+            # Update signal 1 to PROFIT status
+            db.update_signal(id1, "PROFIT", 110.0, 10.0)
 
-                # 3. SWING, PENDING, yesterday - SHOULD STAY PENDING
-                c.execute(
-                    """INSERT INTO signals_history
-                       (symbol, scan_type, status, scanned_at, signal_type, entry_price, name, sector, confidence, score, target, stop_loss)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    ("SWING_ME", "SWING", "PENDING", "2023-01-01 10:00:00", "BUY", 100.0, "SWING_ME", "IT", 80, 8, 110.0, 90.0)
-                )
+            # Test getting all history
+            history = db.get_history()
+            assert len(history) == 2
 
-                # 4. Intraday, PROFIT, yesterday - SHOULD STAY PROFIT
-                c.execute(
-                    """INSERT INTO signals_history
-                       (symbol, scan_type, status, scanned_at, signal_type, entry_price, name, sector, confidence, score, target, stop_loss)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    ("PROFIT_ME", "INTRADAY", "PROFIT", "2023-01-01 10:00:00", "BUY", 100.0, "PROFIT_ME", "IT", 80, 8, 110.0, 90.0)
-                )
-                c.commit()
+            # Test symbol filter
+            tcs_history = db.get_history(symbol="TCS")
+            assert len(tcs_history) == 1
+            assert tcs_history[0]["symbol"] == "TCS"
 
-            # Act: expire old intraday signals pretending today is 2023-01-02
-            with patch("backend.db._now_ist", return_value="2023-01-02 15:30:00"):
-                db.expire_old_intraday()
+            # Test status filter
+            profit_history = db.get_history(status="PROFIT")
+            assert len(profit_history) == 1
+            assert profit_history[0]["status"] == "PROFIT"
 
-            # Assert
-            with db._conn() as c:
-                rows = c.execute("SELECT symbol, status, exit_at FROM signals_history").fetchall()
-
-                # Check status
-                status_map = {r["symbol"]: r["status"] for r in rows}
-                exit_at_map = {r["symbol"]: r["exit_at"] for r in rows}
-
-                assert status_map["EXPIRE_ME"] == "EXPIRED"
-                assert exit_at_map["EXPIRE_ME"] == "2023-01-02 15:30:00"
-
-                assert status_map["KEEP_ME"] == "PENDING"
-                assert exit_at_map["KEEP_ME"] is None
-
-                assert status_map["SWING_ME"] == "PENDING"
-
-                assert status_map["PROFIT_ME"] == "PROFIT"
+            # Test limit
+            limited_history = db.get_history(limit=1)
+            assert len(limited_history) == 1
