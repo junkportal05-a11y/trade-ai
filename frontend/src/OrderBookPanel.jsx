@@ -34,69 +34,14 @@ export default function OrderBookPanel({ symbol, price }) {
   const [trades, setTrades] = useState([]);
   const prevPriceRef = useRef(price);
 
-  // Initialize and update order book rows on price change
+  // L2 Feed from AngelOne is not yet implemented.
+  // Order book mock data generation has been removed.
   useEffect(() => {
-    if (!price) return;
-    
-    // NSE tick size is 0.05
-    const tickSize = 0.05;
-    const cleanSymbol = symbol.replace('.NS', '');
-
-    // Generate 5 Ask levels (above current price, sorted descending for display: high to low asks)
-    const newAsks = [];
-    for (let i = 5; i >= 1; i--) {
-      newAsks.push({
-        price: price + tickSize * i,
-        qty: Math.floor(Math.random() * 2500) + 100,
-        orders: Math.floor(Math.random() * 12) + 1
-      });
-    }
-
-    // Generate 5 Bid levels (below current price, sorted descending: high to low bids)
-    const newBids = [];
-    for (let i = 1; i <= 5; i++) {
-      newBids.push({
-        price: price - tickSize * i,
-        qty: Math.floor(Math.random() * 2500) + 100,
-        orders: Math.floor(Math.random() * 12) + 1
-      });
-    }
-
-    setAsks(newAsks);
-    setBids(newBids);
-
-    // If the price actually changed, append a trade to Time & Sales
-    if (price !== prevPriceRef.current) {
-      const side = Math.random() > 0.45 ? 'BUY' : 'SELL';
-      const qty = (Math.floor(Math.random() * 10) + 1) * 10 * (Math.random() > 0.8 ? 5 : 1);
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString('en-IN', { hour12: false });
-      
-      setTrades(prev => [
-        { id: Math.random().toString(36).substring(2, 9), time: timeStr, price, qty, side },
-        ...prev.slice(0, 7) // keep last 8 entries
-      ]);
-      prevPriceRef.current = price;
-    }
+    // Left intentionally blank until WebSocket L2 depth is available
+    setAsks([]);
+    setBids([]);
+    setTrades([]);
   }, [price, symbol]);
-
-  // Seed initial trades if log is empty
-  useEffect(() => {
-    if (!price || trades.length > 0) return;
-    const initialTrades = [];
-    const tickSize = 0.05;
-    for (let i = 0; i < 8; i++) {
-      const tradeTime = new Date(Date.now() - i * 1500);
-      initialTrades.push({
-        id: Math.random().toString(36).substring(2, 9),
-        time: tradeTime.toLocaleTimeString('en-IN', { hour12: false }),
-        price: price + (Math.random() > 0.5 ? tickSize : -tickSize) * Math.floor(Math.random() * 3),
-        qty: (Math.floor(Math.random() * 8) + 1) * 10,
-        side: Math.random() > 0.5 ? 'BUY' : 'SELL'
-      });
-    }
-    setTrades(initialTrades);
-  }, [price]);
 
   // Sum total sizes to calculate percentage bars
   const maxBidQty = bids.reduce((max, b) => Math.max(max, b.qty), 1);

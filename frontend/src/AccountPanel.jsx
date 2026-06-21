@@ -48,26 +48,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
     ]);
   }, [currentUser, loginTime, userClearance]);
 
-  // Append logs over time to feel dynamic/alive
-  useEffect(() => {
-    const events = [
-      { type: 'SEC', msg: 'Auto-rotating session authentication vectors...' },
-      { type: 'SYS', msg: 'Running local memory-buffer sanitization routine...' },
-      { type: 'NET', msg: 'Websocket prices pipeline ping-pong completed (RTT: 42ms).' },
-      { type: 'SEC', msg: 'Risk sizing protocol checked: active constraints validated.' },
-      { type: 'AUTH', msg: 'Active sessions audit: 0 failed login attempts in last 30 min.' },
-      { type: 'SYS', msg: 'Backtest cache refreshed: 12 strategy indexes updated.' },
-      { type: 'NET', msg: 'Hugging Face Space keep-alive payload dispatched.' }
-    ];
 
-    const interval = setInterval(() => {
-      const randomEvent = events[Math.floor(Math.random() * events.length)];
-      const now = new Date().toLocaleTimeString('en-IN', { hour12: true });
-      setAuditLogs(prev => [...prev.slice(-10), { time: now, ...randomEvent }]);
-    }, 8000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   const curUserObj = { role: userRole || 'Authorized Guest', clearance: userClearance || 'LEVEL_1_GUEST' };
 

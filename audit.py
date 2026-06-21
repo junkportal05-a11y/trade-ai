@@ -5,7 +5,12 @@ import numpy as np
 
 import psycopg2
 
-DATABASE_URL = "postgresql://postgres.xksukkseczwsbxegyxhj:Ap3xTr%40de%23Secur1ty%212026@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres"
+import os
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(__file__), 'backend', '.env'), override=False)
+DATABASE_URL = os.getenv('DATABASE_URL')
+
 
 print("Fetching trades from DB...")
 try:
@@ -16,6 +21,42 @@ try:
 except Exception as e:
     print(f"Error connecting to DB: {e}")
     sys.exit()
+
+print("\n--- RUNNING CRUD VERIFICATION (RLS TEST) ---")
+try:
+    conn_crud = psycopg2.connect(DATABASE_URL)
+    cur = conn_crud.cursor()
+    
+    # 1. INSERT
+    cur.execute("INSERT INTO predictions_history (symbol, prediction_date, prediction_type, entry_price, target_price, stop_loss, confidence_score, status, setup_type) VALUES ('TEST.NS', '2026-01-01', 'BULLISH', 100, 110, 90, 80, 'OPEN', 'RLS_TEST') RETURNING id;")
+    test_id = cur.fetchone()[0]
+    print(f"[OK] INSERT successful (ID: {test_id})")
+
+    # 2. SELECT
+    cur.execute("SELECT symbol FROM predictions_history WHERE id = %s;", (test_id,))
+    res = cur.fetchone()
+    print(f"[OK] SELECT successful (Symbol: {res[0]})")
+
+    # 3. UPDATE
+    cur.execute("UPDATE predictions_history SET status = 'CLOSED' WHERE id = %s;", (test_id,))
+    print(f"[OK] UPDATE successful")
+
+    # 4. DELETE
+    cur.execute("INSERT INTO signals_history (symbol, name, sector, signal_type, confidence, score, entry_price, target, stop_loss, rr_ratio, atr, status, scanned_at, scan_type) VALUES ('TEST_SIG', 'Test', 'TECH', 'BUY', 80, 80, 100, 110, 90, 2, 1, 'ACTIVE', '2026-01-01', 'RLS_TEST') RETURNING id;")
+    sig_id = cur.fetchone()[0]
+    cur.execute("DELETE FROM signals_history WHERE id = %s;", (sig_id,))
+    print(f"[OK] DELETE successful (Signals ID: {sig_id})")
+
+    # Cleanup
+    cur.execute("DELETE FROM predictions_history WHERE id = %s;", (test_id,))
+    
+    conn_crud.commit()
+    cur.close()
+    conn_crud.close()
+    print("[OK] All CRUD Operations Passed!\n")
+except Exception as e:
+    print(f"[FAIL] CRUD Test Failed: {e}")
+    sys.exit(1)
 
 if df.empty:
     print("No backtest trades found in DB!")

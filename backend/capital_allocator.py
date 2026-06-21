@@ -241,7 +241,8 @@ def _filter_and_score_signals(signals: list, deployable: float, max_positions: i
         raw_signal = s.get("direction") or s.get("signal") or ""
         if "BUY" not in raw_signal.upper():
             continue
-        if s.get("confidence", 0) < 45:
+        # Only allocate to signals with high confidence
+        if s.get("confidence", 0) < 72:
             continue
 
         entry = s.get("entry") or s.get("entry_price") or s.get("price", 0)
