@@ -5,7 +5,7 @@ import json
 base_url = "https://apextrade-core-trade-ai-backend.hf.space"
 
 print("Logging in to HF Space...")
-login_resp = requests.post(f"{base_url}/api/login", json={"username": "admin", "password": "Ap3xTr@de#Secur1ty!2026"})
+login_resp = requests.post(f"{base_url}/api/login", json={"username": "admin", "password": os.getenv("ADMIN_PASSWORD") or ""})
 if login_resp.status_code != 200:
     print(f"Login failed: {login_resp.text}")
     import sys; sys.exit(1)

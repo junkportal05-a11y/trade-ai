@@ -205,7 +205,7 @@ export default function JournalPanel() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
           <form onSubmit={handleAddSubmit} style={{ background: T.surface, padding: 32, borderRadius: 12, border: `1px solid ${T.borderHi}`, width: 440, display: 'flex', flexDirection: 'column', gap: 16, boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
             <h3 style={{ margin: 0, color: T.text, ...mono, fontSize: 16 }}>ADD TRADE LOG</h3>
-            <input placeholder="Symbol (e.g. HAL.NS)" value={newEntry.symbol} onChange={e => setNewEntry({...newEntry, symbol: e.target.value.toUpperCase()})} style={{ padding: 12, background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 6, color: T.text, ...mono }} required />
+            <input placeholder="Symbol (e.g. YESBANK.NS)" value={newEntry.symbol} onChange={e => setNewEntry({...newEntry, symbol: e.target.value.toUpperCase()})} style={{ padding: 12, background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 6, color: T.text, ...mono }} required />
             
             <select value={newEntry.direction} onChange={e => setNewEntry({...newEntry, direction: e.target.value})} style={{ padding: 12, background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 6, color: T.text, ...mono }}>
               <option value="LONG">LONG</option>
