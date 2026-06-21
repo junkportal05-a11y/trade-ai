@@ -8,12 +8,14 @@ class TradeQualityEngine:
         tqs = confidence_score
         
         # Regime Alignment Bonus/Penalty
-        if regime == "TRENDING_BULLISH":
-            tqs += 10 if is_long else -20
-        elif regime == "TRENDING_BEARISH":
-            tqs += 10 if not is_long else -20
-        elif regime == "PANIC":
-            tqs -= 15 # Extreme volatility, harder to trade cleanly
+        if regime == "TRENDING":
+            tqs += 10
+        elif regime == "RANGING":
+            tqs += 0
+        elif regime == "VOLATILE":
+            tqs -= 10
+        elif regime == "UNCLEAR":
+            tqs -= 25
             
         # Volume Expansion Bonus
         if volume_expansion > 1.5:

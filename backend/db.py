@@ -10,6 +10,14 @@ import json
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(os.path.join(os.path.dirname(__file__), ".env"), override=False)
+    load_dotenv(override=False)
+except Exception:
+    pass
+
 DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "trading_platform.db"))
 DATABASE_URL = os.getenv("DATABASE_URL")
 IS_POSTGRES = bool(DATABASE_URL)
@@ -365,6 +373,18 @@ def init_db():
         """)
 
         c.execute("""
+            CREATE TABLE IF NOT EXISTS data_quality (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                checked_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                total_trades INTEGER,
+                valid_trades INTEGER,
+                confidence_score REAL,
+                failures JSONB,
+                locked BOOLEAN DEFAULT FALSE
+            )
+        """)
+
+        c.execute("""
             CREATE TABLE IF NOT EXISTS risk_settings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 daily_loss_limit REAL NOT NULL DEFAULT -3.0,
@@ -606,6 +626,105 @@ def update_signals_batch(updates: list[tuple]):
 
 # Alias for compatibility with main.py references
 update_signal_status = update_signal
+
+
+def get_resolved_trades_for_validation(limit: int = 100) -> list:
+    """Return recent resolved trades from prediction and signal history."""
+    with _conn() as c:
+        predictions = c.execute(
+            """
+            SELECT
+                id,
+                id as trade_id,
+                symbol,
+                prediction_type as direction,
+                entry_price,
+                target_price as target,
+                stop_loss,
+                prediction_date as created_at,
+                resolved_at,
+                exit_price,
+                pnl_pct,
+                status as result,
+                market_regime_snapshot as regime,
+                NULL as signal_id,
+                'predictions_history' as source
+            FROM predictions_history
+            WHERE status NOT IN ('PENDING', 'ACTIVE')
+            ORDER BY COALESCE(resolved_at, prediction_date) DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+        signals = c.execute(
+            """
+            SELECT
+                id,
+                id as trade_id,
+                symbol,
+                signal_type as direction,
+                entry_price,
+                target,
+                stop_loss,
+                scanned_at as created_at,
+                exit_at as resolved_at,
+                exit_price,
+                pnl_pct,
+                status as result,
+                NULL as regime,
+                id as signal_id,
+                'signals_history' as source
+            FROM signals_history
+            WHERE status NOT IN ('PENDING', 'ACTIVE')
+            ORDER BY COALESCE(exit_at, scanned_at) DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+        rows = [dict(row) for row in predictions] + [dict(row) for row in signals]
+
+    rows.sort(key=lambda row: row.get("resolved_at") or row.get("created_at") or "", reverse=True)
+    return rows[:limit]
+
+
+def record_data_quality_check(result: dict) -> int:
+    with _conn() as c:
+        now = _now_ist()
+        cur = c.execute(
+            """
+            INSERT INTO data_quality
+                (checked_at, total_trades, valid_trades, confidence_score, failures, locked)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                now,
+                int(result.get("total_trades", 0)),
+                int(result.get("valid_trades", 0)),
+                float(result.get("confidence_score", 0.0)),
+                json.dumps(result.get("failures", [])),
+                bool(result.get("locked", True)),
+            ),
+        )
+        c.commit()
+        return cur.lastrowid
+
+
+def get_latest_data_quality() -> Optional[dict]:
+    with _conn() as c:
+        row = c.execute(
+            "SELECT * FROM data_quality ORDER BY checked_at DESC, id DESC LIMIT 1"
+        ).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        try:
+            result["failures"] = json.loads(result.get("failures") or "[]")
+        except Exception:
+            result["failures"] = []
+        result["locked"] = bool(result.get("locked"))
+        return result
 
 
 def expire_old_intraday():

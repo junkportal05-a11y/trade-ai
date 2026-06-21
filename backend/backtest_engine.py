@@ -21,6 +21,35 @@ class BacktestConfig:
     risk_pct: float = 0.02
     early_exit: int = -4
 
+def resolve_candle_pessimistic(candle: dict, entry: float, target: float, stop: float, direction: str) -> tuple[str, float]:
+    """
+    Evaluates a candle against entry/target/stop.
+    Pessimistic: If both target and stop are touched, stop takes priority.
+    Returns (result, exit_price) where result is "WIN", "LOSS", or None.
+    """
+    high = candle.get("high")
+    low = candle.get("low")
+    open_p = candle.get("open", low) # Fallback if open missing
+    
+    if direction in ["BUY", "BULLISH"]:
+        if low <= stop:
+            exit_p = min(open_p, stop)
+            return "LOSS", exit_p
+        if high >= target:
+            exit_p = max(open_p, target)
+            return "WIN", exit_p
+            
+    elif direction in ["SELL", "BEARISH"]:
+        if high >= stop:
+            exit_p = max(open_p, stop)
+            return "LOSS", exit_p
+        if low <= target:
+            exit_p = min(open_p, target)
+            return "WIN", exit_p
+            
+    return None, None
+
+
 
 def run_historical_backtest(
     symbol: str,
@@ -79,10 +108,16 @@ def run_historical_backtest(
 
             # Check open positions for Exits
             if position:
-                # 1. Check Stop Loss
-                if curr_low <= position["stop_loss"]:
-                    # Handle gap down: if open price is below stop-loss, we get stopped out at the open price
-                    exit_p = min(float(open_p.iloc[i]), position["stop_loss"])
+                candle = {"high": curr_high, "low": curr_low, "open": float(open_p.iloc[i])}
+                result, exit_p = resolve_candle_pessimistic(
+                    candle,
+                    entry=position["entry_price"],
+                    target=position["target"],
+                    stop=position["stop_loss"],
+                    direction="BUY" # Currently only BUY supported in backtest loop
+                )
+                
+                if result == "LOSS":
                     pnl = (exit_p - position["entry_price"]) * position["shares"]
                     capital += position["shares"] * exit_p
                     trades.append(
@@ -109,10 +144,7 @@ def run_historical_backtest(
                     position = None
                     continue
 
-                # 2. Check Profit Target
-                elif curr_high >= position["target"]:
-                    # Handle gap up: if open price is above target, we get filled at the open price
-                    exit_p = max(float(open_p.iloc[i]), position["target"])
+                elif result == "WIN":
                     pnl = (exit_p - position["entry_price"]) * position["shares"]
                     capital += position["shares"] * exit_p
                     trades.append(

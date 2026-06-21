@@ -1,6 +1,7 @@
 """
-AngelOne SmartAPI Integration Module
-Replaces Upstox as the unified data & execution provider
+AngelOne SmartAPI Integration Feed.
+Acts as the unified data & execution provider for ApexTrade.
+Handles authentication, websocket streams, and historical data fetching.
 """
 
 import os
@@ -339,8 +340,8 @@ class AngelOneFeed:
         days_back: Optional[int] = None
     ) -> Optional[pd.DataFrame]:
         """
-        Fetch historical OHLC candles from AngelOne.
-        Supports drop-in replacement for Upstox feed signatures.
+        Get historical OHLCV data for a specific symbol.
+        Supports standard feed signatures.
         """
         try:
             if not self.ensure_api_client():

@@ -26,6 +26,26 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 from angelone_feed import get_angelone_feed
 
+def vwap_veto(price: float, vwap: float, direction: str) -> tuple[bool, str]:
+    """
+    Pure function to validate the VWAP Veto rule.
+    Buy requires price > VWAP, Sell requires price < VWAP.
+    Returns (passed: bool, reason: str or None)
+    """
+    if not direction:
+        return True, None
+        
+    dir_upper = direction.upper()
+    if dir_upper in ["BUY", "BULLISH"]:
+        if price < vwap:
+            return False, "VETO: Bullish signal but price is below VWAP"
+    elif dir_upper in ["SELL", "BEARISH"]:
+        if price > vwap:
+            return False, "VETO: Bearish signal but price is above VWAP"
+            
+    return True, None
+
+
 # ── Batch cache — populated once per scan, read by worker threads ─────────────
 _BATCH_CANDLE_CACHE: dict[str, pd.DataFrame] = {}
 _MACRO_CACHE: dict[str, dict] = {}
@@ -38,115 +58,6 @@ CACHE_TTL = 300  # 5 minutes
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def _generate_mock_history(symbol: str, period: str, interval: str) -> pd.DataFrame:
-    import random
-
-    # 1. Determine baseline price
-    seeds = {
-        'BEL.NS': 295.0, 'RVNL.NS': 385.0,
-        'IREDA.NS': 185.0, 'HUDCO.NS': 275.0, 'COALINDIA.NS': 485.0,
-        'NHPC.NS': 95.0, 'ADANIPORTS.NS': 1405.0, 'TATAPOWER.NS': 445.0,
-        'BHEL.NS': 305.0, 'RELIANCE.NS': 2450.0, 'TCS.NS': 3850.0,
-        'HDFCBANK.NS': 1650.0, 'INFY.NS': 1500.0, 'ICICIBANK.NS': 1150.0,
-        'SBIN.NS': 830.0, 'TATAMOTORS.NS': 980.0, 'BHARTIARTL.NS': 1380.0
-    }
-
-    clean_sym = symbol.upper()
-    if clean_sym not in seeds:
-        clean_base = clean_sym.split('.')[0]
-        for k, v in seeds.items():
-            if k.split('.')[0] == clean_base:
-                clean_sym = k
-                break
-
-    base_price = seeds.get(clean_sym, 150.0)
-
-    # 2. Determine number of bars & frequency
-    num_bars = 100
-    freq = 'D'
-
-    if interval in ("1m", "2m", "5m", "15m", "30m", "60m", "1h"):
-        if period == "1d":
-            num_bars = 75
-        elif period == "5d":
-            num_bars = 300
-        else:
-            num_bars = 200
-
-        if interval == "1m":
-            freq = "min"
-        elif interval == "5m":
-            freq = "5min"
-        elif interval == "15m":
-            freq = "15min"
-        elif interval == "30m":
-            freq = "30min"
-        else:
-            freq = "H"
-    else:
-        if period == "1mo":
-            num_bars = 22
-        elif period == "3mo":
-            num_bars = 65
-        elif period == "6mo":
-            num_bars = 130
-        elif period == "1y":
-            num_bars = 250
-        elif period == "2y":
-            num_bars = 500
-        else:
-            num_bars = 250
-        freq = "B"
-
-    end_time = datetime.now()
-    idx = pd.date_range(end=end_time, periods=num_bars, freq=freq)
-
-    prices = [base_price]
-    volatility = 0.015
-    if freq in ("min", "5min", "15min", "30min"):
-        volatility = 0.002
-
-    for _ in range(num_bars - 1):
-        change = random.gauss(0.0001, volatility)
-        next_price = prices[-1] * (1 + change)
-        prices.append(max(1.0, next_price))
-
-    opens = []
-    highs = []
-    lows = []
-    closes = []
-    volumes = []
-
-    for i in range(num_bars):
-        close_p = prices[i]
-        if i == 0:
-            open_p = close_p * (1 - random.uniform(-0.005, 0.005))
-        else:
-            open_p = closes[-1]
-
-        max_oc = max(open_p, close_p)
-        min_oc = min(open_p, close_p)
-        high_p = max_oc * (1 + abs(random.gauss(0, volatility * 0.5)))
-        low_p = min_oc * (1 - abs(random.gauss(0, volatility * 0.5)))
-
-        high_p = max(high_p, open_p, close_p)
-        low_p = min(low_p, open_p, close_p)
-
-        opens.append(open_p)
-        highs.append(high_p)
-        lows.append(low_p)
-        closes.append(close_p)
-        volumes.append(random.randint(10000, 1000000))
-
-    df = pd.DataFrame({
-        'Open': opens,
-        'High': highs,
-        'Low': lows,
-        'Close': closes,
-        'Volume': volumes
-    }, index=idx)
-
-    return df
 
 
 def check_volume_surge(df: pd.DataFrame, lookback: int = 20) -> bool:
@@ -1380,13 +1291,10 @@ def analyse_symbol(
         reasoning = " | ".join(all_reasons[:4])
 
         # ── ABSOLUTE VWAP VETO ──────────────────────────────────────────
-        if signal_type == "BULLISH" and price < vwap_val:
+        passed, veto_reason = vwap_veto(price, vwap_val, signal_type)
+        if not passed:
             import logging
-            logging.getLogger("signals").info(f"Skipping {symbol}: Bullish signal vetoed because price is below VWAP")
-            return None
-        if signal_type == "BEARISH" and price > vwap_val:
-            import logging
-            logging.getLogger("signals").info(f"Skipping {symbol}: Bearish signal vetoed because price is above VWAP")
+            logging.getLogger("signals").info(f"Skipping {symbol}: {veto_reason}")
             return None
         # ────────────────────────────────────────────────────────────────
 

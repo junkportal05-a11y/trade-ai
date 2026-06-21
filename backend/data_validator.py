@@ -50,3 +50,133 @@ def calculate_confidence(df: pd.DataFrame, interval: str = "5m") -> float:
                     score -= (missing_bars * 2)
 
     return max(0.0, min(100.0, score))
+
+import psycopg2
+import os
+import json
+from dotenv import load_dotenv
+
+def get_db_connection():
+    load_dotenv(os.path.join(os.path.dirname(__file__), '.env'), override=False)
+    load_dotenv(override=False)
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL is not set.")
+    return psycopg2.connect(DATABASE_URL)
+
+def validate_trade(trade: dict) -> dict:
+    failures = []
+    warnings = []
+    
+    entry_price = trade.get('entry_price')
+    target = trade.get('target_price') or trade.get('target')
+    stop_loss = trade.get('stop_loss')
+    direction = trade.get('prediction_type') or trade.get('signal_type')
+    
+    if entry_price is None:
+        failures.append("entry_price is null")
+    elif entry_price <= 0:
+        failures.append("entry_price <= 0")
+        
+    if stop_loss is not None and entry_price is not None and direction:
+        if direction in ['BUY', 'BULLISH']:
+            if stop_loss >= entry_price:
+                failures.append("stop_loss >= entry_price (BUY)")
+            if target is not None and target <= entry_price:
+                failures.append("target <= entry_price (BUY)")
+        elif direction in ['SELL', 'BEARISH']:
+            if stop_loss <= entry_price:
+                failures.append("stop_loss <= entry_price (SELL)")
+            if target is not None and target >= entry_price:
+                failures.append("target >= entry_price (SELL)")
+                
+    resolved_at = trade.get('resolved_at')
+    created_at = trade.get('prediction_date') or trade.get('created_at')
+    if resolved_at and created_at:
+        if str(resolved_at) <= str(created_at):
+            failures.append("resolved_at <= created_at")
+            
+    status = trade.get('status')
+    if status not in ['WIN', 'LOSS', 'TIMEOUT', 'OPEN', 'PENDING']:
+        failures.append("result is not one of WIN/LOSS/TIMEOUT/OPEN/PENDING")
+        
+    if status in ['WIN', 'LOSS']:
+        exit_price = trade.get('exit_price')
+        pnl_inr = trade.get('pnl_inr') or trade.get('pnl') or 0.0
+        
+        if exit_price is None or exit_price <= 0:
+            failures.append("exit_price missing or <= 0 for resolved trade")
+            
+        if status == 'WIN' and pnl_inr <= 0:
+            failures.append("WIN status but PnL <= 0")
+        if status == 'LOSS' and pnl_inr >= 0:
+            failures.append("LOSS status but PnL >= 0")
+        
+    regime = trade.get('market_regime_snapshot')
+    if not regime or regime == 'UNKNOWN' or regime == 'UNCLEAR':
+        failures.append("regime is null or UNCLEAR")
+        
+    score = 100 if len(failures) == 0 else max(0, 100 - (len(failures) * 20))
+    
+    return {
+        "valid": len(failures) == 0,
+        "score": score,
+        "failures": failures,
+        "warnings": warnings
+    }
+
+def calculate_confidence_from_counts(valid: int, total: int) -> float:
+    """
+    Pure math function for computing data confidence.
+    Handles zero-trades edge case.
+    """
+    if total <= 0:
+        return 0.0
+    return (valid / total) * 100.0
+
+def calculate_data_confidence(limit: int = 100, persist: bool = True) -> dict:
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    try:
+        cur.execute("SELECT * FROM predictions_history WHERE status IN ('WIN', 'LOSS', 'TIMEOUT') ORDER BY id DESC LIMIT %s;", (limit,))
+        columns = [desc[0] for desc in cur.description]
+        rows = cur.fetchall()
+        
+        if not rows:
+            return {"confidence_score": 100.0, "locked": False, "failures": []}
+            
+        total_trades = len(rows)
+        valid_trades = 0
+        all_failures = []
+        
+        for row in rows:
+            trade_dict = dict(zip(columns, row))
+            validation = validate_trade(trade_dict)
+            if validation["valid"]:
+                valid_trades += 1
+            else:
+                all_failures.extend(validation["failures"])
+                
+        confidence_score = calculate_confidence_from_counts(valid_trades, total_trades)
+        locked = confidence_score < 90.0
+        
+        if persist:
+            cur.execute(
+                """
+                INSERT INTO data_quality (total_trades, valid_trades, confidence_score, failures, locked)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (total_trades, valid_trades, confidence_score, json.dumps(list(set(all_failures))), locked)
+            )
+            conn.commit()
+            
+        return {
+            "confidence_score": confidence_score,
+            "locked": locked,
+            "failures": list(set(all_failures))
+        }
+    finally:
+        cur.close()
+        conn.close()
+

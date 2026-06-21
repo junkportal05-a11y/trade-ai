@@ -1028,29 +1028,25 @@ async def prediction_resolver_worker():
                             df_post = df[df.index > pred_time]
                             
                             for idx, row in df_post.iterrows():
-                                high = float(row["High"])
-                                low = float(row["Low"])
+                                from backtest_engine import resolve_candle_pessimistic
                                 
-                                if is_bullish:
-                                    c_hit_target = high >= target
-                                    c_hit_stop = low <= stop
-                                else:
-                                    c_hit_target = low <= target
-                                    c_hit_stop = high >= stop
-                                    
-                                if c_hit_target and c_hit_stop:
-                                    # BOTH hit in the SAME 1-minute candle!
-                                    # Pessimistic Mode: ASSUME STOP LOSS HIT FIRST.
+                                c_dict = {
+                                    "high": float(row["High"]),
+                                    "low": float(row["Low"]),
+                                    "open": float(row.get("Open", row["Close"])),
+                                    "close": float(row["Close"])
+                                }
+                                direction = "BUY" if is_bullish else "SELL"
+                                
+                                res_status, res_price = resolve_candle_pessimistic(c_dict, entry, target, stop, direction)
+                                
+                                if res_status == "LOSS":
                                     hit_stop = True
-                                    resolution_price = stop
+                                    resolution_price = res_price
                                     break
-                                elif c_hit_stop:
-                                    hit_stop = True
-                                    resolution_price = stop
-                                    break
-                                elif c_hit_target:
+                                elif res_status == "WIN":
                                     hit_target = True
-                                    resolution_price = target
+                                    resolution_price = res_price
                                     break
                                     
                         # Fallback to live quote if historical candles haven't resolved it yet
@@ -1129,6 +1125,12 @@ async def prediction_resolver_worker():
                                 new_peak = max(peak, new_eq)
                                 drawdown = round(((new_peak - new_eq) / new_peak) * 100, 2) if new_peak > 0 else 0.0
                                 db.add_equity_curve(pred["id"], eq_after, new_eq, new_peak, drawdown)
+                                
+                            try:
+                                from data_validator import calculate_data_confidence
+                                calculate_data_confidence(limit=100, persist=True)
+                            except Exception as score_err:
+                                print(f"[prediction_resolver_worker] Data confidence update error: {score_err}")
                                 
         except Exception as e:
             print(f"[prediction_resolver_worker] error: {e}")
@@ -1369,27 +1371,36 @@ async def startup_event():
 
 
 @app.get("/api/data/confidence")
-async def get_data_confidence(symbol: str = Query(..., description="Stock symbol")):
+async def get_data_confidence(
+    symbol: Optional[str] = Query(None, description="Optional stock symbol for feed confidence")
+):
     """
-    Returns the Data Confidence Score for the given symbol's recent intraday data.
+    Returns the database-wide resolved-trade Data Confidence Score.
+    If symbol is supplied, also includes recent candle-feed confidence for compatibility.
     """
     try:
-        from signals import download_market_data_df
-        from data_validator import calculate_confidence
-        
-        # Fetch recent 5m data
-        df = download_market_data_df(symbol, "1d", "5m")
-        if df is None or df.empty:
-            return {"symbol": symbol, "confidence_score": 0.0, "status": "no_data"}
-            
-        score = calculate_confidence(df, "5m")
+        from data_validator import calculate_confidence, calculate_data_confidence
+
+        result = calculate_data_confidence(limit=100, persist=True)
+        result["status"] = "locked" if result["locked"] else "ok"
+
+        if symbol:
+            from signals import download_market_data_df
+
+            df = download_market_data_df(symbol, "1d", "5m")
+            feed_score = calculate_confidence(df, "5m") if df is not None and not df.empty else 0.0
+            result["symbol"] = symbol
+            result["feed_confidence_score"] = round(feed_score, 1)
+
+        return result
+    except Exception as e:
         return {
             "symbol": symbol,
-            "confidence_score": round(score, 1),
-            "status": "ok"
+            "confidence_score": 0.0,
+            "locked": True,
+            "status": "error",
+            "message": str(e),
         }
-    except Exception as e:
-        return {"symbol": symbol, "confidence_score": 0.0, "status": "error", "message": str(e)}
 
 
 @app.get("/api/prices")

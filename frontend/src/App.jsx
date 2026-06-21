@@ -11,8 +11,10 @@ import HomePanel from './HomePanel';
 import PredictionsPanel from './PredictionsPanel';
 import JournalPanel from './JournalPanel';
 import SimulatorPanel from './SimulatorPanel';
+import PerformancePanel from './PerformancePanel';
 
 
+const EMPTY_ARRAY = [];
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -483,7 +485,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       {/* Main Chart Container */}
       <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
         <div ref={legendRef} style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, fontFamily: "'IBM Plex Mono', monospace", pointerEvents: 'none', background: 'rgba(13,16,24,0.65)', backdropFilter: 'blur(4px)', padding: '8px 12px', borderRadius: 6, display: 'none', border: `1px solid ${T.borderHi}` }} />
-        <div ref={mainContainerRef} style={{ width: '100%', height: '100%' }} />
+        <div ref={mainContainerRef} style={{ position: 'absolute', inset: 0 }} />
       </div>
       
       {/* RSI Container */}
@@ -492,17 +494,17 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
           <div style={{ position: 'absolute', top: 4, left: 12, zIndex: 5, fontSize: 9, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700 }}>
             RSI (14)
           </div>
-          <div ref={rsiContainerRef} style={{ width: '100%', height: '100%' }} />
+          <div ref={rsiContainerRef} style={{ position: 'absolute', inset: 0 }} />
         </div>
       )}
 
       {/* MACD Container */}
       {indicators.macd && (
-        <div style={{ height: 95, borderTop: `1px solid ${T.border}`, position: 'relative', background: T.surface, flexShrink: 0 }}>
+        <div style={{ height: 110, borderTop: `1px solid ${T.border}`, position: 'relative', background: T.surface, flexShrink: 0 }}>
           <div style={{ position: 'absolute', top: 4, left: 12, zIndex: 5, fontSize: 9, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700 }}>
             MACD (12, 26, 9)
           </div>
-          <div ref={macdContainerRef} style={{ width: '100%', height: '100%' }} />
+          <div ref={macdContainerRef} style={{ position: 'absolute', inset: 0 }} />
         </div>
       )}
     </div>
@@ -2544,6 +2546,29 @@ export default function App() {
                 </div>
               )}
             </div>
+          ) : view === 'PERFORMANCE' ? (
+            /* PERFORMANCE VIEW — full width */
+            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              <PerformancePanel />
+              {isMobile && (
+                <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                  {TABS.map(tab => (
+                    <button key={tab} onClick={() => setView(tab)} style={{
+                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
+                      background: 'transparent',
+                      color: view === tab ? T.accent : T.textDim,
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                      fontFamily: "'Inter', sans-serif",
+                      transition: 'all 0.2s',
+                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
+                      marginTop: -1
+                    }}>
+                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : view === 'ACCOUNT' ? (
             /* ACCOUNT VIEW — full width */
             <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
@@ -2683,11 +2708,11 @@ export default function App() {
                             range={INTERVALS[ivIdx].range} 
                             indicators={indicators} 
                             livePrice={prices[selected]}
-                            markers={tradeMarkers[selected] || []}
+                            markers={tradeMarkers[selected] || EMPTY_ARRAY}
                             onLastBarUpdate={handleLastBarUpdate}
                             drawMode={drawMode}
                             onDrawComplete={handleDrawComplete}
-                            customLines={chartLines[selected] || []}
+                            customLines={chartLines[selected] || EMPTY_ARRAY}
                           />
                         </div>
                         {/* Embedded AI Analyst Card */}
@@ -2860,7 +2885,7 @@ export default function App() {
                         range={INTERVALS[ivIdx].range} 
                         indicators={indicators} 
                         livePrice={prices[selected]}
-                        markers={tradeMarkers[selected] || []}
+                        markers={tradeMarkers[selected] || EMPTY_ARRAY}
                         onLastBarUpdate={handleLastBarUpdate}
                       />
                     </div>
