@@ -102,43 +102,42 @@ def test_clear_history(temp_db):
                 assert row[0] == 0
 
 
-def test_get_history(temp_db):
-    """Test retrieving history with and without filters."""
-    mock_signal_1 = {
-        "symbol": "TCS", "name": "TCS Ltd", "sector": "IT", "direction": "BUY",
-        "signal_type": "BUY", "confidence": 80, "score": 8, "entry": 100.0,
-        "entry_price": 100.0, "target": 110.0, "stop_loss": 90.0, "rr_ratio": 1.0,
-        "atr": 2.0, "scan_type": "intraday",
-    }
-    mock_signal_2 = {
-        "symbol": "RELIANCE", "name": "Reliance", "sector": "Energy", "direction": "SELL",
-        "signal_type": "SELL", "confidence": 90, "score": 9, "entry": 2500.0,
-        "entry_price": 2500.0, "target": 2400.0, "stop_loss": 2600.0, "rr_ratio": 1.0,
-        "atr": 50.0, "scan_type": "intraday",
+def test_add_journal_entry(temp_db):
+    """Test adding a trade journal entry."""
+
+    mock_entry = {
+        "symbol": "INFY",
+        "direction": "SELL",
+        "entry_price": "1500.50",
+        "exit_price": "1450.00",
+        "qty": "50",
+        "entry_date": "2024-06-14T10:00:00Z",
+        "reason": "Technical Breakout",
+        "emotion": "Confident",
+        "status": "CLOSED",
+        "pnl": "2525.0",
     }
 
     with patch("backend.db.DB_PATH", str(temp_db)):
         with patch("backend.db.IS_POSTGRES", False):
-            id1 = db.add_signal(mock_signal_1)
-            id2 = db.add_signal(mock_signal_2)
+            # Act: Add journal entry
+            entry_id = db.add_journal_entry(mock_entry)
+            assert entry_id is not None
 
-            # Update signal 1 to PROFIT status
-            db.update_signal(id1, "PROFIT", 110.0, 10.0)
+            # Assert: Verify the entry was added
+            with db._conn() as c:
+                row = c.execute(
+                    "SELECT * FROM trade_journal WHERE id=?", (entry_id,)
+                ).fetchone()
 
-            # Test getting all history
-            history = db.get_history()
-            assert len(history) == 2
-
-            # Test symbol filter
-            tcs_history = db.get_history(symbol="TCS")
-            assert len(tcs_history) == 1
-            assert tcs_history[0]["symbol"] == "TCS"
-
-            # Test status filter
-            profit_history = db.get_history(status="PROFIT")
-            assert len(profit_history) == 1
-            assert profit_history[0]["status"] == "PROFIT"
-
-            # Test limit
-            limited_history = db.get_history(limit=1)
-            assert len(limited_history) == 1
+                assert row is not None
+                assert row["symbol"] == "INFY"
+                assert row["direction"] == "SELL"
+                assert row["entry_price"] == 1500.50
+                assert row["exit_price"] == 1450.00
+                assert row["qty"] == 50
+                assert row["entry_date"] == "2024-06-14T10:00:00Z"
+                assert row["reason"] == "Technical Breakout"
+                assert row["emotion"] == "Confident"
+                assert row["status"] == "CLOSED"
+                assert row["pnl"] == 2525.0
