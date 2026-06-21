@@ -26,6 +26,26 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 from angelone_feed import get_angelone_feed
 
+def vwap_veto(price: float, vwap: float, direction: str) -> tuple[bool, str]:
+    """
+    Pure function to validate the VWAP Veto rule.
+    Buy requires price > VWAP, Sell requires price < VWAP.
+    Returns (passed: bool, reason: str or None)
+    """
+    if not direction:
+        return True, None
+        
+    dir_upper = direction.upper()
+    if dir_upper in ["BUY", "BULLISH"]:
+        if price < vwap:
+            return False, "VETO: Bullish signal but price is below VWAP"
+    elif dir_upper in ["SELL", "BEARISH"]:
+        if price > vwap:
+            return False, "VETO: Bearish signal but price is above VWAP"
+            
+    return True, None
+
+
 # ── Batch cache — populated once per scan, read by worker threads ─────────────
 _BATCH_CANDLE_CACHE: dict[str, pd.DataFrame] = {}
 _MACRO_CACHE: dict[str, dict] = {}
@@ -34,119 +54,10 @@ CACHE_TTL = 300  # 5 minutes
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  UNIFIED DATA FETCHER — Upstox ONLY
+#  UNIFIED DATA FETCHER — AngelOne ONLY
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def _generate_mock_history(symbol: str, period: str, interval: str) -> pd.DataFrame:
-    import random
-
-    # 1. Determine baseline price
-    seeds = {
-        'HAL.NS': 4550.0, 'BEL.NS': 295.0, 'RVNL.NS': 385.0,
-        'IREDA.NS': 185.0, 'HUDCO.NS': 275.0, 'COALINDIA.NS': 485.0,
-        'NHPC.NS': 95.0, 'ADANIPORTS.NS': 1405.0, 'TATAPOWER.NS': 445.0,
-        'BHEL.NS': 305.0, 'RELIANCE.NS': 2450.0, 'TCS.NS': 3850.0,
-        'HDFCBANK.NS': 1650.0, 'INFY.NS': 1500.0, 'ICICIBANK.NS': 1150.0,
-        'SBIN.NS': 830.0, 'TATAMOTORS.NS': 980.0, 'BHARTIARTL.NS': 1380.0
-    }
-
-    clean_sym = symbol.upper()
-    if clean_sym not in seeds:
-        clean_base = clean_sym.split('.')[0]
-        for k, v in seeds.items():
-            if k.split('.')[0] == clean_base:
-                clean_sym = k
-                break
-
-    base_price = seeds.get(clean_sym, 150.0)
-
-    # 2. Determine number of bars & frequency
-    num_bars = 100
-    freq = 'D'
-
-    if interval in ("1m", "2m", "5m", "15m", "30m", "60m", "1h"):
-        if period == "1d":
-            num_bars = 75
-        elif period == "5d":
-            num_bars = 300
-        else:
-            num_bars = 200
-
-        if interval == "1m":
-            freq = "min"
-        elif interval == "5m":
-            freq = "5min"
-        elif interval == "15m":
-            freq = "15min"
-        elif interval == "30m":
-            freq = "30min"
-        else:
-            freq = "H"
-    else:
-        if period == "1mo":
-            num_bars = 22
-        elif period == "3mo":
-            num_bars = 65
-        elif period == "6mo":
-            num_bars = 130
-        elif period == "1y":
-            num_bars = 250
-        elif period == "2y":
-            num_bars = 500
-        else:
-            num_bars = 250
-        freq = "B"
-
-    end_time = datetime.now()
-    idx = pd.date_range(end=end_time, periods=num_bars, freq=freq)
-
-    prices = [base_price]
-    volatility = 0.015
-    if freq in ("min", "5min", "15min", "30min"):
-        volatility = 0.002
-
-    for _ in range(num_bars - 1):
-        change = random.gauss(0.0001, volatility)
-        next_price = prices[-1] * (1 + change)
-        prices.append(max(1.0, next_price))
-
-    opens = []
-    highs = []
-    lows = []
-    closes = []
-    volumes = []
-
-    for i in range(num_bars):
-        close_p = prices[i]
-        if i == 0:
-            open_p = close_p * (1 - random.uniform(-0.005, 0.005))
-        else:
-            open_p = closes[-1]
-
-        max_oc = max(open_p, close_p)
-        min_oc = min(open_p, close_p)
-        high_p = max_oc * (1 + abs(random.gauss(0, volatility * 0.5)))
-        low_p = min_oc * (1 - abs(random.gauss(0, volatility * 0.5)))
-
-        high_p = max(high_p, open_p, close_p)
-        low_p = min(low_p, open_p, close_p)
-
-        opens.append(open_p)
-        highs.append(high_p)
-        lows.append(low_p)
-        closes.append(close_p)
-        volumes.append(random.randint(10000, 1000000))
-
-    df = pd.DataFrame({
-        'Open': opens,
-        'High': highs,
-        'Low': lows,
-        'Close': closes,
-        'Volume': volumes
-    }, index=idx)
-
-    return df
 
 
 def check_volume_surge(df: pd.DataFrame, lookback: int = 20) -> bool:
@@ -224,7 +135,7 @@ def download_market_data_df(
     interval: str = "5m",
 ) -> Optional[pd.DataFrame]:
     """
-    Fetch OHLCV data — Upstox with Mock Fallback.
+    Fetch OHLCV data — AngelOne.
     """
     cache_key = f"{symbol}_{interval}"
 
@@ -248,13 +159,6 @@ def download_market_data_df(
         except Exception as e:
             print(f"[signals] AngelOne fetch error for {symbol}: {e}")
 
-    # Mock fallback
-    print(f"[signals] Generating mock market data fallback for {symbol} ({interval}, {period})")
-    df = _generate_mock_history(symbol, period, interval)
-    if df is not None and not df.empty:
-        _BATCH_CANDLE_CACHE[cache_key] = df
-        _CACHE_TIMESTAMP[cache_key] = time.time()
-        return df
     return None
 
 
@@ -263,65 +167,9 @@ def download_market_data_df(
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def _generate_mock_quote(symbol: str) -> Optional[dict]:
-    import random
-
-    seeds = {
-        'HAL.NS': 4550.0, 'BEL.NS': 295.0, 'RVNL.NS': 385.0,
-        'IREDA.NS': 185.0, 'HUDCO.NS': 275.0, 'COALINDIA.NS': 485.0,
-        'NHPC.NS': 95.0, 'ADANIPORTS.NS': 1405.0, 'TATAPOWER.NS': 445.0,
-        'BHEL.NS': 305.0, 'RELIANCE.NS': 2450.0, 'TCS.NS': 3850.0,
-        'HDFCBANK.NS': 1650.0, 'INFY.NS': 1500.0, 'ICICIBANK.NS': 1150.0,
-        'SBIN.NS': 830.0, 'TATAMOTORS.NS': 980.0, 'BHARTIARTL.NS': 1380.0
-    }
-
-    clean_sym = symbol.upper()
-    if clean_sym not in seeds:
-        clean_base = clean_sym.split('.')[0]
-        for k, v in seeds.items():
-            if k.split('.')[0] == clean_base:
-                clean_sym = k
-                break
-
-    base_price = seeds.get(clean_sym, 150.0)
-
-    latest_price = base_price
-    try:
-        from main import LIVE_PRICES_CACHE
-        if clean_sym in LIVE_PRICES_CACHE:
-            latest_price = LIVE_PRICES_CACHE[clean_sym]["price"]
-        elif symbol.upper() in LIVE_PRICES_CACHE:
-            latest_price = LIVE_PRICES_CACHE[symbol.upper()]["price"]
-    except Exception:
-        pass
-
-    change_pct = random.uniform(-0.015, 0.02)
-    prev_close = latest_price / (1 + change_pct)
-    change = latest_price - prev_close
-    open_p = prev_close * (1 + random.uniform(-0.005, 0.005))
-    high = max(open_p, latest_price) * (1 + random.uniform(0, 0.005))
-    low = min(open_p, latest_price) * (1 - random.uniform(0, 0.005))
-    volume = random.randint(10000, 500000)
-
-    return {
-        "symbol": symbol.upper(),
-        "name": symbol.upper().split(".")[0],
-        "price": round(latest_price, 2),
-        "change": round(change, 2),
-        "change_pct": round(change_pct * 100, 2),
-        "volume": volume,
-        "open": round(open_p, 2),
-        "high": round(high, 2),
-        "low": round(low, 2),
-        "prev_close": round(prev_close, 2),
-        "source": "mock",
-        "sector": "Mock Sector",
-    }
-
-
 def get_symbol_quote(symbol: str) -> Optional[dict]:
     """
-    Get current price + change for a symbol — Upstox with Mock Fallback.
+    Get current price + change for a symbol — AngelOne.
     """
     feed = get_angelone_feed()
     if feed.is_authorized():
@@ -330,10 +178,10 @@ def get_symbol_quote(symbol: str) -> Optional[dict]:
             if quotes and symbol in quotes:
                 return quotes[symbol]
         except Exception as e:
-            print(f"[AngelOne quote] Failed for {symbol}: {e}")
+            import logging
+            logging.getLogger("signals").error(f"[AngelOne quote] Failed for {symbol}: {e}")
 
-    # Fallback to mock quote
-    return _generate_mock_quote(symbol)
+    return None
 
 
 # ── Pure pandas/numpy indicator helpers ───────────────────────────────────────
@@ -703,14 +551,7 @@ def _score_default_indicator(
     except Exception as e:
         print(f"[signals] Pattern scoring failed: {e}")
 
-    # 1. VWAP position (strong weight for intraday)
-    if price > vwap_val * 1.002:
-        bull_pts += 15
-        reasons_bull.append(f"Price above VWAP ₹{vwap_val:.1f}")
-    elif price < vwap_val * 0.998:
-        bear_pts += 15
-        reasons_bear.append(f"Price below VWAP ₹{vwap_val:.1f}")
-
+    # 1. VWAP position (Veto handled below, removed points generation)
     # 2. RSI Overbought/Oversold
     if 45 <= rsi_val <= 65:
         bull_pts += 5
@@ -846,13 +687,6 @@ def _score_default_indicator(
     except Exception as e:
         print(f"[signals] Failed to run news sentiment scanner: {e}")
 
-    # Strict VWAP Filter
-    if bull_pts > bear_pts and price < vwap_val:
-        bear_pts += 100  # Penalize heavily to reject
-        reasons_bear.append("REJECTED: Price is below VWAP")
-    elif bear_pts > bull_pts and price > vwap_val:
-        bull_pts += 100  # Penalize heavily to reject
-        reasons_bull.append("REJECTED: Price is above VWAP")
 
     # Confidence Formula
     total_pts = bull_pts + bear_pts
@@ -1175,11 +1009,11 @@ def _score_my_strategy(
             reward = round(price - target1, 2)
     except Exception as e:
         print(f"[signals] PDF Risk calculation failed, using fallback: {e}")
-        atr_stop = 2.0 * atr_val
+        atr_stop = 1.8 * atr_val
         stop = round(price - atr_stop if is_buy else price + atr_stop, 2)
         risk_amount = round(abs(price - stop), 2)
         target1 = round(
-            price + 2.0 * risk_amount if is_buy else price - 2.0 * risk_amount,
+            price + 1.944 * risk_amount if is_buy else price - 1.944 * risk_amount,
             2,
         )
         target2 = round(
@@ -1291,6 +1125,18 @@ def analyse_symbol(
 
         df = df.dropna(subset=["Close", "High", "Low", "Open", "Volume"])
         if len(df) < 20:
+            return None
+            
+        # ── DEEP DATA VALIDATION ────────────────────────────────────
+        try:
+            import data_validator
+            data_conf = data_validator.calculate_confidence(df, interval)
+            if data_conf < 72.0:
+                import logging
+                logging.getLogger("signals").info(f"Skipping {symbol}: Data Confidence ({data_conf}%) below 72% threshold.")
+                return None
+        except Exception as e:
+            print(f"[signals] Data validation failed for {symbol}: {e}")
             return None
 
         change_pct = ((df["Close"].iloc[-1] - df["Close"].iloc[0]) / df["Close"].iloc[0] * 100) if len(df) > 0 else 0.0
@@ -1444,6 +1290,14 @@ def analyse_symbol(
         all_reasons = reasons_bull + reasons_bear
         reasoning = " | ".join(all_reasons[:4])
 
+        # ── ABSOLUTE VWAP VETO ──────────────────────────────────────────
+        passed, veto_reason = vwap_veto(price, vwap_val, signal_type)
+        if not passed:
+            import logging
+            logging.getLogger("signals").info(f"Skipping {symbol}: {veto_reason}")
+            return None
+        # ────────────────────────────────────────────────────────────────
+
         # PHASE 1: Risk:Reward Validation
         if signal_type in ["BULLISH", "BEARISH"]:
             if not validate_risk_reward(entry, stop, target1, min_rr=2.0):
@@ -1553,7 +1407,6 @@ def run_scan(
         if segment == "BSE" and not sym.endswith(".BO"):
             return None
         elif segment == "F&O" and sym not in [
-            "HAL.NS",
             "BEL.NS",
             "RVNL.NS",
             "COALINDIA.NS",
@@ -1592,27 +1445,21 @@ def run_scan(
     # buys = [s for s in first_pass_results if s.get("score", 0) > 0]
     # sentiment_pct = int(len(buys) / len(first_pass_results) * 100) if first_pass_results else 50
 
-    # 2. Market Regime Detection
+    # 2. Market Regime Detection (Phase 1)
+    from quant.market_regime import MarketRegimeClassifier
+    
+    try:
+        classifier = MarketRegimeClassifier()
+        classifier.load_data()
+        regime_result = classifier.classify_regime()
+        market_regime = regime_result["regime"]
+    except Exception as e:
+        print(f"[signals] MarketRegimeClassifier failed: {e}. Falling back to UNCLEAR.")
+        market_regime = "UNCLEAR"
+
+    # Maintain some simple breadth stats for logging/display
     stocks_above_ema21 = sum(1 for s in first_pass_results if s.get("price", 0) > s.get("ema21", 0))
     pct_above_ema21 = (stocks_above_ema21 / len(first_pass_results)) * 100 if first_pass_results else 50.0
-    
-    avg_atr_pct = sum((s.get("atr", 0) / s.get("price", 1) * 100) for s in first_pass_results) / len(first_pass_results) if first_pass_results else 1.0
-
-    if pct_above_ema21 > 60 and avg_atr_pct < 1.5:
-        market_regime = "LOW_VOLATILITY_BREAKOUT"
-    elif pct_above_ema21 > 70 and avg_atr_pct >= 1.5:
-        market_regime = "HIGH_MOMENTUM"
-    elif pct_above_ema21 > 50 and avg_atr_pct < 2.0:
-        market_regime = "TRENDING_BULLISH"
-    elif pct_above_ema21 < 30 and avg_atr_pct < 2.0:
-        market_regime = "TRENDING_BEARISH"
-    elif avg_atr_pct >= 2.5 and pct_above_ema21 < 30:
-        market_regime = "PANIC"
-    elif avg_atr_pct >= 2.0:
-        market_regime = "VOLATILE"
-    else:
-        market_regime = "RANGING"
-        
     nifty_trend_bias = "BULLISH" if pct_above_ema21 > 50 else "BEARISH"
 
     # 3. Nifty/Market Change Proxy

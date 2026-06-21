@@ -1,6 +1,7 @@
 """
-AngelOne SmartAPI Integration Module
-Replaces Upstox as the unified data & execution provider
+AngelOne SmartAPI Integration Feed.
+Acts as the unified data & execution provider for ApexTrade.
+Handles authentication, websocket streams, and historical data fetching.
 """
 
 import os
@@ -8,7 +9,7 @@ import json
 import logging
 import pyotp
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from SmartApi import SmartConnect
 from typing import Optional, Dict, List
@@ -108,7 +109,11 @@ class AngelOneFeed:
                 self.session_token = session['session_token']
                 self.refresh_token = session['refresh_token']
                 self.feed_token = session['feed_token']
+                
+                # Re-inject all tokens on the SmartConnect instance
                 self.smart_api.setAccessToken(self.session_token)
+                self.smart_api.setRefreshToken(self.refresh_token)
+                self.smart_api.setFeedToken(self.feed_token)
                 return True
         except Exception as e:
             logger.error(f"Error restoring AngelOne API client: {e}")
@@ -123,32 +128,123 @@ class AngelOneFeed:
                 return False
             response = self.smart_api.generateToken(refresh_token)
             
-            if response['status']:
-                self.session_token = response['data']['jwtToken']
+            if response and response.get('status') == True:
+                data = response.get('data') or {}
+                self.session_token = data.get('jwtToken')
+                if data.get('refreshToken'):
+                    self.refresh_token = data.get('refreshToken')
+                if data.get('feedToken'):
+                    self.feed_token = data.get('feedToken')
+                
                 self.smart_api.setAccessToken(self.session_token)
-                logger.info("✅ Session refreshed successfully")
+                self.smart_api.setRefreshToken(self.refresh_token)
+                self.smart_api.setFeedToken(self.feed_token)
+                
+                # Persist the refreshed credentials back to database
+                import db
+                cached_session = db.get_angelone_session() or {}
+                db.save_angelone_session({
+                    "api_key": cached_session.get('api_key', ''),
+                    "client_code": self.client_code,
+                    "pin": cached_session.get('pin', ''),
+                    "totp_secret": cached_session.get('totp_secret', ''),
+                    "session_token": self.session_token,
+                    "refresh_token": self.refresh_token,
+                    "feed_token": self.feed_token,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                })
+                
+                logger.info("✅ AngelOne session refreshed and updated in DB")
                 return True
             else:
-                logger.error(f"Session refresh failed: {response['message']}")
+                logger.error(f"Session refresh failed: {response.get('message', 'Unknown error')}")
                 return False
                 
         except Exception as e:
             logger.error(f"Session refresh exception: {str(e)}")
             return False
-    
-    def is_authorized(self) -> bool:
+
+    def auto_login(self) -> bool:
         """
-        Check if current session is valid
+        Attempt a full login using saved credentials from the database.
+        """
+        try:
+            import db
+            session = db.get_angelone_session()
+            if not session or not all(k in session for k in ('api_key', 'client_code', 'pin', 'totp_secret')):
+                logger.info("No stored credentials found in database for auto-login.")
+                return False
+            
+            logger.info("Attempting full auto-login with stored database credentials...")
+            result = self.login(
+                api_key=session['api_key'],
+                client_code=session['client_code'],
+                pin=session['pin'],
+                totp_secret=session['totp_secret']
+            )
+            if result.get("status") == "success":
+                # Save the new session info back to db
+                db.save_angelone_session({
+                    "api_key": session['api_key'],
+                    "client_code": session['client_code'],
+                    "pin": session['pin'],
+                    "totp_secret": session['totp_secret'],
+                    "session_token": result["session_token"],
+                    "refresh_token": result["refresh_token"],
+                    "feed_token": result["feed_token"],
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                })
+                logger.info("✅ Full auto-login successful; session credentials updated in DB.")
+                return True
+            else:
+                logger.error(f"Full auto-login failed: {result.get('message')}")
+                return False
+        except Exception as e:
+            logger.error(f"Exception during auto-login: {e}")
+            return False
+
+    def is_authorized(self, force_check: bool = False) -> bool:
+        """
+        Check if current session is valid.
+        If force_check is True, makes a network call to verify with the server.
+        Otherwise, returns True if the session token is loaded in memory.
         """
         if not self.ensure_api_client():
-            return False
+            if not self.auto_login():
+                return False
+        
+        if not force_check:
+            # Fast in-memory check to prevent hitting AngelOne rate limits (3 rps)
+            return self.session_token is not None
         
         try:
-            # Test API call to verify session
             profile = self.smart_api.getProfile(self.refresh_token)
-            return profile['status'] == True
-        except:
-            return False
+            if profile and profile.get('status') == True:
+                return True
+        except Exception as e:
+            logger.warning(f"AngelOne getProfile failed: {e}. Trying refresh...")
+            
+        # Try refreshing session using the refresh token
+        if self.refresh_token:
+            success = self.refresh_session(self.refresh_token)
+            if success:
+                try:
+                    profile = self.smart_api.getProfile(self.refresh_token)
+                    if profile and profile.get('status') == True:
+                        return True
+                except Exception as e:
+                    logger.error(f"AngelOne getProfile failed after refresh: {e}")
+                    
+        # If refresh failed, try full auto_login
+        logger.info("Refresh token failed or not present. Attempting full auto_login...")
+        if self.auto_login():
+            try:
+                profile = self.smart_api.getProfile(self.refresh_token)
+                return profile and profile.get('status') == True
+            except Exception as e:
+                logger.error(f"AngelOne getProfile failed after auto_login: {e}")
+                
+        return False
     
     # ==========================================
     # INSTRUMENT MASTER
@@ -244,8 +340,8 @@ class AngelOneFeed:
         days_back: Optional[int] = None
     ) -> Optional[pd.DataFrame]:
         """
-        Fetch historical OHLC candles from AngelOne.
-        Supports drop-in replacement for Upstox feed signatures.
+        Get historical OHLCV data for a specific symbol.
+        Supports standard feed signatures.
         """
         try:
             if not self.ensure_api_client():
@@ -316,8 +412,22 @@ class AngelOneFeed:
             
             response = self.smart_api.getCandleData(historic_param)
             
-            if not response or response['status'] == False:
-                error_msg = response.get('message', 'Unknown error')
+            if not response or response.get('status') == False:
+                error_code = response.get('errorCode') or response.get('errorcode') if response else ''
+                # AB2000 / AB1010 / AG001 / AG8001 are typical session token / auth error codes
+                if error_code in ('AB2000', 'AB1010', 'AG001', 'AG8001') or (response and 'token' in str(response.get('message', '')).lower()):
+                    logger.info("Session token expired/invalid. Trying auto-refresh...")
+                    if self.refresh_token and self.refresh_session(self.refresh_token):
+                        logger.info("Token refreshed successfully. Retrying getCandleData...")
+                        response = self.smart_api.getCandleData(historic_param)
+                    else:
+                        logger.info("Auto-refresh failed or no refresh token. Trying full auto-login...")
+                        if self.auto_login():
+                            logger.info("Auto-login successful. Retrying getCandleData...")
+                            response = self.smart_api.getCandleData(historic_param)
+            
+            if not response or response.get('status') == False:
+                error_msg = response.get('message', 'Unknown error') if response else 'No response'
                 logger.error(f"Historical data fetch failed: {error_msg}")
                 return None
             
@@ -379,6 +489,19 @@ class AngelOneFeed:
             for i in range(0, len(tokens), batch_size):
                 batch_tokens = tokens[i:i+batch_size]
                 response = self.smart_api.getMarketData('FULL', {'NSE': batch_tokens})
+                
+                if not response or response.get('status') == False:
+                    error_code = response.get('errorCode') or response.get('errorcode') if response else ''
+                    if error_code in ('AB2000', 'AB1010', 'AG001', 'AG8001') or (response and 'token' in str(response.get('message', '')).lower()):
+                        logger.info("Session token expired/invalid. Trying auto-refresh...")
+                        if self.refresh_token and self.refresh_session(self.refresh_token):
+                            logger.info("Token refreshed successfully. Retrying getMarketData...")
+                            response = self.smart_api.getMarketData('FULL', {'NSE': batch_tokens})
+                        else:
+                            logger.info("Auto-refresh failed or no refresh token. Trying full auto-login...")
+                            if self.auto_login():
+                                logger.info("Auto-login successful. Retrying getMarketData...")
+                                response = self.smart_api.getMarketData('FULL', {'NSE': batch_tokens})
                 
                 if response and response.get('status') and response.get('data'):
                     fetched = response['data'].get('fetched') or []

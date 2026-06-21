@@ -30,46 +30,11 @@ const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', 
 const sign = (v) => v > 0 ? '+' : '';
 
 const DEFAULT_WATCHLIST = [
-  { symbol: 'HAL.NS',        name: 'HAL',            sector: 'Defence' },
-  { symbol: 'BEL.NS',        name: 'BEL',            sector: 'Defence' },
-  { symbol: 'RVNL.NS',       name: 'RVNL',           sector: 'Railways' },
-  { symbol: 'IREDA.NS',      name: 'IREDA',          sector: 'Green Energy' },
-  { symbol: 'HUDCO.NS',      name: 'HUDCO',          sector: 'Finance' },
-  { symbol: 'COALINDIA.NS',  name: 'Coal India',     sector: 'Energy' },
-  { symbol: 'NHPC.NS',       name: 'NHPC',           sector: 'Power' },
-  { symbol: 'ADANIPORTS.NS', name: 'Adani Ports',    sector: 'Infrastructure' },
-  { symbol: 'TATAPOWER.NS',  name: 'Tata Power',     sector: 'Power' },
-  { symbol: 'BHEL.NS',       name: 'BHEL',           sector: 'Capital Goods' },
-  { symbol: 'RELIANCE.NS',   name: 'Reliance',       sector: 'Energy' },
-  { symbol: 'TCS.NS',        name: 'TCS',            sector: 'IT' },
-  { symbol: 'HDFCBANK.NS',   name: 'HDFC Bank',      sector: 'Banking' },
-  { symbol: 'INFY.NS',       name: 'Infosys',        sector: 'IT' },
-  { symbol: 'ICICIBANK.NS',  name: 'ICICI Bank',     sector: 'Banking' },
-  { symbol: 'SBIN.NS',       name: 'SBI',            sector: 'Banking' },
-  { symbol: 'TATAMOTORS.NS', name: 'Tata Motors',    sector: 'Auto' },
-  { symbol: 'BHARTIARTL.NS',name: 'Bharti Airtel',   sector: 'Telecom' },
-  { symbol: 'ITC.NS',        name: 'ITC',            sector: 'FMCG' },
-  { symbol: 'LT.NS',         name: 'L&T',            sector: 'Infrastructure' },
-  { symbol: 'ADANIENT.NS',   name: 'Adani Ent',      sector: 'Conglomerate' },
-  { symbol: 'ADANIPOWER.NS', name: 'Adani Power',    sector: 'Power' },
-  { symbol: 'IRFC.NS',       name: 'IRFC',           sector: 'Railways' },
-  { symbol: 'PFC.NS',        name: 'PFC',            sector: 'Finance' },
-  { symbol: 'REC.NS',        name: 'REC',            sector: 'Finance' },
-  { symbol: 'ZOMATO.NS',     name: 'Zomato',         sector: 'Consumer Tech' },
+  { symbol: 'YESBANK.NS',    name: 'Yes Bank',       sector: 'Banking' },
   { symbol: 'TATASTEEL.NS',  name: 'Tata Steel',     sector: 'Metals' },
-  { symbol: 'SAIL.NS',       name: 'SAIL',           sector: 'Metals' },
-  { symbol: 'WIPRO.NS',      name: 'Wipro',          sector: 'IT' },
-  { symbol: 'JIOFIN.NS',     name: 'Jio Financial',  sector: 'Finance' },
-  { symbol: 'SJVN.NS',       name: 'SJVN',           sector: 'Power' },
-  { symbol: 'GMRINFRA.NS',   name: 'GMR Infra',      sector: 'Infrastructure' },
-  { symbol: 'NBCC.NS',       name: 'NBCC',           sector: 'Infrastructure' },
-  { symbol: 'JINDALSTEL.NS', name: 'Jindal Steel',   sector: 'Metals' },
-  { symbol: 'JSWSTEEL.NS',   name: 'JSW Steel',      sector: 'Metals' },
-  { symbol: 'HINDALCO.NS',   name: 'Hindalco',       sector: 'Metals' },
-  { symbol: 'BPCL.NS',       name: 'BPCL',           sector: 'Energy' },
-  { symbol: 'IOC.NS',        name: 'IOC',            sector: 'Energy' },
-  { symbol: 'ONGC.NS',       name: 'ONGC',           sector: 'Energy' },
-  { symbol: 'NTPC.NS',       name: 'NTPC',           sector: 'Power' },
+  { symbol: 'BANKBARODA.NS', name: 'Bank of Baroda', sector: 'Banking' },
+  { symbol: 'TATAPOWER.NS',  name: 'Tata Power',     sector: 'Power' },
+  { symbol: 'SBIN.NS',       name: 'SBI',            sector: 'Banking' },
 ];
 
 export default function HomePanel({ 
@@ -90,7 +55,7 @@ export default function HomePanel({
   const [showEditModal, setShowEditModal] = useState(false);
   const [tempCash, setTempCash] = useState(cash);
   const [tempPortfolio, setTempPortfolio] = useState([]);
-  const [newHoldingSymbol, setNewHoldingSymbol] = useState('HAL.NS');
+  const [newHoldingSymbol, setNewHoldingSymbol] = useState('YESBANK.NS');
   const [newHoldingShares, setNewHoldingShares] = useState('');
   const [newHoldingAvgCost, setNewHoldingAvgCost] = useState('');
 

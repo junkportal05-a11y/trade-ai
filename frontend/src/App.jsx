@@ -11,8 +11,10 @@ import HomePanel from './HomePanel';
 import PredictionsPanel from './PredictionsPanel';
 import JournalPanel from './JournalPanel';
 import SimulatorPanel from './SimulatorPanel';
+import PerformancePanel from './PerformancePanel';
 
 
+const EMPTY_ARRAY = [];
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -45,63 +47,16 @@ const T = {
 
 // ── NSE Watchlist ────────────────────────────────────────────────────────────────
 const DEFAULT_WATCHLIST = [
-  { symbol: 'HAL.NS',        name: 'HAL',            sector: 'Defence' },
-  { symbol: 'BEL.NS',        name: 'BEL',            sector: 'Defence' },
-  { symbol: 'RVNL.NS',       name: 'RVNL',           sector: 'Railways' },
-  { symbol: 'IREDA.NS',      name: 'IREDA',          sector: 'Green Energy' },
-  { symbol: 'HUDCO.NS',      name: 'HUDCO',          sector: 'Finance' },
-  { symbol: 'COALINDIA.NS',  name: 'Coal India',     sector: 'Energy' },
-  { symbol: 'NHPC.NS',       name: 'NHPC',           sector: 'Power' },
-  { symbol: 'ADANIPORTS.NS', name: 'Adani Ports',    sector: 'Infrastructure' },
-  { symbol: 'TATAPOWER.NS',  name: 'Tata Power',     sector: 'Power' },
-  { symbol: 'BHEL.NS',       name: 'BHEL',           sector: 'Capital Goods' },
-  { symbol: 'RELIANCE.NS',   name: 'Reliance',       sector: 'Energy' },
-  { symbol: 'TCS.NS',        name: 'TCS',            sector: 'IT' },
-  { symbol: 'HDFCBANK.NS',   name: 'HDFC Bank',      sector: 'Banking' },
-  { symbol: 'INFY.NS',       name: 'Infosys',        sector: 'IT' },
-  { symbol: 'ICICIBANK.NS',  name: 'ICICI Bank',     sector: 'Banking' },
-  { symbol: 'SBIN.NS',       name: 'SBI',            sector: 'Banking' },
-  { symbol: 'TATAMOTORS.NS', name: 'Tata Motors',    sector: 'Auto' },
-  { symbol: 'BHARTIARTL.NS',name: 'Bharti Airtel',   sector: 'Telecom' },
-  { symbol: 'ITC.NS',        name: 'ITC',            sector: 'FMCG' },
-  { symbol: 'LT.NS',         name: 'L&T',            sector: 'Infrastructure' },
-  { symbol: 'ADANIENT.NS',   name: 'Adani Ent',      sector: 'Conglomerate' },
-  { symbol: 'ADANIPOWER.NS', name: 'Adani Power',    sector: 'Power' },
-  { symbol: 'IRFC.NS',       name: 'IRFC',           sector: 'Railways' },
-  { symbol: 'PFC.NS',        name: 'PFC',            sector: 'Finance' },
-  { symbol: 'REC.NS',        name: 'REC',            sector: 'Finance' },
-  { symbol: 'ZOMATO.NS',     name: 'Zomato',         sector: 'Consumer Tech' },
+  { symbol: 'YESBANK.NS',    name: 'Yes Bank',       sector: 'Banking' },
   { symbol: 'TATASTEEL.NS',  name: 'Tata Steel',     sector: 'Metals' },
-  { symbol: 'SAIL.NS',       name: 'SAIL',           sector: 'Metals' },
-  { symbol: 'WIPRO.NS',      name: 'Wipro',          sector: 'IT' },
-  { symbol: 'JIOFIN.NS',     name: 'Jio Financial',  sector: 'Finance' },
-  { symbol: 'SJVN.NS',       name: 'SJVN',           sector: 'Power' },
-  { symbol: 'GMRINFRA.NS',   name: 'GMR Infra',      sector: 'Infrastructure' },
-  { symbol: 'NBCC.NS',       name: 'NBCC',           sector: 'Infrastructure' },
-  { symbol: 'JINDALSTEL.NS', name: 'Jindal Steel',   sector: 'Metals' },
-  { symbol: 'JSWSTEEL.NS',   name: 'JSW Steel',      sector: 'Metals' },
-  { symbol: 'HINDALCO.NS',   name: 'Hindalco',       sector: 'Metals' },
-  { symbol: 'BPCL.NS',       name: 'BPCL',           sector: 'Energy' },
-  { symbol: 'IOC.NS',        name: 'IOC',            sector: 'Energy' },
-  { symbol: 'ONGC.NS',       name: 'ONGC',           sector: 'Energy' },
-  { symbol: 'NTPC.NS',       name: 'NTPC',           sector: 'Power' },
+  { symbol: 'BANKBARODA.NS', name: 'Bank of Baroda', sector: 'Banking' },
+  { symbol: 'TATAPOWER.NS',  name: 'Tata Power',     sector: 'Power' },
+  { symbol: 'SBIN.NS',       name: 'SBI',            sector: 'Banking' },
 ];
 
 const SEED_PRICES = {
-  'HAL.NS': 4550, 'BEL.NS': 295, 'RVNL.NS': 385,
-  'IREDA.NS': 185, 'HUDCO.NS': 275, 'COALINDIA.NS': 485,
-  'NHPC.NS': 95, 'ADANIPORTS.NS': 1405, 'TATAPOWER.NS': 445,
-  'BHEL.NS': 305,
-  'RELIANCE.NS': 2950, 'TCS.NS': 3850, 'HDFCBANK.NS': 1600,
-  'INFY.NS': 1480, 'ICICIBANK.NS': 1120, 'SBIN.NS': 830,
-  'TATAMOTORS.NS': 970, 'BHARTIARTL.NS': 1380, 'ITC.NS': 430,
-  'LT.NS': 3550, 'ADANIENT.NS': 3200, 'ADANIPOWER.NS': 720,
-  'IRFC.NS': 175, 'PFC.NS': 480, 'REC.NS': 520,
-  'ZOMATO.NS': 190, 'TATASTEEL.NS': 170, 'SAIL.NS': 150,
-  'WIPRO.NS': 460, 'JIOFIN.NS': 350, 'SJVN.NS': 130,
-  'GMRINFRA.NS': 90, 'NBCC.NS': 140, 'JINDALSTEL.NS': 950,
-  'JSWSTEEL.NS': 910, 'HINDALCO.NS': 660, 'BPCL.NS': 610,
-  'IOC.NS': 165, 'ONGC.NS': 260, 'NTPC.NS': 360
+  'YESBANK.NS': 25, 'TATASTEEL.NS': 170, 'BANKBARODA.NS': 280,
+  'TATAPOWER.NS': 445, 'SBIN.NS': 830
 };
 
 const INTERVALS = [
@@ -530,7 +485,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       {/* Main Chart Container */}
       <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
         <div ref={legendRef} style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, fontFamily: "'IBM Plex Mono', monospace", pointerEvents: 'none', background: 'rgba(13,16,24,0.65)', backdropFilter: 'blur(4px)', padding: '8px 12px', borderRadius: 6, display: 'none', border: `1px solid ${T.borderHi}` }} />
-        <div ref={mainContainerRef} style={{ width: '100%', height: '100%' }} />
+        <div ref={mainContainerRef} style={{ position: 'absolute', inset: 0 }} />
       </div>
       
       {/* RSI Container */}
@@ -539,17 +494,17 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
           <div style={{ position: 'absolute', top: 4, left: 12, zIndex: 5, fontSize: 9, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700 }}>
             RSI (14)
           </div>
-          <div ref={rsiContainerRef} style={{ width: '100%', height: '100%' }} />
+          <div ref={rsiContainerRef} style={{ position: 'absolute', inset: 0 }} />
         </div>
       )}
 
       {/* MACD Container */}
       {indicators.macd && (
-        <div style={{ height: 95, borderTop: `1px solid ${T.border}`, position: 'relative', background: T.surface, flexShrink: 0 }}>
+        <div style={{ height: 110, borderTop: `1px solid ${T.border}`, position: 'relative', background: T.surface, flexShrink: 0 }}>
           <div style={{ position: 'absolute', top: 4, left: 12, zIndex: 5, fontSize: 9, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700 }}>
             MACD (12, 26, 9)
           </div>
-          <div ref={macdContainerRef} style={{ width: '100%', height: '100%' }} />
+          <div ref={macdContainerRef} style={{ position: 'absolute', inset: 0 }} />
         </div>
       )}
     </div>
@@ -1161,11 +1116,7 @@ function ChatPanel({ symbol, price, changePct }) {
       setAiSource(data.source);
       setMsgs(m => [...m, { role: 'assistant', text: data.reply || 'No response.' }]);
     } catch {
-      const fallback = [
-        `**AI Assistant** — The backend isn't running or timed out. Start it with \`uvicorn main:app --reload\` to enable real-time mentor features.`,
-        `Risk Management Advice: Always apply the 2% maximum risk rule from your SL Guide. Sizing is key!`,
-      ];
-      setMsgs(m => [...m, { role: 'assistant', text: fallback[Math.floor(Math.random() * fallback.length)] }]);
+      setMsgs(m => [...m, { role: 'assistant', text: "AI Mentor is currently unavailable. Please check backend connection." }]);
     }
     setBusy(false);
   }, [input, busy, symbol, price, changePct]);
@@ -1762,7 +1713,7 @@ export default function App() {
     return 'HOME';
   });   // 'HOME' is default now, but routing-aware
 
-  const [selected, setSelected] = useState('HAL.NS');
+  const [selected, setSelected] = useState('YESBANK.NS');
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
   const [rightTab, setRightTab] = useState('TRADE');
   
@@ -1939,7 +1890,7 @@ export default function App() {
   // Watchlist favorites state
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('apex_favorites');
-    return saved ? JSON.parse(saved) : ['HAL.NS', 'BEL.NS'];
+    return saved ? JSON.parse(saved) : ['YESBANK.NS', 'BEL.NS'];
   });
 
   // AI Analyst embedded card states
@@ -1953,7 +1904,7 @@ export default function App() {
 
   // Signals state (pre-seeded fallback, fresh scan manually triggered in Signals tab)
   const [signals, setSignals] = useState([
-    { symbol: 'HAL.NS', name: 'HAL', signal: 'BUY', confidence: 88, rr_ratio: 2.5, reasoning: 'RSI oversold trigger on daily candle chart. Volume spike supports reversal.' },
+    { symbol: 'YESBANK.NS', name: 'HAL', signal: 'BUY', confidence: 88, rr_ratio: 2.5, reasoning: 'RSI oversold trigger on daily candle chart. Volume spike supports reversal.' },
     { symbol: 'BEL.NS', name: 'BEL', signal: 'BUY', confidence: 75, rr_ratio: 1.8, reasoning: 'Moving average convergence crossover signals strong bullish momentum.' },
     { symbol: 'RVNL.NS', name: 'RVNL', signal: 'BUY', confidence: 82, rr_ratio: 2.1, reasoning: 'Breakout patterns on high volume confirmation.' }
   ]);
@@ -2064,15 +2015,13 @@ export default function App() {
           setAiRecommendation(data.reply);
           aiRecommendationCache.current[selected] = data.reply;
         } else if (active) {
-          const fallbackVal = `RSI and moving averages suggest neutral-to-bullish momentum for ${cleanedSymbol}. Set key support levels at ₹${(livePrice * 0.98).toFixed(1)}.`;
+          const fallbackVal = `AI Recommendation unavailable (Backend Error).`;
           setAiRecommendation(fallbackVal);
           aiRecommendationCache.current[selected] = fallbackVal;
         }
       } catch (err) {
         if (active) {
-          const currentPrices = pricesRef.current || {};
-          const livePrice = currentPrices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
-          const fallbackVal = `Support pivot found around ₹${(livePrice * 0.97).toFixed(1)} with overhead resistance at ₹${(livePrice * 1.03).toFixed(1)}.`;
+          const fallbackVal = `AI Recommendation unavailable (Network Error).`;
           setAiRecommendation(fallbackVal);
           aiRecommendationCache.current[selected] = fallbackVal;
         }
@@ -2190,7 +2139,7 @@ export default function App() {
 
 
   // Execute market/limit orders
-  const handleExecuteOrder = (order) => {
+  const handleExecuteOrder = async (order) => {
     const qty = parseFloat(order.qty);
     if (isNaN(qty) || qty <= 0) {
       alert("Please enter a valid share quantity!");
@@ -2241,6 +2190,25 @@ export default function App() {
         setCash(prev => prev + cost);
         addTradeMarker(order.symbol, 'sell', qty, price);
       }
+
+      // Persist to backend Journal
+      try {
+        await apiFetch('/api/journal', {
+          method: 'POST',
+          body: JSON.stringify({
+            symbol: order.symbol,
+            direction: order.side.toUpperCase(),
+            entry_price: price,
+            qty: qty,
+            reason: 'Manual Paper Trade',
+            status: order.side === 'buy' ? 'OPEN' : 'CLOSED',
+            emotion: 'Calm'
+          })
+        });
+      } catch (e) {
+        console.error("Failed to log paper trade to journal", e);
+      }
+
       return 'filled';
     } else {
       // limit order
@@ -2578,6 +2546,29 @@ export default function App() {
                 </div>
               )}
             </div>
+          ) : view === 'PERFORMANCE' ? (
+            /* PERFORMANCE VIEW — full width */
+            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              <PerformancePanel />
+              {isMobile && (
+                <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                  {TABS.map(tab => (
+                    <button key={tab} onClick={() => setView(tab)} style={{
+                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
+                      background: 'transparent',
+                      color: view === tab ? T.accent : T.textDim,
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                      fontFamily: "'Inter', sans-serif",
+                      transition: 'all 0.2s',
+                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
+                      marginTop: -1
+                    }}>
+                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : view === 'ACCOUNT' ? (
             /* ACCOUNT VIEW — full width */
             <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
@@ -2717,11 +2708,11 @@ export default function App() {
                             range={INTERVALS[ivIdx].range} 
                             indicators={indicators} 
                             livePrice={prices[selected]}
-                            markers={tradeMarkers[selected] || []}
+                            markers={tradeMarkers[selected] || EMPTY_ARRAY}
                             onLastBarUpdate={handleLastBarUpdate}
                             drawMode={drawMode}
                             onDrawComplete={handleDrawComplete}
-                            customLines={chartLines[selected] || []}
+                            customLines={chartLines[selected] || EMPTY_ARRAY}
                           />
                         </div>
                         {/* Embedded AI Analyst Card */}
@@ -2894,7 +2885,7 @@ export default function App() {
                         range={INTERVALS[ivIdx].range} 
                         indicators={indicators} 
                         livePrice={prices[selected]}
-                        markers={tradeMarkers[selected] || []}
+                        markers={tradeMarkers[selected] || EMPTY_ARRAY}
                         onLastBarUpdate={handleLastBarUpdate}
                       />
                     </div>
