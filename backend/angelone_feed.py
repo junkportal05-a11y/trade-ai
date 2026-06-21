@@ -413,9 +413,9 @@ class AngelOneFeed:
             response = self.smart_api.getCandleData(historic_param)
             
             if not response or response.get('status') == False:
-                error_code = response.get('errorcode') if response else ''
-                # AB2000 / AB1010 / AG001 are typical session token / auth error codes
-                if error_code in ('AB2000', 'AB1010', 'AG001') or 'token' in str(response.get('message', '')).lower():
+                error_code = response.get('errorCode') or response.get('errorcode') if response else ''
+                # AB2000 / AB1010 / AG001 / AG8001 are typical session token / auth error codes
+                if error_code in ('AB2000', 'AB1010', 'AG001', 'AG8001') or (response and 'token' in str(response.get('message', '')).lower()):
                     logger.info("Session token expired/invalid. Trying auto-refresh...")
                     if self.refresh_token and self.refresh_session(self.refresh_token):
                         logger.info("Token refreshed successfully. Retrying getCandleData...")
@@ -491,8 +491,8 @@ class AngelOneFeed:
                 response = self.smart_api.getMarketData('FULL', {'NSE': batch_tokens})
                 
                 if not response or response.get('status') == False:
-                    error_code = response.get('errorcode') if response else ''
-                    if error_code in ('AB2000', 'AB1010', 'AG001') or (response and 'token' in str(response.get('message', '')).lower()):
+                    error_code = response.get('errorCode') or response.get('errorcode') if response else ''
+                    if error_code in ('AB2000', 'AB1010', 'AG001', 'AG8001') or (response and 'token' in str(response.get('message', '')).lower()):
                         logger.info("Session token expired/invalid. Trying auto-refresh...")
                         if self.refresh_token and self.refresh_session(self.refresh_token):
                             logger.info("Token refreshed successfully. Retrying getMarketData...")
