@@ -326,7 +326,7 @@ class AngelOneFeed:
         # Dynamic search via SmartAPI if available
         if self.ensure_api_client():
             try:
-                res = self.api.searchScrip("NSE", clean_base)
+                res = self.smart_api.searchScrip(exchange="NSE", searchscrip=clean_base)
                 if res and res.get('status') == True and res.get('data'):
                     for item in res['data']:
                         if item['tradingSymbol'] == clean_base or item['tradingSymbol'] == clean_base + "-EQ":
