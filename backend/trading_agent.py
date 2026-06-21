@@ -84,41 +84,6 @@ async def trading_agent_loop():
                     if len(open_positions) >= MAX_CONCURRENT_TRADES:
                         break
                         
-<<<<<<< HEAD
-                    # Place paper trade
-                    pred_dict = {
-                        "symbol": sig["symbol"],
-                        "prediction_type": sig["signal"],
-                        "target_price": sig["target1"],
-                        "stop_loss": sig["stop"],
-                        "confidence_score": sig["confidence"],
-                        "entry_price": sig["price"],
-                        "rsi": sig.get("rsi", 50),
-                        "macd": sig.get("macd", 0),
-                        "adx": sig.get("adx", 0),
-                        "sector": sig.get("sector", "NSE"),
-                        "market_cap": sig.get("market_cap", 0),
-                        "volume_ratio": sig.get("volume_ratio", 1.0),
-                        "vwap_distance": sig.get("vwap_distance", 0.0),
-                        "risk_amount": sig.get("risk_amount", 0.0),
-                        "position_size": sig.get("position_size", 1)
-                    }
-                    _ = db.add_prediction(pred_dict)
-                    
-                    journal_dict = {
-                        "symbol": sig["symbol"],
-                        "direction": "BUY" if sig["signal"] == "BULLISH" else "SELL",
-                        "entry_price": sig["price"],
-                        "exit_price": 0.0,
-                        "qty": sig.get("position_size", 1),
-                        "entry_date": now_ist.strftime("%Y-%m-%d %H:%M:%S"),
-                        "reason": f"Auto-executed. Target: {sig['target1']}, Stop: {sig['stop']}",
-                        "emotion": "Neutral",
-                        "status": "OPEN",
-                        "pnl": 0.0
-                    }
-                    db.add_journal_entry(journal_dict)
-=======
                     # Wire TradeQualityEngine
                     tqs = TradeQualityEngine.calculate_tqs(
                         confidence_score=sig.get("confidence", 0),
@@ -141,7 +106,7 @@ async def trading_agent_loop():
                     prediction_id = db.add_prediction(_build_prediction_payload(sig))
                     
                     db.add_journal_entry(_build_journal_payload(sig))
->>>>>>> c3fffc7 (feat: complete Phase 1 - Market Regime Classifier and Operational Hygiene)
+                    
                     print(f"[trading_agent] Placed paper trade for {sig['symbol']} at {sig['price']}")
                     open_positions.append({"id": prediction_id, **sig})
                     
