@@ -326,8 +326,18 @@ class AngelOneFeed:
         # Dynamic search via SmartAPI if available
         if self.ensure_api_client():
             try:
-                res = self.smart_api.searchScrip(exchange="NSE", searchscrip=clean_base)
-                if res and res.get('status') == True and res.get('data'):
+                # Bypass the buggy SDK method that throws KeyError on Invalid Token
+                payload = {"exchange": "NSE", "searchscrip": clean_base}
+                res = self.smart_api._postRequest("api.search.scrip", payload)
+                
+                # Handle session expiry gracefully
+                if res and res.get('errorCode') in ('AB2000', 'AB1010', 'AG001', 'AG8001'):
+                    logger.warning(f"Session expired during searchScrip for {symbol}. Invalidating token.")
+                    self.session_token = None
+                    return None
+                
+                # 'status' key exists on success, but not on AG8001 error
+                if res and res.get('status') is True and res.get('data'):
                     for item in res['data']:
                         if item['tradingSymbol'] == clean_base or item['tradingSymbol'] == clean_base + "-EQ":
                             # Cache it so we don't look it up again
