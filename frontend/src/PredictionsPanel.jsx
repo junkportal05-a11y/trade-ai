@@ -32,17 +32,10 @@ const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 const WATCHLIST = [
-  'HAL.NS', 'BEL.NS', 'RVNL.NS', 'IREDA.NS', 'HUDCO.NS',
-  'COALINDIA.NS', 'NHPC.NS', 'ADANIPORTS.NS', 'TATAPOWER.NS', 'BHEL.NS',
-  'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS',
-  'SBIN.NS', 'TATAMOTORS.NS', 'BHARTIARTL.NS', 'ITC.NS', 'LT.NS',
-  'ADANIENT.NS', 'ADANIPOWER.NS', 'IRFC.NS', 'PFC.NS', 'REC.NS',
-  'ZOMATO.NS', 'TATASTEEL.NS', 'SAIL.NS', 'WIPRO.NS', 'JIOFIN.NS',
-  'SJVN.NS', 'GMRINFRA.NS', 'NBCC.NS', 'JINDALSTEL.NS', 'JSWSTEEL.NS',
-  'HINDALCO.NS', 'BPCL.NS', 'IOC.NS', 'ONGC.NS', 'NTPC.NS'
+  'YESBANK.NS', 'TATASTEEL.NS', 'BANKBARODA.NS', 'TATAPOWER.NS', 'SBIN.NS'
 ];
 
-export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS', onSelectSymbol, onViewChange }) {
+export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBANK.NS', onSelectSymbol, onViewChange }) {
   const [predictions, setPredictions] = useState([]);
   const [stats, setStats] = useState({
     total_predictions: 0,
@@ -62,6 +55,8 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
 
   const [filter, setFilter] = useState('ALL'); // 'ALL', 'PENDING', 'RESOLVED'
   const [loading, setLoading] = useState(false);
+  const [globalConfidence, setGlobalConfidence] = useState(null);
+  const [dataConfidence, setDataConfidence] = useState(null);
   const [resolvingId, setResolvingId] = useState(null);
   const [actualOutcomeInput, setActualOutcomeInput] = useState('');
   const [resolutionStatus, setResolutionStatus] = useState('CORRECT'); // 'CORRECT', 'INCORRECT', 'FLAT'
@@ -105,10 +100,28 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
     }
   }, []);
 
+  const fetchDataConfidence = useCallback(async (sym) => {
+    try {
+      const url = sym ? `/api/data/confidence?symbol=${sym}` : `/api/data/confidence`;
+      const res = await apiFetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setDataConfidence(data.confidence_score);
+        setGlobalConfidence(data);
+      }
+    } catch (err) {
+      console.error("Error fetching data confidence:", err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPredictions();
     fetchStats();
   }, [fetchPredictions, fetchStats]);
+
+  useEffect(() => {
+    fetchDataConfidence(symbol);
+  }, [symbol, fetchDataConfidence]);
 
   // Handle selectedSymbol prop change to prefill form
   useEffect(() => {
@@ -304,8 +317,18 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
         </button>
       </div>
 
+      {globalConfidence?.locked && (
+        <div style={{ background: T.redDim, border: `1px solid ${T.red}`, padding: 12, borderRadius: 8, marginTop: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 18 }}>⚠️</span>
+          <div>
+            <div style={{ color: T.red, fontWeight: 700, fontSize: 12, letterSpacing: '0.04em' }}>DATA INTEGRITY COMPROMISED</div>
+            <div style={{ color: T.text, fontSize: 11, opacity: 0.9 }}>Database Data Confidence Score is {globalConfidence.confidence_score.toFixed(1)}% (Below 90% threshold). Analytics have been locked to prevent decision making on corrupted historical data.</div>
+          </div>
+        </div>
+      )}
+
       {/* Metrics Widgets Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, filter: globalConfidence?.locked ? 'blur(4px)' : 'none', pointerEvents: globalConfidence?.locked ? 'none' : 'auto', transition: 'all 0.3s ease' }}>
         
         {/* Metric 1: Win Rate */}
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -405,10 +428,17 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'HAL.NS
       </div>
 
       {/* STRATEGY LEADERBOARD */}
-      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20 }}>
-        <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
-          🏆 SETUP LEADERBOARD (LIVE PERFORMANCE)
-        </h3>
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20, filter: globalConfidence?.locked ? 'blur(4px)' : 'none', pointerEvents: globalConfidence?.locked ? 'none' : 'auto', transition: 'all 0.3s ease' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', margin: 0 }}>
+            🏆 SETUP LEADERBOARD (LIVE PERFORMANCE)
+          </h3>
+          {dataConfidence !== null && (
+            <div style={{ background: T.panel, padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.borderHi}`, fontSize: 11, ...mono, color: dataConfidence >= 72 ? T.green : T.red }}>
+              Data Confidence ({symbol}): {dataConfidence.toFixed(1)}%
+            </div>
+          )}
+        </div>
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: '700px' }}>
             {/* Header */}

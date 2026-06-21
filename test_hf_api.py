@@ -5,7 +5,8 @@ import time
 url = "https://apextrade-core-trade-ai-backend.hf.space/api/login"
 data = {
     "username": "apex_head_quant",
-    "password": "Ap3xTr@de#Secur1ty!2026"
+    "password": os.getenv("ADMIN_PASSWORD") or "",
+
 }
 req = urllib.request.Request(
     url, 

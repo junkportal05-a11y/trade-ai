@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import logging
 from pathlib import Path
-from datetime import datetime
 from unittest import mock
 import asyncio
 from tqdm import tqdm
@@ -78,24 +77,24 @@ class HistoricalSimulator:
 
     def _resolve_trade(self, df_forward: pd.DataFrame, entry_price: float, target: float, stop_loss: float, is_long: bool):
         """Auto-resolver logic for generated signals."""
+        from backtest_engine import resolve_candle_pessimistic
         for idx, row in df_forward.iterrows():
-            high = row['High']
-            low = row['Low']
             close = row['Close']
 
-            if is_long:
-                target_hit = high >= target
-                stop_hit = low <= stop_loss
-            else:
-                target_hit = low <= target
-                stop_hit = high >= stop_loss
-
-            if target_hit and stop_hit:
-                return 'LOSS', stop_loss, idx
-            elif stop_hit:
-                return 'LOSS', stop_loss, idx
-            elif target_hit:
-                return 'WIN', target, idx
+            c_dict = {
+                "high": float(row["High"]),
+                "low": float(row["Low"]),
+                "open": float(row.get("Open", row["Close"])),
+                "close": float(close)
+            }
+            direction = "BUY" if is_long else "SELL"
+            
+            res_status, res_price = resolve_candle_pessimistic(c_dict, entry_price, target, stop_loss, direction)
+            
+            if res_status == "LOSS":
+                return 'LOSS', res_price, idx
+            elif res_status == "WIN":
+                return 'WIN', res_price, idx
                     
             # Timeout if it's the last tick of the day
             if idx == df_forward.index[-1]:

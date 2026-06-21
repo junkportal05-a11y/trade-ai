@@ -6,7 +6,7 @@ Run with: uvicorn main:app --reload --port 8000
 import os
 import time
 import json
-import random
+
 import asyncio
 import functools
 from concurrent.futures import ThreadPoolExecutor
@@ -26,7 +26,6 @@ from fastapi import (
     BackgroundTasks,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -249,10 +248,16 @@ def angelone_login(creds: AngelOneCredentials, _=Depends(require_session)):
 @app.get("/api/angelone/status")
 def angelone_status():
     feed = get_angelone_feed()
-    connected = feed.is_authorized()
+    connected = feed.is_authorized(force_check=True)
+    import db
+    saved = db.get_angelone_session() or {}
     status_data = {
         "connected": connected,
-        "client_code": feed.client_code
+        "client_code": feed.client_code or saved.get("client_code", ""),
+        "saved_api_key": saved.get("api_key", ""),
+        "saved_client_code": saved.get("client_code", ""),
+        "saved_pin": saved.get("pin", ""),
+        "saved_totp_secret": saved.get("totp_secret", "")
     }
     return status_data
 
@@ -760,16 +765,11 @@ def is_nse_market_open() -> bool:
 
 # Fallback seed prices for Indian stocks if provider feed fails
 SEED_PRICES = {
-    "HAL.NS": 4550.0,
-    "BEL.NS": 295.0,
-    "RVNL.NS": 385.0,
-    "IREDA.NS": 185.0,
-    "HUDCO.NS": 275.0,
-    "COALINDIA.NS": 485.0,
-    "NHPC.NS": 95.0,
-    "ADANIPORTS.NS": 1405.0,
+    "YESBANK.NS": 25.0,
+    "TATASTEEL.NS": 170.0,
+    "BANKBARODA.NS": 280.0,
     "TATAPOWER.NS": 445.0,
-    "BHEL.NS": 305.0,
+    "SBIN.NS": 830.0
 }
 
 # Live prices cache seeded initially with baseline seed prices
@@ -990,20 +990,12 @@ async def prediction_resolver_worker():
                 if quotes:
                     for pred in pending:
                         symbol = pred["symbol"]
-                        live = quotes.get(symbol)
-                        if not live:
-                            continue
-                            
-                        price = live["price"]
                         is_bullish = pred["prediction_type"].upper() == "BULLISH"
                         target = pred["target_price"]
                         stop = pred["stop_loss"]
                         entry = pred["entry_price"]
-                        
-                        hit_target = (is_bullish and price >= target) or (not is_bullish and price <= target)
-                        hit_stop = (is_bullish and price <= stop) or (not is_bullish and price >= stop)
-                        
                         pred_date_str = pred["prediction_date"]
+                        
                         expired = False
                         holding_time_minutes = 0.0
                         try:
@@ -1018,18 +1010,73 @@ async def prediction_resolver_worker():
                             if delta > timedelta(hours=24):
                                 expired = True
                         except Exception:
-                            pass
+                            continue
                             
-                        if hit_target or hit_stop or expired:
-                            resolution_reason = "EXPIRED"
-                            if hit_target:
-                                resolution_reason = "TARGET_HIT"
-                                status = "WIN"
-                            elif hit_stop:
-                                resolution_reason = "STOP_HIT"
-                                status = "LOSS"
+                        # DEEP PESSIMISTIC RESOLVER: Fetch 1m candles to catch intra-candle swings
+                        from signals import download_market_data_df
+                        import pandas as pd
+                        df = await loop.run_in_executor(None, download_market_data_df, symbol, "1d", "1m")
+                        
+                        hit_target = False
+                        hit_stop = False
+                        resolution_price = entry
+                        
+                        if df is not None and not df.empty:
+                            if df.index.tz is None:
+                                df.index = df.index.tz_localize("Asia/Kolkata")
+                            df_post = df[df.index > pred_time]
+                            
+                            for idx, row in df_post.iterrows():
+                                from backtest_engine import resolve_candle_pessimistic
+                                
+                                c_dict = {
+                                    "high": float(row["High"]),
+                                    "low": float(row["Low"]),
+                                    "open": float(row.get("Open", row["Close"])),
+                                    "close": float(row["Close"])
+                                }
+                                direction = "BUY" if is_bullish else "SELL"
+                                
+                                res_status, res_price = resolve_candle_pessimistic(c_dict, entry, target, stop, direction)
+                                
+                                if res_status == "LOSS":
+                                    hit_stop = True
+                                    resolution_price = res_price
+                                    break
+                                elif res_status == "WIN":
+                                    hit_target = True
+                                    resolution_price = res_price
+                                    break
+                                    
+                        # Fallback to live quote if historical candles haven't resolved it yet
+                        live = quotes.get(symbol)
+                        if not hit_target and not hit_stop and live:
+                            price = live["price"]
+                            if is_bullish:
+                                if price >= target: hit_target = True; resolution_price = price
+                                if price <= stop: hit_stop = True; resolution_price = price
                             else:
-                                status = "TIMEOUT"
+                                if price <= target: hit_target = True; resolution_price = price
+                                if price >= stop: hit_stop = True; resolution_price = price
+                                
+                            if hit_target and hit_stop:
+                                hit_target = False
+                                hit_stop = True
+                                resolution_price = stop
+                                
+                        if not hit_target and not hit_stop and not expired:
+                            continue # Still pending
+                            
+                        price = resolution_price
+                        resolution_reason = "EXPIRED"
+                        if hit_target:
+                            resolution_reason = "TARGET_HIT"
+                            status = "WIN"
+                        elif hit_stop:
+                            resolution_reason = "STOP_HIT"
+                            status = "LOSS"
+                        else:
+                            status = "TIMEOUT"
                                 
                             # Calculate PnL
                             pnl_pct = 0.0
@@ -1077,6 +1124,12 @@ async def prediction_resolver_worker():
                                 new_peak = max(peak, new_eq)
                                 drawdown = round(((new_peak - new_eq) / new_peak) * 100, 2) if new_peak > 0 else 0.0
                                 db.add_equity_curve(pred["id"], eq_after, new_eq, new_peak, drawdown)
+                                
+                            try:
+                                from data_validator import calculate_data_confidence
+                                calculate_data_confidence(limit=100, persist=True)
+                            except Exception as score_err:
+                                print(f"[prediction_resolver_worker] Data confidence update error: {score_err}")
                                 
         except Exception as e:
             print(f"[prediction_resolver_worker] error: {e}")
@@ -1215,7 +1268,7 @@ async def signal_scanner_worker():
 
             valid_signals = []
             for sig in results:
-                if sig.get("signal") in ("BUY", "SELL") and sig.get("confidence", 0) >= 60:
+                if sig.get("signal") in ("BUY", "SELL") and sig.get("confidence", 0) >= 72:
                     sig["direction"]  = sig["signal"]
                     sig["entry"]      = sig.get("price", sig.get("entry", 0))
                     sig["scan_type"]  = scan_type
@@ -1303,9 +1356,50 @@ async def startup_event():
     asyncio.create_task(fetch_live_quotes_loop())
     asyncio.create_task(signal_scanner_worker())
     asyncio.create_task(prediction_resolver_worker())
+    
+    # Start Trading Agent loop
+    try:
+        from trading_agent import trading_agent_loop
+        asyncio.create_task(trading_agent_loop())
+    except Exception as e:
+        print(f"[main] Failed to start trading agent loop: {e}")
+
     asyncio.create_task(metrics_worker())
     asyncio.create_task(cleanup_sessions_loop())
     asyncio.create_task(governance_worker.governance_loop())
+
+
+@app.get("/api/data/confidence")
+async def get_data_confidence(
+    symbol: Optional[str] = Query(None, description="Optional stock symbol for feed confidence")
+):
+    """
+    Returns the database-wide resolved-trade Data Confidence Score.
+    If symbol is supplied, also includes recent candle-feed confidence for compatibility.
+    """
+    try:
+        from data_validator import calculate_confidence, calculate_data_confidence
+
+        result = calculate_data_confidence(limit=100, persist=True)
+        result["status"] = "locked" if result["locked"] else "ok"
+
+        if symbol:
+            from signals import download_market_data_df
+
+            df = download_market_data_df(symbol, "1d", "5m")
+            feed_score = calculate_confidence(df, "5m") if df is not None and not df.empty else 0.0
+            result["symbol"] = symbol
+            result["feed_confidence_score"] = round(feed_score, 1)
+
+        return result
+    except Exception as e:
+        return {
+            "symbol": symbol,
+            "confidence_score": 0.0,
+            "locked": True,
+            "status": "error",
+            "message": str(e),
+        }
 
 
 @app.get("/api/prices")
@@ -1327,7 +1421,7 @@ async def get_live_prices(request: Request, _=Depends(require_session)):
                 "timestamp": info.get("timestamp", int(time.time() * 1000)),
             }
             for sym, info in LIVE_PRICES_CACHE.items()
-            if "." in sym  # Only return full symbol keys like HAL.NS, not clean keys
+            if "." in sym  # Only return full symbol keys like YESBANK.NS, not clean keys
         ],
         "market_status": "OPEN" if is_nse_market_open() else "CLOSED",
     }
@@ -1335,7 +1429,7 @@ async def get_live_prices(request: Request, _=Depends(require_session)):
 @app.websocket("/ws/prices")
 async def websocket_prices(
     websocket: WebSocket,
-    symbols: str = "HAL.NS,BEL.NS,RVNL.NS,IREDA.NS,HUDCO.NS,COALINDIA.NS,NHPC.NS,ADANIPORTS.NS,TATAPOWER.NS,BHEL.NS",
+    symbols: str = "YESBANK.NS,TATASTEEL.NS,BANKBARODA.NS,TATAPOWER.NS,SBIN.NS",
 ):
     await websocket.accept()
 
@@ -1402,19 +1496,13 @@ async def websocket_prices(
             for sym in watch:
                 cached = LIVE_PRICES_CACHE.get(sym)
                 if cached:
-                    baseline_price = cached["price"]
+                    price = cached["price"]
                     local_prev_closes[sym] = cached["prev_close"]
                 else:
-                    baseline_price = local_prices.get(sym, SEED_PRICES.get(sym, 150.0))
+                    # If no live cache, fallback to 150.0 to avoid crash, but DO NOT simulate random ticks
+                    price = local_prices.get(sym, SEED_PRICES.get(sym, 150.0))
 
-                if market_open and not use_angelone:
-                    # Stream simulated tick fluctuations around the live baseline price (fallback only)
-                    price = _simulate_tick(baseline_price)
-                    local_prices[sym] = price
-                else:
-                    # Gating: Closed market or AngelOne authorized (use true live tick prices)
-                    price = baseline_price
-                    local_prices[sym] = price
+                local_prices[sym] = price
 
                 ticks.append(
                     {
@@ -1443,14 +1531,7 @@ async def websocket_prices(
             active_connections.remove(websocket)
 
 
-def _simulate_tick(last_price: float) -> float:
-    """
-    Micro random-walk tick. Replace the body of this function with a real
-    feed (Alpaca stream, Polygon WebSocket, etc.) and this endpoint needs
-    zero other changes.
-    """
-    change_pct = random.gauss(0, 0.0008)  # ~0.08% std dev per tick
-    return max(0.01, last_price * (1 + change_pct))
+
 
 
 # Backtest endpoints are now served via backtest_routes.py (app.include_router)
@@ -1581,13 +1662,10 @@ async def allocate_capital_quick(
         if req.market_segment == "BSE" and not sym.endswith(".BO"):
             continue
         elif req.market_segment == "F&O" and sym not in [
-            "HAL.NS",
-            "BEL.NS",
-            "RVNL.NS",
-            "COALINDIA.NS",
-            "ADANIPORTS.NS",
+            "TATASTEEL.NS",
+            "BANKBARODA.NS",
             "TATAPOWER.NS",
-            "BHEL.NS",
+            "SBIN.NS",
         ]:
             continue
 
@@ -1607,7 +1685,7 @@ async def allocate_capital_quick(
                 "target1": round(price * 1.025, 2),
                 "target2": round(price * 1.045, 2),
                 "stop_loss": round(price * 0.985, 2),
-                "confidence": 60,
+                "confidence": 72,
                 "atr": round(price * 0.012, 2),
                 "rr_ratio": 1.67,
                 "rsi": 50,
