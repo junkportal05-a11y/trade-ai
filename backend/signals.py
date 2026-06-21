@@ -1445,27 +1445,21 @@ def run_scan(
     # buys = [s for s in first_pass_results if s.get("score", 0) > 0]
     # sentiment_pct = int(len(buys) / len(first_pass_results) * 100) if first_pass_results else 50
 
-    # 2. Market Regime Detection
+    # 2. Market Regime Detection (Phase 1)
+    from quant.market_regime import MarketRegimeClassifier
+    
+    try:
+        classifier = MarketRegimeClassifier()
+        classifier.load_data()
+        regime_result = classifier.classify_regime()
+        market_regime = regime_result["regime"]
+    except Exception as e:
+        print(f"[signals] MarketRegimeClassifier failed: {e}. Falling back to UNCLEAR.")
+        market_regime = "UNCLEAR"
+
+    # Maintain some simple breadth stats for logging/display
     stocks_above_ema21 = sum(1 for s in first_pass_results if s.get("price", 0) > s.get("ema21", 0))
     pct_above_ema21 = (stocks_above_ema21 / len(first_pass_results)) * 100 if first_pass_results else 50.0
-    
-    avg_atr_pct = sum((s.get("atr", 0) / s.get("price", 1) * 100) for s in first_pass_results) / len(first_pass_results) if first_pass_results else 1.0
-
-    if pct_above_ema21 > 60 and avg_atr_pct < 1.5:
-        market_regime = "LOW_VOLATILITY_BREAKOUT"
-    elif pct_above_ema21 > 70 and avg_atr_pct >= 1.5:
-        market_regime = "HIGH_MOMENTUM"
-    elif pct_above_ema21 > 50 and avg_atr_pct < 2.0:
-        market_regime = "TRENDING_BULLISH"
-    elif pct_above_ema21 < 30 and avg_atr_pct < 2.0:
-        market_regime = "TRENDING_BEARISH"
-    elif avg_atr_pct >= 2.5 and pct_above_ema21 < 30:
-        market_regime = "PANIC"
-    elif avg_atr_pct >= 2.0:
-        market_regime = "VOLATILE"
-    else:
-        market_regime = "RANGING"
-        
     nifty_trend_bias = "BULLISH" if pct_above_ema21 > 50 else "BEARISH"
 
     # 3. Nifty/Market Change Proxy
