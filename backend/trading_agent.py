@@ -74,6 +74,15 @@ async def trading_agent_loop():
             current_bucket = minutes_since_midnight // 30
             if last_scan_bucket is None or current_bucket > last_scan_bucket:
                 last_scan_bucket = current_bucket
+                
+                # Check Correlation Matrix freshness
+                if correlation_engine.last_built_date:
+                    days_old = (now_ist.date() - correlation_engine.last_built_date).days
+                    if days_old > 14:
+                        print(f"[WARNING] Correlation matrix is {days_old} days old. It should be rebuilt weekly.")
+                else:
+                    print(f"[WARNING] Correlation matrix has no built date.")
+                    
                 print(f"[trading_agent] Running 30-min scan. Current time: {now_ist.strftime('%H:%M')}")
                 results = signals.run_scan(symbols=signals.NSE_WATCHLIST)
                 

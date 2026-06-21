@@ -322,8 +322,28 @@ class AngelOneFeed:
         clean_base = symbol.replace("-EQ", "").replace(".NS", "").upper()
         if clean_base in self.instruments:
              return self.instruments[clean_base]['token']
+             
+        # Dynamic search via SmartAPI if available
+        if self.ensure_api_client():
+            try:
+                res = self.api.searchScrip("NSE", clean_base)
+                if res and res.get('status') == True and res.get('data'):
+                    for item in res['data']:
+                        if item['tradingSymbol'] == clean_base or item['tradingSymbol'] == clean_base + "-EQ":
+                            # Cache it so we don't look it up again
+                            self.instruments[clean_base] = {
+                                'token': item['symbolToken'],
+                                'symbol': item['tradingSymbol'],
+                                'name': item.get('companyName', clean_base),
+                                'lotsize': item.get('lotSize', '1'),
+                                'tick_size': item.get('tickSize', '0.05')
+                            }
+                            logger.info(f"Dynamically discovered and cached token {item['symbolToken']} for {clean_base}")
+                            return item['symbolToken']
+            except Exception as e:
+                logger.error(f"searchScrip dynamic lookup failed for {symbol}: {e}")
         
-        logger.warning(f"Symbol {symbol} not found in instrument master")
+        logger.warning(f"Symbol {symbol} not found in instrument master or dynamic lookup")
         return None
     
     # ==========================================
