@@ -96,8 +96,11 @@ def authenticate_user(username: str, password: str) -> bool:
 def authenticate_by_code(code: str):
     for username, user_obj in USER_REGISTRY.items():
         try:
-            if bcrypt.hashpw(code.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")) == user_obj["pass_hash"].encode("utf-8") or \
-               bcrypt.checkpw(code.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")):
+            # SECURITY: Use only bcrypt.checkpw (constant-time comparison).
+            # The old code had a broken `==` comparison that was both a
+            # timing-attack vector AND functionally dead (hashpw generates
+            # a new salt each call, so == would never match).
+            if bcrypt.checkpw(code.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")):
                 return username, user_obj
         except (ValueError, TypeError):
             pass

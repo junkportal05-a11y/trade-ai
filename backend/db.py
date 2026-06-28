@@ -7,8 +7,58 @@ Supports local SQLite fallback and remote PostgreSQL / Supabase in production.
 import sqlite3
 import os
 import json
+import base64
 from datetime import datetime, timezone, timedelta
 from typing import Optional
+
+try:
+    from cryptography.fernet import Fernet
+except ImportError:
+    Fernet = None
+
+# ── Fernet encryption for broker credentials ─────────────────────────────────
+_fernet = None
+
+def _get_fernet():
+    global _fernet
+    if _fernet is not None:
+        return _fernet
+    if Fernet is None:
+        print("\n[SECURITY WARNING] cryptography library not installed. AngelOne credentials will be stored in PLAINTEXT.")
+        return None
+    raw_key = os.environ.get("JWT_SECRET", "")
+    if not raw_key:
+        print("\n[SECURITY WARNING] JWT_SECRET not set in environment. AngelOne credentials will be stored in PLAINTEXT.")
+        return None
+    # Derive 32-byte URL-safe base64 key from JWT_SECRET
+    key_bytes = raw_key.encode("utf-8")
+    # Pad or truncate to 32 bytes, then base64-encode
+    padded = key_bytes[:32].ljust(32, b"0")
+    b64_key = base64.urlsafe_b64encode(padded)
+    _fernet = Fernet(b64_key)
+    return _fernet
+
+
+def _encrypt_field(value: str | None) -> str | None:
+    f = _get_fernet()
+    if f is None:
+        if value is not None:
+            print("[SECURITY WARNING] _encrypt_field: Fernet unavailable. Saving credential in PLAINTEXT.")
+        return value
+    if value is None:
+        return None
+    return f.encrypt(value.encode("utf-8")).decode("utf-8")
+
+
+def _decrypt_field(value: str | None) -> str | None:
+    f = _get_fernet()
+    if f is None or value is None:
+        return value
+    try:
+        return f.decrypt(value.encode("utf-8")).decode("utf-8")
+    except Exception:
+        # If decryption fails, return as-is (backward compat for old plaintext)
+        return value
 
 try:
     from dotenv import load_dotenv
@@ -464,7 +514,6 @@ def init_db():
             ("regime_score", "REAL"),
             ("sector_score", "REAL"),
             ("volume_score", "REAL"),
-            ("news_score", "REAL"),
             ("rs_score", "REAL"),
             ("trade_quality_score", "REAL"),
             ("correlation_score", "REAL"),
@@ -475,10 +524,22 @@ def init_db():
             ("slippage_pct", "REAL"),
             ("broker_failure_reason", "TEXT"),
         ]
+        # Safe DDL: only allow specific column types from hardcoded list
+        _SAFE_SQL_TYPES = {"TEXT", "REAL", "INTEGER", "BOOLEAN"}
         for col_name, col_type in pred_migrations:
             if col_name not in pred_columns:
                 try:
-                    c.execute(f"ALTER TABLE predictions_history ADD COLUMN {col_name} {col_type}")
+                    # Verify against allowlist to prevent SQL injection
+                    if col_type.upper() not in _SAFE_SQL_TYPES:
+                        print(f"[MIGRATION] Skipping unsafe column type: {col_type}")
+                        continue
+                    # Sanitize column name: only alphanumeric + underscore
+                    if not col_name.replace("_", "").isalnum():
+                        print(f"[MIGRATION] Skipping unsafe column name: {col_name}")
+                        continue
+                    c.execute(
+                        f'ALTER TABLE "predictions_history" ADD COLUMN "{col_name}" {col_type}'
+                    )
                     c.commit()
                 except Exception:
                     if IS_POSTGRES:
@@ -1167,6 +1228,13 @@ def _calc_pnl(signal_type: str, entry: float, exit_price: float) -> float:
 
 
 def save_angelone_session(session_data: dict):
+    """Save AngelOne session with encrypted sensitive credentials."""
+    # Encrypt sensitive fields before JSON serialization
+    encrypted = dict(session_data)
+    for field in ("api_key", "pin", "totp_secret"):
+        if field in encrypted and encrypted[field]:
+            encrypted[field] = _encrypt_field(str(encrypted[field]))
+
     with _conn() as c:
         c.execute("""
             CREATE TABLE IF NOT EXISTS app_settings (
@@ -1182,7 +1250,7 @@ def save_angelone_session(session_data: dict):
         """,
             (
                 "angelone_session",
-                json.dumps(session_data),
+                json.dumps(encrypted),
                 _now_ist(),
             ),
         )
@@ -1199,7 +1267,12 @@ def get_angelone_session() -> Optional[dict]:
                 "SELECT value FROM app_settings WHERE key='angelone_session'"
             ).fetchone()
             if row:
-                return json.loads(row["value"])
+                data = json.loads(row["value"])
+                # Decrypt sensitive fields
+                for field in ("api_key", "pin", "totp_secret"):
+                    if field in data and data[field]:
+                        data[field] = _decrypt_field(data[field])
+                return data
     except Exception as e:
         import traceback
         print("Error in get_angelone_session:", e)

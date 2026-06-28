@@ -254,10 +254,9 @@ def angelone_status():
     status_data = {
         "connected": connected,
         "client_code": feed.client_code or saved.get("client_code", ""),
-        "saved_api_key": saved.get("api_key", ""),
-        "saved_client_code": saved.get("client_code", ""),
-        "saved_pin": saved.get("pin", ""),
-        "saved_totp_secret": saved.get("totp_secret", "")
+        # SECURITY: Never return sensitive credentials (api_key, pin, totp_secret)
+        # in the API response. They are encrypted at rest and only decrypted
+        # internally when the broker feed needs them.
     }
     return status_data
 

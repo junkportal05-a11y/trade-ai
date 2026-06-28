@@ -1,23 +1,65 @@
-# Frontend
+# ── Frontend ────────────────────────────────────────────────────
 node_modules/
 dist/
 .env
+.env.local
+.env.*.local
 .DS_Store
+*.log
 
-# Backend
+# ── Backend ─────────────────────────────────────────────────────
 .venv/
 __pycache__/
 *.pyc
 *.pyo
+*.egg-info/
+.pytest_cache/
 .env
 backend/.env
+backend/.env.*
 *.db
 backend/trading_platform.db
+backend/logs/
+backend/node_modules/
+backend/upstox_instruments.json
+
+# ── Python ──────────────────────────────────────────────────────
+*.so
+*.egg
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── IDE / Editor ────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ────────────────────────────────────────────────────────────
+Thumbs.db
+.DS_Store
+
+# ── App generated ────────────────────────────────────────────────
 changes.txt
 apex_codebase.txt
 .vercel
 
-# Agent Skills & Cache
+# ── Agent / System ──────────────────────────────────────────────
 .agents/
 .system_generated/
-backend/upstox_instruments.json
