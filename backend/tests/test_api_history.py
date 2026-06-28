@@ -5,7 +5,20 @@ from backend.main import app
 
 client = TestClient(app)
 
-def test_get_history_valid():
+@patch('signals.download_market_data_df')
+def test_get_history_valid(mock_download):
+    dates = pd.date_range("2023-01-01", periods=2, freq="D")
+    df = pd.DataFrame(
+        {
+            "Open": [100.0, 101.0],
+            "High": [105.0, 106.0],
+            "Low": [95.0, 96.0],
+            "Close": [102.0, 103.0],
+            "Volume": [1000, 1500]
+        },
+        index=dates
+    )
+    mock_download.return_value = df
     response = client.get("/api/history?symbol=RELIANCE&interval=1d&range=1mo")
     assert response.status_code == 200
 

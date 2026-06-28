@@ -108,7 +108,7 @@ def authenticate_by_code(code: str):
 
 
 def require_admin(x_admin_key: str = Header(None)):
-    if x_admin_key != ADMIN_KEY:
+    if not x_admin_key or not secrets.compare_digest(x_admin_key, ADMIN_KEY):
         raise HTTPException(status_code=403, detail="Admin access required")
 
 
