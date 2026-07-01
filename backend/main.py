@@ -41,6 +41,12 @@ from historical_simulator import run_simulation_task, simulation_status
 
 load_dotenv(override=True)
 
+from cryptography.fernet import Fernet
+FERNET_KEY = os.getenv("FERNET_KEY")
+if not FERNET_KEY:
+    raise RuntimeError("FERNET_KEY not set in .env — refusing to start")
+fernet = Fernet(FERNET_KEY.encode())
+
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -73,8 +79,6 @@ app.add_middleware(
 from auth_helpers import (
     require_session,
     create_session,
-    ACTIVE_SESSIONS,
-    SESSION_TTL,
     authenticate_user,
 )
 
@@ -92,6 +96,30 @@ except ImportError:
 
 app.include_router(backtest_router)
 
+from backtest_engine import run_historical_backtest, BacktestConfig
+
+class BacktestRequest(BaseModel):
+    symbol: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+@app.post("/api/backtest/run")
+def run_backtest(payload: BacktestRequest, _=Depends(require_session)):
+    import datetime
+    period_range = "6mo"
+    if payload.start_date and payload.end_date:
+        try:
+            start = datetime.datetime.strptime(payload.start_date, "%Y-%m-%d")
+            end = datetime.datetime.strptime(payload.end_date, "%Y-%m-%d")
+            days = (end - start).days
+            if days > 0:
+                period_range = f"{days}d"
+        except:
+            pass
+            
+    config = BacktestConfig(period_range=period_range)
+    res = run_historical_backtest(payload.symbol, config)
+    return res
 
 # ── Active WebSocket connections ───────────────────────────────────────────────
 active_connections: list[WebSocket] = []
@@ -229,14 +257,14 @@ def angelone_login(creds: AngelOneCredentials, _=Depends(require_session)):
     if result["status"] == "success":
         import db
         db.save_angelone_session({
-            "api_key": creds.api_key,
-            "client_code": creds.client_code,
-            "pin": creds.pin,
-            "totp_secret": creds.totp_secret,
+            "api_key":       fernet.encrypt(creds.api_key.encode()).decode(),
+            "client_code":   creds.client_code,
+            "pin":           fernet.encrypt(creds.pin.encode()).decode(),
+            "totp_secret":   fernet.encrypt(creds.totp_secret.encode()).decode(),
             "session_token": result["session_token"],
             "refresh_token": result["refresh_token"],
-            "feed_token": result["feed_token"],
-            "updated_at": datetime.now(timezone.utc).isoformat()
+            "feed_token":    result["feed_token"],
+            "updated_at":    datetime.now(timezone.utc).isoformat()
         })
         return {
             "status": "success",
@@ -246,7 +274,7 @@ def angelone_login(creds: AngelOneCredentials, _=Depends(require_session)):
         raise HTTPException(status_code=400, detail=result.get("message", "Login failed"))
 
 @app.get("/api/angelone/status")
-def angelone_status():
+def angelone_status(_=Depends(require_session)):
     feed = get_angelone_feed()
     connected = feed.is_authorized(force_check=True)
     import db
@@ -254,9 +282,9 @@ def angelone_status():
     status_data = {
         "connected": connected,
         "client_code": feed.client_code or saved.get("client_code", ""),
-        # SECURITY: Never return sensitive credentials (api_key, pin, totp_secret)
-        # in the API response. They are encrypted at rest and only decrypted
-        # internally when the broker feed needs them.
+        "saved_api_key": saved.get("api_key", ""),
+        "saved_client_code": saved.get("client_code", ""),
+        "credentials_saved": bool(saved.get("pin"))
     }
     return status_data
 
@@ -1435,7 +1463,9 @@ async def websocket_prices(
     # Validate session token via cookie
     token = websocket.cookies.get("apt_token")
     if token and token.startswith("apt_"):
-        if token not in ACTIVE_SESSIONS:
+        with db._conn() as c:
+            row = c.execute("SELECT * FROM sessions WHERE token=?", (token,)).fetchone()
+        if not row:
             import logging
             logging.warning(
                 "[WS] Token not found in active sessions (may be stale after restart)"

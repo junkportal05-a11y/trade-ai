@@ -170,7 +170,7 @@ class DBConnection:
                 stripped_upper.startswith("INSERT INTO")
                 and "RETURNING" not in stripped_upper
             ):
-                if "APP_SETTINGS" not in stripped_upper and "METRICS_CACHE" not in stripped_upper:
+                if "APP_SETTINGS" not in stripped_upper and "METRICS_CACHE" not in stripped_upper and "SESSIONS" not in stripped_upper:
                     query += " RETURNING id"
 
         # Execute query
@@ -269,6 +269,22 @@ def _conn():
 
 def init_db():
     with _conn() as c:
+        if IS_POSTGRES:
+            c.execute("""
+                CREATE TABLE IF NOT EXISTS sessions (
+                    token TEXT PRIMARY KEY,
+                    username TEXT,
+                    created_at DOUBLE PRECISION
+                )
+            """)
+        else:
+            c.execute("""
+                CREATE TABLE IF NOT EXISTS sessions (
+                    token TEXT PRIMARY KEY,
+                    username TEXT,
+                    created_at REAL
+                )
+            """)
         c.execute("""
             CREATE TABLE IF NOT EXISTS signals_history (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,

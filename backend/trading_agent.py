@@ -7,6 +7,7 @@ from quant.weekly_jobs import run_weekly_maintenance
 from quant.market_regime import MarketRegimeClassifier
 from angelone_feed import get_angelone_feed
 from trade_quality import TradeQualityEngine
+from ai_executive_committee import AIExecutiveCommittee
 
 MAX_CONCURRENT_TRADES = 2
 MIN_AGENT_CONFIDENCE = 72
@@ -21,6 +22,7 @@ async def trading_agent_loop():
     print("[trading_agent] Autonomous agent loop started.")
     
     correlation_engine = CorrelationEngine()
+    ai_exec = AIExecutiveCommittee()
     last_scan_bucket = None
     
     while True:
@@ -104,6 +106,15 @@ async def trading_agent_loop():
                     
                     if tqs["classification"] not in ("INTRADAY_CANDIDATE", "ELITE_CANDIDATE"):
                         continue
+                        
+                    # Wire AI Executive Committee (TradingAgents LLM Debate)
+                    ai_decision = ai_exec.evaluate_trade(sig["symbol"], sig)
+                    if not ai_decision.get("approved", False):
+                        print(f"[trading_agent] AI Executive Committee rejected trade for {sig['symbol']}: {ai_decision.get('reasoning')}")
+                        continue
+                        
+                    # Append LLM reasoning to the signal for database storage
+                    sig["reasoning"] = f"Quant: {sig.get('reasoning', '')} | AI Exec: {ai_decision.get('reasoning')}"
                         
                     # Wire CorrelationEngine
                     open_symbols = [p["symbol"] for p in open_positions]

@@ -41,10 +41,10 @@ export default function BrokerSettings({ apiFetch }) {
         // SECURITY: Backend no longer returns sensitive credentials (api_key, pin, totp_secret).
         // We only pre-fill the client_code (non-sensitive). The user must re-enter
         // credentials on each fresh login for security.
-        if (data && data.saved_client_code) {
+        if (data && data.client_code) {
           setCredentials(prev => ({
             ...prev,
-            client_code: data.saved_client_code || prev.client_code
+            client_code: data.client_code || prev.client_code
           }));
         }
       } else {
