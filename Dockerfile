@@ -10,4 +10,5 @@ COPY . /app
 
 # HuggingFace Spaces expects port 7860
 EXPOSE 7860
-CMD ["python", "backend/main.py"]
+ENV PYTHONPATH="/app/backend:${PYTHONPATH}"
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
