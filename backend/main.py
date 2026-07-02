@@ -282,8 +282,6 @@ def angelone_status(_=Depends(require_session)):
     status_data = {
         "connected": connected,
         "client_code": feed.client_code or saved.get("client_code", ""),
-        "saved_api_key": saved.get("api_key", ""),
-        "saved_client_code": saved.get("client_code", ""),
         "credentials_saved": bool(saved.get("pin"))
     }
     return status_data
