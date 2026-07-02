@@ -24,3 +24,5 @@ freezegun>=1.5.5
 # ── Security fix dependency ──────────────────────────────
 cryptography>=42.0.0
 # TradingAgents is vendored locally in backend/TradingAgents/
+
+# Force Docker cache invalidation for HuggingFace
