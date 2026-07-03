@@ -28,3 +28,5 @@ cryptography>=42.0.0
 # Force Docker cache invalidation for HuggingFace
 
 pydantic-settings>=2.0.0
+
+SQLAlchemy>=2.0.0
