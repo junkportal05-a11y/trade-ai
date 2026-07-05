@@ -1797,6 +1797,8 @@ export default function App() {
   
   useEffect(() => {
     const checkMorningBrief = () => {
+      if (!loggedIn) return;
+      
       const now = new Date();
       const istTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
       const hours = istTime.getHours();
