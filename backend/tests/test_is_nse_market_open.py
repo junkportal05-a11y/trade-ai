@@ -1,7 +1,7 @@
 import pytest
 from freezegun import freeze_time
 
-from backend.main import is_nse_market_open
+from app.main import is_nse_market_open
 
 def test_market_open_weekday():
     # Monday, 10:00 AM IST is 4:30 AM UTC

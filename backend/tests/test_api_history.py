@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 import pandas as pd
-from backend.main import app
+from app.main import app
 
 client = TestClient(app)
 
