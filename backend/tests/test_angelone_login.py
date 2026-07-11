@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 
-from backend.main import app, require_session
+from app.main import app, require_session
 
 @pytest.fixture
 def override_require_session():

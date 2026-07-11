@@ -1,5 +1,5 @@
 import asyncio
-from backend.main import cleanup_sessions_loop
+from app.main import cleanup_sessions_loop
 
 async def test_import():
     try:

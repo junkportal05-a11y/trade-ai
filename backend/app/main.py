@@ -1,7 +1,6 @@
 """FastAPI application entry point."""
 from __future__ import annotations
 
-import asyncio
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 
@@ -46,10 +45,9 @@ allowed = settings.allowed_origins.split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed,
-    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Content-Type", "Authorization", "X-Session-Token", "x-admin-key", "Accept", "Origin", "X-Requested-With"],
 )
 
 

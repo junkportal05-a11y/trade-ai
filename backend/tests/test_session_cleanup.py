@@ -1,6 +1,6 @@
 import time
 import asyncio
-from backend.auth_helpers import ACTIVE_SESSIONS, create_session, cleanup_sessions, SESSION_TTL
+from app.core.auth import ACTIVE_SESSIONS, create_session, cleanup_sessions, SESSION_TTL
 
 async def test_cleanup():
     # Setup initial state

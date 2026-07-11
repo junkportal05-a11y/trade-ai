@@ -4,7 +4,7 @@ import pandas as pd
 import datetime
 import numpy as np
 
-from backend.main import app
+from app.main import app
 import backend.signals as sig_engine
 
 client = TestClient(app)
