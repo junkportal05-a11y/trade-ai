@@ -61,6 +61,7 @@ app.include_router(api_router)
 @app.get("/api/backtest/run", tags=["backtest"])
 @limiter.limit("5/minute")
 async def run_backtest(
+    request: Request,
     symbol: str,
     start_date: str,
     end_date: str,
