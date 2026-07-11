@@ -38,6 +38,15 @@ export default function BrokerSettings({ apiFetch }) {
       if (res.ok) {
         const data = await res.json();
         setStatus(data || { connected: false });
+        // SECURITY: Backend no longer returns sensitive credentials (api_key, pin, totp_secret).
+        // We only pre-fill the client_code (non-sensitive). The user must re-enter
+        // credentials on each fresh login for security.
+        if (data && data.client_code) {
+          setCredentials(prev => ({
+            ...prev,
+            client_code: data.client_code || prev.client_code
+          }));
+        }
       } else {
         setStatus({ connected: false });
       }

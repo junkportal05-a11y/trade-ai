@@ -25,11 +25,11 @@ for score in [5, 6, 7, 8, 9]:
     new_lines = []
     skip = False
     for line in lines:
-        if 'for min_score in' in line:
+        if 'simulator = HistoricalSimulator()' in line:
             skip = True
         if skip and 'asyncio.run' in line:
-            new_lines.append("        simulator = HistoricalSimulator()\n")
-            new_lines.append("        asyncio.run(simulator.simulate(start, end, atr_multiplier=1.0, rr_target=2.0))\n")
+            new_lines.append("    simulator = HistoricalSimulator()\n")
+            new_lines.append("    asyncio.run(simulator.simulate(start_date, end_date, atr_multiplier=1.0, rr_target=2.0))\n")
             skip = False
             continue
         if not skip:

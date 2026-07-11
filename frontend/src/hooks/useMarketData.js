@@ -18,10 +18,8 @@ const BASE_URL = API_BASE_URL;
 const WS_URL   = import.meta.env.VITE_WS_URL || BASE_URL.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
 
 const SEED_PRICES = {
-  'HAL.NS': 4550, 'BEL.NS': 295, 'RVNL.NS': 385,
-  'IREDA.NS': 185, 'HUDCO.NS': 275, 'COALINDIA.NS': 485,
-  'NHPC.NS': 95, 'ADANIPORTS.NS': 1405, 'TATAPOWER.NS': 445,
-  'BHEL.NS': 305
+  'YESBANK.NS': 25, 'TATASTEEL.NS': 170, 'BANKBARODA.NS': 280,
+  'TATAPOWER.NS': 445, 'SBIN.NS': 830
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -118,6 +116,7 @@ export function useLivePrices(symbols = []) {
       console.log("[useLivePrices] WebSocket not connected — starting HTTP polling fallback");
 
       async function poll() {
+        return; // Temporarily disabled to prevent 404 flooding
         try {
           const res = await fetch(`${BASE_URL}/api/prices`, { credentials: 'include' });
           if (!res.ok) return;
@@ -171,6 +170,7 @@ export function useLivePrices(symbols = []) {
     let isMounted = true;
 
     function connect() {
+      return; // Temporarily disabled to prevent 404 flooding
       try {
         const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
         const ws = new WebSocket(`${WS_URL}/ws/prices?symbols=${symbolKey}&token=${token}`);

@@ -12,3 +12,8 @@ backend/tests/__pycache__/
 **/*.pyo
 **/*.pyd
 .DS_Store
+codebase_dump.txt
+scratch/
+.agents/
+backend/TradingAgents/.git/
+backend/TradingAgents/tests/

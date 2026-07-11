@@ -5,6 +5,8 @@ import secrets
 from fastapi import HTTPException, Header, Request
 from dotenv import load_dotenv
 
+import db
+
 load_dotenv(override=True)
 
 ADMIN_KEY = os.getenv("ADMIN_KEY")
@@ -18,8 +20,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     SECRET_KEY = secrets.token_hex(32)
 
-# In-memory session store: { token: { "username": str, "time": float } }
-ACTIVE_SESSIONS = {}
+# In-memory session store is replaced by DB
 SESSION_TTL = 8 * 3600  # 8 hours
 
 
@@ -96,8 +97,11 @@ def authenticate_user(username: str, password: str) -> bool:
 def authenticate_by_code(code: str):
     for username, user_obj in USER_REGISTRY.items():
         try:
-            if bcrypt.hashpw(code.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")) == user_obj["pass_hash"].encode("utf-8") or \
-               bcrypt.checkpw(code.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")):
+            # SECURITY: Use only bcrypt.checkpw (constant-time comparison).
+            # The old code had a broken `==` comparison that was both a
+            # timing-attack vector AND functionally dead (hashpw generates
+            # a new salt each call, so == would never match).
+            if bcrypt.checkpw(code.encode("utf-8"), user_obj["pass_hash"].encode("utf-8")):
                 return username, user_obj
         except (ValueError, TypeError):
             pass
@@ -105,13 +109,16 @@ def authenticate_by_code(code: str):
 
 
 def require_admin(x_admin_key: str = Header(None)):
-    if x_admin_key != ADMIN_KEY:
+    if not x_admin_key or not secrets.compare_digest(x_admin_key, ADMIN_KEY):
         raise HTTPException(status_code=403, detail="Admin access required")
 
 
 def create_session(username: str) -> str:
     token = "apt_" + os.urandom(24).hex()
-    ACTIVE_SESSIONS[token] = {"username": username, "time": time.time()}
+    now = time.time()
+    with db._conn() as c:
+        c.execute("INSERT INTO sessions (token, username, created_at) VALUES (?, ?, ?)", (token, username, now))
+        c.commit()
     return token
 
 
@@ -132,21 +139,29 @@ def require_session(request: Request):
             status_code=401, detail="Authentication session token required"
         )
 
-    if not x_session_token.startswith("apt_") or x_session_token not in ACTIVE_SESSIONS:
+    if not x_session_token.startswith("apt_"):
         raise HTTPException(status_code=401, detail="Invalid session token")
 
-    session_data = ACTIVE_SESSIONS[x_session_token]
-    created = session_data["time"]
+    with db._conn() as c:
+        row = c.execute("SELECT * FROM sessions WHERE token=?", (x_session_token,)).fetchone()
+        
+    if not row:
+        raise HTTPException(status_code=401, detail="Invalid session token")
+
+    created = row["created_at"]
     if time.time() - created > SESSION_TTL:
-        del ACTIVE_SESSIONS[x_session_token]
+        with db._conn() as c:
+            c.execute("DELETE FROM sessions WHERE token=?", (x_session_token,))
+            c.commit()
         raise HTTPException(status_code=401, detail="Session expired")
 
+    username = row["username"]
     return {
-        "username": session_data["username"],
-        "role": USER_REGISTRY.get(session_data["username"], {}).get(
+        "username": username,
+        "role": USER_REGISTRY.get(username, {}).get(
             "role", "Authorized Guest"
         ),
-        "clearance": USER_REGISTRY.get(session_data["username"], {}).get(
+        "clearance": USER_REGISTRY.get(username, {}).get(
             "clearance", "LEVEL_1_GUEST"
         ),
     }
@@ -154,6 +169,7 @@ def require_session(request: Request):
 
 def cleanup_sessions():
     now = time.time()
-    expired = [k for k, v in ACTIVE_SESSIONS.items() if now - v["time"] > SESSION_TTL]
-    for k in expired:
-        del ACTIVE_SESSIONS[k]
+    cutoff = now - SESSION_TTL
+    with db._conn() as c:
+        c.execute("DELETE FROM sessions WHERE created_at < ?", (cutoff,))
+        c.commit()

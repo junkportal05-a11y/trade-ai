@@ -7,8 +7,66 @@ Supports local SQLite fallback and remote PostgreSQL / Supabase in production.
 import sqlite3
 import os
 import json
+import base64
 from datetime import datetime, timezone, timedelta
 from typing import Optional
+
+try:
+    from cryptography.fernet import Fernet
+except ImportError:
+    Fernet = None
+
+# ── Fernet encryption for broker credentials ─────────────────────────────────
+_fernet = None
+
+def _get_fernet():
+    global _fernet
+    if _fernet is not None:
+        return _fernet
+    if Fernet is None:
+        print("\n[SECURITY WARNING] cryptography library not installed. AngelOne credentials will be stored in PLAINTEXT.")
+        return None
+    raw_key = os.environ.get("JWT_SECRET", "")
+    if not raw_key:
+        print("\n[SECURITY WARNING] JWT_SECRET not set in environment. AngelOne credentials will be stored in PLAINTEXT.")
+        return None
+    # Derive 32-byte URL-safe base64 key from JWT_SECRET
+    key_bytes = raw_key.encode("utf-8")
+    # Pad or truncate to 32 bytes, then base64-encode
+    padded = key_bytes[:32].ljust(32, b"0")
+    b64_key = base64.urlsafe_b64encode(padded)
+    _fernet = Fernet(b64_key)
+    return _fernet
+
+
+def _encrypt_field(value: str | None) -> str | None:
+    f = _get_fernet()
+    if f is None:
+        if value is not None:
+            print("[SECURITY WARNING] _encrypt_field: Fernet unavailable. Saving credential in PLAINTEXT.")
+        return value
+    if value is None:
+        return None
+    return f.encrypt(value.encode("utf-8")).decode("utf-8")
+
+
+def _decrypt_field(value: str | None) -> str | None:
+    f = _get_fernet()
+    if f is None or value is None:
+        return value
+    try:
+        return f.decrypt(value.encode("utf-8")).decode("utf-8")
+    except Exception:
+        # If decryption fails, return as-is (backward compat for old plaintext)
+        return value
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(os.path.join(os.path.dirname(__file__), ".env"), override=False)
+    load_dotenv(override=False)
+except Exception:
+    pass
 
 DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "trading_platform.db"))
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -112,7 +170,7 @@ class DBConnection:
                 stripped_upper.startswith("INSERT INTO")
                 and "RETURNING" not in stripped_upper
             ):
-                if "APP_SETTINGS" not in stripped_upper:
+                if "APP_SETTINGS" not in stripped_upper and "METRICS_CACHE" not in stripped_upper and "SESSIONS" not in stripped_upper:
                     query += " RETURNING id"
 
         # Execute query
@@ -211,6 +269,22 @@ def _conn():
 
 def init_db():
     with _conn() as c:
+        if IS_POSTGRES:
+            c.execute("""
+                CREATE TABLE IF NOT EXISTS sessions (
+                    token TEXT PRIMARY KEY,
+                    username TEXT,
+                    created_at DOUBLE PRECISION
+                )
+            """)
+        else:
+            c.execute("""
+                CREATE TABLE IF NOT EXISTS sessions (
+                    token TEXT PRIMARY KEY,
+                    username TEXT,
+                    created_at REAL
+                )
+            """)
         c.execute("""
             CREATE TABLE IF NOT EXISTS signals_history (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -288,88 +362,6 @@ def init_db():
             )
         """)
 
-        # Self-healing migration for existing databases:
-        cursor = c.cursor()
-        cursor.execute("PRAGMA table_info(signals_history)")
-        columns = [row[1] for row in cursor.fetchall()]
-
-        # Check signals_history
-        cursor.execute("PRAGMA table_info(signals_history)")
-        sig_columns = [row[1] for row in cursor.fetchall()]
-        if "rr_ratio" not in sig_columns:
-            try:
-                c.execute(
-                    "ALTER TABLE signals_history ADD COLUMN rr_ratio REAL NOT NULL DEFAULT 0"
-                )
-            except Exception:
-                pass
-        if "atr" not in sig_columns:
-            try:
-                c.execute(
-                    "ALTER TABLE signals_history ADD COLUMN atr REAL NOT NULL DEFAULT 0"
-                )
-            except Exception:
-                pass
-                
-        # Check predictions_history
-        cursor.execute("PRAGMA table_info(predictions_history)")
-        pred_columns = [row[1] for row in cursor.fetchall()]
-        pred_migrations = [
-            ("sector", "TEXT"),
-            ("market_cap", "REAL"),
-            ("volume_ratio", "REAL"),
-            ("vwap_distance", "REAL"),
-            ("atr", "REAL"),
-            ("news_score", "REAL"),
-            ("market_breadth", "REAL"),
-            ("sector_strength", "REAL"),
-            ("nifty_trend", "TEXT"),
-            ("manual_override_reason", "TEXT"),
-            ("setup_type", "TEXT"),
-            ("market_regime_snapshot", "TEXT"),
-            ("risk_amount", "REAL"),
-            ("confidence_probability", "REAL"),
-            ("r_multiple", "REAL"),
-            ("exit_price", "REAL"),
-            ("holding_time_minutes", "REAL"),
-            ("pnl_pct", "REAL"),
-            ("pnl_inr", "REAL"),
-            ("resolution_reason", "TEXT"),
-            ("regime_score", "REAL"),
-            ("sector_score", "REAL"),
-            ("volume_score", "REAL"),
-            ("news_score", "REAL"),
-            ("rs_score", "REAL"),
-            ("trade_quality_score", "REAL"),
-            ("correlation_score", "REAL"),
-            ("signal_time", "TEXT"),
-            ("order_time", "TEXT"),
-            ("fill_time", "TEXT"),
-            ("fill_price", "REAL"),
-            ("slippage_pct", "REAL"),
-            ("broker_failure_reason", "TEXT"),
-        ]
-        for col_name, col_type in pred_migrations:
-            if col_name not in pred_columns:
-                c.execute(f"ALTER TABLE predictions_history ADD COLUMN {col_name} {col_type}")
-
-        # Phase Omega: Add missing columns to strategy_health and daily_governance_reports
-        try:
-            sh_columns = [row["name"] for row in c.execute("PRAGMA table_info(strategy_health)").fetchall()]
-            if "edge_score" not in sh_columns:
-                c.execute("ALTER TABLE strategy_health ADD COLUMN edge_score REAL DEFAULT 0.0")
-        except Exception:
-            pass
-
-        try:
-            dgr_columns = [row["name"] for row in c.execute("PRAGMA table_info(daily_governance_reports)").fetchall()]
-            if "data_confidence_score" not in dgr_columns:
-                c.execute("ALTER TABLE daily_governance_reports ADD COLUMN data_confidence_score REAL DEFAULT 100.0")
-            if "created_at" not in dgr_columns:
-                c.execute("ALTER TABLE daily_governance_reports ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP")
-        except Exception:
-            pass
-        
         # New tables for advanced metrics
         c.execute("""
             CREATE TABLE IF NOT EXISTS equity_curve (
@@ -447,6 +439,18 @@ def init_db():
         """)
 
         c.execute("""
+            CREATE TABLE IF NOT EXISTS data_quality (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                checked_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                total_trades INTEGER,
+                valid_trades INTEGER,
+                confidence_score REAL,
+                failures JSONB,
+                locked BOOLEAN DEFAULT FALSE
+            )
+        """)
+
+        c.execute("""
             CREATE TABLE IF NOT EXISTS risk_settings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 daily_loss_limit REAL NOT NULL DEFAULT -3.0,
@@ -469,6 +473,115 @@ def init_db():
                 scanned_at TEXT NOT NULL
             )
         """)
+
+        c.commit()
+
+        # Self-healing migration for existing databases:
+        cursor = c.cursor()
+        cursor.execute("PRAGMA table_info(signals_history)")
+        columns = [row[1] for row in cursor.fetchall()]
+
+        # Check signals_history
+        cursor.execute("PRAGMA table_info(signals_history)")
+        sig_columns = [row[1] for row in cursor.fetchall()]
+        if "rr_ratio" not in sig_columns:
+            try:
+                c.execute(
+                    "ALTER TABLE signals_history ADD COLUMN rr_ratio REAL NOT NULL DEFAULT 0"
+                )
+                c.commit()
+            except Exception:
+                if IS_POSTGRES:
+                    c.conn.rollback()
+        if "atr" not in sig_columns:
+            try:
+                c.execute(
+                    "ALTER TABLE signals_history ADD COLUMN atr REAL NOT NULL DEFAULT 0"
+                )
+                c.commit()
+            except Exception:
+                if IS_POSTGRES:
+                    c.conn.rollback()
+
+        # Check predictions_history
+        cursor.execute("PRAGMA table_info(predictions_history)")
+        pred_columns = [row[1] for row in cursor.fetchall()]
+        pred_migrations = [
+            ("sector", "TEXT"),
+            ("market_cap", "REAL"),
+            ("volume_ratio", "REAL"),
+            ("vwap_distance", "REAL"),
+            ("atr", "REAL"),
+            ("news_score", "REAL"),
+            ("market_breadth", "REAL"),
+            ("sector_strength", "REAL"),
+            ("nifty_trend", "TEXT"),
+            ("manual_override_reason", "TEXT"),
+            ("setup_type", "TEXT"),
+            ("market_regime_snapshot", "TEXT"),
+            ("risk_amount", "REAL"),
+            ("confidence_probability", "REAL"),
+            ("r_multiple", "REAL"),
+            ("exit_price", "REAL"),
+            ("holding_time_minutes", "REAL"),
+            ("pnl_pct", "REAL"),
+            ("pnl_inr", "REAL"),
+            ("resolution_reason", "TEXT"),
+            ("regime_score", "REAL"),
+            ("sector_score", "REAL"),
+            ("volume_score", "REAL"),
+            ("rs_score", "REAL"),
+            ("trade_quality_score", "REAL"),
+            ("correlation_score", "REAL"),
+            ("signal_time", "TEXT"),
+            ("order_time", "TEXT"),
+            ("fill_time", "TEXT"),
+            ("fill_price", "REAL"),
+            ("slippage_pct", "REAL"),
+            ("broker_failure_reason", "TEXT"),
+        ]
+        # Safe DDL: only allow specific column types from hardcoded list
+        _SAFE_SQL_TYPES = {"TEXT", "REAL", "INTEGER", "BOOLEAN"}
+        for col_name, col_type in pred_migrations:
+            if col_name not in pred_columns:
+                try:
+                    # Verify against allowlist to prevent SQL injection
+                    if col_type.upper() not in _SAFE_SQL_TYPES:
+                        print(f"[MIGRATION] Skipping unsafe column type: {col_type}")
+                        continue
+                    # Sanitize column name: only alphanumeric + underscore
+                    if not col_name.replace("_", "").isalnum():
+                        print(f"[MIGRATION] Skipping unsafe column name: {col_name}")
+                        continue
+                    c.execute(
+                        f'ALTER TABLE "predictions_history" ADD COLUMN "{col_name}" {col_type}'
+                    )
+                    c.commit()
+                except Exception:
+                    if IS_POSTGRES:
+                        c.conn.rollback()
+
+        # Phase Omega: Add missing columns to strategy_health and daily_governance_reports
+        try:
+            sh_columns = [row["name"] for row in c.execute("PRAGMA table_info(strategy_health)").fetchall()]
+            if "edge_score" not in sh_columns:
+                c.execute("ALTER TABLE strategy_health ADD COLUMN edge_score REAL DEFAULT 0.0")
+                c.commit()
+        except Exception:
+            if IS_POSTGRES:
+                c.conn.rollback()
+
+        try:
+            dgr_columns = [row["name"] for row in c.execute("PRAGMA table_info(daily_governance_reports)").fetchall()]
+            if "data_confidence_score" not in dgr_columns:
+                c.execute("ALTER TABLE daily_governance_reports ADD COLUMN data_confidence_score REAL DEFAULT 100.0")
+                c.commit()
+            if "created_at" not in dgr_columns:
+                c.execute("ALTER TABLE daily_governance_reports ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP")
+                c.commit()
+        except Exception:
+            if IS_POSTGRES:
+                c.conn.rollback()
         
         # Initialize default risk settings if empty
         row = c.execute("SELECT COUNT(*) as count FROM risk_settings").fetchone()
@@ -590,6 +703,105 @@ def update_signals_batch(updates: list[tuple]):
 
 # Alias for compatibility with main.py references
 update_signal_status = update_signal
+
+
+def get_resolved_trades_for_validation(limit: int = 100) -> list:
+    """Return recent resolved trades from prediction and signal history."""
+    with _conn() as c:
+        predictions = c.execute(
+            """
+            SELECT
+                id,
+                id as trade_id,
+                symbol,
+                prediction_type as direction,
+                entry_price,
+                target_price as target,
+                stop_loss,
+                prediction_date as created_at,
+                resolved_at,
+                exit_price,
+                pnl_pct,
+                status as result,
+                market_regime_snapshot as regime,
+                NULL as signal_id,
+                'predictions_history' as source
+            FROM predictions_history
+            WHERE status NOT IN ('PENDING', 'ACTIVE')
+            ORDER BY COALESCE(resolved_at, prediction_date) DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+        signals = c.execute(
+            """
+            SELECT
+                id,
+                id as trade_id,
+                symbol,
+                signal_type as direction,
+                entry_price,
+                target,
+                stop_loss,
+                scanned_at as created_at,
+                exit_at as resolved_at,
+                exit_price,
+                pnl_pct,
+                status as result,
+                NULL as regime,
+                id as signal_id,
+                'signals_history' as source
+            FROM signals_history
+            WHERE status NOT IN ('PENDING', 'ACTIVE')
+            ORDER BY COALESCE(exit_at, scanned_at) DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+        rows = [dict(row) for row in predictions] + [dict(row) for row in signals]
+
+    rows.sort(key=lambda row: row.get("resolved_at") or row.get("created_at") or "", reverse=True)
+    return rows[:limit]
+
+
+def record_data_quality_check(result: dict) -> int:
+    with _conn() as c:
+        now = _now_ist()
+        cur = c.execute(
+            """
+            INSERT INTO data_quality
+                (checked_at, total_trades, valid_trades, confidence_score, failures, locked)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                now,
+                int(result.get("total_trades", 0)),
+                int(result.get("valid_trades", 0)),
+                float(result.get("confidence_score", 0.0)),
+                json.dumps(result.get("failures", [])),
+                bool(result.get("locked", True)),
+            ),
+        )
+        c.commit()
+        return cur.lastrowid
+
+
+def get_latest_data_quality() -> Optional[dict]:
+    with _conn() as c:
+        row = c.execute(
+            "SELECT * FROM data_quality ORDER BY checked_at DESC, id DESC LIMIT 1"
+        ).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        try:
+            result["failures"] = json.loads(result.get("failures") or "[]")
+        except Exception:
+            result["failures"] = []
+        result["locked"] = bool(result.get("locked"))
+        return result
 
 
 def expire_old_intraday():
@@ -1032,6 +1244,13 @@ def _calc_pnl(signal_type: str, entry: float, exit_price: float) -> float:
 
 
 def save_angelone_session(session_data: dict):
+    """Save AngelOne session with encrypted sensitive credentials."""
+    # Encrypt sensitive fields before JSON serialization
+    encrypted = dict(session_data)
+    for field in ("api_key", "pin", "totp_secret"):
+        if field in encrypted and encrypted[field]:
+            encrypted[field] = _encrypt_field(str(encrypted[field]))
+
     with _conn() as c:
         c.execute("""
             CREATE TABLE IF NOT EXISTS app_settings (
@@ -1047,7 +1266,7 @@ def save_angelone_session(session_data: dict):
         """,
             (
                 "angelone_session",
-                json.dumps(session_data),
+                json.dumps(encrypted),
                 _now_ist(),
             ),
         )
@@ -1064,9 +1283,16 @@ def get_angelone_session() -> Optional[dict]:
                 "SELECT value FROM app_settings WHERE key='angelone_session'"
             ).fetchone()
             if row:
-                return json.loads(row["value"])
-    except Exception:
-        pass
+                data = json.loads(row["value"])
+                # Decrypt sensitive fields
+                for field in ("api_key", "pin", "totp_secret"):
+                    if field in data and data[field]:
+                        data[field] = _decrypt_field(data[field])
+                return data
+    except Exception as e:
+        import traceback
+        print("Error in get_angelone_session:", e)
+        traceback.print_exc()
     return None
 
 
@@ -1203,7 +1429,7 @@ def get_pattern_success_rates() -> dict:
                     pattern = f"{r['prediction_type']}_{r['rsi_bucket']}_{r['macd_bucket']}"
                     results[pattern] = round((r["wins"] / r["total"]) * 100, 1)
             return results
-    except Exception as e:
+    except Exception:
         return {}
 
 def get_general_win_rate() -> float:
@@ -1217,5 +1443,5 @@ def get_general_win_rate() -> float:
             wins_row = c.execute("SELECT COUNT(*) FROM predictions_history WHERE status IN ('WIN', 'CORRECT')").fetchone()
             wins = wins_row[0] if wins_row else 0
             return round((wins / total) * 100, 1)
-    except Exception as e:
+    except Exception:
         return 50.0

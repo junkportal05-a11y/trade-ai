@@ -15,6 +15,47 @@ def temp_db(tmp_path):
             yield test_db_path
 
 
+def test_init_db(tmp_path):
+    """Test that the init_db function creates the required database tables correctly."""
+    test_db_path = tmp_path / "test_init_db.db"
+
+    with patch("backend.db.DB_PATH", str(test_db_path)):
+        with patch("backend.db.IS_POSTGRES", False):
+            # Act: Initialize the database
+            db.init_db()
+
+            # Assert: Verify that the expected tables were created
+            with db._conn() as c:
+                # Check signals_history
+                c.execute("PRAGMA table_info(signals_history)")
+                sig_columns = [row[1] for row in c.fetchall()]
+                assert len(sig_columns) > 0
+                assert "id" in sig_columns
+                assert "symbol" in sig_columns
+                assert "rr_ratio" in sig_columns # Checks migration worked
+
+                # Check predictions_history
+                c.execute("PRAGMA table_info(predictions_history)")
+                pred_columns = [row[1] for row in c.fetchall()]
+                assert len(pred_columns) > 0
+                assert "id" in pred_columns
+                assert "symbol" in pred_columns
+                assert "sector" in pred_columns # Checks migration worked
+
+                # Check trade_journal
+                c.execute("PRAGMA table_info(trade_journal)")
+                trade_columns = [row[1] for row in c.fetchall()]
+                assert len(trade_columns) > 0
+                assert "id" in trade_columns
+                assert "symbol" in trade_columns
+
+                # Check metrics_cache
+                c.execute("PRAGMA table_info(metrics_cache)")
+                metrics_columns = [row[1] for row in c.fetchall()]
+                assert len(metrics_columns) > 0
+                assert "key" in metrics_columns
+
+
 def test_update_signal(temp_db):
     """Test updating an existing signal's status, exit price, and pnl_pct."""
 
@@ -100,3 +141,61 @@ def test_clear_history(temp_db):
                     "SELECT COUNT(*) FROM signals_history"
                 ).fetchone()
                 assert row[0] == 0
+
+def test_get_pending_signals(temp_db):
+    """Test retrieving pending signals."""
+
+    mock_signal_1 = {
+        "symbol": "HDFCBANK",
+        "name": "HDFC Bank",
+        "sector": "Banking",
+        "direction": "BUY",
+        "signal_type": "BUY",
+        "confidence": 85,
+        "score": 8,
+        "entry": 1600.0,
+        "entry_price": 1600.0,
+        "target": 1650.0,
+        "stop_loss": 1550.0,
+        "rr_ratio": 1.0,
+        "atr": 10.0,
+        "scan_type": "intraday",
+    }
+
+    mock_signal_2 = {
+        "symbol": "ICICIBANK",
+        "name": "ICICI Bank",
+        "sector": "Banking",
+        "direction": "SELL",
+        "signal_type": "SELL",
+        "confidence": 75,
+        "score": 7,
+        "entry": 1000.0,
+        "entry_price": 1000.0,
+        "target": 950.0,
+        "stop_loss": 1050.0,
+        "rr_ratio": 1.0,
+        "atr": 8.0,
+        "scan_type": "intraday",
+    }
+
+    with patch("backend.db.DB_PATH", str(temp_db)):
+        with patch("backend.db.IS_POSTGRES", False):
+            # Act: Add two signals
+            signal_id_1 = db.add_signal(mock_signal_1)
+            signal_id_2 = db.add_signal(mock_signal_2)
+
+            assert signal_id_1 is not None
+            assert signal_id_2 is not None
+
+            # Update the first signal to not be PENDING
+            db.update_signal(signal_id_1, "PROFIT", 1650.0, 3.12)
+
+            # Act: Get pending signals
+            pending_signals = db.get_pending_signals()
+
+            # Assert: Verify only the second signal is returned
+            assert len(pending_signals) == 1
+            assert pending_signals[0]["id"] == signal_id_2
+            assert pending_signals[0]["symbol"] == "ICICIBANK"
+            assert pending_signals[0]["status"] == "PENDING"

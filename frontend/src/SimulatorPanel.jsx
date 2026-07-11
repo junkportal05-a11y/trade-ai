@@ -20,6 +20,7 @@ const T = {
 
 export default function SimulatorPanel({ isMobile }) {
   const [adminKey, setAdminKey] = useState(localStorage.getItem('apex_admin_key') || '');
+  const [symbol, setSymbol] = useState('RELIANCE');
   const [startDate, setStartDate] = useState('2024-01-01');
   const [endDate, setEndDate] = useState('2024-12-31');
   const [status, setStatus] = useState(null);
@@ -31,52 +32,44 @@ export default function SimulatorPanel({ isMobile }) {
   }, [adminKey]);
 
   useEffect(() => {
-    let interval;
-    if (isPolling) {
-      interval = setInterval(async () => {
-        try {
-          const res = await getSimulationStatus(adminKey);
-          if (res.ok) {
-            const data = await res.json();
-            setStatus(data);
-            if (!data.is_running) {
-              setIsPolling(false);
-            }
-          } else {
-            setIsPolling(false);
-          }
-        } catch (e) {
-          console.error(e);
-          setIsPolling(false);
-        }
-      }, 2000);
-    }
-    return () => clearInterval(interval);
+    // Polling removed as the new endpoint is synchronous
   }, [isPolling, adminKey]);
 
   const handleStart = async () => {
     setError(null);
+    setStatus(null);
+    setIsPolling(true); // Re-used for loading state
     try {
-      const res = await runHistoricalSimulation(startDate, endDate, adminKey);
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.detail || 'Failed to start simulation');
-        return;
-      }
-      setIsPolling(true);
+      const token = localStorage.getItem('apt_token') || localStorage.getItem('apex_token') || 'apt_fake_if_none';
+      const res = await fetch('http://localhost:8000/api/backtest/run', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ symbol, start_date: startDate, end_date: endDate })
+      });
       
-      // Fetch immediate status
-      const statRes = await getSimulationStatus(adminKey);
-      if (statRes.ok) {
-        setStatus(await statRes.json());
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.detail || 'Failed to start simulation');
+      } else {
+        const data = await res.json();
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setStatus(data);
+        }
       }
     } catch (e) {
       setError(e.message);
+    } finally {
+      setIsPolling(false);
     }
   };
 
-  const stats = status?.stats || { total_signals: 0, wins: 0, losses: 0, timeouts: 0, errors: 0 };
-  const winRate = stats.total_signals > 0 ? ((stats.wins / stats.total_signals) * 100).toFixed(1) : 0;
+  const stats = status || {};
+  const winRate = stats.win_rate || 0;
 
   return (
     <div style={{ padding: '24px', color: T.text, background: T.bg, minHeight: '100%', overflowY: 'auto', width: '100%' }}>
@@ -103,6 +96,15 @@ export default function SimulatorPanel({ isMobile }) {
                 value={adminKey}
                 onChange={e => setAdminKey(e.target.value)}
                 placeholder="Required for execution..."
+                style={{ width: '100%', padding: '10px 12px', background: T.bg, border: `1px solid ${T.border}`, color: '#fff', borderRadius: '6px', outline: 'none' }}
+              />
+            </div>
+            <div style={{ flex: '1 1 150px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: T.textMuted, marginBottom: '6px' }}>Symbol</label>
+              <input 
+                type="text"
+                value={symbol}
+                onChange={e => setSymbol(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', background: T.bg, border: `1px solid ${T.border}`, color: '#fff', borderRadius: '6px', outline: 'none' }}
               />
             </div>
@@ -165,44 +167,45 @@ export default function SimulatorPanel({ isMobile }) {
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: status.is_running ? T.green : T.textMuted }} />
                 {status.is_running ? 'Simulation Active' : 'Simulation Complete'}
               </h3>
-              {status.current_symbol && (
+              {status.symbol && (
                 <span style={{ fontSize: '12px', padding: '4px 8px', background: T.blueDim, color: T.blue, borderRadius: '4px', fontWeight: 600 }}>
-                  Analyzing: {status.current_symbol}
+                  Analyzing: {status.symbol}
                 </span>
               )}
             </div>
 
             <div style={{ marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: T.textMuted, marginBottom: '8px' }}>
-                <span>Overall Progress</span>
-                <span>{status.progress ? status.progress.toFixed(1) : 0}%</span>
-              </div>
-              <div style={{ height: '8px', background: T.bg, borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: `${status.progress || 0}%`, height: '100%', background: T.blue, transition: 'width 0.5s ease' }} />
+                <span>Final Capital</span>
+                <span>${stats.final_capital}</span>
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '16px' }}>
               
               <div style={{ background: T.bg, padding: '16px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
-                <div style={{ fontSize: '12px', color: T.textMuted, marginBottom: '4px' }}>Total Signals</div>
-                <div style={{ fontSize: '24px', color: '#fff', fontWeight: 600 }}>{stats.total_signals}</div>
+                <div style={{ fontSize: '12px', color: T.textMuted, marginBottom: '4px' }}>Total Return</div>
+                <div style={{ fontSize: '24px', color: '#fff', fontWeight: 600 }}>{stats.total_pnl_pct}%</div>
               </div>
 
               <div style={{ background: T.greenDim, padding: '16px', borderRadius: '8px', border: `1px solid ${T.green}` }}>
-                <div style={{ fontSize: '12px', color: T.green, marginBottom: '4px', fontWeight: 500 }}>Winning Trades</div>
-                <div style={{ fontSize: '24px', color: T.green, fontWeight: 600 }}>{stats.wins}</div>
-                <div style={{ fontSize: '11px', color: T.green, opacity: 0.8, marginTop: '4px' }}>{winRate}% Win Rate</div>
+                <div style={{ fontSize: '12px', color: T.green, marginBottom: '4px', fontWeight: 500 }}>Win Rate</div>
+                <div style={{ fontSize: '24px', color: T.green, fontWeight: 600 }}>{winRate}%</div>
               </div>
 
               <div style={{ background: T.redDim, padding: '16px', borderRadius: '8px', border: `1px solid ${T.red}` }}>
-                <div style={{ fontSize: '12px', color: T.red, marginBottom: '4px', fontWeight: 500 }}>Losing Trades</div>
-                <div style={{ fontSize: '24px', color: T.red, fontWeight: 600 }}>{stats.losses}</div>
+                <div style={{ fontSize: '12px', color: T.red, marginBottom: '4px', fontWeight: 500 }}>Max Drawdown</div>
+                <div style={{ fontSize: '24px', color: T.red, fontWeight: 600 }}>{stats.max_drawdown}%</div>
               </div>
 
               <div style={{ background: T.orangeDim, padding: '16px', borderRadius: '8px', border: `1px solid ${T.orange}` }}>
-                <div style={{ fontSize: '12px', color: T.orange, marginBottom: '4px', fontWeight: 500 }}>Timeouts (EOD)</div>
-                <div style={{ fontSize: '24px', color: T.orange, fontWeight: 600 }}>{stats.timeouts}</div>
+                <div style={{ fontSize: '12px', color: T.orange, marginBottom: '4px', fontWeight: 500 }}>Profit Factor</div>
+                <div style={{ fontSize: '24px', color: T.orange, fontWeight: 600 }}>{stats.profit_factor}</div>
+              </div>
+
+              <div style={{ background: T.bg, padding: '16px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '12px', color: T.textMuted, marginBottom: '4px' }}>Total Trades</div>
+                <div style={{ fontSize: '24px', color: '#fff', fontWeight: 600 }}>{stats.total_trades}</div>
               </div>
 
             </div>
