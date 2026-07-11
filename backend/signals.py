@@ -1668,7 +1668,7 @@ def run_scan(
         import trade_quality
         import capital_manager
         
-        is_long = score >= 0
+        is_long = r.get("score", 0) >= 0
         tqe_result = trade_quality.TradeQualityEngine.calculate_tqs(
             confidence_score=r.get("confidence", 50),
             is_long=is_long,
@@ -1703,7 +1703,7 @@ def run_scan(
             r["quantity"] = 0
             r["quantity_label"] = "0 Shares (REJECTED)"
             r["risk_amount"] = 0
-            score = 0 # Cancel signal
+            r["score"] = 0 # Cancel signal
             
         # ── Define Signal Output ──
         if classification in ["ELITE_CANDIDATE", "INTRADAY_CANDIDATE"]:
@@ -1760,10 +1760,10 @@ def run_scan(
             rejection_reason = "LOW_VOLUME_OR_RR"
             
         # 6. Trade Quality Score Cutoff
-        elif trade_quality_score < dynamic_tqs_threshold:
+        elif trade_quality_score < r.get("dynamic_tqs_threshold", 75.0):
             sig = "HOLD"
             rejection_category = "QUALITY_FILTER"
-            rejection_reason = f"TQS_BELOW_THRESHOLD_({dynamic_tqs_threshold})"
+            rejection_reason = f"TQS_BELOW_THRESHOLD_({r.get('dynamic_tqs_threshold', 75.0)})"
             
         # 7. Portfolio Correlation & Sector Exposure Check
         elif active_sector_exposures.get(sec, 0) >= 2: # Max 2 open positions per sector
