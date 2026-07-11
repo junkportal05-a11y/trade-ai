@@ -86,10 +86,9 @@ class UserRegistry:
         # Admin
         raw_admin = os.getenv("PASS_ADMIN", os.getenv("APP_PASSWORD", "")).strip()
         if not raw_admin:
-            temp = secrets.token_urlsafe(16)
-            print("\n[SECURITY WARNING] PASS_ADMIN not set. Using temporary password.")
+            print("\n[SECURITY WARNING] PASS_ADMIN not set. Using default 'admin' password.")
             self._users["apex_head_quant"] = {
-                "pass_hash": get_password_hash(temp),
+                "pass_hash": get_password_hash("admin"),
                 "role": "Master Quant / Administrator",
                 "clearance": "LEVEL_4_ROOT",
             }
