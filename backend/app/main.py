@@ -15,8 +15,10 @@ from app.core.config import settings
 from app.core.database import init_db
 from app.api.v1 import api_router
 
+from datetime import datetime
+
 # Import backtest utilities
-from backend.backtest_engine import run_historical_backtest, BacktestConfig
+from backtest_engine import run_historical_backtest, BacktestConfig
 
 
 @asynccontextmanager
