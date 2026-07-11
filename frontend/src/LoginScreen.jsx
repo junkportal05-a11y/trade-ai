@@ -321,20 +321,6 @@ export default function LoginScreen({ onLogin }) {
               </>
             ) : "DECRYPT & ENTER TERMINAL"}
           </button>
-          
-          {/* Target backend URL display (debugging context) */}
-          <div style={{
-            fontSize: 7.5,
-            color: T.textDim,
-            textAlign: 'center',
-            marginTop: 4,
-            ...mono,
-            opacity: 0.6,
-            letterSpacing: '0.04em',
-            wordBreak: 'break-all'
-          }}>
-            NODE_ADDR: {BASE_URL}
-          </div>
         </form>
       </div>
 
