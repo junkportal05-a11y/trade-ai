@@ -61,6 +61,7 @@ app.include_router(api_router)
 
 # Serve static files for graphify output
 graph_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "graphify-out"))
+os.makedirs(graph_dir, exist_ok=True)
 app.mount("/graphify-out", StaticFiles(directory=graph_dir), name="graphify-out")
 
 
