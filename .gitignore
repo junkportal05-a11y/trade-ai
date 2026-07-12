@@ -63,3 +63,15 @@ apex_codebase.txt
 # ── Agent / System ──────────────────────────────────────────────
 .agents/
 .system_generated/
+.env*
+
+# ── Generated / External ──────────────────────────────────────────
+backend/TradingAgents/
+backend/Vibe-Trading/
+backend/server.pid
+server.pid
+diff.txt
+extract_results.txt
+graphify-out/
+merge_extract.py
+*.pid

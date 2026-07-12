@@ -42,7 +42,7 @@ class AngelOneFeed:
     # AUTHENTICATION
     # ==========================================
     
-    def login(self, api_key: str, client_code: str, pin: str, totp_secret: str) -> Dict:
+    def login(self, api_key: str, client_code: str, pin: str, totp_code: str) -> Dict:
         """
         Authenticate with AngelOne using TOTP-based login
         """
@@ -50,13 +50,9 @@ class AngelOneFeed:
             # Initialize SmartConnect
             self.smart_api = SmartConnect(api_key=api_key)
             self.client_code = client_code
-            
-            # Generate TOTP
-            totp = pyotp.TOTP(totp_secret)
-            totp_code = totp.now()
-            
+
             logger.info(f"Attempting AngelOne login for client: {client_code}")
-            
+
             # Generate session
             session_data = self.smart_api.generateSession(
                 clientCode=client_code,
@@ -111,7 +107,7 @@ class AngelOneFeed:
             import db
             session = db.get_angelone_session()
             if session and session.get('api_key'):
-                api_key = fernet.decrypt(session['api_key'].encode()).decode() if fernet else session['api_key']
+                api_key = session['api_key']
                 self.smart_api = SmartConnect(api_key=api_key)
                 self.client_code = session['client_code']
                 self.session_token = session['session_token']
@@ -184,15 +180,17 @@ class AngelOneFeed:
                 return False
             
             logger.info("Attempting full auto-login with stored database credentials...")
-            api_key = fernet.decrypt(session['api_key'].encode()).decode() if (fernet and session.get('api_key')) else session.get('api_key')
-            pin = fernet.decrypt(session['pin'].encode()).decode() if (fernet and session.get('pin')) else session.get('pin')
-            totp_secret = fernet.decrypt(session['totp_secret'].encode()).decode() if (fernet and session.get('totp_secret')) else session.get('totp_secret')
-            
+            api_key = session.get('api_key')
+            pin = session.get('pin')
+            totp_secret = session.get('totp_secret')
+            import pyotp
+            totp_code = pyotp.TOTP(totp_secret).now()
+
             result = self.login(
                 api_key=api_key,
                 client_code=session['client_code'],
                 pin=pin,
-                totp_secret=totp_secret
+                totp_code=totp_code
             )
             if result.get("status") == "success":
                 # Save the new session info back to db
@@ -620,8 +618,10 @@ if __name__ == "__main__":
     if not all([API_KEY, CLIENT_CODE, PIN, TOTP_SECRET]):
         print("❌ Set environment variables: ANGEL_API_KEY, ANGEL_CLIENT_CODE, ANGEL_PIN, ANGEL_TOTP_SECRET")
         exit(1)
-    
-    result = feed.login(API_KEY, CLIENT_CODE, PIN, TOTP_SECRET)
+
+    import pyotp
+    totp_code = pyotp.TOTP(TOTP_SECRET).now()
+    result = feed.login(API_KEY, CLIENT_CODE, PIN, totp_code)
     
     if result['status'] == 'success':
         print("✅ Login successful!")

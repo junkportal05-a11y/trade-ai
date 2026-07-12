@@ -1,12 +1,14 @@
 """FastAPI application entry point."""
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -43,6 +45,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS
+# Use ALLOWED_ORIGINS env var (comma-separated) to override the hardcoded default
 allowed = settings.allowed_origins.split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -55,6 +58,10 @@ app.add_middleware(
 
 # API routes
 app.include_router(api_router)
+
+# Serve static files for graphify output
+graph_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "graphify-out"))
+app.mount("/graphify-out", StaticFiles(directory=graph_dir), name="graphify-out")
 
 
 # ----------------------------------------------------------------------

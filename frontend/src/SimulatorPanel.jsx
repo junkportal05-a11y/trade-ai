@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { runHistoricalSimulation, getSimulationStatus } from './api';
+import { API_BASE_URL, runHistoricalSimulation, getSimulationStatus } from './api';
 
 const T = {
   bg: '#0a0d14',
@@ -41,7 +41,7 @@ export default function SimulatorPanel({ isMobile }) {
     setIsPolling(true); // Re-used for loading state
     try {
       const token = localStorage.getItem('apt_token') || localStorage.getItem('apex_token') || 'apt_fake_if_none';
-      const res = await fetch('http://localhost:8000/api/backtest/run', {
+      const res = await fetch(`${API_BASE_URL}/api/backtest/run`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

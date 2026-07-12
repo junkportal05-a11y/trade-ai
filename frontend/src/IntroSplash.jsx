@@ -35,6 +35,7 @@ export default function IntroSplash({ onWokenUp }) {
   const [logIndex, setLogIndex] = useState(0);
   const [statusText, setStatusText] = useState("CONNECTING TO CLOUD NODE...");
   const [isDone, setIsDone] = useState(false);
+  const [canProceedManually, setCanProceedManually] = useState(false);
 
   const BASE_URL = API_BASE_URL;
 
@@ -97,10 +98,16 @@ export default function IntroSplash({ onWokenUp }) {
           }
           return prev;
         });
+        // After ~10 failed pings, offer a manual escape hatch
+        if (failCount >= 10) {
+          setCanProceedManually(true);
+        }
       }
-      
-      // Ping again in 2 seconds
-      setTimeout(ping, 2000);
+
+      // Ping again in 2 seconds, but stop after max attempts
+      if (failCount < 10) {
+        setTimeout(ping, 2000);
+      }
     }
 
     // Add first logs
@@ -295,6 +302,30 @@ export default function IntroSplash({ onWokenUp }) {
           })}
         </div>
       </div>
+
+      {canProceedManually && (
+        <button
+          onClick={() => {
+            setIsDone(true);
+            onWokenUpRef.current();
+          }}
+          style={{
+            marginTop: 20,
+            padding: '10px 18px',
+            background: T.accent,
+            color: '#fff',
+            border: 'none',
+            borderRadius: 6,
+            cursor: 'pointer',
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 12,
+            letterSpacing: '0.05em',
+            backgroundColor: T.accent,
+          }}
+        >
+          Continue anyway
+        </button>
+      })
 
       <style>{`
         @keyframes spin {
