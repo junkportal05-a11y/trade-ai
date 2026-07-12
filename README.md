@@ -147,5 +147,19 @@ The backend uses Docker and is automatically deployed to Hugging Face Spaces on 
 
 ### Frontend (Vercel)
 The frontend is optimized for deployment on Vercel.
-- Configure rewriting for React Router SPAs in `vercel.json`.
-- Point `VITE_API_URL` to your live Hugging Face Spaces backend API domain.
+
+**CORS note:** the backend runs on Hugging Face Spaces, whose edge gateway
+auto-answers the browser's CORS `OPTIONS` preflight and returns an empty
+`Access-Control-Allow-Credentials` header. That breaks credentialed
+(`credentials: 'include'`) cross-origin calls. To avoid it entirely, the
+frontend is served **same-origin** and `vercel.json` rewrites `/api/:path*`
+to the HF Space backend (a server-side proxy, so no browser preflight occurs).
+
+- `vercel.json` already contains the `/api/:path*` → HF Space rewrite **and** the
+  SPA fallback rewrite. Do **not** remove the API rewrite.
+- Leave `VITE_API_URL` **empty** in `vercel.json` (and in Vercel project env vars)
+  so the app calls its own origin and the rewrite proxies to the backend.
+  Setting it to the HF Space URL reintroduces the cross-origin `OPTIONS` preflight
+  and the CORS failure.
+- `VITE_WS_URL` stays pointed at the HF Space `wss://` URL (Vercel rewrites cannot
+  proxy WebSockets, and the WS auth uses a token query param so it is unaffected).
