@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 
@@ -47,6 +48,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS
 # Use ALLOWED_ORIGINS env var (comma-separated) to override the hardcoded default
 allowed = settings.allowed_origins.split(",")
+print(f"CORS allowed origins: {allowed}")  # Debug line, can be removed in production
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed,
@@ -54,6 +56,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["Content-Type", "Authorization", "X-Session-Token", "x-admin-key", "Accept", "Origin", "X-Requested-With"],
 )
+
+# GZip Middleware
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 # API routes

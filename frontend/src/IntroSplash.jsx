@@ -325,7 +325,7 @@ export default function IntroSplash({ onWokenUp }) {
         >
           Continue anyway
         </button>
-      })
+      )}
 
       <style>{`
         @keyframes spin {

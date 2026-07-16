@@ -1684,7 +1684,7 @@ const TABS = ['HOME', 'CHART', 'SIGNALS', 'PREDICTIONS', 'JOURNAL', 'SIMULATOR',
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   // Security Authentication Gate
-  const [loggedIn, setLoggedIn] = useState(() => localStorage.getItem('is_logged_in') === 'true');
+  const [loggedIn, setLoggedIn] = useState(true);
   const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('apex_user') || 'apex_head_quant');
   const [userRole, setUserRole] = useState(() => localStorage.getItem('apex_role') || 'Master Quant / Administrator');
   const [userClearance, setUserClearance] = useState(() => localStorage.getItem('apex_clearance') || 'LEVEL_4_ROOT');
@@ -1730,6 +1730,7 @@ export default function App() {
   
   // Server warming/cold start splash page state
   const [serverWarming, setServerWarming] = useState(() => localStorage.getItem('apex_splash_shown') === null);
+  const [backendReady, setBackendReady] = useState(false);
 
   // Paper Trading State
   const [portfolio, setPortfolio] = useState(() => {
@@ -1860,7 +1861,7 @@ export default function App() {
   const [refreshAnalystToken, setRefreshAnalystToken] = useState(0);
 
   const fetchMarketBrief = useCallback(() => {
-    if (!loggedIn) return;
+    if (!loggedIn || !backendReady) return;
     apiFetch('/api/market_brief')
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(data => {
@@ -1873,7 +1874,7 @@ export default function App() {
   }, [loggedIn]);
 
   const fetchPredictionStats = useCallback(() => {
-    if (!loggedIn) return;
+    if (!loggedIn || !backendReady) return;
     apiFetch('/api/predictions/stats')
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(data => {
@@ -1883,11 +1884,11 @@ export default function App() {
   }, [loggedIn]);
 
   useEffect(() => {
-    if (loggedIn) {
+    if (loggedIn && backendReady) {
       fetchMarketBrief();
       fetchPredictionStats();
     }
-  }, [loggedIn, fetchMarketBrief, fetchPredictionStats]);
+  }, [loggedIn, backendReady, fetchMarketBrief, fetchPredictionStats]);
 
   // Watchlist favorites state
   const [favorites, setFavorites] = useState(() => {
@@ -2326,6 +2327,7 @@ export default function App() {
 
   const handleWokenUp = useCallback(() => {
     setServerWarming(false);
+    setBackendReady(true);
     localStorage.setItem('apex_splash_shown', 'true');
   }, []);
 
