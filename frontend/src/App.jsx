@@ -1917,11 +1917,6 @@ export default function App() {
     pricesRef.current = prices;
   }, [prices]);
 
-  // Bot Engine State
-  const [botPaperMode, setBotPaperMode] = useState(true);
-  const [selectedStrategy, setSelectedStrategy] = useState('intraday_momentum');
-  const [backtestResults, setBacktestResults] = useState(null);
-
   // App-level Cache for Daily Market Briefing & Stats
   const [marketBrief, setMarketBrief] = useState(null);
   const [loadingBrief, setLoadingBrief] = useState(true);
@@ -3031,7 +3026,7 @@ export default function App() {
                     />
                   </div>
 
-                  {/* RIGHT — Tabbed panel (Bot Engine) */
+                  {/* RIGHT — Tabbed panel (Bot Engine) */}
                   <div style={{ width: 360, flexShrink: 0, borderLeft: `1px solid ${T.border}`, background: T.surface, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     {/* Tab header */}
                     <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}`, flexShrink: 0, background: T.panelAlt }}>
