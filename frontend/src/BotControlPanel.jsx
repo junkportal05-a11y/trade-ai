@@ -41,9 +41,10 @@ export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
       const res = await apiFetch('/api/bot/status');
       if (res.ok) {
         const data = await res.json();
-        setBotStatus(data.status || 'stopped');
+        setBotStatus(data.state?.toLowerCase() || 'stopped');
         setLastSignal(data.last_signal || null);
-        setCurrentPosition(data.current_position || null);
+        // Use first position if any, else null
+        setCurrentPosition(data.positions && data.positions.length > 0 ? data.positions[0] : null);
         setTodayPnL(data.today_pnl || 0);
       }
     } catch (e) {

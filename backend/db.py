@@ -1232,6 +1232,39 @@ def _now_ist() -> str:
     return ist.strftime("%Y-%m-%d %H:%M:%S")
 
 
+# ── Bot state management (RUNNING / PAUSED / STOPPED) ───────────────────────
+def get_bot_state() -> str:
+    """Return current bot state. Defaults to STOPPED if never set."""
+    try:
+        with _conn() as c:
+            row = c.execute(
+                "SELECT value FROM app_settings WHERE key='bot_state'"
+            ).fetchone()
+            if row and row["value"]:
+                return row["value"]
+    except Exception:
+        pass
+    return "STOPPED"
+
+
+def set_bot_state(state: str) -> str:
+    """Persist bot state. Only valid values are accepted."""
+    valid = {"RUNNING", "PAUSED", "STOPPED"}
+    if state not in valid:
+        raise ValueError(f"Invalid bot state: {state}. Must be one of {valid}")
+    with _conn() as c:
+        c.execute(
+            """
+            INSERT INTO app_settings (key, value, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at
+            """,
+            ("bot_state", state, _now_ist()),
+        )
+        c.commit()
+    return state
+
+
 def _calc_pnl(signal_type: str, entry: float, exit_price: float) -> float:
     if entry == 0:
         return 0.0

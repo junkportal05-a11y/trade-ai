@@ -44,8 +44,6 @@ export default function TradeLogPanel({ maxItems = 50 }) {
       }
     } catch (e) {
       console.error('Error fetching trades:', e);
-    } finally {
-      setLoading(false);
     }
   }, [maxItems]);
 

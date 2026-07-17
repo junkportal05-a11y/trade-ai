@@ -51,6 +51,18 @@ async def trading_agent_loop():
             # Run scheduled tasks (e.g. daily session refresh at 8:30 AM IST)
             schedule.run_pending()
 
+            # ── Bot state gate (RUNNING / PAUSED / STOPPED) ──
+            state = db.get_bot_state()
+            if state == "STOPPED":
+                # Bot halted: skip scanning, keep loop alive to detect RUNNING.
+                await asyncio.sleep(30)
+                continue
+            if state == "PAUSED":
+                # Paused: skip new scans but keep monitoring open positions.
+                # The prediction_resolver_worker polls SL/TP, so just wait.
+                await asyncio.sleep(30)
+                continue
+
             now_utc = datetime.now(timezone.utc)
             now_ist = now_utc + timedelta(hours=5, minutes=30)
             
