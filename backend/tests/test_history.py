@@ -1,11 +1,9 @@
-import pytest
 from fastapi.testclient import TestClient
 import pandas as pd
 import datetime
 import numpy as np
 
 from app.main import app
-import backend.signals as sig_engine
 
 client = TestClient(app)
 
