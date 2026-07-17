@@ -20,6 +20,7 @@ Supports Market Hours Gating:
 """
 
 import time
+import re
 import pandas as pd
 import numpy as np
 from datetime import datetime, timezone, timedelta
@@ -368,13 +369,15 @@ def get_learned_weights() -> dict:
         tech_success = []
         vol_success = []
 
+        tech_pattern = re.compile(r"RSI|MACD|EMA|SUPERTREND")
+
         for p in resolved:
             reason_str = p.get("reason", "").upper()
             is_correct = p["status"] == "CORRECT"
 
-            if any(k in reason_str for k in ["RSI", "MACD", "EMA", "SUPERTREND"]):
+            if tech_pattern.search(reason_str):
                 tech_success.append(1 if is_correct else 0)
-            if "VOL" in reason_str or "VOLUME" in reason_str:
+            if "VOL" in reason_str:
                 vol_success.append(1 if is_correct else 0)
 
         weights = default_weights.copy()
