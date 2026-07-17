@@ -415,15 +415,6 @@ def find_support_resistance(
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def _avoid_round_numbers(price: float, atr: float, is_buy: bool) -> float:
-    """Shifts stop loss 0.1 * ATR away from round numbers (multiples of 50 or 100)"""
-    p_int = int(round(price))
-    offset = 0.1 * atr
-    if p_int % 100 <= 2 or p_int % 100 >= 98 or p_int % 50 <= 2 or p_int % 50 >= 48:
-        return price - offset if is_buy else price + offset
-    return price
-
-
 def calculate_risk_parameters(
     price: float,
     signal_type: str,
