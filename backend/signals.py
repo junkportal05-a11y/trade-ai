@@ -135,7 +135,7 @@ def download_market_data_df(
     interval: str = "5m",
 ) -> Optional[pd.DataFrame]:
     """
-    Fetch OHLCV data — AngelOne.
+    Fetch OHLCV data — AngelOne with yfinance fallback.
     """
     cache_key = f"{symbol}_{interval}"
 
@@ -146,7 +146,7 @@ def download_market_data_df(
         if age < CACHE_TTL:
             return cached
 
-    # AngelOne only
+    # AngelOne primary
     feed = get_angelone_feed()
     if feed.is_authorized():
         try:
@@ -158,6 +158,29 @@ def download_market_data_df(
             print(f"[signals] AngelOne returned no data for {symbol}")
         except Exception as e:
             print(f"[signals] AngelOne fetch error for {symbol}: {e}")
+
+    # yfinance fallback
+    try:
+        import yfinance as yf
+        yf_symbol = symbol + '.NS' if '.' not in symbol else symbol
+        df = yf.download(yf_symbol, period=period, interval=interval, auto_adjust=True)
+        if df is not None and not df.empty:
+            # yfinance returns lowercase column names; rename to match expected capitalization
+            df = df.rename(columns={
+                'open': 'Open',
+                'high': 'High',
+                'low': 'Low',
+                'close': 'Close',
+                'volume': 'Volume',
+                'adj close': 'Adj Close'
+            })
+            _BATCH_CANDLE_CACHE[cache_key] = df
+            _CACHE_TIMESTAMP[cache_key] = time.time()
+            print(f"[signals] yfinance fallback succeeded for {symbol}")
+            return df
+        print(f"[signals] yfinance returned no data for {symbol}")
+    except Exception as e:
+        print(f"[signals] yfinance fetch error for {symbol}: {e}")
 
     return None
 

@@ -174,31 +174,71 @@ class AngelOneFeed:
         """
         try:
             import db
-            session = db.get_angelone_session()
-            if not session or not all(k in session for k in ('api_key', 'client_code', 'pin', 'totp_secret')):
-                logger.info("No stored credentials found in database for auto-login.")
+            # Get raw encrypted session data from database
+            with db._conn() as c:
+                c.execute(
+                    "CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT)"
+                )
+                row = c.execute(
+                    "SELECT value FROM app_settings WHERE key='angelone_session'"
+                ).fetchone()
+                if not row:
+                    logger.info("No stored credentials found in database for auto-login.")
+                    return False
+
+                import json
+                encrypted_session = json.loads(row["value"])
+
+            # Decrypt sensitive fields using fernet
+            if not fernet:
+                logger.warning("Fernet not available, using decrypted values from session (fallback)")
+                # Fallback to get_angelone_session if fernet not available
+                session = db.get_angelone_session()
+                if not session or not all(k in session for k in ('api_key', 'client_code', 'pin', 'totp_secret')):
+                    logger.info("No stored credentials found in database for auto-login.")
+                    return False
+
+                api_key = session.get('api_key')
+                pin = session.get('pin')
+                totp_secret = session.get('totp_secret')
+                client_code = session['client_code']
+            else:
+                # Decrypt the fields explicitly
+                def decrypt_if_encrypted(value):
+                    if value is None:
+                        return None
+                    try:
+                        return fernet.decrypt(value.encode()).decode()
+                    except Exception:
+                        # If decryption fails, assume it's already decrypted
+                        return value
+
+                api_key = decrypt_if_encrypted(encrypted_session.get('api_key'))
+                pin = decrypt_if_encrypted(encrypted_session.get('pin'))
+                totp_secret = decrypt_if_encrypted(encrypted_session.get('totp_secret'))
+                client_code = encrypted_session.get('client_code')  # client_code is not encrypted
+
+            if not all([api_key, pin, totp_secret, client_code]):
+                logger.info("Missing required credentials after decryption.")
                 return False
-            
+
             logger.info("Attempting full auto-login with stored database credentials...")
-            api_key = session.get('api_key')
-            pin = session.get('pin')
-            totp_secret = session.get('totp_secret')
             import pyotp
             totp_code = pyotp.TOTP(totp_secret).now()
 
             result = self.login(
                 api_key=api_key,
-                client_code=session['client_code'],
+                client_code=client_code,
                 pin=pin,
                 totp_code=totp_code
             )
             if result.get("status") == "success":
                 # Save the new session info back to db
                 db.save_angelone_session({
-                    "api_key": session['api_key'],
-                    "client_code": session['client_code'],
-                    "pin": session['pin'],
-                    "totp_secret": session['totp_secret'],
+                    "api_key": api_key,
+                    "client_code": client_code,
+                    "pin": pin,
+                    "totp_secret": totp_secret,
                     "session_token": result["session_token"],
                     "refresh_token": result["refresh_token"],
                     "feed_token": result["feed_token"],
@@ -212,6 +252,16 @@ class AngelOneFeed:
         except Exception as e:
             logger.error(f"Exception during auto-login: {e}")
             return False
+
+    def is_session_valid(self) -> bool:
+        import db
+        saved = db.get_angelone_session() or {}
+        updated_at = saved.get('updated_at')
+        if not updated_at or not self.session_token:
+            return False
+        from datetime import datetime, timezone
+        age_hours = (datetime.now(timezone.utc) - datetime.fromisoformat(updated_at)).total_seconds() / 3600
+        return age_hours < 23
 
     def is_authorized(self, force_check: bool = False) -> bool:
         """
