@@ -125,3 +125,9 @@ Frontend: Vercel deployment via `vercel.json` rewrites.
 
 ## Agent Directives
 - **Deep Check Validation:** Never blindly check off pre-requisites or tasks merely because a file exists. Always perform a deep check: verify that environment variables exist, imports are correct, functions are actively called, and execution paths are fully integrated.
+
+## Recent Updates
+- Added bot state handling (RUNNING, PAUSED, STOPPED) in `db.py` (`get_bot_state`/`set_bot_state`), `trading_agent.py` (loop gate), `bot.py` (new router), and `router.py` (included `bot.router`).
+- Modified `BotControlPanel.jsx` and `TradeLogPanel.jsx` to call real `/api/bot/*` endpoints and parse the new response shapes (`state`, `today_pnl`, `last_signal`, `positions`, `trades`).
+- New endpoints: `POST /api/bot/start`, `POST /api/bot/pause`, `POST /api/bot/stop` (triggers `_square_off_all`), `GET /api/bot/status`, `GET /api/bot/trades`.
+- Ran `graphify update .` to refresh the dependency graph after code changes (3033 nodes, 3948 edges).
