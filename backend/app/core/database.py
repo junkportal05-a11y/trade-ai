@@ -1,11 +1,12 @@
 """Database layer with SQLAlchemy, connection pooling, and WAL mode."""
+
 from __future__ import annotations
 
 import os
 from contextlib import contextmanager
 from typing import Generator
 
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 from app.core.config import settings
@@ -75,4 +76,5 @@ def db_session() -> Generator[Session, None, None]:
 def init_db() -> None:
     """Create tables if they don't exist."""
     from app.db import migrations
+
     migrations.run_migrations(engine)
