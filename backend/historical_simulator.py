@@ -160,7 +160,7 @@ class HistoricalSimulator:
                                     rr_target=rr_target
                                 )
                                 
-                                if result and abs(result.get('score', 0)) >= 4:
+                                if result and abs(result.get('score', 0)) >= 9:
                                     simulation_status.stats["total_signals"] += 1
                                     
                                     # Signal Details
@@ -307,7 +307,7 @@ class HistoricalSimulator:
 
 def run_simulation_task(start_date: str, end_date: str, user: str, symbols: list = None):
     simulator = HistoricalSimulator()
-    asyncio.run(simulator.simulate(start_date, end_date))
+    asyncio.run(simulator.simulate(start_date, end_date, atr_multiplier=1.0, rr_target=2.0))
 
 if __name__ == "__main__":
     import sys
