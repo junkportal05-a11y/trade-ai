@@ -1,13 +1,20 @@
 """SQLAlchemy ORM models for all database tables."""
+
 from __future__ import annotations
 
 import enum
 from datetime import datetime
 
 from sqlalchemy import (
-    Column, Integer, String, Float, Text, Boolean, DateTime, UniqueConstraint, ForeignKey,
+    Column,
+    Integer,
+    String,
+    Float,
+    Text,
+    Boolean,
+    DateTime,
+    UniqueConstraint,
 )
-from sqlalchemy.orm import relationship, declarative_base
 
 from app.core.database import Base
 
@@ -228,8 +235,6 @@ class ConfidenceCalibration(Base):
 
     __table_args__ = (UniqueConstraint("band", "regime", name="uix_band_regime"),)
 
-
-import sqlalchemy
 
 class DailyGovernanceReport(Base):
     __tablename__ = "daily_governance_reports"
