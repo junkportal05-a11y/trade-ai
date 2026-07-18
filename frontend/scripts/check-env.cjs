@@ -10,8 +10,40 @@
  * This script is used as a "prebuild" hook so that Vercel CI will fail fast.
  */
 
-const API_URL = process.env.VITE_API_URL;
-const WS_URL = process.env.VITE_WS_URL;
+const fs = require('fs');
+const path = require('path');
+
+function getEnvValue(key) {
+  if (process.env[key] !== undefined) {
+    return process.env[key];
+  }
+  
+  const files = ['.env', '.env.local', '.env.production', '.env.production.local'];
+  let val = undefined;
+  
+  for (const file of files) {
+    const filePath = path.join(process.cwd(), file);
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf-8');
+      const lines = content.split('\n');
+      for (const line of lines) {
+        const match = line.match(new RegExp(`^\\s*${key}\\s*=\\s*(.*)`));
+        if (match) {
+          let extracted = match[1].trim();
+          if ((extracted.startsWith('"') && extracted.endsWith('"')) || 
+              (extracted.startsWith("'") && extracted.endsWith("'"))) {
+            extracted = extracted.slice(1, -1);
+          }
+          val = extracted;
+        }
+      }
+    }
+  }
+  return val;
+}
+
+const API_URL = getEnvValue('VITE_API_URL');
+const WS_URL = getEnvValue('VITE_WS_URL');
 
 function isNonEmptyString(value) {
   return value && value.trim().length > 0;
