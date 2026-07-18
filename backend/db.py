@@ -766,43 +766,6 @@ def get_resolved_trades_for_validation(limit: int = 100) -> list:
     return rows[:limit]
 
 
-def record_data_quality_check(result: dict) -> int:
-    with _conn() as c:
-        now = _now_ist()
-        cur = c.execute(
-            """
-            INSERT INTO data_quality
-                (checked_at, total_trades, valid_trades, confidence_score, failures, locked)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                now,
-                int(result.get("total_trades", 0)),
-                int(result.get("valid_trades", 0)),
-                float(result.get("confidence_score", 0.0)),
-                json.dumps(result.get("failures", [])),
-                bool(result.get("locked", True)),
-            ),
-        )
-        c.commit()
-        return cur.lastrowid
-
-
-def get_latest_data_quality() -> Optional[dict]:
-    with _conn() as c:
-        row = c.execute(
-            "SELECT * FROM data_quality ORDER BY checked_at DESC, id DESC LIMIT 1"
-        ).fetchone()
-        if not row:
-            return None
-        result = dict(row)
-        try:
-            result["failures"] = json.loads(result.get("failures") or "[]")
-        except Exception:
-            result["failures"] = []
-        result["locked"] = bool(result.get("locked"))
-        return result
-
 
 def expire_old_intraday():
     """Mark intraday PENDING signals older than today as EXPIRED at 15:30 IST."""
