@@ -78,18 +78,3 @@ class MarketReplayEngine:
             strategy_callback(row, symbol_history[sym])
             
         logger.info("Market Replay complete. 0% Lookahead Bias achieved.")
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    
-    # Dummy strategy
-    def dummy_strategy(current_candle, past_candles):
-        # A simple strategy that buys if current close > previous close
-        if len(past_candles) < 2:
-            return
-        prev_candle = past_candles[-2]
-        if current_candle['Close'] > prev_candle['Close']:
-            pass # Emit buy signal (handled by portfolio simulator)
-            
-    engine = MarketReplayEngine()
-    engine.replay(dummy_strategy)
