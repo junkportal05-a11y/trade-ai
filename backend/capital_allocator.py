@@ -13,6 +13,104 @@ Strategy:
 """
 
 
+# ── High-volatility NSE stocks ideal for small capital intraday ───────────────
+# Each entry is a dict matching the format run_scan expects: {symbol, name, sector}
+HIGH_VOLATILITY_UNIVERSE = {
+    # ₹20-100 range — buy many shares, big % moves
+    "MICRO": [
+        {"symbol": "YESBANK.NS", "name": "Yes Bank", "sector": "Banking"},
+        {"symbol": "IDEA.NS", "name": "Vodafone Idea", "sector": "Telecom"},
+        {"symbol": "SUZLON.NS", "name": "Suzlon Energy", "sector": "Power"},
+        {"symbol": "IRFC.NS", "name": "IRFC", "sector": "Finance"},
+        {"symbol": "NHPC.NS", "name": "NHPC", "sector": "Power"},
+        {"symbol": "RVNL.NS", "name": "RVNL", "sector": "Infrastructure"},
+        {
+            "symbol": "IRCON.NS",
+            "name": "Ircon International",
+            "sector": "Infrastructure",
+        },
+        {"symbol": "RECLTD.NS", "name": "REC Ltd", "sector": "Finance"},
+        {"symbol": "PFC.NS", "name": "Power Finance Corp", "sector": "Finance"},
+        {"symbol": "SAIL.NS", "name": "SAIL", "sector": "Metals"},
+        {"symbol": "NALCO.NS", "name": "NALCO", "sector": "Metals"},
+        {"symbol": "HUDCO.NS", "name": "HUDCO", "sector": "Finance"},
+        {"symbol": "SJVN.NS", "name": "SJVN", "sector": "Power"},
+        {"symbol": "MOIL.NS", "name": "MOIL", "sector": "Metals"},
+        {"symbol": "MRPL.NS", "name": "MRPL", "sector": "Energy"},
+    ],
+    # ₹100-500 range — sweet spot for ₹1K-10K capital
+    "SMALL": [
+        {"symbol": "TATASTEEL.NS", "name": "Tata Steel", "sector": "Metals"},
+        {"symbol": "BANKBARODA.NS", "name": "Bank of Baroda", "sector": "Banking"},
+        {"symbol": "CANBK.NS", "name": "Canara Bank", "sector": "Banking"},
+        {"symbol": "PNB.NS", "name": "Punjab National Bank", "sector": "Banking"},
+        {"symbol": "UNIONBANK.NS", "name": "Union Bank", "sector": "Banking"},
+        {"symbol": "IDFCFIRSTB.NS", "name": "IDFC First Bank", "sector": "Banking"},
+        {"symbol": "FEDERALBNK.NS", "name": "Federal Bank", "sector": "Banking"},
+        {"symbol": "TATAPOWER.NS", "name": "Tata Power", "sector": "Power"},
+        {"symbol": "ADANIPOWER.NS", "name": "Adani Power", "sector": "Power"},
+        {"symbol": "JSWENERGY.NS", "name": "JSW Energy", "sector": "Power"},
+        {"symbol": "NLCINDIA.NS", "name": "NLC India", "sector": "Power"},
+        {"symbol": "NBCC.NS", "name": "NBCC India", "sector": "Infrastructure"},
+        {"symbol": "BEL.NS", "name": "Bharat Electronics", "sector": "Defence"},
+        {"symbol": "BHEL.NS", "name": "BHEL", "sector": "Capital Goods"},
+        {"symbol": "COALINDIA.NS", "name": "Coal India", "sector": "Metals"},
+        {"symbol": "HINDALCO.NS", "name": "Hindalco", "sector": "Metals"},
+        {"symbol": "ONGC.NS", "name": "ONGC", "sector": "Energy"},
+        {"symbol": "NTPC.NS", "name": "NTPC", "sector": "Power"},
+    ],
+    # ₹500-1500 range — good for ₹10K-50K capital
+    "MID": [
+        {
+            "symbol": "ADANIENT.NS",
+            "name": "Adani Enterprises",
+            "sector": "Conglomerate",
+        },
+        {"symbol": "ADANIPORTS.NS", "name": "Adani Ports", "sector": "Infrastructure"},
+        {"symbol": "TATAMOTORS.NS", "name": "Tata Motors", "sector": "Auto"},
+        {"symbol": "JSWSTEEL.NS", "name": "JSW Steel", "sector": "Metals"},
+        {"symbol": "SBIN.NS", "name": "SBI", "sector": "Banking"},
+        {"symbol": "AXISBANK.NS", "name": "Axis Bank", "sector": "Banking"},
+        {"symbol": "ICICIBANK.NS", "name": "ICICI Bank", "sector": "Banking"},
+        {"symbol": "INDUSINDBK.NS", "name": "IndusInd Bank", "sector": "Banking"},
+        {"symbol": "POWERGRID.NS", "name": "Power Grid", "sector": "Power"},
+        {"symbol": "GLENMARK.NS", "name": "Glenmark Pharma", "sector": "Pharma"},
+    ],
+    # ₹1500+ range — for larger capital
+    "LARGE": [
+        {"symbol": "RELIANCE.NS", "name": "Reliance Industries", "sector": "Energy"},
+        {"symbol": "TCS.NS", "name": "TCS", "sector": "IT"},
+        {"symbol": "HDFCBANK.NS", "name": "HDFC Bank", "sector": "Banking"},
+        {"symbol": "INFY.NS", "name": "Infosys", "sector": "IT"},
+        {"symbol": "WIPRO.NS", "name": "Wipro", "sector": "IT"},
+        {"symbol": "LT.NS", "name": "Larsen & Toubro", "sector": "Engineering"},
+        {"symbol": "BAJFINANCE.NS", "name": "Bajaj Finance", "sector": "Finance"},
+        {"symbol": "MARUTI.NS", "name": "Maruti Suzuki", "sector": "Auto"},
+        {"symbol": "TITAN.NS", "name": "Titan Company", "sector": "Consumer"},
+    ],
+}
+
+
+def get_target_universe(capital: float) -> list:
+    """
+    Returns a list of {symbol, name, sector} dicts matched to capital size.
+    Small capital → cheap volatile stocks | Large capital → full universe.
+    """
+    micro = HIGH_VOLATILITY_UNIVERSE["MICRO"]
+    small = HIGH_VOLATILITY_UNIVERSE["SMALL"]
+    mid = HIGH_VOLATILITY_UNIVERSE["MID"]
+    large = HIGH_VOLATILITY_UNIVERSE["LARGE"]
+
+    if capital < 2_000:
+        return micro + small[:6]
+    elif capital < 10_000:
+        return micro[5:] + small
+    elif capital < 50_000:
+        return small + mid
+    else:
+        return small + mid + large
+
+
 def generate_mentor_advice(
     sig: dict, actual_cost: float, pot_loss: float, capital: float, rr: float
 ) -> list:
