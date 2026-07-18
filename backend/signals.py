@@ -247,19 +247,6 @@ def _atr(high: pd.Series, low: pd.Series, close: pd.Series, period=14) -> pd.Ser
     return tr.rolling(period).mean(), tr  # returns (atr, tr)
 
 
-def _adx(high: pd.Series, low: pd.Series, close: pd.Series, period=14) -> pd.Series:
-    _, tr = _atr(high, low, close, period)
-    up = high.diff()
-    down = -low.diff()
-    plus_dm = up.where((up > down) & (up > 0), 0.0)
-    minus_dm = down.where((down > up) & (down > 0), 0.0)
-    atr_s = tr.rolling(period).mean().replace(0, np.nan)
-    plus_di = 100 * plus_dm.rolling(period).mean() / atr_s
-    minus_di = 100 * minus_dm.rolling(period).mean() / atr_s
-    dx = (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan) * 100
-    return dx.rolling(period).mean()
-
-
 def _stochastic(high: pd.Series, low: pd.Series, close: pd.Series, k=14, d=3):
     lo = low.rolling(k).min()
     hi = high.rolling(k).max()
