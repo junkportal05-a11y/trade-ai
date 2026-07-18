@@ -38,6 +38,9 @@ class AngelOneFeed:
         self.instruments = {}
         self.instruments_file = Path(os.path.join(os.path.dirname(__file__), "angelone_instruments.json"))
         
+        import threading
+        self._instruments_lock = threading.Lock()
+
     # ==========================================
     # AUTHENTICATION
     # ==========================================
@@ -83,8 +86,8 @@ class AngelOneFeed:
             
             logger.info("✅ AngelOne authentication successful")
             
-            # Download instrument master
-            self._download_instrument_master()
+            # Download instrument master in background to prevent blocking
+            self._download_instrument_master(background=True)
             
             return {
                 "status": "success",
@@ -262,52 +265,62 @@ class AngelOneFeed:
     # INSTRUMENT MASTER
     # ==========================================
     
-    def _download_instrument_master(self) -> bool:
+    def _download_instrument_master(self, background: bool = False) -> bool:
         """
         Download and cache AngelOne instrument master
         """
-        try:
-            logger.info("Downloading AngelOne instrument master...")
-            
-            import requests
-            
-            url = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
-            response = requests.get(url, timeout=30)
-            
-            if response.status_code == 200:
-                instruments = response.json()
+        def download_task():
+            try:
+                logger.info("Downloading AngelOne instrument master...")
                 
-                # Filter for NSE equity only
-                nse_instruments = [
-                    inst for inst in instruments 
-                    if inst['exch_seg'] == 'NSE' and inst['symbol'].endswith('-EQ')
-                ]
+                import requests
                 
-                # Create symbol → token mapping
-                self.instruments = {
-                    inst['symbol']: {
-                        'token': inst['token'],
-                        'symbol': inst['symbol'],
-                        'name': inst['name'],
-                        'lotsize': inst['lotsize'],
-                        'tick_size': inst['tick_size']
+                url = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
+                response = requests.get(url, timeout=30)
+                
+                if response.status_code == 200:
+                    instruments = response.json()
+
+                    # Filter for NSE equity only
+                    nse_instruments = [
+                        inst for inst in instruments
+                        if inst['exch_seg'] == 'NSE' and inst['symbol'].endswith('-EQ')
+                    ]
+
+                    # Create symbol → token mapping
+                    new_instruments = {
+                        inst['symbol']: {
+                            'token': inst['token'],
+                            'symbol': inst['symbol'],
+                            'name': inst['name'],
+                            'lotsize': inst['lotsize'],
+                            'tick_size': inst['tick_size']
+                        }
+                        for inst in nse_instruments
                     }
-                    for inst in nse_instruments
-                }
-                
-                # Save to disk
-                with open(self.instruments_file, 'w') as f:
-                    json.dump(self.instruments, f, indent=2)
-                
-                logger.info(f"✅ Cached {len(self.instruments)} NSE instruments")
-                return True
-            else:
-                logger.error(f"Failed to download instruments: {response.status_code}")
+
+                    with self._instruments_lock:
+                        self.instruments = new_instruments
+                        # Save to disk safely
+                        with open(self.instruments_file, 'w') as f:
+                            json.dump(self.instruments, f, indent=2)
+
+                    logger.info(f"✅ Cached {len(self.instruments)} NSE instruments")
+                    return True
+                else:
+                    logger.error(f"Failed to download instruments: {response.status_code}")
+                    return False
+
+            except Exception as e:
+                logger.error(f"Instrument download error: {str(e)}")
                 return False
-                
-        except Exception as e:
-            logger.error(f"Instrument download error: {str(e)}")
-            return False
+
+        if background:
+            import threading
+            threading.Thread(target=download_task, daemon=True).start()
+            return True
+        else:
+            return download_task()
     
     def get_instrument_token(self, symbol: str) -> Optional[str]:
         """
@@ -315,10 +328,11 @@ class AngelOneFeed:
         """
         if not self.instruments:
             if not self.instruments_file.exists():
-                self._download_instrument_master()
+                self._download_instrument_master(background=False)
             if self.instruments_file.exists():
-                with open(self.instruments_file, 'r') as f:
-                    self.instruments = json.load(f)
+                with self._instruments_lock:
+                    with open(self.instruments_file, 'r') as f:
+                        self.instruments = json.load(f)
         
         # Normalize symbol (remove -EQ suffix or .NS if present)
         clean_symbol = symbol.replace("-EQ", "").replace(".NS", "").upper() + "-EQ"
