@@ -131,3 +131,4 @@ Frontend: Vercel deployment via `vercel.json` rewrites.
 - Modified `BotControlPanel.jsx` and `TradeLogPanel.jsx` to call real `/api/bot/*` endpoints and parse the new response shapes (`state`, `today_pnl`, `last_signal`, `positions`, `trades`).
 - New endpoints: `POST /api/bot/start`, `POST /api/bot/pause`, `POST /api/bot/stop` (triggers `_square_off_all`), `GET /api/bot/status`, `GET /api/bot/trades`.
 - Ran `graphify update .` to refresh the dependency graph after code changes (3033 nodes, 3948 edges).
+- Cleaned up debug regex files and confirmed Vite build success.

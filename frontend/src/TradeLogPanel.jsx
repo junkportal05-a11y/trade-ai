@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { API_BASE_URL, apiFetch } from './api';
+import { useBotWebSocket } from './hooks/useBotWebSocket';
 
 const T = {
   bg:         '#080a0f',
@@ -35,23 +36,12 @@ export default function TradeLogPanel({ maxItems = 50 }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL'); // ALL | BUY | SELL | OPEN | CLOSED
 
-  const fetchTrades = useCallback(async () => {
-    try {
-      const res = await apiFetch(`/api/bot/trades?limit=${maxItems}`);
-      if (res.ok) {
-        const data = await res.json();
-        setTrades(data.trades || []);
-      }
-    } catch (e) {
-      console.error('Error fetching trades:', e);
-    }
-  }, [maxItems]);
+  const { botData, connected } = useBotWebSocket();
 
   useEffect(() => {
-    fetchTrades();
-    const interval = setInterval(fetchTrades, 3000);
-    return () => clearInterval(interval);
-  }, [fetchTrades]);
+    setTrades(botData.trades || []);
+    setLoading(!connected && (!botData.trades || botData.trades.length === 0));
+  }, [botData.trades, connected]);
 
   const filteredTrades = trades.filter(t => {
     if (filter === 'ALL') return true;

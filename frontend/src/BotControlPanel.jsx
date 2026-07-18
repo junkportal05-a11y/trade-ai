@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { API_BASE_URL, apiFetch } from './api';
+import { useBotWebSocket } from './hooks/useBotWebSocket';
 
 const T = {
   bg:         '#080a0f',
@@ -36,27 +37,14 @@ export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const res = await apiFetch('/api/bot/status');
-      if (res.ok) {
-        const data = await res.json();
-        setBotStatus(data.state?.toLowerCase() || 'stopped');
-        setLastSignal(data.last_signal || null);
-        // Use first position if any, else null
-        setCurrentPosition(data.positions && data.positions.length > 0 ? data.positions[0] : null);
-        setTodayPnL(data.today_pnl || 0);
-      }
-    } catch (e) {
-      // Silent fail - backend may not have bot endpoint yet
-    }
-  }, []);
+  const { botData, connected } = useBotWebSocket();
 
   useEffect(() => {
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 5000);
-    return () => clearInterval(interval);
-  }, [fetchStatus]);
+    setBotStatus(botData.status.state?.toLowerCase() || 'stopped');
+    setLastSignal(botData.status.last_signal || null);
+    setCurrentPosition(botData.status.positions?.length > 0 ? botData.status.positions[0] : null);
+    setTodayPnL(botData.status.today_pnl || 0);
+  }, [botData.status]);
 
   const handleStart = async () => {
     setLoading(true);

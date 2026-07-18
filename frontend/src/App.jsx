@@ -1,4 +1,6 @@
 import { API_BASE_URL, apiFetch } from './api';
+import { Plus, Minus, Info, AlertTriangle, Link, Link2Off, RefreshCw, Layers, Crosshair, TrendingUp, X } from 'lucide-react';
+import { calcEMA, calcBollingerBands, calcRSI, calcMACD } from './utils/indicators';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
 import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
@@ -85,7 +87,7 @@ const clr  = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
 const sign = (v) => v > 0 ? '+' : '';
 
 // ── Candlestick Chart (with volume and indicators) ────────────────────────
-function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [] }) {
+function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [], botPaperMode }) {
   const mainContainerRef = useRef();
   const legendRef = useRef();
   const rsiContainerRef = useRef();
@@ -489,7 +491,20 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       {/* Main Chart Container */}
       <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
         <div ref={legendRef} style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, fontFamily: "'IBM Plex Mono', monospace", pointerEvents: 'none', background: 'rgba(13,16,24,0.65)', backdropFilter: 'blur(4px)', padding: '8px 12px', borderRadius: 6, display: 'none', border: `1px solid ${T.borderHi}` }} />
-        <div ref={mainContainerRef} style={{ position: 'absolute', inset: 0 }} />
+        
+        {botPaperMode === true && (
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, pointerEvents: 'none', color: 'rgba(255, 255, 255, 0.05)', fontSize: '8vw', fontWeight: 900, whiteSpace: 'nowrap', userSelect: 'none' }}>
+            SIMULATION MODE
+          </div>
+        )}
+        
+        {botPaperMode === false && (
+          <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, background: T.red, color: '#fff', fontSize: 11, fontWeight: 800, padding: '4px 8px', borderRadius: 4, letterSpacing: '0.05em' }}>
+            LIVE BROKER
+          </div>
+        )}
+        
+        <div ref={mainContainerRef} style={{ position: 'absolute', inset: 0, zIndex: 2 }} />
       </div>
       
       {/* RSI Container */}
@@ -2797,6 +2812,7 @@ export default function App() {
                             drawMode={drawMode}
                             onDrawComplete={handleDrawComplete}
                             customLines={chartLines[selected] || EMPTY_ARRAY}
+                            botPaperMode={botPaperMode}
                           />
                         </div>
                         {/* Embedded AI Analyst Card */}
@@ -3108,111 +3124,3 @@ export default function App() {
   );
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  Indicator Calculation Helper Functions
-// ══════════════════════════════════════════════════════════════════════════════
-
-function calcEMA(data, period) {
-  const ema = [];
-  if (data.length === 0) return [];
-  const k = 2 / (period + 1);
-  let prevEma = data[0].close;
-  ema.push({ time: data[0].time, value: prevEma });
-  for (let i = 1; i < data.length; i++) {
-    const val = data[i].close * k + prevEma * (1 - k);
-    ema.push({ time: data[i].time, value: val });
-    prevEma = val;
-  }
-  return ema;
-}
-
-function calcBollingerBands(data, period = 20, multiplier = 2) {
-  const upper = [];
-  const middle = [];
-  const lower = [];
-  for (let i = 0; i < data.length; i++) {
-    if (i < period - 1) {
-      middle.push({ time: data[i].time, value: data[i].close });
-      upper.push({ time: data[i].time, value: data[i].close });
-      lower.push({ time: data[i].time, value: data[i].close });
-      continue;
-    }
-    let sum = 0;
-    for (let j = 0; j < period; j++) {
-      sum += data[i - j].close;
-    }
-    const mean = sum / period;
-    let variance = 0;
-    for (let j = 0; j < period; j++) {
-      variance += Math.pow(data[i - j].close - mean, 2);
-    }
-    const stdDev = Math.sqrt(variance / period);
-    middle.push({ time: data[i].time, value: mean });
-    upper.push({ time: data[i].time, value: mean + multiplier * stdDev });
-    lower.push({ time: data[i].time, value: mean - multiplier * stdDev });
-  }
-  return { upper, middle, lower };
-}
-
-function calcRSI(data, period = 14) {
-  const rsi = [];
-  if (data.length < period) return [];
-  
-  let gains = 0;
-  let losses = 0;
-  
-  for (let i = 1; i <= period; i++) {
-    const diff = data[i].close - data[i - 1].close;
-    if (diff > 0) gains += diff;
-    else losses -= diff;
-  }
-  
-  let avgGain = gains / period;
-  let avgLoss = losses / period;
-  let rs = avgGain / (avgLoss || 1e-10);
-  rsi.push({ time: data[period].time, value: 100 - (100 / (1 + rs)) });
-  
-  for (let i = period + 1; i < data.length; i++) {
-    const diff = data[i].close - data[i - 1].close;
-    const gain = diff > 0 ? diff : 0;
-    const loss = diff < 0 ? -diff : 0;
-    
-    avgGain = (avgGain * (period - 1) + gain) / period;
-    avgLoss = (avgLoss * (period - 1) + loss) / period;
-    rs = avgGain / (avgLoss || 1e-10);
-    rsi.push({ time: data[i].time, value: 100 - (100 / (1 + rs)) });
-  }
-  return rsi;
-}
-
-function calcMACD(data, fast = 12, slow = 26, signal = 9) {
-  const emaFast = calcEMA(data, fast);
-  const emaSlow = calcEMA(data, slow);
-  
-  const macdLine = [];
-  for (let i = 0; i < data.length; i++) {
-    const fVal = emaFast[i]?.value ?? data[i].close;
-    const sVal = emaSlow[i]?.value ?? data[i].close;
-    macdLine.push({ time: data[i].time, value: fVal - sVal });
-  }
-  
-  const signalLine = [];
-  const k = 2 / (signal + 1);
-  let prevEma = macdLine[0].value;
-  signalLine.push({ time: macdLine[0].time, value: prevEma });
-  for (let i = 1; i < macdLine.length; i++) {
-    const val = macdLine[i].value * k + prevEma * (1 - k);
-    signalLine.push({ time: macdLine[i].time, value: val });
-    prevEma = val;
-  }
-  
-  const histogram = [];
-  for (let i = 0; i < macdLine.length; i++) {
-    histogram.push({
-      time: macdLine[i].time,
-      value: macdLine[i].value - (signalLine[i]?.value || 0)
-    });
-  }
-  
-  return { macdLine, signalLine, histogram };
-}
