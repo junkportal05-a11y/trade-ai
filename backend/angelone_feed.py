@@ -539,8 +539,8 @@ class AngelOneFeed:
             df.set_index('Date', inplace=True)
             df.sort_index(inplace=True)
             
-            for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+            cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+            df[cols] = df[cols].apply(pd.to_numeric, errors='coerce')
             
             logger.info(f"✅ Fetched {len(df)} candles for {symbol}")
             
