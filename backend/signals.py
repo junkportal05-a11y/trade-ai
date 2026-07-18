@@ -1435,8 +1435,9 @@ def run_scan(
 
     first_pass_results = []
     
-    # Run all blocking operations sequentially for now
-    results = [analyse_one(item) for item in watchlist]
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        results = list(executor.map(analyse_one, watchlist))
     
     for item, res in zip(watchlist, results):
         if isinstance(res, Exception):
