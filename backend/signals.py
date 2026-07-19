@@ -135,7 +135,7 @@ def download_market_data_df(
     interval: str = "5m",
 ) -> Optional[pd.DataFrame]:
     """
-    Fetch OHLCV data — AngelOne.
+    Fetch OHLCV data — AngelOne with yfinance fallback.
     """
     cache_key = f"{symbol}_{interval}"
 
@@ -146,7 +146,7 @@ def download_market_data_df(
         if age < CACHE_TTL:
             return cached
 
-    # AngelOne only
+    # AngelOne primary
     feed = get_angelone_feed()
     if feed.is_authorized():
         try:
@@ -158,6 +158,29 @@ def download_market_data_df(
             print(f"[signals] AngelOne returned no data for {symbol}")
         except Exception as e:
             print(f"[signals] AngelOne fetch error for {symbol}: {e}")
+
+    # yfinance fallback
+    try:
+        import yfinance as yf
+        yf_symbol = symbol + '.NS' if '.' not in symbol else symbol
+        df = yf.download(yf_symbol, period=period, interval=interval, auto_adjust=True)
+        if df is not None and not df.empty:
+            # yfinance returns lowercase column names; rename to match expected capitalization
+            df = df.rename(columns={
+                'open': 'Open',
+                'high': 'High',
+                'low': 'Low',
+                'close': 'Close',
+                'volume': 'Volume',
+                'adj close': 'Adj Close'
+            })
+            _BATCH_CANDLE_CACHE[cache_key] = df
+            _CACHE_TIMESTAMP[cache_key] = time.time()
+            print(f"[signals] yfinance fallback succeeded for {symbol}")
+            return df
+        print(f"[signals] yfinance returned no data for {symbol}")
+    except Exception as e:
+        print(f"[signals] yfinance fetch error for {symbol}: {e}")
 
     return None
 
@@ -222,19 +245,6 @@ def _atr(high: pd.Series, low: pd.Series, close: pd.Series, period=14) -> pd.Ser
         axis=1,
     ).max(axis=1)
     return tr.rolling(period).mean(), tr  # returns (atr, tr)
-
-
-def _adx(high: pd.Series, low: pd.Series, close: pd.Series, period=14) -> pd.Series:
-    _, tr = _atr(high, low, close, period)
-    up = high.diff()
-    down = -low.diff()
-    plus_dm = up.where((up > down) & (up > 0), 0.0)
-    minus_dm = down.where((down > up) & (down > 0), 0.0)
-    atr_s = tr.rolling(period).mean().replace(0, np.nan)
-    plus_di = 100 * plus_dm.rolling(period).mean() / atr_s
-    minus_di = 100 * minus_dm.rolling(period).mean() / atr_s
-    dx = (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan) * 100
-    return dx.rolling(period).mean()
 
 
 def _stochastic(high: pd.Series, low: pd.Series, close: pd.Series, k=14, d=3):
@@ -1425,8 +1435,9 @@ def run_scan(
 
     first_pass_results = []
     
-    # Run all blocking operations sequentially for now
-    results = [analyse_one(item) for item in watchlist]
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        results = list(executor.map(analyse_one, watchlist))
     
     for item, res in zip(watchlist, results):
         if isinstance(res, Exception):

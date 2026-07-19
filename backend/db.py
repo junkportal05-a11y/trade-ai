@@ -540,21 +540,26 @@ def init_db():
             ("slippage_pct", "REAL"),
             ("broker_failure_reason", "TEXT"),
         ]
-        # Safe DDL: only allow specific column types from hardcoded list
-        _SAFE_SQL_TYPES = {"TEXT", "REAL", "INTEGER", "BOOLEAN"}
+        # Safe DDL: Map values strictly to known safe strings before formatting
+        _SAFE_SQL_TYPES = {"TEXT": "TEXT", "REAL": "REAL", "INTEGER": "INTEGER", "BOOLEAN": "BOOLEAN"}
+        _SAFE_COLUMNS = {name: name for name, _ in pred_migrations}
+
         for col_name, col_type in pred_migrations:
             if col_name not in pred_columns:
                 try:
-                    # Verify against allowlist to prevent SQL injection
-                    if col_type.upper() not in _SAFE_SQL_TYPES:
+                    # Map to strictly verified hardcoded strings
+                    safe_col_type = _SAFE_SQL_TYPES.get(col_type.upper())
+                    if not safe_col_type:
                         print(f"[MIGRATION] Skipping unsafe column type: {col_type}")
                         continue
-                    # Sanitize column name: only alphanumeric + underscore
-                    if not col_name.replace("_", "").isalnum():
+
+                    safe_col_name = _SAFE_COLUMNS.get(col_name)
+                    if not safe_col_name:
                         print(f"[MIGRATION] Skipping unsafe column name: {col_name}")
                         continue
+
                     c.execute(
-                        f'ALTER TABLE "predictions_history" ADD COLUMN "{col_name}" {col_type}'
+                        f'ALTER TABLE "predictions_history" ADD COLUMN "{safe_col_name}" {safe_col_type}'
                     )
                     c.commit()
                 except Exception:
@@ -765,43 +770,6 @@ def get_resolved_trades_for_validation(limit: int = 100) -> list:
     rows.sort(key=lambda row: row.get("resolved_at") or row.get("created_at") or "", reverse=True)
     return rows[:limit]
 
-
-def record_data_quality_check(result: dict) -> int:
-    with _conn() as c:
-        now = _now_ist()
-        cur = c.execute(
-            """
-            INSERT INTO data_quality
-                (checked_at, total_trades, valid_trades, confidence_score, failures, locked)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                now,
-                int(result.get("total_trades", 0)),
-                int(result.get("valid_trades", 0)),
-                float(result.get("confidence_score", 0.0)),
-                json.dumps(result.get("failures", [])),
-                bool(result.get("locked", True)),
-            ),
-        )
-        c.commit()
-        return cur.lastrowid
-
-
-def get_latest_data_quality() -> Optional[dict]:
-    with _conn() as c:
-        row = c.execute(
-            "SELECT * FROM data_quality ORDER BY checked_at DESC, id DESC LIMIT 1"
-        ).fetchone()
-        if not row:
-            return None
-        result = dict(row)
-        try:
-            result["failures"] = json.loads(result.get("failures") or "[]")
-        except Exception:
-            result["failures"] = []
-        result["locked"] = bool(result.get("locked"))
-        return result
 
 
 def expire_old_intraday():
@@ -1230,6 +1198,39 @@ def _now_ist() -> str:
     utc = datetime.now(timezone.utc)
     ist = utc + timedelta(hours=5, minutes=30)
     return ist.strftime("%Y-%m-%d %H:%M:%S")
+
+
+# ── Bot state management (RUNNING / PAUSED / STOPPED) ───────────────────────
+def get_bot_state() -> str:
+    """Return current bot state. Defaults to STOPPED if never set."""
+    try:
+        with _conn() as c:
+            row = c.execute(
+                "SELECT value FROM app_settings WHERE key='bot_state'"
+            ).fetchone()
+            if row and row["value"]:
+                return row["value"]
+    except Exception:
+        pass
+    return "STOPPED"
+
+
+def set_bot_state(state: str) -> str:
+    """Persist bot state. Only valid values are accepted."""
+    valid = {"RUNNING", "PAUSED", "STOPPED"}
+    if state not in valid:
+        raise ValueError(f"Invalid bot state: {state}. Must be one of {valid}")
+    with _conn() as c:
+        c.execute(
+            """
+            INSERT INTO app_settings (key, value, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at
+            """,
+            ("bot_state", state, _now_ist()),
+        )
+        c.commit()
+    return state
 
 
 def _calc_pnl(signal_type: str, entry: float, exit_price: float) -> float:

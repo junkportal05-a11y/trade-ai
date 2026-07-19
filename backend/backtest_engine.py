@@ -20,6 +20,7 @@ class BacktestConfig:
     entry_score: int = 5
     risk_pct: float = 0.02
     early_exit: int = -4
+    adx_min: float = 0.0
 
 def resolve_candle_pessimistic(candle: dict, entry: float, target: float, stop: float, direction: str) -> tuple[str, float]:
     """
@@ -51,6 +52,75 @@ def resolve_candle_pessimistic(candle: dict, entry: float, target: float, stop: 
 
 
 
+def _compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Compute technical indicators used by the backtest simulation.
+    Adds ATR, ADX, RSI and a 50-bar SMA as columns and returns the df.
+    """
+    df = df.copy()
+    high = df["High"]
+    low = df["Low"]
+    close = df["Close"]
+
+    # ATR (14)
+    prev_close = close.shift(1)
+    tr = pd.concat(
+        [high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1
+    ).max(axis=1)
+    df["ATR"] = tr.rolling(14).mean()
+
+    # RSI (14)
+    delta = close.diff()
+    gain = delta.clip(lower=0).rolling(14).mean()
+    loss = (-delta.clip(upper=0)).rolling(14).mean()
+    rs = gain / loss.replace(0, np.nan)
+    df["RSI"] = 100 - (100 / (1 + rs))
+
+    # ADX (14)
+    up = high.diff()
+    down = -low.diff()
+    plus_dm = up.where((up > down) & (up > 0), 0.0)
+    minus_dm = down.where((down > up) & (down > 0), 0.0)
+    atr_s = tr.rolling(14).mean().replace(0, np.nan)
+    plus_di = 100 * plus_dm.rolling(14).mean() / atr_s
+    minus_di = 100 * minus_dm.rolling(14).mean() / atr_s
+    dx = (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan) * 100
+    df["ADX"] = dx.rolling(14).mean()
+
+    # 50-bar SMA
+    df["SMA50"] = close.rolling(50).mean()
+
+    return df
+
+
+def _calculate_daily_score(df: pd.DataFrame, i: int) -> int:
+    """
+    Composite daily score (roughly -10..+10) used to trigger entries/exits.
+    Long-only: rewards trend strength + oversold pullbacks, penalises overbought.
+    """
+    try:
+        adx = df["ADX"].iloc[i]
+        rsi = df["RSI"].iloc[i]
+        close = df["Close"].iloc[i]
+        sma50 = df["SMA50"].iloc[i]
+    except (KeyError, IndexError):
+        return 0
+
+    if pd.isna(adx) or pd.isna(rsi) or pd.isna(sma50):
+        return 0
+
+    score = 0
+    if adx > 20:
+        score += 3
+    if rsi < 35:
+        score += 3
+    elif rsi > 70:
+        score -= 5
+    if close > sma50:
+        score += 2
+    return int(score)
+
+
 def run_historical_backtest(
     symbol: str,
     config: BacktestConfig = None,
@@ -58,6 +128,11 @@ def run_historical_backtest(
     """
     Runs a historical strategy backtest on Daily (1D) bars with configurable risk/target and early exit thresholds.
     """
+    from angelone_feed import AngelOneFeed
+    feed = AngelOneFeed()
+    if not feed.is_session_valid():
+        feed.auto_login()
+
     if config is None:
         config = BacktestConfig()
 
@@ -97,6 +172,7 @@ def run_historical_backtest(
             price = float(close.iloc[i])
             curr_high = float(high.iloc[i])
             curr_low = float(low.iloc[i])
+            atr_val = df["ATR"].iloc[i]
 
             # Record daily equity (value of cash + open positions)
             pos_value = 0

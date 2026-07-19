@@ -1,16 +1,37 @@
 import asyncio
+import schedule
+import time
 from datetime import datetime, timezone, timedelta
 import db
 import signals
 from quant.correlation_matrix import CorrelationEngine
 from quant.weekly_jobs import run_weekly_maintenance
 from quant.market_regime import MarketRegimeClassifier
-from angelone_feed import get_angelone_feed
+from angelone_feed import get_angelone_feed, AngelOneFeed
 from trade_quality import TradeQualityEngine
 from ai_executive_committee import AIExecutiveCommittee
 
 MAX_CONCURRENT_TRADES = 2
 MIN_AGENT_CONFIDENCE = 72
+
+def refresh_angelone_session():
+    """
+    Refresh AngelOne authentication session daily before market open.
+    Ensures the bot always has a fresh token before 9:15 AM IST trading.
+    """
+    try:
+        feed = AngelOneFeed()
+        if feed.is_session_valid():
+            print("[trading_agent] AngelOne session already valid, skipping refresh.")
+        else:
+            print("[trading_agent] Refreshing AngelOne session...")
+            feed.auto_login()
+            print("[trading_agent] AngelOne session refreshed successfully.")
+    except Exception as e:
+        print(f"[trading_agent] Session refresh error: {e}")
+
+# Schedule daily session refresh at 8:30 AM IST (market opens at 9:15 AM IST)
+schedule.every().day.at('08:30').do(refresh_angelone_session)
 
 async def trading_agent_loop():
     """
@@ -27,6 +48,21 @@ async def trading_agent_loop():
     
     while True:
         try:
+            # Run scheduled tasks (e.g. daily session refresh at 8:30 AM IST)
+            schedule.run_pending()
+
+            # ── Bot state gate (RUNNING / PAUSED / STOPPED) ──
+            state = db.get_bot_state()
+            if state == "STOPPED":
+                # Bot halted: skip scanning, keep loop alive to detect RUNNING.
+                await asyncio.sleep(30)
+                continue
+            if state == "PAUSED":
+                # Paused: skip new scans but keep monitoring open positions.
+                # The prediction_resolver_worker polls SL/TP, so just wait.
+                await asyncio.sleep(30)
+                continue
+
             now_utc = datetime.now(timezone.utc)
             now_ist = now_utc + timedelta(hours=5, minutes=30)
             

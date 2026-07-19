@@ -12,3 +12,8 @@ class CapitalManagementEngine:
             return 0.0025 # 0.25%
         else: # REJECT
             return 0.0000 # 0%
+
+def calculate_risk_percentage(capital: float, regime: str) -> float:
+    if regime == 'BULL':
+        return 0.02
+    return 0.01

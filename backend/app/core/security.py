@@ -185,6 +185,6 @@ async def require_session(
     }
 
 
-async def require_admin(x_admin_key: str | None = None) -> None:
+def require_admin(x_admin_key: str | None = None) -> None:
     if x_admin_key != settings.admin_key:
         raise HTTPException(status_code=403, detail="Admin access required")

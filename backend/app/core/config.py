@@ -1,6 +1,7 @@
 """App core configuration using pydantic-settings."""
 from __future__ import annotations
 
+import os
 import secrets
 from typing import Literal
 
@@ -47,18 +48,13 @@ class Settings(BaseSettings):
     news_api_key: str | None = Field(default=None, alias="NEWS_API_KEY")
 
     # ── CORS ─────────────────────────────────────────────────────────
-    allowed_origins: str = (
+    # Env var ALLOWED_ORIGINS (comma-separated) overrides the hardcoded default.
+    allowed_origins: str = os.getenv(
+        "ALLOWED_ORIGINS",
         "http://localhost:5173,http://localhost:3000,"
         "http://127.0.0.1:5173,http://127.0.0.1:3000,"
         "https://trade-ai-beta.vercel.app,https://frontend-two-tau-82.vercel.app"
     )
-
-    @field_validator("allowed_origins", mode="before")
-    @classmethod
-    def split_origins(cls, v: str | list) -> str:
-        if isinstance(v, list):
-            return ",".join(v)
-        return v
 
     # ── Trading Constants ────────────────────────────────────────────
     max_concurrent_trades: int = 2

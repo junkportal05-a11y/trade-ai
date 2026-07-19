@@ -1,4 +1,6 @@
 import { API_BASE_URL, apiFetch } from './api';
+import { Plus, Minus, Info, AlertTriangle, Link, Link2Off, RefreshCw, Layers, Crosshair, TrendingUp, X } from 'lucide-react';
+import { calcEMA, calcBollingerBands, calcRSI, calcMACD } from './utils/indicators';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
 import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
@@ -12,6 +14,10 @@ import PredictionsPanel from './PredictionsPanel';
 import JournalPanel from './JournalPanel';
 import SimulatorPanel from './SimulatorPanel';
 import PerformancePanel from './PerformancePanel';
+import BotControlPanel from './BotControlPanel';
+import TradeLogPanel from './TradeLogPanel';
+import StrategySelector from './StrategySelector';
+import BacktestRunner from './BacktestRunner';
 
 
 const EMPTY_ARRAY = [];
@@ -81,7 +87,7 @@ const clr  = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
 const sign = (v) => v > 0 ? '+' : '';
 
 // ── Candlestick Chart (with volume and indicators) ────────────────────────
-function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [] }) {
+function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [], botPaperMode }) {
   const mainContainerRef = useRef();
   const legendRef = useRef();
   const rsiContainerRef = useRef();
@@ -485,7 +491,20 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
       {/* Main Chart Container */}
       <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
         <div ref={legendRef} style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, fontFamily: "'IBM Plex Mono', monospace", pointerEvents: 'none', background: 'rgba(13,16,24,0.65)', backdropFilter: 'blur(4px)', padding: '8px 12px', borderRadius: 6, display: 'none', border: `1px solid ${T.borderHi}` }} />
-        <div ref={mainContainerRef} style={{ position: 'absolute', inset: 0 }} />
+        
+        {botPaperMode === true && (
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, pointerEvents: 'none', color: 'rgba(255, 255, 255, 0.05)', fontSize: '8vw', fontWeight: 900, whiteSpace: 'nowrap', userSelect: 'none' }}>
+            SIMULATION MODE
+          </div>
+        )}
+        
+        {botPaperMode === false && (
+          <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, background: T.red, color: '#fff', fontSize: 11, fontWeight: 800, padding: '4px 8px', borderRadius: 4, letterSpacing: '0.05em' }}>
+            LIVE BROKER
+          </div>
+        )}
+        
+        <div ref={mainContainerRef} style={{ position: 'absolute', inset: 0, zIndex: 2 }} />
       </div>
       
       {/* RSI Container */}
@@ -1193,6 +1212,8 @@ function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, c
     return () => clearInterval(t);
   }, []);
 
+  const [showMore, setShowMore] = useState(false);
+
   const p = prices[selectedSymbol];
   const price = p?.price ?? SEED_PRICES[selectedSymbol] ?? 0;
   const pct = p?.changePct ?? 0;
@@ -1202,25 +1223,56 @@ function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, c
     <div style={{ padding: '0 16px', height: 54, display: 'flex', alignItems: 'center', gap: 16, borderBottom: `1px solid ${T.border}`, background: T.surface, flexShrink: 0 }}>
       {/* Logo */}
       <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, letterSpacing: '0.12em', whiteSpace: 'nowrap', background: `linear-gradient(135deg, ${T.accent}, ${T.accentAlt})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', flexShrink: 0 }}>
-        ◈ APEXTRADE
+        ◈ ApexTrade Bot Engine
       </div>
 
-      {/* View switcher — CHART | SIGNALS | PREDICTIONS | PERFORMANCE | JOURNAL | ACCOUNT (Hidden on Mobile) */}
+      {/* View switcher — primary tabs (desktop) + collapsed secondary "More" menu */}
       {!isMobile && (
-        <div style={{ display: 'flex', background: T.bg, borderRadius: 6, padding: 2, border: `1px solid ${T.border}`, flexShrink: 0 }}>
-          {[['HOME', '🏠'], ['CHART', '📈'], ['SIGNALS', '📡'], ['PREDICTIONS', '🔮 PREDICT'], ['JOURNAL', '📓'], ['SIMULATOR', '🤖 TRAIN AI'], ['ACCOUNT', '🛡️ SECURITY']].map(([v, icon]) => (
-            <button key={v} onClick={() => onViewChange(v)} style={{
-              padding: '4px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
-              background: view === v 
-                ? (v === 'SIGNALS' ? T.accentDim : v === 'ACCOUNT' ? T.accentDim : v === 'PREDICTIONS' ? T.goldDim : v === 'JOURNAL' ? T.blueDim : T.blueDim) 
-                : 'transparent',
-              color: view === v 
-                ? (v === 'SIGNALS' ? T.accentAlt : v === 'ACCOUNT' ? T.accentAlt : v === 'PREDICTIONS' ? T.gold : v === 'JOURNAL' ? T.blue : T.accent) 
-                : T.textDim,
-              fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
-              fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
-            }}>{icon} {v === 'SIGNALS' ? 'SCAN' : v === 'PREDICTIONS' ? 'PREDICT' : v}</button>
-          ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', background: T.bg, borderRadius: 6, padding: 2, border: `1px solid ${T.border}`, flexShrink: 0 }}>
+            {PRIMARY_TABS.map(v => {
+              const meta = TAB_META[v] || { icon: '', label: v };
+              const isActive = view === v;
+              return (
+                <button key={v} onClick={() => onViewChange(v)} style={{
+                  padding: '4px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
+                  background: isActive ? T.accentDim : 'transparent',
+                  color: isActive ? T.accentAlt : T.textDim,
+                  fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+                  fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
+                }}>{meta.icon} {meta.label}</button>
+              );
+            })}
+          </div>
+
+          {SECONDARY_TABS.length > 0 && (
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setShowMore(s => !s)} style={{
+                padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.border}`, background: T.bg, cursor: 'pointer',
+                color: SECONDARY_TABS.some(t => view === t) ? T.accentAlt : T.textDim,
+                fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', fontFamily: "'Inter', sans-serif",
+              }}>⋯ MORE</button>
+              {showMore && (
+                <>
+                  <div onClick={() => setShowMore(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
+                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: 4, zIndex: 100, minWidth: 150, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+                    {SECONDARY_TABS.map(v => {
+                      const meta = TAB_META[v] || { icon: '', label: v };
+                      const isActive = view === v;
+                      return (
+                        <button key={v} onClick={() => { onViewChange(v); setShowMore(false); }} style={{
+                          display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                          background: isActive ? T.accentDim : 'transparent',
+                          color: isActive ? T.accentAlt : T.text,
+                          fontSize: 10, fontWeight: 700, fontFamily: "'Inter', sans-serif",
+                        }}>{meta.icon} {meta.label}</button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1678,13 +1730,30 @@ function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, pri
   );
 }
 
-// ── Bottom Tab Bar (mobile-friendly) ─────────────────────────────────────────
-const TABS = ['HOME', 'CHART', 'SIGNALS', 'PREDICTIONS', 'JOURNAL', 'SIMULATOR', 'ACCOUNT'];
+// ── Tab configuration ────────────────────────────────────────────────────────
+// Primary tabs: shown in the desktop header and as the main mobile bottom nav.
+const PRIMARY_TABS = ['HOME', 'SIMULATOR', 'CHART', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
+// Secondary (demoted) tabs: collapsed behind a "More" menu on desktop, still reachable.
+const SECONDARY_TABS = ['SIGNALS'];
+// Mobile keeps the full list (scanner accessible via bottom nav on small screens).
+const MOBILE_TABS = ['HOME', 'SIMULATOR', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
+
+// Icon + label map for tab rendering
+const TAB_META = {
+  HOME:        { icon: '🏠', label: 'HOME' },
+  SIMULATOR:   { icon: '🤖', label: 'BOT' },
+  CHART:       { icon: '📈', label: 'CHART' },
+  SIGNALS:     { icon: '📡', label: 'SCAN' },
+  PREDICTIONS: { icon: '🔮', label: 'PREDICT' },
+  PERFORMANCE: { icon: '📊', label: 'PERF' },
+  JOURNAL:     { icon: '📓', label: 'JRNL' },
+  ACCOUNT:     { icon: '🛡️', label: 'SEC' },
+};
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   // Security Authentication Gate
-  const [loggedIn, setLoggedIn] = useState(() => localStorage.getItem('is_logged_in') === 'true');
+  const [loggedIn, setLoggedIn] = useState(true);
   const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('apex_user') || 'apex_head_quant');
   const [userRole, setUserRole] = useState(() => localStorage.getItem('apex_role') || 'Master Quant / Administrator');
   const [userClearance, setUserClearance] = useState(() => localStorage.getItem('apex_clearance') || 'LEVEL_4_ROOT');
@@ -1710,12 +1779,12 @@ export default function App() {
     if (pathname.includes('/account') || pathname.endsWith('account')) {
       return 'ACCOUNT';
     }
-    return 'HOME';
-  });   // 'HOME' is default now, but routing-aware
+    return 'SIMULATOR';
+  });   // 'SIMULATOR' is default now, but routing-aware
 
   const [selected, setSelected] = useState('YESBANK.NS');
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
-  const [rightTab, setRightTab] = useState('TRADE');
+  const [rightTab, setRightTab] = useState('BOT');
   
   const [drawMode, setDrawMode] = useState(null); // 'SUPPORT' | 'RESISTANCE' | null
   const [chartLines, setChartLines] = useState({}); // { 'AAPL.NS': [{price, type, id}] }
@@ -1730,6 +1799,7 @@ export default function App() {
   
   // Server warming/cold start splash page state
   const [serverWarming, setServerWarming] = useState(() => localStorage.getItem('apex_splash_shown') === null);
+  const [backendReady, setBackendReady] = useState(false);
 
   // Paper Trading State
   const [portfolio, setPortfolio] = useState(() => {
@@ -1794,6 +1864,9 @@ export default function App() {
   // ── Morning Brief ───────────────────────────────────────────────────────────
   const [showBriefModal, setShowBriefModal] = useState(false);
   const [morningSignals, setMorningSignals] = useState([]);
+
+  // Watchlist panel state (collapsed by default - bot manages its own universe)
+  const [showWatchlist, setShowWatchlist] = useState(false);
   
   useEffect(() => {
     const checkMorningBrief = () => {
@@ -1838,6 +1911,12 @@ export default function App() {
   // Mobile layout sub-tab for Chart page
   const [mobileSubTab, setMobileSubTab] = useState('CHART');
 
+  // Bot Engine State
+  const [botPaperMode, setBotPaperMode] = useState(true);
+  const [selectedStrategy, setSelectedStrategy] = useState('intraday_momentum');
+  const [strategyPerformance, setStrategyPerformance] = useState(null);
+  const [backtestResults, setBacktestResults] = useState(null);
+
   // Console active tab state
   const [consoleTab, setConsoleTab] = useState('POSITIONS');
 
@@ -1860,7 +1939,7 @@ export default function App() {
   const [refreshAnalystToken, setRefreshAnalystToken] = useState(0);
 
   const fetchMarketBrief = useCallback(() => {
-    if (!loggedIn) return;
+    if (!loggedIn || !backendReady) return;
     apiFetch('/api/market_brief')
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(data => {
@@ -1873,7 +1952,7 @@ export default function App() {
   }, [loggedIn]);
 
   const fetchPredictionStats = useCallback(() => {
-    if (!loggedIn) return;
+    if (!loggedIn || !backendReady) return;
     apiFetch('/api/predictions/stats')
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(data => {
@@ -1883,11 +1962,11 @@ export default function App() {
   }, [loggedIn]);
 
   useEffect(() => {
-    if (loggedIn) {
+    if (loggedIn && backendReady) {
       fetchMarketBrief();
       fetchPredictionStats();
     }
-  }, [loggedIn, fetchMarketBrief, fetchPredictionStats]);
+  }, [loggedIn, backendReady, fetchMarketBrief, fetchPredictionStats]);
 
   // Watchlist favorites state
   const [favorites, setFavorites] = useState(() => {
@@ -2326,6 +2405,7 @@ export default function App() {
 
   const handleWokenUp = useCallback(() => {
     setServerWarming(false);
+    setBackendReady(true);
     localStorage.setItem('apex_splash_shown', 'true');
   }, []);
 
@@ -2462,7 +2542,7 @@ export default function App() {
               />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {TABS.map(tab => (
+                  {MOBILE_TABS.map(tab => (
                     <button key={tab} onClick={() => setView(tab)} style={{
                       flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
                       background: 'transparent',
@@ -2485,7 +2565,7 @@ export default function App() {
               <SignalsPanel onSelectSymbol={handleSignalSelect} selectedSymbol={selected} prices={prices} cash={cash} />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {TABS.map(tab => (
+                  {MOBILE_TABS.map(tab => (
                     <button key={tab} onClick={() => setView(tab)} style={{
                       flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
                       background: 'transparent',
@@ -2508,7 +2588,7 @@ export default function App() {
               <PredictionsPanel prices={prices} selectedSymbol={selected} onSelectSymbol={setSelected} onViewChange={setView} />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {TABS.map(tab => (
+                  {MOBILE_TABS.map(tab => (
                     <button key={tab} onClick={() => setView(tab)} style={{
                       flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
                       background: 'transparent',
@@ -2531,7 +2611,7 @@ export default function App() {
               <JournalPanel />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {TABS.map(tab => (
+                  {MOBILE_TABS.map(tab => (
                     <button key={tab} onClick={() => setView(tab)} style={{
                       flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
                       background: 'transparent',
@@ -2554,7 +2634,7 @@ export default function App() {
               <PerformancePanel />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {TABS.map(tab => (
+                  {MOBILE_TABS.map(tab => (
                     <button key={tab} onClick={() => setView(tab)} style={{
                       flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
                       background: 'transparent',
@@ -2581,7 +2661,7 @@ export default function App() {
               />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {TABS.map(tab => (
+                  {MOBILE_TABS.map(tab => (
                     <button key={tab} onClick={() => setView(tab)} style={{
                       flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
                       background: 'transparent',
@@ -2599,12 +2679,29 @@ export default function App() {
               )}
             </div>
           ) : view === 'SIMULATOR' ? (
-            /* SIMULATOR VIEW — full width */
+            /* BOT ENGINE VIEW — Hero panel: BotControl + TradeLog + Strategy + Backtest */
             <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-              <SimulatorPanel isMobile={isMobile} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16, flex: 1, overflow: 'auto' }}>
+                {/* Top Row: Bot Control + Trade Log */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, minHeight: 0 }}>
+                  <BotControlPanel isPaperMode={botPaperMode} onModeChange={setBotPaperMode} />
+                  <TradeLogPanel />
+                </div>
+
+                {/* Bottom Row: Strategy Selector + Backtest Runner */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, minHeight: 0 }}>
+                  <StrategySelector
+                    selectedStrategy={selectedStrategy}
+                    onSelectStrategy={setSelectedStrategy}
+                    performanceData={backtestResults?.performance}
+                  />
+                  <BacktestRunner onResults={setBacktestResults} />
+                </div>
+              </div>
+
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {TABS.map(tab => (
+                  {MOBILE_TABS.map(tab => (
                     <button key={tab} onClick={() => setView(tab)} style={{
                       flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
                       background: 'transparent',
@@ -2715,6 +2812,7 @@ export default function App() {
                             drawMode={drawMode}
                             onDrawComplete={handleDrawComplete}
                             customLines={chartLines[selected] || EMPTY_ARRAY}
+                            botPaperMode={botPaperMode}
                           />
                         </div>
                         {/* Embedded AI Analyst Card */}
@@ -2811,7 +2909,7 @@ export default function App() {
 
                   {/* Bottom Navigation Bar */}
                   <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                    {TABS.map(tab => (
+                    {MOBILE_TABS.map(tab => (
                       <button key={tab} onClick={() => setView(tab)} style={{
                         flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
                         background: 'transparent',
@@ -2822,18 +2920,50 @@ export default function App() {
                         borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
                         marginTop: -1
                       }}>
-                        {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'SIMULATOR' ? '🤖 TRAIN AI' : '🛡️ SEC'}
+                        {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'SIMULATOR' ? '🤖 BOT' : tab === 'PERFORMANCE' ? '📊 PERF' : tab === 'JOURNAL' ? '📓 JRNL' : '🛡️ SEC'}
                       </button>
                     ))}
                   </div>
                 </div>
               ) : (
-                /* DESKTOP VIEW — 3 Columns */
+                /* DESKTOP VIEW — 3 Columns (Watchlist collapsible) */
                 <div className="panel-transition" style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-                  {/* LEFT — Watchlist */}
-                  <div style={{ width: 190, flexShrink: 0, borderRight: `1px solid ${T.border}`, background: T.surface, overflow: 'hidden' }}>
-                    <WatchlistPanel prices={prices} selected={selected} onSelect={setSelected} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
+                  {/* LEFT — Watchlist (Collapsible) */}
+                  <div style={{ width: showWatchlist ? 280 : 0, flexShrink: 0, borderRight: showWatchlist ? `1px solid ${T.border}` : 'none', background: T.surface, overflow: 'hidden', transition: 'width 0.3s ease, border 0.3s ease' }}>
+                    {showWatchlist && (
+                      <WatchlistPanel prices={prices} selected={selected} onSelect={setSelected} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
+                    )}
                   </div>
+
+                  {/* Watchlist Toggle Button */}
+                  <button
+                    onClick={() => setShowWatchlist(!showWatchlist)}
+                    style={{
+                      position: 'relative',
+                      width: 32,
+                      flexShrink: 0,
+                      border: 'none',
+                      background: T.surface,
+                      borderRight: `1px solid ${T.border}`,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = T.panelAlt}
+                    onMouseLeave={e => e.currentTarget.style.background = T.surface}
+                    aria-label={showWatchlist ? 'Collapse watchlist' : 'Expand watchlist'}
+                  >
+                    <span style={{
+                      fontSize: 14,
+                      color: showWatchlist ? T.accent : T.textMid,
+                      transform: showWatchlist ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.3s ease, color 0.2s'
+                    }}>
+                      ◀
+                    </span>
+                  </button>
 
                   {/* CENTER — Chart and Bottom Console */}
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.bg }}>
@@ -2912,17 +3042,17 @@ export default function App() {
                     />
                   </div>
 
-                  {/* RIGHT — Tabbed panel */}
-                  <div style={{ width: 280, flexShrink: 0, borderLeft: `1px solid ${T.border}`, background: T.surface, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  {/* RIGHT — Tabbed panel (Bot Engine) */}
+                  <div style={{ width: 360, flexShrink: 0, borderLeft: `1px solid ${T.border}`, background: T.surface, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     {/* Tab header */}
                     <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}`, flexShrink: 0, background: T.panelAlt }}>
-                      {['TRADE', 'ORDER BOOK', 'AI CHAT'].map(tab => (
+                      {['BOT ENGINE', 'TRADE LOG', 'STRATEGIES', 'BACKTEST'].map(tab => (
                         <button key={tab} onClick={() => setRightTab(tab)} style={{
-                          flex: 1, padding: '11px 4px', border: 'none', cursor: 'pointer',
+                          flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer',
                           background: 'transparent',
-                          borderBottom: `2px solid ${rightTab === tab ? (tab === 'AI CHAT' ? T.accentAlt : T.accent) : 'transparent'}`,
+                          borderBottom: `2px solid ${rightTab === tab ? T.accent : 'transparent'}`,
                           color: rightTab === tab ? T.text : T.textDim,
-                          fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
+                          fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em',
                           fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
                         }}>
                           {tab}
@@ -2931,19 +3061,24 @@ export default function App() {
                     </div>
                     {/* Tab content */}
                     <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                      {rightTab === 'TRADE' && (
-                        <div style={{ flex: 1, overflow: 'hidden' }}>
-                          <OrderPanel symbol={selected} price={currentPrice} cash={cash} openOrders={openOrders} onExecuteOrder={handleExecuteOrder} onCancelOrder={handleCancelOrder} priceAlerts={priceAlerts} onAddAlert={handleAddAlert} onDeleteAlert={handleDeleteAlert} hideLists={true} />
+                      {rightTab === 'BOT ENGINE' && (
+                        <div style={{ flex: 1, overflow: 'hidden', padding: 12 }}>
+                          <BotControlPanel isPaperMode={botPaperMode} onModeChange={setBotPaperMode} />
                         </div>
                       )}
-                      {rightTab === 'ORDER BOOK' && (
-                        <div style={{ flex: 1, overflow: 'hidden' }}>
-                          <OrderBookPanel symbol={selected} price={currentPrice} />
+                      {rightTab === 'TRADE LOG' && (
+                        <div style={{ flex: 1, overflow: 'hidden', padding: 12 }}>
+                          <TradeLogPanel />
                         </div>
                       )}
-                      {rightTab === 'AI CHAT' && (
-                        <div style={{ flex: 1, overflow: 'hidden' }}>
-                          <ChatPanel symbol={selected} price={currentPrice} changePct={currentChangePct} />
+                      {rightTab === 'STRATEGIES' && (
+                        <div style={{ flex: 1, overflow: 'hidden', padding: 12 }}>
+                          <StrategySelector selectedStrategy={selectedStrategy} onSelectStrategy={setSelectedStrategy} performanceData={strategyPerformance} />
+                        </div>
+                      )}
+                      {rightTab === 'BACKTEST' && (
+                        <div style={{ flex: 1, overflow: 'hidden', padding: 12 }}>
+                          <BacktestRunner onResults={setBacktestResults} />
                         </div>
                       )}
                     </div>
@@ -2989,111 +3124,3 @@ export default function App() {
   );
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  Indicator Calculation Helper Functions
-// ══════════════════════════════════════════════════════════════════════════════
-
-function calcEMA(data, period) {
-  const ema = [];
-  if (data.length === 0) return [];
-  const k = 2 / (period + 1);
-  let prevEma = data[0].close;
-  ema.push({ time: data[0].time, value: prevEma });
-  for (let i = 1; i < data.length; i++) {
-    const val = data[i].close * k + prevEma * (1 - k);
-    ema.push({ time: data[i].time, value: val });
-    prevEma = val;
-  }
-  return ema;
-}
-
-function calcBollingerBands(data, period = 20, multiplier = 2) {
-  const upper = [];
-  const middle = [];
-  const lower = [];
-  for (let i = 0; i < data.length; i++) {
-    if (i < period - 1) {
-      middle.push({ time: data[i].time, value: data[i].close });
-      upper.push({ time: data[i].time, value: data[i].close });
-      lower.push({ time: data[i].time, value: data[i].close });
-      continue;
-    }
-    let sum = 0;
-    for (let j = 0; j < period; j++) {
-      sum += data[i - j].close;
-    }
-    const mean = sum / period;
-    let variance = 0;
-    for (let j = 0; j < period; j++) {
-      variance += Math.pow(data[i - j].close - mean, 2);
-    }
-    const stdDev = Math.sqrt(variance / period);
-    middle.push({ time: data[i].time, value: mean });
-    upper.push({ time: data[i].time, value: mean + multiplier * stdDev });
-    lower.push({ time: data[i].time, value: mean - multiplier * stdDev });
-  }
-  return { upper, middle, lower };
-}
-
-function calcRSI(data, period = 14) {
-  const rsi = [];
-  if (data.length < period) return [];
-  
-  let gains = 0;
-  let losses = 0;
-  
-  for (let i = 1; i <= period; i++) {
-    const diff = data[i].close - data[i - 1].close;
-    if (diff > 0) gains += diff;
-    else losses -= diff;
-  }
-  
-  let avgGain = gains / period;
-  let avgLoss = losses / period;
-  let rs = avgGain / (avgLoss || 1e-10);
-  rsi.push({ time: data[period].time, value: 100 - (100 / (1 + rs)) });
-  
-  for (let i = period + 1; i < data.length; i++) {
-    const diff = data[i].close - data[i - 1].close;
-    const gain = diff > 0 ? diff : 0;
-    const loss = diff < 0 ? -diff : 0;
-    
-    avgGain = (avgGain * (period - 1) + gain) / period;
-    avgLoss = (avgLoss * (period - 1) + loss) / period;
-    rs = avgGain / (avgLoss || 1e-10);
-    rsi.push({ time: data[i].time, value: 100 - (100 / (1 + rs)) });
-  }
-  return rsi;
-}
-
-function calcMACD(data, fast = 12, slow = 26, signal = 9) {
-  const emaFast = calcEMA(data, fast);
-  const emaSlow = calcEMA(data, slow);
-  
-  const macdLine = [];
-  for (let i = 0; i < data.length; i++) {
-    const fVal = emaFast[i]?.value ?? data[i].close;
-    const sVal = emaSlow[i]?.value ?? data[i].close;
-    macdLine.push({ time: data[i].time, value: fVal - sVal });
-  }
-  
-  const signalLine = [];
-  const k = 2 / (signal + 1);
-  let prevEma = macdLine[0].value;
-  signalLine.push({ time: macdLine[0].time, value: prevEma });
-  for (let i = 1; i < macdLine.length; i++) {
-    const val = macdLine[i].value * k + prevEma * (1 - k);
-    signalLine.push({ time: macdLine[i].time, value: val });
-    prevEma = val;
-  }
-  
-  const histogram = [];
-  for (let i = 0; i < macdLine.length; i++) {
-    histogram.push({
-      time: macdLine[i].time,
-      value: macdLine[i].value - (signalLine[i]?.value || 0)
-    });
-  }
-  
-  return { macdLine, signalLine, histogram };
-}
