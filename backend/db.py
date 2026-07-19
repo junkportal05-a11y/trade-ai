@@ -540,21 +540,26 @@ def init_db():
             ("slippage_pct", "REAL"),
             ("broker_failure_reason", "TEXT"),
         ]
-        # Safe DDL: only allow specific column types from hardcoded list
-        _SAFE_SQL_TYPES = {"TEXT", "REAL", "INTEGER", "BOOLEAN"}
+        # Safe DDL: Map values strictly to known safe strings before formatting
+        _SAFE_SQL_TYPES = {"TEXT": "TEXT", "REAL": "REAL", "INTEGER": "INTEGER", "BOOLEAN": "BOOLEAN"}
+        _SAFE_COLUMNS = {name: name for name, _ in pred_migrations}
+
         for col_name, col_type in pred_migrations:
             if col_name not in pred_columns:
                 try:
-                    # Verify against allowlist to prevent SQL injection
-                    if col_type.upper() not in _SAFE_SQL_TYPES:
+                    # Map to strictly verified hardcoded strings
+                    safe_col_type = _SAFE_SQL_TYPES.get(col_type.upper())
+                    if not safe_col_type:
                         print(f"[MIGRATION] Skipping unsafe column type: {col_type}")
                         continue
-                    # Sanitize column name: only alphanumeric + underscore
-                    if not col_name.replace("_", "").isalnum():
+
+                    safe_col_name = _SAFE_COLUMNS.get(col_name)
+                    if not safe_col_name:
                         print(f"[MIGRATION] Skipping unsafe column name: {col_name}")
                         continue
+
                     c.execute(
-                        f'ALTER TABLE "predictions_history" ADD COLUMN "{col_name}" {col_type}'
+                        f'ALTER TABLE "predictions_history" ADD COLUMN "{safe_col_name}" {safe_col_type}'
                     )
                     c.commit()
                 except Exception:
