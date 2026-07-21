@@ -17,8 +17,13 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.database import init_db
 from app.api.v1 import api_router
+from app.core.logging import configure_json_logging, logger, set_correlation_id
 
 from datetime import datetime
+import uuid
+
+# Switch the root logger to structured JSON output with correlation IDs.
+configure_json_logging()
 
 # Import backtest utilities
 from backtest_engine import run_historical_backtest, BacktestConfig
@@ -48,7 +53,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS
 # Use ALLOWED_ORIGINS env var (comma-separated) to override the hardcoded default
 allowed = settings.allowed_origins.split(",")
-print(f"CORS allowed origins: {allowed}")  # Debug line, can be removed in production
+logger.info("CORS allowed origins configured", extra={"origins": allowed})
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed,
@@ -59,6 +64,18 @@ app.add_middleware(
 
 # GZip Middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+
+# ── Correlation ID middleware ─────────────────────────────────────────────
+@app.middleware("http")
+async def correlation_middleware(request: Request, call_next):
+    correlation_id = request.headers.get("X-Correlation-ID") or str(uuid.uuid4())
+    set_correlation_id(correlation_id)
+    logger.info("request_started", extra={"method": request.method, "path": request.url.path})
+    response = await call_next(request)
+    response.headers["X-Correlation-ID"] = correlation_id
+    logger.info("request_finished", extra={"status_code": response.status_code})
+    return response
 
 
 # API routes

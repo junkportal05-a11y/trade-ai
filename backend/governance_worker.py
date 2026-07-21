@@ -3,10 +3,9 @@ governance_worker.py
 Risk governance background loop.
 Monitors daily loss limits and drawdown kill switches.
 """
-
 import asyncio
 import db
-
+from app.core.logging import logger
 
 async def governance_loop():
     """
@@ -36,18 +35,18 @@ async def governance_loop():
             dd_limit = risk_settings.get("daily_drawdown_limit", -5.0)
 
             if daily_loss_pct <= daily_limit:
-                print(
+                logger.info(
                     f"[governance] DAILY LOSS KILL SWITCH: {daily_loss_pct:.2f}% "
                     f"(limit: {daily_limit}%)"
                 )
 
             if peak_dd_pct <= dd_limit:
-                print(
+                logger.info(
                     f"[governance] DRAWDOWN KILL SWITCH: {peak_dd_pct:.2f}% "
                     f"(limit: {dd_limit}%)"
                 )
 
         except Exception as e:
-            print(f"[governance] error: {e}")
+            logger.error(f"[governance] error: {e}")
 
         await asyncio.sleep(60)

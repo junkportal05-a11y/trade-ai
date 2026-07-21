@@ -17,6 +17,7 @@ import pandas as pd
 import numpy as np
 import logging
 import os
+from app.core.logging import logger
 
 logger = logging.getLogger("MarketRegime")
 
@@ -278,8 +279,8 @@ if __name__ == "__main__":
     classifier = MarketRegimeClassifier()
     classifier.load_data()
     result = classifier.classify_regime()
-    print(f"\nCurrent Market Regime: {result['regime']}")
-    print(f"  ADX:            {result['adx']:.2f}")
-    print(f"  ATR:            {result['atr']:.2f}")
-    print(f"  ATR Percentile: {result['atr_percentile']:.1f}%")
-    print(f"  Reasoning:      {result['reasoning']}")
+    logger.info(f"\nCurrent Market Regime: {result['regime']}")
+    logger.info(f"  ADX:            {result['adx']:.2f}")
+    logger.info(f"  ATR:            {result['atr']:.2f}")
+    logger.info(f"  ATR Percentile: {result['atr_percentile']:.1f}%")
+    logger.info(f"  Reasoning:      {result['reasoning']}")

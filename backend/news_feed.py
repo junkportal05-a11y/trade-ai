@@ -2,6 +2,7 @@ import os
 import re
 import requests
 from dotenv import load_dotenv
+from app.core.logging import logger
 
 load_dotenv()
 
@@ -72,9 +73,10 @@ def fetch_ticker_news(symbol: str) -> list[dict]:
                 if art.get("title")
             ]
         else:
-            print(f"[NewsAPI] Response error: Status {res.status_code}")
+            logger.error(f"[NewsAPI] Response error: Status {res.status_code}", extra={"symbol": symbol})
+
     except Exception as e:
-        print(f"[NewsAPI] Failed to fetch news for {symbol}: {e}")
+        logger.error(f"[NewsAPI] Failed to fetch news for {symbol}: {e}", extra={"symbol": symbol})
 
     return []
 
@@ -102,6 +104,7 @@ _BULLISH_KEYWORDS = [
     "up",
     "dividend",
 ]
+
 _BEARISH_KEYWORDS = [
     "loss",
     "fall",
@@ -163,7 +166,7 @@ def analyze_news_sentiment(articles: list[dict]) -> float:
             elif "NEUTRAL" in text:
                 return 0.0
         except Exception as e:
-            print(
+            logger.error(
                 f"[NewsAPI Sentiment] Gemini analysis failed, using rule-based fallback: {e}"
             )
 

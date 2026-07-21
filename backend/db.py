@@ -11,6 +11,8 @@ import base64
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
+from app.core.logging import logger
+
 try:
     from cryptography.fernet import Fernet
 except ImportError:
@@ -24,11 +26,11 @@ def _get_fernet():
     if _fernet is not None:
         return _fernet
     if Fernet is None:
-        print("\n[SECURITY WARNING] cryptography library not installed. AngelOne credentials will be stored in PLAINTEXT.")
+        logger.warning("\n[SECURITY WARNING] cryptography library not installed. AngelOne credentials will be stored in PLAINTEXT.")
         return None
     raw_key = os.environ.get("JWT_SECRET", "")
     if not raw_key:
-        print("\n[SECURITY WARNING] JWT_SECRET not set in environment. AngelOne credentials will be stored in PLAINTEXT.")
+        logger.warning("\n[SECURITY WARNING] JWT_SECRET not set in environment. AngelOne credentials will be stored in PLAINTEXT.")
         return None
     # Derive 32-byte URL-safe base64 key from JWT_SECRET
     key_bytes = raw_key.encode("utf-8")
@@ -43,7 +45,7 @@ def _encrypt_field(value: str | None) -> str | None:
     f = _get_fernet()
     if f is None:
         if value is not None:
-            print("[SECURITY WARNING] _encrypt_field: Fernet unavailable. Saving credential in PLAINTEXT.")
+            logger.warning("[SECURITY WARNING] _encrypt_field: Fernet unavailable. Saving credential in PLAINTEXT.")
         return value
     if value is None:
         return None
@@ -550,12 +552,12 @@ def init_db():
                     # Map to strictly verified hardcoded strings
                     safe_col_type = _SAFE_SQL_TYPES.get(col_type.upper())
                     if not safe_col_type:
-                        print(f"[MIGRATION] Skipping unsafe column type: {col_type}")
+                        logger.warning(f"[MIGRATION] Skipping unsafe column type: {col_type}")
                         continue
 
                     safe_col_name = _SAFE_COLUMNS.get(col_name)
                     if not safe_col_name:
-                        print(f"[MIGRATION] Skipping unsafe column name: {col_name}")
+                        logger.warning(f"[MIGRATION] Skipping unsafe column name: {col_name}")
                         continue
 
                     c.execute(
@@ -1291,9 +1293,7 @@ def get_angelone_session() -> Optional[dict]:
                         data[field] = _decrypt_field(data[field])
                 return data
     except Exception as e:
-        import traceback
-        print("Error in get_angelone_session:", e)
-        traceback.print_exc()
+        logger.error(f"Error in get_angelone_session: {e}", exc_info=True)
     return None
 
 

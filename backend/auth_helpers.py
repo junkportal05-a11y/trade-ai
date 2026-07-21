@@ -5,6 +5,8 @@ import secrets
 from fastapi import HTTPException, Header, Request
 from dotenv import load_dotenv
 
+from app.core.logging import logger
+
 import db
 
 load_dotenv(override=True)
@@ -12,7 +14,7 @@ load_dotenv(override=True)
 ADMIN_KEY = os.getenv("ADMIN_KEY")
 if not ADMIN_KEY:
     ADMIN_KEY = secrets.token_hex(24)
-    print(
+    logger.warning(
         "\n[SECURITY WARNING] ADMIN_KEY is not set in environment! A temporary admin key was generated securely but will not be logged. Set ADMIN_KEY to access admin features.\n"
     )
 
@@ -43,13 +45,15 @@ raw_pass_admin = (os.getenv("PASS_ADMIN") or "").strip() or (
     os.getenv("APP_PASSWORD") or ""
 ).strip()
 if not raw_pass_admin:
-    # Fallback to a secure random temporary password printed to terminal console
+    # Fallback to a secure random temporary password logged to terminal
     temp_pass = secrets.token_urlsafe(16)
-    print("\n" + "=" * 80)
-    print(" [SECURITY WARNING] PASS_ADMIN / APP_PASSWORD is not configured in .env!")
-    print(" A temporary session password was generated securely for 'apex_head_quant' but will not be logged.")
-    print(" Set PASS_ADMIN or APP_PASSWORD to access this account.")
-    print("=" * 80 + "\n")
+    logger.warning(
+        "=" * 80
+        + "\n[SECURITY WARNING] PASS_ADMIN / APP_PASSWORD is not configured in .env!"
+        + "\n A temporary session password was generated securely for 'apex_head_quant' but will not be logged."
+        + "\n Set PASS_ADMIN or APP_PASSWORD to access this account."
+        + "\n" + "=" * 80 + "\n"
+    )
     admin_hash = get_password_hash(temp_pass)
 else:
     admin_hash = (

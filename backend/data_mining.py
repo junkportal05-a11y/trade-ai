@@ -3,10 +3,8 @@ import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
 import json
-import logging
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("DataMining")
+from app.core.logging import logger
 
 class MarketDataCollector:
     def __init__(self):
@@ -25,28 +23,28 @@ class MarketDataCollector:
         all_data = {}
         
         for symbol in self.symbols:
-            logger.info(f"Fetching {symbol} from {start_date} to {end_date}...")
-            
+            logger.info(f"Fetching {symbol} from {start_date} to {end_date}...", extra={"symbol": symbol})
+
             try:
                 from angelone_feed import get_angelone_feed
-                
+
                 # Fetch 60 days of 5-minute data from AngelOne
                 feed = get_angelone_feed()
                 df = feed.get_historical_candles(symbol, "60d", "5m")
-                
+
                 if df is None or df.empty:
-                    logger.warning(f"❌ {symbol}: No data found for given period.")
+                    logger.warning(f"❌ {symbol}: No data found for given period.", extra={"symbol": symbol})
                     continue
 
                 if self.validate_data_quality(df, symbol):
                     prepared_df = self.prepare_features(df)
                     all_data[symbol] = prepared_df
-                    logger.info(f"✅ {symbol}: {len(prepared_df)} candles collected and prepared")
+                    logger.info(f"✅ {symbol}: {len(prepared_df)} candles collected and prepared", extra={"symbol": symbol})
                 else:
-                    logger.warning(f"❌ {symbol}: Failed data quality validation")
+                    logger.warning(f"❌ {symbol}: Failed data quality validation", extra={"symbol": symbol})
 
             except Exception as e:
-                logger.error(f"Error fetching {symbol}: {e}")
+                logger.error(f"Error fetching {symbol}: {e}", extra={"symbol": symbol})
 
         return all_data
     
@@ -195,5 +193,5 @@ if __name__ == "__main__":
     year = end_date_dt.year
     for symbol, df in all_data.items():
         collector.save_to_parquet(df, symbol, year=year)
-    
-    print(f"SUCCESS: Saved {len(all_data)} symbols to parquet files")
+
+    logger.info(f"SUCCESS: Saved {len(all_data)} symbols to parquet files")

@@ -13,6 +13,7 @@ from fastapi import HTTPException, Request
 from jose import JWTError, jwt
 
 from app.core.config import settings
+from app.core.logging import logger
 
 # ── Fernet for encrypting sensitive broker credentials ────────────────────────
 _fernet_key = base64.urlsafe_b64encode(
@@ -86,7 +87,7 @@ class UserRegistry:
         # Admin
         raw_admin = os.getenv("PASS_ADMIN", os.getenv("APP_PASSWORD", "")).strip()
         if not raw_admin:
-            print("\n[SECURITY WARNING] PASS_ADMIN not set. Using default 'admin' password.")
+            logger.warning("\n[SECURITY WARNING] PASS_ADMIN not set. Using default 'admin' password.")
             self._users["apex_head_quant"] = {
                 "pass_hash": get_password_hash("admin"),
                 "role": "Master Quant / Administrator",

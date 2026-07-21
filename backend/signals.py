@@ -25,6 +25,7 @@ import numpy as np
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from angelone_feed import get_angelone_feed
+from app.core.logging import logger
 
 def vwap_veto(price: float, vwap: float, direction: str) -> tuple[bool, str]:
     """

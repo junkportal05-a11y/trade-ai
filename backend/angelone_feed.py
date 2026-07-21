@@ -6,7 +6,6 @@ Handles authentication, websocket streams, and historical data fetching.
 
 import os
 import json
-import logging
 import pyotp
 import pandas as pd
 from datetime import datetime, timedelta, timezone
@@ -15,13 +14,13 @@ from SmartApi import SmartConnect
 from typing import Optional, Dict, List
 from cryptography.fernet import Fernet
 
+from app.core.logging import configure_json_logging, logger
+
 FERNET_KEY = os.getenv("FERNET_KEY")
 if FERNET_KEY:
     fernet = Fernet(FERNET_KEY.encode())
 else:
     fernet = None
-
-logger = logging.getLogger(__name__)
 
 
 class AngelOneFeed:
@@ -489,7 +488,7 @@ class AngelOneFeed:
                 return None
             token = self.get_instrument_token(symbol)
             if not token:
-                logger.error(f"Cannot fetch data: No token for {symbol}")
+                logger.error(f"Cannot fetch data: No token for {symbol}", extra={"symbol": symbol})
                 return None
 
             # Map typical intervals like '5m', '1d' to AngelOne format
@@ -549,7 +548,8 @@ class AngelOneFeed:
             }
 
             logger.info(
-                f"Fetching {symbol} candles: {interval} from {from_date} to {to_date}"
+                f"Fetching {symbol} candles: {interval} from {from_date} to {to_date}",
+                extra={"symbol": symbol}
             )
 
             response = self.smart_api.getCandleData(historic_param)
@@ -609,12 +609,12 @@ class AngelOneFeed:
             for col in ["Open", "High", "Low", "Close", "Volume"]:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
 
-            logger.info(f"✅ Fetched {len(df)} candles for {symbol}")
+            logger.info(f"✅ Fetched {len(df)} candles for {symbol}", extra={"symbol": symbol})
 
             return df
 
         except Exception as e:
-            logger.error(f"Exception fetching candles for {symbol}: {str(e)}")
+            logger.error(f"Exception fetching candles for {symbol}: {str(e)}", extra={"symbol": symbol})
             return None
 
     # ==========================================
@@ -812,7 +812,7 @@ def get_angelone_feed() -> AngelOneFeed:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    configure_json_logging()
 
     feed = AngelOneFeed()
 
@@ -822,7 +822,7 @@ if __name__ == "__main__":
     TOTP_SECRET = os.getenv("ANGEL_TOTP_SECRET")
 
     if not all([API_KEY, CLIENT_CODE, PIN, TOTP_SECRET]):
-        print(
+        logger.error(
             "❌ Set environment variables: ANGEL_API_KEY, ANGEL_CLIENT_CODE, ANGEL_PIN, ANGEL_TOTP_SECRET"
         )
         exit(1)
@@ -833,14 +833,14 @@ if __name__ == "__main__":
     result = feed.login(API_KEY, CLIENT_CODE, PIN, totp_code)
 
     if result["status"] == "success":
-        print("✅ Login successful!")
+        logger.info("✅ Login successful!")
         df = feed.get_historical_candles(
             "RELIANCE", interval="FIVE_MINUTE", days_back=1
         )
         if df is not None:
-            print(f"✅ Fetched {len(df)} candles for RELIANCE")
-            print(df.head())
+            logger.info(f"✅ Fetched {len(df)} candles for RELIANCE", extra={"symbol": "RELIANCE"})
+            logger.info(df.head())
         else:
-            print("❌ Failed to fetch historical data")
+            logger.error("❌ Failed to fetch historical data")
     else:
-        print(f"❌ Login failed: {result['message']}")
+        logger.error(f"❌ Login failed: {result['message']}")
