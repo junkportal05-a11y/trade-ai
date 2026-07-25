@@ -2496,7 +2496,7 @@ export default function App() {
             flexShrink: 0
           }}>
             <span style={{ display: 'inline-block', width: 12, height: 12, border: `2px solid rgba(245,200,66,0.3)`, borderTopColor: T.gold, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-            ESTABLISHING SECURE CONNECTION TO QUANT SERVER...
+            CONNECTING TO QUANT SERVER...
           </div>
         )}
 

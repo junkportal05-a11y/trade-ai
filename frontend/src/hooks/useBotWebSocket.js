@@ -5,7 +5,7 @@ let WS_URL = import.meta.env.VITE_WS_URL || API_BASE_URL.replace(/^https:/i, "ws
 if (!WS_URL && typeof window !== "undefined") {
   WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
 }
-const WS_PATH = '/ws/bot/';
+const WS_PATH = '/ws/bot';
 
 export function useBotWebSocket() {
   const [botData, setBotData] = useState({

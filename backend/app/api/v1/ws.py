@@ -106,3 +106,23 @@ async def websocket_bot_endpoint(websocket: WebSocket):
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+@router.websocket("/prices")
+async def websocket_prices_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for live price ticks - accepts optional token query param"""
+    await websocket.accept()
+    try:
+        while True:
+            # Keep connection alive, respond to pings
+            data = await websocket.receive_text()
+            try:
+                msg = json.loads(data)
+                if msg.get("action") == "subscribe" and isinstance(msg.get("symbols"), list):
+                    # Acknowledge subscription - actual tick broadcasting would come from background task
+                    await websocket.send_text(json.dumps({ "type": "subscribed", "symbols": msg.get("symbols") }))
+            except json.JSONDecodeError:
+                pass
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        pass

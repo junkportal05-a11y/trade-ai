@@ -173,7 +173,6 @@ export function useLivePrices(symbols = []) {
     let isMounted = true;
 
     function connect() {
-      return; // Temporarily disabled to prevent 404 flooding
       try {
         const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
         const ws = new WebSocket(`${WS_URL}/ws/prices?symbols=${symbolKey}&token=${token}`);

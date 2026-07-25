@@ -7,6 +7,9 @@ if (base.endsWith("/")) {
 }
 export const API_BASE_URL = base;
 
+// For WebSocket connections, convert HTTP to WSS
+export const WS_BASE_URL = base ? base.replace(/^http:/, 'wss:').replace(/^https:/, 'wss:') : 'wss://apextrade-core-trade-ai-backend.hf.space';
+
 // Authenticated fetch — always sends session cookie and auth token header
 export const apiFetch = async (path, options = {}) => {
   const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
