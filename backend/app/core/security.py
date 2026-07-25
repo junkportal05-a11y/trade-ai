@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import bcrypt
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, MultiFernet
 from fastapi import HTTPException, Request
 from jose import JWTError, jwt
 
@@ -16,10 +16,24 @@ from app.core.config import settings
 from app.core.logging import logger
 
 # ── Fernet for encrypting sensitive broker credentials ────────────────────────
-_fernet_key = base64.urlsafe_b64encode(
-    settings.jwt_secret.encode()[:32].ljust(32, b"0")
-)
-_fernet = Fernet(_fernet_key)
+_fernet_list = []
+if settings.fernet_keys:
+    try:
+        _fernet_list = [Fernet(key) for key in settings.fernet_keys]
+    except Exception as e:
+        logger.error(f"Failed to initialize Fernet with settings.fernet_keys: {e}")
+        _fernet_list = []  # Fallback to empty list
+else:
+    _fernet_list = []
+
+# Ensure at least one Fernet instance exists (generate a new key if none valid)
+if not _fernet_list:
+    try:
+        _fernet_list = [Fernet(secrets.token_urlsafe(32))]
+        logger.warning("Generated new Fernet key (no valid keys in settings.fernet_keys)")
+    except Exception as e:
+        logger.error(f"Failed to generate Fernet key: {e}")
+        _fernet_list = []
 
 
 def encrypt_value(plaintext: str | None) -> str | None:
