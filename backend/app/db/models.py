@@ -305,3 +305,20 @@ class AppSettings(Base):
     key = Column(String(200), primary_key=True)
     value = Column(Text, nullable=False)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class Strategy(Base):
+    __tablename__ = "strategies"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(64), nullable=False, index=True)
+    description = Column(String(256))
+    is_active = Column(Boolean, default=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "is_active": self.is_active,
+        }
