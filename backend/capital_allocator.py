@@ -290,7 +290,7 @@ def _build_positions(candidates: list, capital: float, deployable: float, max_pe
         target1 = sig.get("target1") or sig.get("target") or (entry * 1.03)
         target2 = sig.get("target2") or round(target1 * 1.05, 2)
 
-        weight = sig["_score"] / total_score
+        weight = sig["_score"] / total_score if total_score else 0
         raw_alloc = deployable * weight
         capped_alloc = min(raw_alloc, capital * max_per_stock)
         remaining = deployable - deployed

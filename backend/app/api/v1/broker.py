@@ -1,7 +1,7 @@
 """Broker integration router (AngelOne)."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, SessionDep
@@ -9,11 +9,18 @@ from app.models.schemas import AngelOneCredentials, AngelOneStatusResponse
 from app.core.security import encrypt_value, decrypt_value
 from app.db.repositories import repo
 
+from app.main import limiter  # import limiter for rate limiting
+import os
+
+RATE_LIMIT_BROKER = os.getenv("RATE_LIMIT_BROKER", "3/minute")
+
 router = APIRouter(prefix="/api/angelone", tags=["broker"])
 
 
 @router.post("/login", response_model=dict)
+@limiter.limit(RATE_LIMIT_BROKER)
 def angelone_login(
+    request: Request,
     creds: AngelOneCredentials,
     db: Session = DbDep,
     _=SessionDep,

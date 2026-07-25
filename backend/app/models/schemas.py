@@ -1,6 +1,7 @@
 """Pydantic schemas for API request/response validation."""
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any, Literal
 
@@ -27,10 +28,6 @@ class StatusResponse(BaseModel):
     message: str
 
 
-class QuoteRequest(BaseModel):
-    symbol: str = Field(..., min_length=1, max_length=50)
-
-
 class QuoteResponse(BaseModel):
     symbol: str
     price: float
@@ -40,9 +37,9 @@ class QuoteResponse(BaseModel):
 
 
 class HistoryRequest(BaseModel):
-    symbol: str = Field(..., min_length=1, max_length=50)
-    interval: str = Field(default="1d", pattern=r"^(1m|2m|5m|15m|30m|60m|1h|1d|5d|1wk|1mo|3mo)$")
-    range: str = Field(default="3mo", pattern=r"^(1d|5d|1mo|3mo|6mo|1y|2y|5y|10y|ytd|max)$")
+    symbol: str = Field(..., min_length=1, max_length=50, pattern=r"^[A-Z][A-Z0-9.]*$")
+    interval: str = Field(..., pattern=r"^(1m|2m|5m|15m|30m|60m|1h|1d|5d|1wk|1mo|3mo|6mo|1y|2y|5y|max)$")
+    range: str = Field(..., pattern=r"^(1d|5d|1mo|3mo|6mo|1y|2y|5y|10y|ytd|max)$")
 
 
 class CandleBar(BaseModel):
@@ -168,7 +165,6 @@ class PredictionCreate(BaseModel):
     market_breadth: float | None = None
     sector_strength: float | None = None
     nifty_trend: str | None = None
-    setup_type: str | None = Field(default="UNKNOWN")
     market_regime_snapshot: str | None = Field(default="UNKNOWN")
     risk_amount: float | None = None
     confidence_probability: float | None = Field(default=0.5, ge=0.0, le=1.0)
@@ -225,3 +221,52 @@ class PriceAlert(BaseModel):
     symbol: str = Field(..., min_length=1, max_length=50)
     condition: str = Field(..., pattern=r"^(above|below)$")
     target_price: float = Field(..., gt=0)
+
+
+class HistoryParams(BaseModel):
+    symbol: str = Field(..., min_length=1, max_length=50, pattern=r"^[A-Z][A-Z0-9.]*$")
+    interval: str = Field(..., pattern=r"^(1m|2m|5m|15m|30m|60m|1h|1d|5d|1wk|1mo|3mo|6mo|1y|2y|5y|max)$")
+    range: str = Field(..., pattern=r"^(1d|5d|1mo|3mo|6mo|1y|2y|5y|10y|ytd|max)$")
+
+
+class SignalsQuery(BaseModel):
+    symbols: str | None = Field(default=None, min_length=1, max_length=200)
+    limit: int = Field(default=20, ge=1, le=50)
+
+    @field_validator("symbols")
+    @classmethod
+    def validate_symbols(cls, v):
+        if v is None:
+            return None
+        cleaned = [s.strip().upper() for s in v.split(",") if s.strip()]
+        if not cleaned:
+            raise ValueError("symbols must contain at least one non-empty symbol")
+        sym_regex = re.compile(r"^[A-Z0-9.]+$")
+        for s in cleaned:
+            if not sym_regex.fullmatch(s):
+                raise ValueError(f"Invalid symbol format: {s}")
+        return ",".join(cleaned)
+
+
+class AdminKeyParams(BaseModel):
+    x_admin_key: str | None = Field(default=None, min_length=1)
+
+
+class BacktestRequest(BaseModel):
+    symbol: str = Field(..., pattern=r"^[A-Z][A-Z0-9.]*$")
+    start_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    end_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    risk_pct: float = Field(..., gt=0)
+    stop_atr: float = Field(..., gt=0)
+    target_atr: float = Field(..., gt=0)
+    initial_capital: float = Field(..., gt=0)
+    entry_score: int = Field(..., ge=0)
+    adx_min: float = Field(..., ge=0)
+
+
+class SearchRequest(BaseModel):
+    q: str = Field(..., min_length=1, max_length=50, pattern=r"^[A-Z][A-Z0-9.]*$")
+
+
+class QuoteRequest(BaseModel):
+    symbol: str = Field(..., min_length=1, max_length=20, pattern=r"^[A-Z0-9]+(?:\.[A-Z0-9]+)?$")

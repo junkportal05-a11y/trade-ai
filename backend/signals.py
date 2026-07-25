@@ -25,6 +25,7 @@ import numpy as np
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from angelone_feed import get_angelone_feed
+from app.core.logging import logger
 
 def vwap_veto(price: float, vwap: float, direction: str) -> tuple[bool, str]:
     """
@@ -149,6 +150,9 @@ def download_market_data_df(
     # AngelOne primary
     feed = get_angelone_feed()
     if feed.is_authorized():
+        if not feed.is_session_valid():
+            logger.info("[signals] AngelOne session stale, attempting auto-refresh...")
+            feed.auto_login()
         try:
             df = feed.get_historical_candles(symbol, period, interval)
             if df is not None and not df.empty:
@@ -1295,7 +1299,7 @@ def analyse_symbol(
 
         signal_type = res["signal_type"]
         rr_ratio = round(reward / risk_amount, 2) if risk_amount > 0 else 1.0
-        target_pct = round((target1 - price) / price * 100, 2)
+        target_pct = round((target1 - price) / price * 100, 2) if price != 0 else 0.0 if price > 0 else 0.0
 
         all_reasons = reasons_bull + reasons_bear
         reasoning = " | ".join(all_reasons[:4])

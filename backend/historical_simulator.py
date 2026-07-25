@@ -182,7 +182,7 @@ class HistoricalSimulator:
                                     is_long = signal_type == 'BUY'
                                     
                                     # Hybrid Trading Model - Tier 1 vs Tier 2
-                                    target_pct = abs((target - entry_price) / entry_price) * 100
+                                    target_pct = abs((target - entry_price) / entry_price) * 100 if entry_price else 0.0
                                     
                                     if target_pct > 5.0:
                                         # Tier 2: Swing Trade (Allow up to 10 days hold)
@@ -205,9 +205,9 @@ class HistoricalSimulator:
                                         
                                     # PnL Calculation
                                     if is_long:
-                                        pnl_pct = ((exit_price - entry_price) / entry_price) * 100
+                                        pnl_pct = ((exit_price - entry_price) / entry_price) * 100 if entry_price else 0.0
                                     else:
-                                        pnl_pct = ((entry_price - exit_price) / entry_price) * 100
+                                        pnl_pct = ((entry_price - exit_price) / entry_price) * 100 if entry_price else 0.0
                                         
                                     quantity = result.get('quantity', 0)
                                     if quantity > 0:

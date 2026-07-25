@@ -6,7 +6,6 @@ Handles authentication, websocket streams, and historical data fetching.
 
 import os
 import json
-import logging
 import pyotp
 import pandas as pd
 from datetime import datetime, timedelta, timezone
@@ -15,13 +14,14 @@ from SmartApi import SmartConnect
 from typing import Optional, Dict, List
 from cryptography.fernet import Fernet
 
+from app.core.logging import configure_json_logging, logger
+from app.core.circuit_breaker import CircuitBreaker
+
 FERNET_KEY = os.getenv("FERNET_KEY")
 if FERNET_KEY:
     fernet = Fernet(FERNET_KEY.encode())
 else:
     fernet = None
-
-logger = logging.getLogger(__name__)
 
 
 class AngelOneFeed:
@@ -38,9 +38,39 @@ class AngelOneFeed:
         self.client_code = None
         self.instruments = {}
         self.instruments_file = Path(os.path.join(os.path.dirname(__file__), "angelone_instruments.json"))
-        
+
         import threading
         self._instruments_lock = threading.Lock()
+        self.cb = CircuitBreaker(max_failures=5, base_delay=1.0)
+        self._restore_session()
+
+    def _restore_session(self):
+        """Restore session from DB on startup, auto-refresh if stale."""
+        try:
+            import db
+            saved = db.get_angelone_session() or {}
+            if saved.get('session_token'):
+                if self.is_session_valid(saved):
+                    self.session_token = saved['session_token']
+                    self.refresh_token = saved.get('refresh_token')
+                    self.feed_token = saved.get('feed_token')
+                    self.client_code = saved.get('client_code')
+                    # Re-initialize SmartConnect with saved token
+                    api_key = saved.get('api_key')
+                    if api_key and fernet:
+                        try:
+                            api_key = fernet.decrypt(api_key.encode()).decode()
+                        except Exception:
+                            pass
+                    if api_key:
+                        self.smart_api = SmartConnect(api_key=api_key)
+                        self.smart_api.setAccessToken(self.session_token)
+                    logger.info("✅ Restored AngelOne session from DB")
+                else:
+                    logger.info("Stored session is stale, attempting auto-login...")
+                    self.auto_login()
+        except Exception as e:
+            logger.warning(f"Session restore skipped: {e}")
 
     # ==========================================
     # AUTHENTICATION
@@ -272,12 +302,22 @@ class AngelOneFeed:
             logger.error(f"Exception during auto-login: {e}")
             return False
 
-    def is_session_valid(self) -> bool:
-        import db
+    def is_session_valid(self, session_data=None) -> bool:
+        """Check if session is valid (less than 23 hours old).
 
-        saved = db.get_angelone_session() or {}
-        updated_at = saved.get("updated_at")
-        if not updated_at or not self.session_token:
+        Args:
+            session_data: Optional session dict from DB. If provided, uses that data
+                         instead of querying DB again. Useful during startup when
+                         self.session_token not yet set.
+        """
+        if session_data is None:
+            import db
+            session_data = db.get_angelone_session() or {}
+
+        updated_at = session_data.get("updated_at")
+        session_token = session_data.get("session_token") or self.session_token
+
+        if not updated_at or not session_token:
             return False
         from datetime import datetime, timezone
 
@@ -489,7 +529,7 @@ class AngelOneFeed:
                 return None
             token = self.get_instrument_token(symbol)
             if not token:
-                logger.error(f"Cannot fetch data: No token for {symbol}")
+                logger.error(f"Cannot fetch data: No token for {symbol}", extra={"symbol": symbol})
                 return None
 
             # Map typical intervals like '5m', '1d' to AngelOne format
@@ -549,7 +589,8 @@ class AngelOneFeed:
             }
 
             logger.info(
-                f"Fetching {symbol} candles: {interval} from {from_date} to {to_date}"
+                f"Fetching {symbol} candles: {interval} from {from_date} to {to_date}",
+                extra={"symbol": symbol}
             )
 
             response = self.smart_api.getCandleData(historic_param)
@@ -609,12 +650,12 @@ class AngelOneFeed:
             for col in ["Open", "High", "Low", "Close", "Volume"]:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
 
-            logger.info(f"✅ Fetched {len(df)} candles for {symbol}")
+            logger.info(f"✅ Fetched {len(df)} candles for {symbol}", extra={"symbol": symbol})
 
             return df
 
         except Exception as e:
-            logger.error(f"Exception fetching candles for {symbol}: {str(e)}")
+            logger.error(f"Exception fetching candles for {symbol}: {str(e)}", extra={"symbol": symbol})
             return None
 
     # ==========================================
@@ -812,7 +853,7 @@ def get_angelone_feed() -> AngelOneFeed:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    configure_json_logging()
 
     feed = AngelOneFeed()
 
@@ -822,7 +863,7 @@ if __name__ == "__main__":
     TOTP_SECRET = os.getenv("ANGEL_TOTP_SECRET")
 
     if not all([API_KEY, CLIENT_CODE, PIN, TOTP_SECRET]):
-        print(
+        logger.error(
             "❌ Set environment variables: ANGEL_API_KEY, ANGEL_CLIENT_CODE, ANGEL_PIN, ANGEL_TOTP_SECRET"
         )
         exit(1)
@@ -833,14 +874,14 @@ if __name__ == "__main__":
     result = feed.login(API_KEY, CLIENT_CODE, PIN, totp_code)
 
     if result["status"] == "success":
-        print("✅ Login successful!")
+        logger.info("✅ Login successful!")
         df = feed.get_historical_candles(
             "RELIANCE", interval="FIVE_MINUTE", days_back=1
         )
         if df is not None:
-            print(f"✅ Fetched {len(df)} candles for RELIANCE")
-            print(df.head())
+            logger.info(f"✅ Fetched {len(df)} candles for RELIANCE", extra={"symbol": "RELIANCE"})
+            logger.info(df.head())
         else:
-            print("❌ Failed to fetch historical data")
+            logger.error("❌ Failed to fetch historical data")
     else:
-        print(f"❌ Login failed: {result['message']}")
+        logger.error(f"❌ Login failed: {result['message']}")

@@ -1,28 +1,54 @@
 """FastAPI application entry point."""
-from __future__ import annotations
 
 import os
 import re
 from contextlib import asynccontextmanager
-from typing import Dict, Any
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from pydantic import ValidationError
+import logging
 
 from app.core.config import settings
+from app.models.schemas import BacktestRequest
 from app.core.database import init_db
-from app.api.v1 import api_router
+from app.core.logging import configure_json_logging, logger, set_correlation_id
+from app.core.security import get_token_from_request
 
 from datetime import datetime
+import uuid
 
-# Import backtest utilities
-from backtest_engine import run_historical_backtest, BacktestConfig
+# Switch the root logger to structured JSON output with correlation IDs.
+configure_json_logging()
 
+logger = logging.getLogger(__name__)
+
+# Rate limit configuration
+RATE_LIMIT_AUTH = os.getenv("RATE_LIMIT_AUTH", "5/minute")
+RATE_LIMIT_BROKER = os.getenv("RATE_LIMIT_BROKER", "3/minute")
+RATE_LIMIT_DEFAULT = os.getenv("RATE_LIMIT_DEFAULT", "60/minute")
+
+# Limiter with IP-based key and default limits from env vars
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[RATE_LIMIT_DEFAULT],
+)
+
+# Custom key function to use token if present, otherwise IP address
+def custom_key_func(request: Request) -> str:
+    token = get_token_from_request(request)
+    if token:
+        return f"user:{token}"
+    return get_remote_address(request)
+
+# Override default limit with specific auth limits where needed
+# These will be applied in route decorators
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -32,9 +58,6 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
     pass
-
-
-limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
     title=settings.app_name,
@@ -48,7 +71,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS
 # Use ALLOWED_ORIGINS env var (comma-separated) to override the hardcoded default
 allowed = settings.allowed_origins.split(",")
-print(f"CORS allowed origins: {allowed}")  # Debug line, can be removed in production
+logger.info("CORS allowed origins configured", extra={"origins": allowed})
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed,
@@ -61,7 +84,19 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
+# ── Correlation ID middleware ─────────────────────────────────────────────
+@app.middleware("http")
+async def correlation_middleware(request: Request, call_next):
+    correlation_id = request.headers.get("X-Correlation-ID") or str(uuid.uuid4())
+    set_correlation_id(correlation_id)
+    logger.info("request_started", extra={"method": request.method, "path": request.url.path})
+    response = await call_next(request)
+    response.headers["X-Correlation-ID"] = correlation_id
+    logger.info("request_finished", extra={"status_code": response.status_code})
+    return response
+
 # API routes
+from app.api.v1 import api_router
 app.include_router(api_router)
 
 # Serve static files for graphify output
@@ -69,66 +104,34 @@ graph_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 os.makedirs(graph_dir, exist_ok=True)
 app.mount("/graphify-out", StaticFiles(directory=graph_dir), name="graphify-out")
 
-
 # ----------------------------------------------------------------------
 # New Backtest API endpoint
 # ----------------------------------------------------------------------
 @app.get("/api/backtest/run", tags=["backtest"])
-@limiter.limit("5/minute")
-async def run_backtest(
-    request: Request,
-    symbol: str,
-    start_date: str,
-    end_date: str,
-    risk_pct: float = 0.02,
-    entry_score: int = 5,
-    stop_atr: float = 1.5,
-    target_atr: float = 2.5,
-    early_exit: int = -4,
-    adx_min: float = 0.0,
-    initial_capital: float = 10000.0,
-):
+@limiter.limit(settings.rate_limit_backtest)
+async def run_backtest(request: Request, backtest: BacktestRequest = Depends()):
     """
     Execute a historical backtest and return key performance metrics.
-
-    Query parameters:
-        - symbol: Trading symbol (e.g., "RELIANCE")
-        - start_date: Start date in YYYY-MM-DD format
-        - end_date: End date in YYYY-MM-DD format
-        - risk_pct: Risk percentage per trade (default: 0.02)
-        - entry_score: Minimum entry score (default: 5)
-        - stop_atr: Stop loss ATR multiplier (default: 1.5)
-        - target_atr: Take profit ATR multiplier (default: 2.5)
-        - early_exit: Early exit score threshold (default: -4)
-        - adx_min: Minimum ADX for trend filter (default: 0.0)
-        - initial_capital: Starting capital (default: 10000.0)
-
-    Returns JSON with metrics:
-        {
-            "total_pnl_pct": 12.3,
-            "max_drawdown": 5.2,
-            "win_rate": 61.5,
-            "profit_factor": 1.8,
-            "total_trades": 27,
-            "sharpe_ratio": 1.2
-        }
     """
     # ------------------------------------------------------------------
     # Validate required fields
     # ------------------------------------------------------------------
-    if not symbol:
+    if not backtest.symbol:
         raise HTTPException(status_code=400, detail="Missing required query parameter: symbol")
-    if not start_date:
+    if not backtest.start_date:
         raise HTTPException(status_code=400, detail="Missing required query parameter: start_date")
-    if not end_date:
+    if not backtest.end_date:
         raise HTTPException(status_code=400, detail="Missing required query parameter: end_date")
+    # Ensure start_date is before end_date
+    if backtest.start_date >= backtest.end_date:
+        raise HTTPException(status_code=400, detail="start_date must be before end_date")
 
     # Build the period range string that backtest_engine expects
     # Calculate period based on date difference
     date_format = "%Y-%m-%d"
     try:
-        start_dt = datetime.strptime(start_date, date_format)
-        end_dt = datetime.strptime(end_date, date_format)
+        start_dt = datetime.strptime(backtest.start_date, date_format)
+        end_dt = datetime.strptime(backtest.end_date, date_format)
         delta = end_dt - start_dt
         days = delta.days
 
@@ -148,22 +151,23 @@ async def run_backtest(
 
     # Build strategy parameters dict
     strategy_params = {
-        "risk_pct": risk_pct,
-        "entry_score": entry_score,
-        "stop_atr": stop_atr,
-        "target_atr": target_atr,
-        "early_exit": early_exit,
-        "adx_min": adx_min,
-        "initial_capital": initial_capital,
+        "risk_pct": backtest.risk_pct,
+        "entry_score": backtest.entry_score,
+        "stop_atr": backtest.stop_atr,
+        "target_atr": backtest.target_atr,
+        "early_exit": backtest.early_exit,
+        "adx_min": backtest.adx_min,
+        "initial_capital": backtest.initial_capital,
     }
 
     try:
         # Run the backtest using the engine
         config = BacktestConfig(period_range=period_range, **strategy_params)
-        result = run_historical_backtest(symbol, config)
+        result = run_historical_backtest(backtest.symbol, config)
     except Exception as exc:
         # Propagate engine errors as 500s
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.error(f"Internal error: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
@@ -202,7 +206,7 @@ async def run_backtest(
         "profit_factor": result["profit_factor"],
         "total_trades": result["total_trades"],
         "sharpe_ratio": sharpe_ratio,
-        "final_capital": result.get("final_capital", initial_capital),
+        "final_capital": result.get("final_capital", backtest.initial_capital),
     }
 
     return metrics

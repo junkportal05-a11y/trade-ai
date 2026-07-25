@@ -1,23 +1,26 @@
-# PHASE 1C — Backend Bot Integration (API & Control)
+---
+title: Engineering Backlog
+date: 2026-07-23
+tags: project-management, backlog, engineering
+status: completed
 
-> Goal: Connect the new React Bot Engine UI to the Python backend so the user can control the trading agent, view its status, and see its live trades.
+# Engineering Backlog — Automated Task Runner
 
-## Task 2.1 — Bot State Management
-- [x] Add a `bot_state` key to the `app_settings` database table to track if the bot is `RUNNING`, `PAUSED`, or `STOPPED`.
-- [x] Update `trading_agent.py` to check this state at the top of its `while True` loop:
-  - If `STOPPED`, skip scan or break.
-  - If `PAUSED`, skip the scan but maintain open positions (monitor SL/TP).
-  - If `RUNNING`, execute full logic.
+> **Minimal index** — detailed content split into sub-files below.
+> All tasks completed ✅
+- Session freshness check (Task 20) ✅
+- Token persistence (Task 22) ✅
+- CLI backtest enhancement (Task 23) ✅
+- Scheduled refresh (Task 24) ✅
 
-## Task 2.2 — Bot Control API Endpoints
-- [x] **File:** `backend/app/main.py` (or a new router `bot.py`)
-- [x] `POST /api/bot/start` -> Sets state to `RUNNING`.
-- [x] `POST /api/bot/pause` -> Sets state to `PAUSED`.
-- [x] `POST /api/bot/stop` -> Sets state to `STOPPED` and triggers `_square_off_all()`.
-- [x] `GET /api/bot/status` -> Returns the current state, today's P&L, last signal, and current positions.
-- [x] `GET /api/bot/trades` -> Returns the live trade log (recent predictions with status PENDING/WIN/LOSS/TIMEOUT).
+## Related
 
-## Task 2.3 — Frontend Wiring
-- [x] Ensure `BotControlPanel.jsx` makes calls to these endpoints instead of mock data.
-- [x] Ensure `TradeLogPanel.jsx` polls `/api/bot/trades` every 3 seconds.
-- [x] Ensure `SimulatorPanel.jsx` / `BotControlPanel` fetches `/api/bot/status` periodically.
+See [[brain/Memories.md]] for session notes.
+
+## Parts
+
+- [Part A: Toolchain Bootstrap](scratchpad/part-a-toolchain.md) — Tasks 14–18
+- [Part B: Engineering Tasks](scratchpad/part-b-engineering.md) — Tasks 9–13
+- [Part C: AngelOne API Session Fix](scratchpad/part-c-angelone.md) — Tasks 19–24
+- [Part D: Infrastructure Audit](scratchpad/part-d-infrastructure.md) — Tasks 25–37
+- [Final Summary & Completion](scratchpad/final-completion.md) — Summary table, commit, Memories.md update

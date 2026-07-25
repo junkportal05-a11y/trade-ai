@@ -1,3 +1,8 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "qmd": {
+      "command": "node",
+      "args": [".claude/scripts/qmd-mcp.mjs"]
+    }
+  }
 }

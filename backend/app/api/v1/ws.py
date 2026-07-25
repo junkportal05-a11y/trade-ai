@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import List
 import db
+from app.core.logging import logger
 
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
@@ -87,7 +88,7 @@ class ConnectionManager:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                print(f"[WS] Polling error: {e}")
+                logger.error(f"[WS] Polling error: {e}")
                 
             await asyncio.sleep(2) # Poll every 2 seconds
 

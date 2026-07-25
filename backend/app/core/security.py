@@ -8,29 +8,43 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import bcrypt
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, MultiFernet
 from fastapi import HTTPException, Request
 from jose import JWTError, jwt
 
 from app.core.config import settings
+from app.core.logging import logger
 
 # ── Fernet for encrypting sensitive broker credentials ────────────────────────
-_fernet_key = base64.urlsafe_b64encode(
-    settings.jwt_secret.encode()[:32].ljust(32, b"0")
-)
-_fernet = Fernet(_fernet_key)
+_fernet_list = []
+if settings.fernet_keys:
+    for key in settings.fernet_keys:
+        try:
+            _fernet_list.append(Fernet(key))
+        except Exception as e:
+            logger.error(f"Failed to initialize Fernet with key: {e}")
+
+# Ensure at least one Fernet instance exists (generate a new key if none valid)
+if not _fernet_list:
+    try:
+        _fernet_list = [Fernet(Fernet.generate_key())]
+        logger.warning("Generated new Fernet key (no valid keys in settings.fernet_keys)")
+    except Exception as e:
+        logger.error(f"Failed to generate Fernet key: {e}")
+
+_fernet = MultiFernet(_fernet_list) if _fernet_list else None
 
 
 def encrypt_value(plaintext: str | None) -> str | None:
     """Encrypt a sensitive string for storage. Returns base64 ciphertext."""
-    if plaintext is None:
+    if plaintext is None or _fernet is None:
         return None
     return _fernet.encrypt(plaintext.encode()).decode()
 
 
 def decrypt_value(ciphertext: str | None) -> str | None:
     """Decrypt a Fernet-encrypted string."""
-    if ciphertext is None:
+    if ciphertext is None or _fernet is None:
         return None
     try:
         return _fernet.decrypt(ciphertext.encode()).decode()
@@ -86,7 +100,7 @@ class UserRegistry:
         # Admin
         raw_admin = os.getenv("PASS_ADMIN", os.getenv("APP_PASSWORD", "")).strip()
         if not raw_admin:
-            print("\n[SECURITY WARNING] PASS_ADMIN not set. Using default 'admin' password.")
+            logger.warning("\n[SECURITY WARNING] PASS_ADMIN not set. Using default 'admin' password.")
             self._users["apex_head_quant"] = {
                 "pass_hash": get_password_hash("admin"),
                 "role": "Master Quant / Administrator",

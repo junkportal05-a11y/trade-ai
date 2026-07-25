@@ -1,8 +1,9 @@
 """Authentication router."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, Response, Depends
+import os
 
+from fastapi import APIRouter, Request, Response, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, get_user_or_ip
@@ -14,10 +15,13 @@ from app.core.security import (
 )
 from app.models.schemas import LoginRequest, LoginResponse, StatusResponse
 
+from app.main import limiter  # import limiter for rate limiting
+
 router = APIRouter(prefix="/api", tags=["auth"])
 
 
 @router.post("/login", response_model=LoginResponse)
+@limiter.limit(os.getenv("RATE_LIMIT_AUTH", "5/minute"))
 async def login(
     req: LoginRequest,
     request: Request,
@@ -63,6 +67,7 @@ async def login(
 
 
 @router.post("/logout", response_model=StatusResponse)
+@limiter.limit(os.getenv("RATE_LIMIT_AUTH", "5/minute"))
 async def logout(request: Request, response: Response) -> dict:
     token = get_token_from_request(request)
     if token:
@@ -78,7 +83,8 @@ async def logout(request: Request, response: Response) -> dict:
 
 
 @router.get("/auth/verify", response_model=StatusResponse)
-async def verify(token: str = Depends(lambda r: get_token_from_request(r))) -> dict:
+@limiter.limit(os.getenv("RATE_LIMIT_AUTH", "5/minute"))
+async def verify(request: Request, token: str = Depends(lambda r: get_token_from_request(r))) -> dict:
     from fastapi import HTTPException
     from app.core.security import decode_access_token
 

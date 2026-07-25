@@ -1,52 +1,96 @@
+"""Weekly and daily scheduled jobs for ApexTrade.
+
+Implements scheduled session refresh and market data maintenance.
 """
-Weekly Jobs — Operational Hygiene
+import threading
+import time
+import os
+from datetime import datetime, timezone, timedelta
+from app.core.logging import logger
+from angelone_feed import get_angelone_feed
+def refresh_angelone_session():
+    """Refresh AngelOne session using stored refresh token.
 
-Runs Sunday night maintenance tasks:
-  1. Rebuild the correlation matrix from fresh historical data
-  2. (Future) Recompute ATR percentiles, regime baselines, etc.
-
-Can be triggered from trading_agent.py's weekend block
-or run standalone via cron/task scheduler.
-"""
-
-import logging
-from datetime import datetime
-from quant.correlation_matrix import CorrelationEngine
-
-logger = logging.getLogger("WeeklyJobs")
-
-
-def run_weekly_maintenance():
+    Returns:
+        bool: True if refresh succeeded, False otherwise
     """
-    Execute all weekly maintenance tasks.
-    Should be called once per week (Sunday night preferred).
-    """
-    logger.info(f"=== Weekly Maintenance Started at {datetime.now().isoformat()} ===")
-
-    # 1. Rebuild Correlation Matrix
     try:
-        engine = CorrelationEngine()
-        engine.build_matrix(lookback_days=90)
-        if engine.matrix_build_failed:
-            logger.error("Correlation matrix rebuild FAILED (no data)")
+        feed = get_angelone_feed()
+        saved = db.get_angelone_session() or {}
+        refresh_token = saved.get('refresh_token')
+
+        if not refresh_token:
+            logger.warning("No refresh token found in storage — skipping scheduled refresh")
+            return False
+
+        # Decrypt refresh token if needed
+        if fernet:
+            try:
+                refresh_token = fernet.decrypt(refresh_token.encode()).decode()
+            except Exception:
+                pass
+
+        success = feed.refresh_session(refresh_token)
+        if success:
+            logger.info("Scheduled AngelOne session refresh completed successfully")
         else:
-            logger.info(
-                f"Correlation matrix rebuilt successfully. "
-                f"Shape: {engine.correlation_matrix.shape}. "
-                f"Built at: {engine.last_built_date.isoformat()}"
-            )
+            logger.warning("Scheduled AngelOne session refresh failed")
+        return success
     except Exception as e:
-        logger.error(f"Correlation matrix rebuild error: {e}")
+        logger.error(f"Error during scheduled session refresh: {e}")
+        return False
+def calculate_hours_until_next_refresh():
+    """Calculate hours until next refresh based on session age.
 
-    # 2. (Future) Recompute ATR historical percentiles
-    # 3. (Future) Purge stale prediction_history records
+    Tokens expire after ~23 hours, refresh when < 2 hours remaining.
+    """
+    try:
+        import db
+        saved = db.get_angelone_session() or {}
+        updated_at = saved.get('updated_at')
 
-    logger.info("=== Weekly Maintenance Complete ===")
+        if not updated_at:
+            return 23.0
 
+        age_hours = (
+            datetime.now(timezone.utc) - datetime.fromisoformat(updated_at)
+        ).total_seconds() / 3600
 
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s"
-    )
-    run_weekly_maintenance()
+        # Refresh when 2 hours remain before expiry
+        hours_remaining = 23.0 - age_hours
+        return max(0.1, hours_remaining)
+    except Exception as e:
+        logger.error(f"Error calculating refresh time: {e}")
+        return 23.0
+def run_scheduled_refresh(interval_minutes: int = 120):
+    """Run scheduled refresh loop.
+
+    Args:
+        interval_minutes: How often to check and potentially refresh (default 2 hours)
+    """
+    while True:
+        try:
+            hours_until = calculate_hours_until_next_refresh()
+            wait_minutes = min(interval_minutes, hours_until * 60)
+            logger.info(f"Scheduled refresh: sleeping {wait_minutes:.0f} minutes")
+            time.sleep(wait_minutes * 60)
+
+            refresh_angelone_session()
+        except Exception as e:
+            logger.error(f"Scheduled refresh loop error: {e}")
+            time.sleep(300)
+_run_thread = None
+def start_scheduled_refresh():
+    """Start the scheduled refresh thread if not already running."""
+    global _run_thread
+    if _run_thread is None or not _run_thread.is_alive():
+        _run_thread = threading.Thread(target=run_scheduled_refresh, daemon=True)
+        _run_thread.start()
+        logger.info("Started scheduled session refresh thread")
+def run_weekly_tasks():
+    """Run daily maintenance tasks.
+
+    Called by external scheduler or can be run manually.
+    """
+    refresh_angelone_session()
+    logger.info("Weekly tasks completed")
