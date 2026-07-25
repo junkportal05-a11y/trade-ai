@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import DbDep
 from app.core.security import require_admin
 from app.models.schemas import AdminKeyParams
+from app.core.worker_health import get_all as get_worker_health
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -19,7 +20,7 @@ def admin_health(
     require_admin(params.x_admin_key)
     from app.db.repositories import repo
     stats = repo.signals.get_stats(db)
-    return {"status": "healthy", "signals_stats": stats}
+    return {"status": "healthy", "signals_stats": stats, "workers": get_worker_health()}
 
 
 @router.delete("/signals/clear", response_model=dict)

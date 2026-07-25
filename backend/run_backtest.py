@@ -32,6 +32,25 @@ Examples:
                         default=10000.0,
                         help="Initial capital for backtest simulation (default: 10000.0)")
 
+    # Validation helper functions
+    def validate_score(value):
+        ivalue = int(value)
+        if ivalue < 0 or ivalue > 10:
+            raise argparse.ArgumentTypeError(f"{value} is not a valid score (0-10)")
+        return ivalue
+
+    def validate_risk_pct(value):
+        ivalue = float(value)
+        if ivalue <= 0 or ivalue > 1:
+            raise argparse.ArgumentTypeError(f"{value} is not a valid risk percentage (0.01-1.0)")
+        return ivalue
+
+    def validate_period(value):
+        valid_periods = ["1d", "1w", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
+        if value not in valid_periods:
+            raise argparse.ArgumentTypeError(f"{value} is not a valid period. Use one of: {', '.join(valid_periods)}")
+        return value
+
     parser.add_argument("--entry-score", type=validate_score,
                         dest="entry_score", default=5,
                         help="Minimum score to trigger buy signal (0-10)")
@@ -62,34 +81,6 @@ Examples:
 
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Enable verbose logging")
-
-    # Validation helper functions
-    def validate_score(value):
-        ivalue = int(value)
-        if ivalue < 0 or ivalue > 10:
-            raise argparse.ArgumentTypeError(f"{value} is not a valid score (0-10)")
-        return ivalue
-
-    def validate_risk_pct(value):
-        ivalue = float(value)
-        if ivalue <= 0 or ivalue > 1:
-            raise argparse.ArgumentTypeError(f"{value} is not a valid risk percentage (0.01-1.0)")
-        return ivalue
-
-    def validate_period(value):
-        valid_periods = ["1d", "1w", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
-        if value not in valid_periods:
-            raise argparse.ArgumentTypeError(f"{value} is not a valid period. Use one of: {', '.join(valid_periods)}")
-        return value
-
-    # Apply custom validators
-    parser.add_argument("--entry-score", type=validate_score,
-                        dest="entry_score", default=5,
-                        help="Minimum score to trigger buy signal (0-10)")
-
-    parser.add_argument("--risk-pct", type=validate_risk_pct,
-                        dest="risk_pct", default=0.02,
-                        help="Risk percentage per trade (0.01-1.0)")
 
     return parser.parse_args()
 def main():

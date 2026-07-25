@@ -372,3 +372,44 @@ Each law exists because its absence caused real correction work in vaults runnin
 - Every note must have a `description` field (~150 chars). Claude fills this automatically.
 - **Zero data loss**: when reorganizing, always use `git mv`. Never delete without explicit user confirmation.
 
+## GSD Workflow Integration
+
+This project uses **GSD (Get Shit Done)** v1.7.0 as the primary execution framework.
+
+### Default Workflow
+When given a multi-step task or scratchpad:
+1. Use `/gsd quick` for straightforward tasks (< 3 files changed)
+2. Use `/gsd execute-phase` for complex tasks requiring planning
+3. Use `/gsd autonomous` for overnight/unattended runs (like this scratchpad)
+
+### Ponytail Pre-Check (MANDATORY before any code write)
+Before writing ANY code in a GSD workflow, run the Ponytail ladder:
+1. Does this need to exist? → no: skip it (YAGNI)
+2. Already in this codebase? → reuse it, don't rewrite
+3. Stdlib does it? → use it
+4. Native platform feature? → use it
+5. Installed dependency? → use it
+6. One line? → one line
+7. Only then: write the minimum that works
+
+*Trust-boundary validation, data-loss handling, security, and accessibility are never on the chopping block.*
+
+## Ralph Autonomous Loop
+
+Ralph (`scripts/ralph.sh`) runs Claude Code in a loop until all PRD items are complete.
+
+### Usage
+1. Create a PRD: load the `/prd` skill and describe the feature
+2. Convert to Ralph format: load the `/ralph` skill to create `prd.json`
+3. Run: `./scripts/ralph.sh --tool claude [max_iterations]`
+
+### When to use Ralph
+- Overnight/unattended multi-task execution (like this scratchpad's tasks)
+- Large feature implementations spanning many files
+- Iterative refinement tasks where each pass improves the output
+
+### Files
+- `scripts/ralph-loop/` — Ralph source (cloned from snarktank/ralph)
+- `scripts/ralph.sh` — Runner script
+- `.claude/skills/prd/` — PRD generation skill
+- `.claude/skills/ralph/` — PRD-to-JSON conversion skill

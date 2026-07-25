@@ -1,6 +1,7 @@
 """Database layer with SQLAlchemy, connection pooling, and WAL mode."""
 from __future__ import annotations
 
+import logging
 import os
 from contextlib import contextmanager
 from typing import Generator
@@ -76,3 +77,17 @@ def init_db() -> None:
     """Create tables if they don't exist."""
     from app.db import migrations
     migrations.run_migrations(engine)
+
+    # Startup verification of WAL mode
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("PRAGMA journal_mode;"))
+            journal_mode = result.scalar()
+        if journal_mode and journal_mode.lower() == "wal":
+            logging.info("[startup] SQLite journal_mode verified: wal")
+        else:
+            logging.error(f"[startup] SQLite journal_mode is not WAL: {journal_mode}")
+            raise RuntimeError("SQLite WAL mode failed to activate")
+    except Exception as e:
+        logging.error(f"[startup] Failed to verify SQLite WAL mode: {e}")
+        raise RuntimeError("SQLite WAL mode failed to activate") from e

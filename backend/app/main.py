@@ -84,7 +84,6 @@ app.add_middleware(
 # GZip Middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-<<<<<<< Updated upstream
 
 # ── Correlation ID middleware ─────────────────────────────────────────────
 @app.middleware("http")
@@ -97,9 +96,6 @@ async def correlation_middleware(request: Request, call_next):
     logger.info("request_finished", extra={"status_code": response.status_code})
     return response
 
-
-=======
->>>>>>> Stashed changes
 # API routes
 app.include_router(api_router)
 

@@ -1,6 +1,7 @@
 """Quotes, history, and market data router."""
 from __future__ import annotations
 
+import asyncio
 from fastapi import APIRouter, Query, HTTPException, Depends
 from sqlalchemy.orm import Session
 
@@ -9,6 +10,7 @@ from app.core.config import settings
 from app.core.constants import VALID_INTERVALS, VALID_RANGES
 from app.models.schemas import HistoryResponse, QuoteResponse, SearchResponse, HistoryParams, SearchRequest, QuoteRequest
 from app.services.quotes import get_symbol_quote
+from app.core.executors import quote_executor
 from app.main import limiter
 
 router = APIRouter(prefix="/api", tags=["quotes"])
@@ -43,7 +45,11 @@ def keep_alive() -> dict:
 async def get_quote(req: QuoteRequest = Depends(), db: Session = DbDep) -> dict:
     # Validate symbol again via model; it's already uppercase due to validator
     symbol = req.symbol
-    result = get_symbol_quote(symbol)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        quote_executor,
+        lambda: get_symbol_quote(symbol)
+    )
     if not result:
         raise HTTPException(status_code=404, detail=f"No data for {symbol}")
     return result
@@ -107,6 +113,6 @@ async def search_symbols(request: SearchRequest = Depends(), db: Session = DbDep
     key = get_broker_feed().get_instrument_token(symbol)
     if key:
         return {
-            "results": [{"symbol": symbol + ".NS", "name": request.q, "type": "NSE Equity"}]
+            "results": [{"symbol": s + ".NS", "name": request.q, "type": "NSE Equity"}]
         }
     return {"results": []}

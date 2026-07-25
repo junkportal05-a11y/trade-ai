@@ -150,6 +150,9 @@ def download_market_data_df(
     # AngelOne primary
     feed = get_angelone_feed()
     if feed.is_authorized():
+        if not feed.is_session_valid():
+            logger.info("[signals] AngelOne session stale, attempting auto-refresh...")
+            feed.auto_login()
         try:
             df = feed.get_historical_candles(symbol, period, interval)
             if df is not None and not df.empty:

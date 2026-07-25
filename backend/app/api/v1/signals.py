@@ -13,10 +13,9 @@ from sqlalchemy.orm import Session
 from app.api.deps import DbDep, SessionDep
 from app.models.schemas import ScanRequest, SignalResponse, SignalsQuery
 from app.core.config import settings
+from app.core.executors import scan_executor
 
 router = APIRouter(prefix="/api", tags=["signals"])
-
-_executor = ThreadPoolExecutor(max_workers=4)
 
 
 @router.get("/signals", response_model=SignalResponse)
@@ -43,7 +42,7 @@ async def get_signals(
     try:
         results = await asyncio.wait_for(
             loop.run_in_executor(
-                _executor,
+                scan_executor,
                 functools.partial(run_scan, watchlist),
             ),
             timeout=85,
@@ -89,7 +88,7 @@ async def post_scan(
     try:
         results = await asyncio.wait_for(
             loop.run_in_executor(
-                _executor,
+                scan_executor,
                 functools.partial(
                     run_scan,
                     watchlist,
@@ -141,7 +140,7 @@ async def get_signal_single(
 
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
-        _executor,
+        scan_executor,
         lambda: analyse_symbol(meta["symbol"], meta["name"], meta["sector"]),
     )
 

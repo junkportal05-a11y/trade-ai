@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import secrets
-from typing import Literal
+from typing import List, Literal
 
 from pydantic import Field, PostgresDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -33,6 +33,11 @@ class Settings(BaseSettings):
 
     # ── Security ─────────────────────────────────────────────────────
     jwt_secret: str = Field(default_factory=lambda: secrets.token_hex(32), alias="JWT_SECRET")
+    # fernet_key field removed – key material is now managed via fernet_keys list
+    fernet_keys: List[str] = Field(
+        default_factory=lambda: [secrets.token_urlsafe(32)],
+        alias="FERNET_KEYS"
+    )
     admin_key: str = Field(default_factory=lambda: secrets.token_hex(24), alias="ADMIN_KEY")
     session_ttl: int = Field(default=8 * 3600, alias="SESSION_TTL")  # 8 hours
     algorithm: str = "HS256"

@@ -76,3 +76,6 @@ extract_results.txt
 graphify-out/
 merge_extract.py
 *.pid
+
+# Ralph
+scripts/ralph-loop/

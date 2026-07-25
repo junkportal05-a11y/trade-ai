@@ -18,34 +18,33 @@ from app.core.logging import logger
 # ── Fernet for encrypting sensitive broker credentials ────────────────────────
 _fernet_list = []
 if settings.fernet_keys:
-    try:
-        _fernet_list = [Fernet(key) for key in settings.fernet_keys]
-    except Exception as e:
-        logger.error(f"Failed to initialize Fernet with settings.fernet_keys: {e}")
-        _fernet_list = []  # Fallback to empty list
-else:
-    _fernet_list = []
+    for key in settings.fernet_keys:
+        try:
+            _fernet_list.append(Fernet(key))
+        except Exception as e:
+            logger.error(f"Failed to initialize Fernet with key: {e}")
 
 # Ensure at least one Fernet instance exists (generate a new key if none valid)
 if not _fernet_list:
     try:
-        _fernet_list = [Fernet(secrets.token_urlsafe(32))]
+        _fernet_list = [Fernet(Fernet.generate_key())]
         logger.warning("Generated new Fernet key (no valid keys in settings.fernet_keys)")
     except Exception as e:
         logger.error(f"Failed to generate Fernet key: {e}")
-        _fernet_list = []
+
+_fernet = MultiFernet(_fernet_list) if _fernet_list else None
 
 
 def encrypt_value(plaintext: str | None) -> str | None:
     """Encrypt a sensitive string for storage. Returns base64 ciphertext."""
-    if plaintext is None:
+    if plaintext is None or _fernet is None:
         return None
     return _fernet.encrypt(plaintext.encode()).decode()
 
 
 def decrypt_value(ciphertext: str | None) -> str | None:
     """Decrypt a Fernet-encrypted string."""
-    if ciphertext is None:
+    if ciphertext is None or _fernet is None:
         return None
     try:
         return _fernet.decrypt(ciphertext.encode()).decode()
