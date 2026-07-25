@@ -152,8 +152,8 @@ async def websocket_prices_endpoint(websocket: WebSocket):
                 if isinstance(msg, dict) and msg.get("action") == "subscribe":
                     syms = msg.get("symbols")
                     if isinstance(syms, list):
-                        nonlocal subscribed_symbols
-                        subscribed_symbols = syms
+                        subscribed_symbols.clear()
+                        subscribed_symbols.extend(syms)
                         await websocket.send_text(json.dumps({"type": "subscribed", "symbols": syms}))
             except Exception:
                 pass
