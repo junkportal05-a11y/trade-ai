@@ -44,16 +44,12 @@ export function useBotWebSocket() {
           setConnected(false);
         };
 
-        ws.onclose = (event) => {
+        ws.onclose = () => {
           if (!isMounted) return;
           setConnected(false);
-          // Exponential backoff reconnection with max 30s
-          let retryDelay = 3000;
+          // Reconnect after 3s
           reconnectTimeout = setTimeout(() => {
-            if (isMounted) {
-              connect();
-              retryDelay = Math.min(retryDelay * 1.5, 30000);
-            }
+            if (isMounted) connect();
           }, 3000);
         };
       } catch (_) {

@@ -226,19 +226,26 @@ export function useLivePrices(symbols = []) {
 
           if (event.code === 4001) {
             console.warn("[WebSocket] Connection closed with code 4001: Session unauthorized/expired.");
+            // Graceful logout, not auto reload
             const hadToken = !!localStorage.getItem('is_logged_in');
-            localStorage.removeItem('is_logged_in');
-            localStorage.removeItem('apex_user');
             if (hadToken) {
-              window.location.reload();
+              // Clear auth state but stay on current page for smooth UX
+              localStorage.removeItem('is_logged_in');
+              localStorage.removeItem('apex_user');
+              localStorage.removeItem('apex_role');
+              localStorage.removeItem('apex_clearance');
+              localStorage.removeItem('apt_token');
+              // Navigate to login instead of hard reload for better UX
+              window.location.hash = '/login';
             }
             return;
           }
 
-          // Reconnect after 5 s
+          // Reconnect after 5 s with exponential backoff
+          let reconnectDelay = 5000;
           reconnectTimeout = setTimeout(() => {
             if (isMounted) connect();
-          }, 5000);
+          }, reconnectDelay);
         };
       } catch (_) {
         setConnected(false);
