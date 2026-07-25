@@ -7,12 +7,13 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: 'https://apextrade-core-trade-ai-backend.hf.space',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://127.0.0.1:8000',
+        target: 'wss://apextrade-core-trade-ai-backend.hf.space',
         ws: true,
+        changeOrigin: true,
       }
     }
   },
