@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../api';
+import { API_BASE_URL, WS_BASE_URL } from '../api';
 /**
  * useMarketData.js
  * ─────────────────────────────────────────────────────────────────────────────
@@ -15,10 +15,7 @@ import { API_BASE_URL } from '../api';
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const BASE_URL = API_BASE_URL;
-let WS_URL   = import.meta.env.VITE_WS_URL || BASE_URL.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
-if (!WS_URL && typeof window !== "undefined") {
-  WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
-}
+const WS_URL = WS_BASE_URL;
 
 const SEED_PRICES = {
   'YESBANK.NS': 25, 'TATASTEEL.NS': 170, 'BANKBARODA.NS': 280,
