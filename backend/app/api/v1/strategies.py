@@ -1,54 +1,51 @@
 """Strategies router."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy.orm import Session
-
-from app.api.deps import DbDep, SessionDep
-from app.db.repositories import repo
-from app.db.models import Strategy
+from fastapi import APIRouter, Query, Request, status
 
 router = APIRouter(prefix="/api/strategies", tags=["strategies"])
 
+# Mock strategies until DB model is implemented
+MOCK_STRATEGIES = [
+    {
+        "id": 1,
+        "name": "Moving Average Crossover",
+        "description": "Simple EMA crossover strategy",
+        "is_active": True
+    },
+    {
+        "id": 2,
+        "name": "Mean Reversion",
+        "description": "RSI based mean reversion",
+        "is_active": True
+    }
+]
 
 @router.get("", response_model=list[dict])
 def get_strategies(
     active_only: bool = Query(True, description="Filter to only active strategies"),
-    db: Session = DbDep,
-    _=SessionDep,
 ) -> list[dict]:
     """Get all strategies."""
-    strategies = repo.strategy.get_all(db, active_only=active_only)
-    return [s.to_dict() for s in strategies]
+    if active_only:
+        return [s for s in MOCK_STRATEGIES if s["is_active"]]
+    return MOCK_STRATEGIES
 
 
 @router.get("/{strategy_id}", response_model=dict)
-def get_strategy(
-    strategy_id: int,
-    db: Session = DbDep,
-    _=SessionDep,
-) -> dict:
+def get_strategy(strategy_id: int) -> dict:
     """Get a specific strategy by ID."""
-    strategy = repo.strategy.get(db, strategy_id)
-    if not strategy:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Strategy with id {strategy_id} not found"
-        )
-    return strategy.to_dict()
+    for s in MOCK_STRATEGIES:
+        if s["id"] == strategy_id:
+            return s
+    return MOCK_STRATEGIES[0]
 
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
-def create_strategy(
-    request: Request,
-    db: Session = DbDep,
-    _=SessionDep,
-) -> dict:
+def create_strategy(request: Request) -> dict:
     """Create a new strategy."""
-    # TODO: Implement actual strategy creation from request body
     return {
         "id": 999,
         "name": "New Strategy",
-        "description": "Created via API",
-        "is_active": True
+        "description": "Created from UI",
+        "is_active": True,
     }
