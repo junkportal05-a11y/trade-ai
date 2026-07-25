@@ -84,7 +84,7 @@ async def logout(request: Request, response: Response) -> dict:
 
 @router.get("/auth/verify", response_model=StatusResponse)
 @limiter.limit(os.getenv("RATE_LIMIT_AUTH", "5/minute"))
-async def verify(token: str = Depends(lambda r: get_token_from_request(r))) -> dict:
+async def verify(request: Request, token: str = Depends(lambda r: get_token_from_request(r))) -> dict:
     from fastapi import HTTPException
     from app.core.security import decode_access_token
 

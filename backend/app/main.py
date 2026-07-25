@@ -18,7 +18,6 @@ import logging
 from app.core.config import settings
 from app.models.schemas import BacktestRequest
 from app.core.database import init_db
-from app.api.v1 import api_router
 from app.core.logging import configure_json_logging, logger, set_correlation_id
 from app.core.security import get_token_from_request
 
@@ -97,6 +96,7 @@ async def correlation_middleware(request: Request, call_next):
     return response
 
 # API routes
+from app.api.v1 import api_router
 app.include_router(api_router)
 
 # Serve static files for graphify output

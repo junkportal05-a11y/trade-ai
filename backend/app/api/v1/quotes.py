@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from fastapi import APIRouter, Query, HTTPException, Depends
+from fastapi import APIRouter, Query, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep
@@ -18,13 +18,13 @@ router = APIRouter(prefix="/api", tags=["quotes"])
 
 @router.get("/", response_model=dict)
 @limiter.limit(settings.rate_limit_public)
-def root() -> dict:
+def root(request: Request) -> dict:
     return {"status": "ok", "message": "Trading Platform API is running"}
 
 
 @router.get("/keepalive", response_model=dict)
 @limiter.limit(settings.rate_limit_public)
-def keep_alive() -> dict:
+def keep_alive(request: Request) -> dict:
     from datetime import datetime, timezone, timedelta
     from app.services.market_hours import is_nse_market_open
 
@@ -42,7 +42,7 @@ def keep_alive() -> dict:
 
 @router.get("/quote", response_model=QuoteResponse)
 @limiter.limit(settings.rate_limit_public)
-async def get_quote(req: QuoteRequest = Depends(), db: Session = DbDep) -> dict:
+async def get_quote(request: Request, req: QuoteRequest = Depends(QuoteRequest), db: Session = DbDep) -> dict:
     # Validate symbol again via model; it's already uppercase due to validator
     symbol = req.symbol
     loop = asyncio.get_event_loop()
@@ -57,7 +57,7 @@ async def get_quote(req: QuoteRequest = Depends(), db: Session = DbDep) -> dict:
 
 @router.get("/history", response_model=HistoryResponse)
 @limiter.limit(settings.rate_limit_public)
-def get_history(params: HistoryParams = Depends(), db: Session = DbDep) -> dict:
+def get_history(request: Request, params: HistoryParams = Depends(HistoryParams), db: Session = DbDep) -> dict:
     from app.services.market_data import download_market_data_df
 
     # Validate interval and range against allowed constants
@@ -107,12 +107,12 @@ def get_history(params: HistoryParams = Depends(), db: Session = DbDep) -> dict:
 
 @router.get("/search", response_model=SearchResponse)
 @limiter.limit(settings.rate_limit_public)
-async def search_symbols(request: SearchRequest = Depends(), db: Session = DbDep) -> dict:
+async def search_symbols(request: Request, req: SearchRequest = Depends(SearchRequest), db: Session = DbDep) -> dict:
     from app.services.broker import get_broker_feed
-    symbol = request.q.upper().strip().replace(".NS", "")
+    symbol = req.q.upper().strip().replace(".NS", "")
     key = get_broker_feed().get_instrument_token(symbol)
     if key:
         return {
-            "results": [{"symbol": s + ".NS", "name": request.q, "type": "NSE Equity"}]
+            "results": [{"symbol": symbol + ".NS", "name": req.q, "type": "NSE Equity"}]
         }
     return {"results": []}

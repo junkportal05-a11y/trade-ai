@@ -6,17 +6,11 @@ from datetime import datetime, timezone, timedelta
 import db
 import signals
 from quant.correlation_matrix import CorrelationEngine
-from quant.weekly_jobs import run_weekly_maintenance
+from quant.weekly_jobs import run_weekly_tasks
 from quant.market_regime import MarketRegimeClassifier
-from quant.feature_attribution import FeatureAttributionEngine
-from quant.filter_roi import FilterROIEngine
 from quant.cost_engine import CostEngine
-from quant.portfolio_simulator import PortfolioSimulator
-from quant.capacity_simulator import CapacitySimulator
-from quant.replay_engine import ReplayEngine
 from quant.survivorship_validator import SurvivorshipValidator
 from trade_quality import TradeQualityEngine
-from ai_executive_committee import AIExecutiveCommittee
 
 from app.core.executors import (
     scan_executor,
@@ -64,17 +58,11 @@ async def trading_agent_loop():
     print("[trading_agent] Autonomous agent loop started.")
 
     correlation_engine = CorrelationEngine()
-    ai_exec = AIExecutiveCommittee()
     last_scan_bucket = None
 
     # Instantiate additional quant utilities (may be used later)
-    filter_roi_engine = FilterROIEngine()
-    feature_attrib_engine = FeatureAttributionEngine()
     cost_engine = CostEngine()
     market_regime_cls = MarketRegimeClassifier()
-    portfolio_sim = PortfolioSimulator()
-    capacity_sim = CapacitySimulator()
-    replay_engine = ReplayEngine()
     survivor_validator = SurvivorshipValidator()
 
     while True:
@@ -105,7 +93,7 @@ async def trading_agent_loop():
                     # Sunday night: run weekly maintenance jobs
                     print("[trading_agent] Sunday night maintenance window. Running weekly jobs.")
                     try:
-                        run_weekly_maintenance()
+                        run_weekly_tasks()
                     except Exception as e:
                         print(f"[trading_agent] Weekly maintenance error: {e}")
                 print("[trading_agent] Market closed (weekend). Next check in 1 hour.")
@@ -174,12 +162,6 @@ async def trading_agent_loop():
                     )
 
                     if tqs["classification"] not in ("INTRADAY_CANDIDATE", "ELITE_CANDIDATE"):
-                        continue
-
-                    # Wire AI Executive Committee (TradingAgents LLM Debate)
-                    ai_decision = ai_exec.evaluate_trade(sig["symbol"], sig)
-                    if not ai_decision.get("approved", False):
-                        print(f"[trading_agent] AI Executive Committee rejected trade for {sig['symbol']}: {ai_decision.get('reasoning')}")
                         continue
 
                     # Wire CorrelationEngine
