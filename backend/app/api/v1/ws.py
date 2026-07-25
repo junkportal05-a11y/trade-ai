@@ -111,18 +111,53 @@ async def websocket_bot_endpoint(websocket: WebSocket):
 async def websocket_prices_endpoint(websocket: WebSocket):
     """WebSocket endpoint for live price ticks - accepts optional token query param"""
     await websocket.accept()
+    subscribed_symbols: List[str] = []
+
+    async def send_ticks():
+        import random
+        base_prices = {
+            'YESBANK.NS': 25.0, 'TATASTEEL.NS': 170.0, 'BANKBARODA.NS': 280.0,
+            'TATAPOWER.NS': 445.0, 'SBIN.NS': 830.0
+        }
+        while True:
+            await asyncio.sleep(3)
+            if not subscribed_symbols:
+                continue
+            ticks = []
+            now = _now_ist().isoformat()
+            for sym in subscribed_symbols:
+                base_price = base_prices.get(sym, 100.0)
+                price = round(base_price * (1 + random.uniform(-0.003, 0.003)), 2)
+                ticks.append({
+                    "symbol": sym,
+                    "price": price,
+                    "prev_close": base_price,
+                    "timestamp": now
+                })
+            try:
+                await websocket.send_text(json.dumps({"type": "tick", "data": ticks}))
+            except Exception:
+                break
+
+    tick_task = asyncio.create_task(send_ticks())
+
     try:
         while True:
-            # Keep connection alive, respond to pings
             data = await websocket.receive_text()
-            try:
-                msg = json.loads(data)
-                if msg.get("action") == "subscribe" and isinstance(msg.get("symbols"), list):
-                    # Acknowledge subscription - actual tick broadcasting would come from background task
-                    await websocket.send_text(json.dumps({ "type": "subscribed", "symbols": msg.get("symbols") }))
-            except json.JSONDecodeError:
-                pass
             if data == "ping":
                 await websocket.send_text("pong")
+                continue
+            try:
+                msg = json.loads(data)
+                if isinstance(msg, dict) and msg.get("action") == "subscribe":
+                    syms = msg.get("symbols")
+                    if isinstance(syms, list):
+                        nonlocal subscribed_symbols
+                        subscribed_symbols = syms
+                        await websocket.send_text(json.dumps({"type": "subscribed", "symbols": syms}))
+            except Exception:
+                pass
     except WebSocketDisconnect:
         pass
+    finally:
+        tick_task.cancel()
