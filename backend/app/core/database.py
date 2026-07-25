@@ -78,16 +78,17 @@ def init_db() -> None:
     from app.db import migrations
     migrations.run_migrations(engine)
 
-    # Startup verification of WAL mode
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(text("PRAGMA journal_mode;"))
-            journal_mode = result.scalar()
-        if journal_mode and journal_mode.lower() == "wal":
-            logging.info("[startup] SQLite journal_mode verified: wal")
-        else:
-            logging.error(f"[startup] SQLite journal_mode is not WAL: {journal_mode}")
-            raise RuntimeError("SQLite WAL mode failed to activate")
-    except Exception as e:
-        logging.error(f"[startup] Failed to verify SQLite WAL mode: {e}")
-        raise RuntimeError("SQLite WAL mode failed to activate") from e
+    # Startup verification of WAL mode (only for SQLite)
+    if not settings.is_postgres:
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("PRAGMA journal_mode;"))
+                journal_mode = result.scalar()
+            if journal_mode and journal_mode.lower() == "wal":
+                logging.info("[startup] SQLite journal_mode verified: wal")
+            else:
+                logging.error(f"[startup] SQLite journal_mode is not WAL: {journal_mode}")
+                raise RuntimeError("SQLite WAL mode failed to activate")
+        except Exception as e:
+            logging.error(f"[startup] Failed to verify SQLite WAL mode: {e}")
+            raise RuntimeError("SQLite WAL mode failed to activate") from e
