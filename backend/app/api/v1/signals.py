@@ -11,7 +11,7 @@ from fastapi import APIRouter, Query, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, SessionDep
-from app.models.schemas import ScanRequest, SignalResponse
+from app.models.schemas import ScanRequest, SignalResponse, SignalsQuery
 from app.core.config import settings
 
 router = APIRouter(prefix="/api", tags=["signals"])
@@ -22,8 +22,7 @@ _executor = ThreadPoolExecutor(max_workers=4)
 @router.get("/signals", response_model=SignalResponse)
 async def get_signals(
     request: Request,
-    symbols: Optional[str] = Query(None, description="Comma-separated symbols"),
-    limit: int = Query(20, ge=1, le=50),
+    params: SignalsQuery = Depends(),
     db: Session = DbDep,
     _=SessionDep,
 ) -> dict:
@@ -31,8 +30,8 @@ async def get_signals(
 
     loop = asyncio.get_event_loop()
 
-    if symbols:
-        sym_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    if params.symbols:
+        sym_list = [s.strip().upper() for s in params.symbols.split(",") if s.strip()]
         wl_map = {w["symbol"]: w for w in NSE_WATCHLIST}
         watchlist = [
             wl_map.get(s, {"symbol": s, "name": s.replace(".NS", ""), "sector": "NSE"})
@@ -66,7 +65,7 @@ async def get_signals(
         "type": "intraday",
         "scan_time": datetime.now(timezone.utc).isoformat(),
         "total": len(results),
-        "signals": results[:limit],
+        "signals": results[: params.limit],
         "disclaimer": "Algorithmic signals only — not financial advice.",
     }
 

@@ -9,10 +9,16 @@ from app.models.schemas import AngelOneCredentials, AngelOneStatusResponse
 from app.core.security import encrypt_value, decrypt_value
 from app.db.repositories import repo
 
+from app.main import limiter  # import limiter for rate limiting
+import os
+
+RATE_LIMIT_BROKER = os.getenv("RATE_LIMIT_BROKER", "3/minute")
+
 router = APIRouter(prefix="/api/angelone", tags=["broker"])
 
 
 @router.post("/login", response_model=dict)
+@limiter.limit(RATE_LIMIT_BROKER)
 def angelone_login(
     creds: AngelOneCredentials,
     db: Session = DbDep,

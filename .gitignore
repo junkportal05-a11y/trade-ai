@@ -47,6 +47,7 @@ pip-delete-this-directory.txt
 # ── IDE / Editor ────────────────────────────────────────────────
 .vscode/
 .idea/
+.obsidian/
 *.swp
 *.swo
 *~

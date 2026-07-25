@@ -1296,7 +1296,7 @@ def analyse_symbol(
 
         signal_type = res["signal_type"]
         rr_ratio = round(reward / risk_amount, 2) if risk_amount > 0 else 1.0
-        target_pct = round((target1 - price) / price * 100, 2)
+        target_pct = round((target1 - price) / price * 100, 2) if price != 0 else 0.0 if price > 0 else 0.0
 
         all_reasons = reasons_bull + reasons_bear
         reasoning = " | ".join(all_reasons[:4])

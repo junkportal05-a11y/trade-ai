@@ -59,7 +59,7 @@ def get_prediction_stats(db: Session = DbDep, _=SessionDep) -> dict:
     errors = [
         abs((r.actual_outcome - r.target_price) / r.target_price) * 100
         for r in resolved
-        if r.actual_outcome is not None and r.target_price
+        if r.actual_outcome is not None and r.target_price and r.target_price != 0
     ]
 
     return {

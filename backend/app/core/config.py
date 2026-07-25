@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     rate_limit_signals_burst: str = "5/10seconds"
     rate_limit_chat: str = "30/minute"
     rate_limit_chat_burst: str = "10/10seconds"
+    rate_limit_public: str = "30/minute"
+    rate_limit_user: str = "60/minute"
+    rate_limit_user_burst: str = "10/10seconds"
+    rate_limit_backtest: str = "5/minute"
 
     # ── Data Paths ───────────────────────────────────────────────────
     knowledge_dir: str = "../knowledge"

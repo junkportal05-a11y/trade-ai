@@ -94,8 +94,10 @@ class MarketRegimeClassifier:
         smooth_plus_dm = plus_dm.ewm(alpha=1.0 / period, min_periods=period, adjust=False).mean()
         smooth_minus_dm = minus_dm.ewm(alpha=1.0 / period, min_periods=period, adjust=False).mean()
 
-        plus_di = 100 * smooth_plus_dm / atr
-        minus_di = 100 * smooth_minus_dm / atr
+        # Guard against zero ATR (Series division: replace 0 with NaN so no inf)
+        safe_atr = atr.replace(0, np.nan)
+        plus_di = 100 * smooth_plus_dm / safe_atr
+        minus_di = 100 * smooth_minus_dm / safe_atr
 
         # DX
         di_sum = plus_di + minus_di
@@ -135,7 +137,10 @@ class MarketRegimeClassifier:
         # Absolute ATR is meaningless on a compounding series — a stock at ₹20000
         # will always have higher absolute ATR than one at ₹200, even if both
         # have identical percentage volatility.
-        df['ATR_Rel'] = (df['ATR'] / df['Close']) * 100
+        # Handle division by zero in ATR_Rel calculation
+        close_prices = df['Close']
+        atr_values = df['ATR']
+        df['ATR_Rel'] = (atr_values / close_prices.replace(0, np.nan)) * 100
 
         # Rolling percentile: where does today's relative ATR sit vs last N days?
         df['ATR_Pct'] = df['ATR_Rel'].rolling(window=ATR_LOOKBACK_WINDOW, min_periods=20).apply(
@@ -225,7 +230,7 @@ class MarketRegimeClassifier:
 
         df['ATR'] = self.compute_atr(df['High'], df['Low'], df['Close'], period=14)
         df['ADX'] = self.compute_adx(df['High'], df['Low'], df['Close'], period=14)
-        df['ATR_Rel'] = (df['ATR'] / df['Close']) * 100
+        df['ATR_Rel'] = (df['ATR'] / df['Close'].replace(0, np.nan)) * 100
         df['ATR_Pct'] = df['ATR_Rel'].rolling(window=ATR_LOOKBACK_WINDOW, min_periods=20).apply(
             lambda x: pd.Series(x).rank(pct=True).iloc[-1] * 100,
             raw=False

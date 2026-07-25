@@ -62,14 +62,14 @@ class MarketDataCollector:
         
         # Volume features
         df['volume_ma'] = df['Volume'].rolling(20).mean()
-        df['volume_ratio'] = df['Volume'] / df['volume_ma']
+        df['volume_ratio'] = df['Volume'] / df['volume_ma'].replace(0, np.nan)
         
         # Volatility
         df['volatility'] = df['returns'].rolling(20).std()
         
         # OHLCV ratios
-        df['hl_ratio'] = (df['High'] - df['Low']) / df['Close']
-        df['co_ratio'] = (df['Close'] - df['Open']) / df['Open']
+        df['hl_ratio'] = (df['High'] - df['Low']) / df['Close'].replace(0, np.nan)
+        df['co_ratio'] = (df['Close'] - df['Open']) / df['Open'].replace(0, np.nan)
         
         # Moving averages
         for period in [5, 10, 20, 50, 200]:
@@ -92,7 +92,7 @@ class MarketDataCollector:
         delta = prices.diff()
         gain = (delta.where(delta > 0, 0)).rolling(period).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(period).mean()
-        rs = gain / loss
+        rs = gain / loss.replace(0, np.nan)
         return 100 - (100 / (1 + rs))
     
     def calculate_macd(self, prices):

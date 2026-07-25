@@ -1,12 +1,23 @@
+"""Smoke-test the ApexTrade HF Space login and prices endpoints.
+
+Logs in with ADMIN_PASSWORD and fetches a sample of live prices. Exits early
+if ADMIN_PASSWORD is not set in the environment.
+"""
+
+import os
+import sys
 import urllib.request
 import json
 import time
 
+admin_password = os.getenv("ADMIN_PASSWORD")
+if not admin_password:
+    sys.exit("ADMIN_PASSWORD environment variable is not set — refusing to send empty credentials.")
+
 url = "https://apextrade-core-trade-ai-backend.hf.space/api/login"
 data = {
     "username": "apex_head_quant",
-    "password": os.getenv("ADMIN_PASSWORD") or "",
-
+    "password": admin_password,
 }
 req = urllib.request.Request(
     url, 

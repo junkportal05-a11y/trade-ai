@@ -8,7 +8,7 @@ app_port: 7860
 pinned: false
 ---
 
-# 📈 ApexTrade Quant Server
+# ApexTrade Quant Server
 
 ApexTrade is an advanced quantitative trading platform designed for real-time market analysis, automated technical signal generation, portfolio capital allocation, and performance tracking.
 
@@ -16,7 +16,7 @@ This repository hosts the code for both the **FastAPI backend** (deployed as a D
 
 ---
 
-## 🏗️ Architecture & Features
+## Architecture & Features
 
 ApexTrade is divided into two primary services:
 
@@ -36,7 +36,7 @@ ApexTrade is divided into two primary services:
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```directory
 trade-ai/
@@ -65,7 +65,7 @@ trade-ai/
 
 ---
 
-## 🚀 Local Setup & Development
+## Local Setup & Development
 
 ### 1. Backend Setup
 
@@ -127,7 +127,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## 🧪 Running Tests
+## Running Tests
 
 We use `pytest` for backend testing and optimization verification.
 
@@ -139,7 +139,7 @@ pytest
 
 ---
 
-## 🌐 Production Deployment
+## Production Deployment
 
 ### Backend (Hugging Face Spaces)
 The backend uses Docker and is automatically deployed to Hugging Face Spaces on pushes to the `huggingface` remote.

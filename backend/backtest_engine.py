@@ -338,7 +338,11 @@ def run_historical_backtest(
         win_rate = round((wins / total_trades) * 100, 1) if total_trades > 0 else 0.0
 
         total_pnl = round(capital - config.initial_capital, 2)
-        total_pnl_pct = round((total_pnl / config.initial_capital) * 100, 2)
+        total_pnl_pct = (
+            round((total_pnl / config.initial_capital) * 100, 2)
+            if config.initial_capital
+            else 0.0
+        )
 
         # Profit factor
         gross_profit = sum(t["pnl"] for t in trades if t["pnl"] > 0)
@@ -357,7 +361,7 @@ def run_historical_backtest(
             for val in equity_series:
                 if val > peak:
                     peak = val
-                dd = (peak - val) / peak * 100
+                dd = (peak - val) / peak * 100 if peak else 0.0
                 if dd > max_drawdown:
                     max_drawdown = dd
         max_drawdown = round(max_drawdown, 2)

@@ -460,7 +460,7 @@ def calculate_risk_parameters(
     max_loss = capital * risk_pct
     position_size = int(max_loss // risk_per_share) if risk_per_share > 0 else 1
 
-    max_buy_power = int(capital // price)
+    max_buy_power = int(capital // price) if price else 1
     position_size = max(1, min(position_size, max_buy_power))
 
     return round(stop_loss, 2), round(target, 2), position_size, rr_target

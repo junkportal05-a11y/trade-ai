@@ -1,11 +1,24 @@
+"""Audit ApexTrade HF Space backtest predictions.
+
+Fetches BACKTEST trades from the deployed API and prints strategy-level and
+market-regime breakdowns. Requires ADMIN_PASSWORD in the environment; exits
+early if it is missing.
+"""
+
+import os
+import sys
 import requests
 import pandas as pd
 import json
 
 base_url = "https://apextrade-core-trade-ai-backend.hf.space"
 
+admin_password = os.getenv("ADMIN_PASSWORD")
+if not admin_password:
+    sys.exit("ADMIN_PASSWORD environment variable is not set — refusing to send empty credentials.")
+
 print("Logging in to HF Space...")
-login_resp = requests.post(f"{base_url}/api/login", json={"username": "admin", "password": os.getenv("ADMIN_PASSWORD") or ""})
+login_resp = requests.post(f"{base_url}/api/login", json={"username": "admin", "password": admin_password})
 if login_resp.status_code != 200:
     print(f"Login failed: {login_resp.text}")
     import sys; sys.exit(1)
