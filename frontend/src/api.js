@@ -28,7 +28,7 @@ export const apiFetch = async (path, options = {}) => {
     localStorage.removeItem('apt_token');
     sessionStorage.removeItem('apt_token');
     if (typeof window !== "undefined") {
-      window.location.reload();
+      window.location.hash = '/login';
     }
   }
 

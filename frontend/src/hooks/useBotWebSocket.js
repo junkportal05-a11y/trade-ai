@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { API_BASE_URL } from "../api";
 
-const WS_URL = import.meta.env.VITE_WS_URL || API_BASE_URL.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
+let WS_URL = import.meta.env.VITE_WS_URL || API_BASE_URL.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
+if (!WS_URL && typeof window !== "undefined") {
+  WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+}
+const WS_PATH = '/ws/bot/';
 
 export function useBotWebSocket() {
   const [botData, setBotData] = useState({
@@ -17,7 +21,7 @@ export function useBotWebSocket() {
 
     function connect() {
       try {
-        const ws = new WebSocket(`${WS_URL}/ws/bot`);
+        const ws = new WebSocket(`${WS_URL}${WS_PATH}`);
         wsRef.current = ws;
 
         ws.onopen = () => {
