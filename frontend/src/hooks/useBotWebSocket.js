@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { API_BASE_URL } from "../api";
 
 const WS_URL = import.meta.env.VITE_WS_URL || API_BASE_URL.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
+const WS_PATH = '/ws/bot/';
 
 export function useBotWebSocket() {
   const [botData, setBotData] = useState({
@@ -17,7 +18,7 @@ export function useBotWebSocket() {
 
     function connect() {
       try {
-        const ws = new WebSocket(`${WS_URL}/ws/bot`);
+        const ws = new WebSocket(`${WS_URL}${WS_PATH}`);
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -43,12 +44,16 @@ export function useBotWebSocket() {
           setConnected(false);
         };
 
-        ws.onclose = () => {
+        ws.onclose = (event) => {
           if (!isMounted) return;
           setConnected(false);
-          // Reconnect after 3s
+          // Exponential backoff reconnection with max 30s
+          let retryDelay = 3000;
           reconnectTimeout = setTimeout(() => {
-            if (isMounted) connect();
+            if (isMounted) {
+              connect();
+              retryDelay = Math.min(retryDelay * 1.5, 30000);
+            }
           }, 3000);
         };
       } catch (_) {

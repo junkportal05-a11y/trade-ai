@@ -4,7 +4,7 @@ db.py — Dynamic SQLite/PostgreSQL (Supabase) Database Adapter
 Supports local SQLite fallback and remote PostgreSQL / Supabase in production.
 """
 
-import sqlite3
+
 import os
 import json
 import base64
@@ -74,10 +74,7 @@ DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "tr
 DATABASE_URL = os.getenv("DATABASE_URL")
 IS_POSTGRES = bool(DATABASE_URL)
 
-if IS_POSTGRES:
-    import psycopg2
-    from psycopg2.extras import RealDictCursor
-
+from app.core.database import engine
 
 class RowWrapper:
     def __init__(self, data_dict, data_tuple):
@@ -98,53 +95,48 @@ class RowWrapper:
     def __iter__(self):
         return iter(self.data_dict)
 
-
 class DBConnection:
     def __init__(self):
         self.conn = None
-        self.cursor_obj = None
+        self.trans = None
         self._lastrowid = None
+        self._rowcount = 0
+        self._fetchall_res = []
+        self._fetchone_res = None
+        self.is_pg = engine.name == "postgresql"
 
     def __enter__(self):
-        if IS_POSTGRES:
-            self.conn = psycopg2.connect(DATABASE_URL)
-            self.cursor_obj = self.conn.cursor(cursor_factory=RealDictCursor)
-        else:
-            self.conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-            self.conn.row_factory = sqlite3.Row
-            self.cursor_obj = self.conn.cursor()
+        self.conn = engine.connect()
+        self.trans = self.conn.begin()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
-            if self.conn:
-                self.conn.rollback()
+            if self.trans.is_active:
+                self.trans.rollback()
         else:
-            # commit will be called explicitly in write methods, but auto-commit on success is standard
+            # Commit is called explicitly via .commit() in db.py functions
             pass
-        if self.cursor_obj:
-            self.cursor_obj.close()
-        if self.conn:
-            self.conn.close()
+        self.conn.close()
 
     def commit(self):
-        if self.conn:
-            self.conn.commit()
+        if self.trans.is_active:
+            self.trans.commit()
+            # Start a new transaction if they continue using the connection
+            self.trans = self.conn.begin()
 
     def cursor(self):
         return self
 
     def execute(self, query, params=None):
         self._lastrowid = None
+        self._fetchall_res = []
+        self._fetchone_res = None
 
-        # Adapt SQL for PostgreSQL
-        if IS_POSTGRES:
+        if self.is_pg:
             query = query.replace("?", "%s")
-            query = query.replace(
-                "INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY"
-            )
-
-            # Translate SQLite PRAGMA table_info to standard ANSI SQL
+            query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+            
             if "PRAGMA table_info" in query:
                 parts = query.split("table_info(")
                 if len(parts) > 1:
@@ -157,7 +149,6 @@ class DBConnection:
                         WHERE table_name = '{tname}'
                     """
 
-            # Translate SQLite INSERT OR REPLACE
             if "INSERT OR REPLACE INTO app_settings" in query:
                 query = """
                     INSERT INTO app_settings (key, value, updated_at) 
@@ -166,51 +157,41 @@ class DBConnection:
                     DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
                 """
 
-            # Append RETURNING id to INSERT queries to get lastrowid
             stripped_upper = query.strip().upper()
-            if (
-                stripped_upper.startswith("INSERT INTO")
-                and "RETURNING" not in stripped_upper
-            ):
+            if stripped_upper.startswith("INSERT INTO") and "RETURNING" not in stripped_upper:
                 if "APP_SETTINGS" not in stripped_upper and "METRICS_CACHE" not in stripped_upper and "SESSIONS" not in stripped_upper:
                     query += " RETURNING id"
 
-        # Execute query
-        if params:
-            self.cursor_obj.execute(query, params)
-        else:
-            self.cursor_obj.execute(query)
+        if params is not None and isinstance(params, list):
+            params = tuple(params)
 
-        # Retrieve last inserted ID if applicable
-        if IS_POSTGRES:
-            stripped_upper = query.strip().upper()
-            if (
-                stripped_upper.startswith("INSERT INTO")
-                and "RETURNING ID" in stripped_upper
-            ):
-                try:
-                    res = self.cursor_obj.fetchone()
-                    if res:
-                        if isinstance(res, dict):
-                            self._lastrowid = res.get("id") or res.get("ID")
-                        else:
-                            self._lastrowid = res[0]
-                except Exception:
-                    pass
+        res = self.conn.exec_driver_sql(query, params or ())
+        self._rowcount = res.rowcount
+
+        if res.returns_rows:
+            rows = res.all()
+            if rows:
+                self._fetchall_res = [RowWrapper(dict(r._mapping), tuple(r)) for r in rows]
+                self._fetchone_res = self._fetchall_res[0]
+            else:
+                self._fetchall_res = []
+                self._fetchone_res = None
+
+            if self.is_pg and query.strip().upper().startswith("INSERT INTO"):
+                if rows:
+                    self._lastrowid = rows[0]._mapping.get("id") or rows[0]._mapping.get("ID")
         else:
-            self._lastrowid = self.cursor_obj.lastrowid
+            self._lastrowid = res.lastrowid
 
         return self
 
     def executemany(self, query, params=None):
         self._lastrowid = None
-
-        # Adapt SQL for PostgreSQL
-        if IS_POSTGRES:
+        
+        if self.is_pg:
             query = query.replace("?", "%s")
             query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
-
-            # Translate SQLite PRAGMA table_info to standard ANSI SQL
+            
             if "PRAGMA table_info" in query:
                 parts = query.split("table_info(")
                 if len(parts) > 1:
@@ -222,8 +203,7 @@ class DBConnection:
                         FROM information_schema.columns
                         WHERE table_name = '{tname}'
                     """
-
-            # Translate SQLite INSERT OR REPLACE
+            
             if "INSERT OR REPLACE INTO app_settings" in query:
                 query = """
                     INSERT INTO app_settings (key, value, updated_at)
@@ -232,29 +212,20 @@ class DBConnection:
                     DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
                 """
 
-        # Execute query
         if params is not None:
-            self.cursor_obj.executemany(query, params)
+            # executemany in SQLAlchemy can be done by passing a list of dicts/tuples to exec_driver_sql?
+            # No, exec_driver_sql accepts a list of tuples for executemany behavior.
+            self.conn.exec_driver_sql(query, params)
         else:
-            self.cursor_obj.executemany(query)
-
+            self.conn.exec_driver_sql(query)
+            
         return self
 
     def fetchall(self):
-        rows = self.cursor_obj.fetchall()
-        if IS_POSTGRES:
-            return [RowWrapper(dict(r), tuple(r.values())) for r in rows]
-        else:
-            return rows
+        return self._fetchall_res
 
     def fetchone(self):
-        row = self.cursor_obj.fetchone()
-        if not row:
-            return None
-        if IS_POSTGRES:
-            return RowWrapper(dict(row), tuple(row.values()))
-        else:
-            return row
+        return self._fetchone_res
 
     @property
     def lastrowid(self):
@@ -262,7 +233,7 @@ class DBConnection:
 
     @property
     def rowcount(self):
-        return self.cursor_obj.rowcount
+        return self._rowcount
 
 
 def _conn():
@@ -533,9 +504,9 @@ def _get_stats_live() -> dict:
             for r in dir_rows
         ]
 
-        cache = get_metrics_cache("dashboard_metrics") or {}
-        
-        return {
+    cache = get_metrics_cache("dashboard_metrics") or {}
+    
+    return {
             "total": total,
             "pending": pending,
             "won": won,
