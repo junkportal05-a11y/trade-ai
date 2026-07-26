@@ -11,7 +11,7 @@ from app.core.constants import VALID_INTERVALS, VALID_RANGES
 from app.models.schemas import HistoryResponse, QuoteResponse, SearchResponse, HistoryParams, SearchRequest, QuoteRequest
 from app.services.quotes import get_symbol_quote
 from app.core.executors import quote_executor
-from app.main import limiter
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/api", tags=["quotes"])
 

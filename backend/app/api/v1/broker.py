@@ -9,7 +9,7 @@ from app.models.schemas import AngelOneCredentials, AngelOneStatusResponse
 from app.core.security import encrypt_value, decrypt_value
 from app.db.repositories import repo
 
-from app.main import limiter  # import limiter for rate limiting
+from app.core.limiter import limiter
 import os
 
 RATE_LIMIT_BROKER = os.getenv("RATE_LIMIT_BROKER", "3/minute")

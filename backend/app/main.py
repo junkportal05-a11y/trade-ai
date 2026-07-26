@@ -34,11 +34,7 @@ RATE_LIMIT_AUTH = os.getenv("RATE_LIMIT_AUTH", "5/minute")
 RATE_LIMIT_BROKER = os.getenv("RATE_LIMIT_BROKER", "3/minute")
 RATE_LIMIT_DEFAULT = os.getenv("RATE_LIMIT_DEFAULT", "60/minute")
 
-# Limiter with IP-based key and default limits from env vars
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=[RATE_LIMIT_DEFAULT],
-)
+from app.core.limiter import limiter
 
 # Custom key function to use token if present, otherwise IP address
 def custom_key_func(request: Request) -> str:

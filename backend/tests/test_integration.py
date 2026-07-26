@@ -41,10 +41,12 @@ from app.core.database import get_db
 app.dependency_overrides[get_db] = override_get_db
 
 
+from app.core.config import settings
+
 def test_basic_endpoints():
     """Simple sanity check that the API server starts."""
     client = TestClient(app)
-    response = client.get("/api/admin/health")
+    response = client.get("/api/admin/health", headers={"X-Admin-Key": settings.admin_key})
     assert response.status_code == 200
     assert "status" in response.json()
 

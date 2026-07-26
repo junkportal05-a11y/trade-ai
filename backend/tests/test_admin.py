@@ -9,7 +9,7 @@ client = TestClient(app)
 @patch("app.db.repositories.SignalRepository.get_stats")
 def test_admin_health_success(mock_get_stats):
     mock_get_stats.return_value = {"total": 10, "active": 2}
-    response = client.get(f"/api/admin/health?x_admin_key={settings.admin_key}")
+    response = client.get("/api/admin/health", headers={"X-Admin-Key": settings.admin_key})
     assert response.status_code == 200
     assert response.json() == {
         "status": "healthy",

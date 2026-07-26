@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import DbDep, SessionDep
 from app.models.schemas import ChatRequest, ChatResponse
 from app.core.config import settings
-from app.main import limiter  # import limiter for rate limiting
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
