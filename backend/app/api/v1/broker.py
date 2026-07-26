@@ -14,17 +14,20 @@ import os
 
 RATE_LIMIT_BROKER = os.getenv("RATE_LIMIT_BROKER", "3/minute")
 
+from fastapi import APIRouter, Request, Response, Depends, HTTPException, Body
+
 router = APIRouter(prefix="/api/angelone", tags=["broker"])
 
 
 @router.post("/login", response_model=dict)
 @limiter.limit(RATE_LIMIT_BROKER)
-def angelone_login(
+async def angelone_login(
     request: Request,
-    creds: AngelOneCredentials,
     db: Session = DbDep,
     _=SessionDep,
 ) -> dict:
+    body = await request.json()
+    creds = AngelOneCredentials.model_validate(body)
     from app.services.broker import get_broker_feed
 
     feed = get_broker_feed()
