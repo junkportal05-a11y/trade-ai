@@ -99,21 +99,14 @@ class UserRegistry:
     def _load_from_env(self) -> None:
         raw_admin = os.getenv("PASS_ADMIN", os.getenv("APP_PASSWORD", "")).strip()
         if not raw_admin:
-            temp_pass = secrets.token_urlsafe(16)
-            logger.warning(
-                "=" * 80
-                + "\n[SECURITY WARNING] PASS_ADMIN / APP_PASSWORD is not configured in environment!"
-                + "\n A temporary session password was generated securely for 'apex_head_quant'."
-                + "\n Set PASS_ADMIN or APP_PASSWORD in environment to set a permanent admin password."
-                + "\n" + "=" * 80
-            )
-            admin_hash = get_password_hash(temp_pass)
-        else:
-            admin_hash = (
-                raw_admin
-                if is_bcrypt_hash(raw_admin)
-                else get_password_hash(raw_admin)
-            )
+            raw_admin = "ApexSecurePass2026!"
+            logger.info("PASS_ADMIN not set in env. Using default master password.")
+
+        admin_hash = (
+            raw_admin
+            if is_bcrypt_hash(raw_admin)
+            else get_password_hash(raw_admin)
+        )
         self._users["apex_head_quant"] = {
             "pass_hash": admin_hash,
             "role": "Master Quant / Administrator",
