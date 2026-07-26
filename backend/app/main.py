@@ -211,8 +211,28 @@ async def run_backtest(request: Request, backtest: BacktestRequest):
 
 
 # ----------------------------------------------------------------------
-# Default route (optional)
+# Default & Monitoring routes
 # ----------------------------------------------------------------------
+@app.get("/api/n8n/status", tags=["monitoring"])
+async def n8n_status():
+    """
+    Public monitoring endpoint for external n8n watchdogs & kill-switch automations.
+    """
+    from app.core.circuit_breaker import DEGRADED
+    from app.core.worker_health import get_all as get_worker_health
+    
+    workers = get_worker_health()
+    is_healthy = not DEGRADED
+    
+    return {
+        "status": "healthy" if is_healthy else "degraded",
+        "degraded": DEGRADED,
+        "active_monitors": ["kill_switch", "data_integrity_watchdog"],
+        "workers": workers,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @app.get("/", tags=["root"])
 async def read_root():
     return {"status": "ok", "message": """ApexTrade AI Core Backend Engine.
