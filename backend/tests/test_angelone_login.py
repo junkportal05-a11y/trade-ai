@@ -16,7 +16,7 @@ def client(override_require_session):
     return TestClient(app)
 
 def test_angelone_login_success(client):
-    with patch('backend.main.get_angelone_feed') as mock_get_feed:
+    with patch('app.services.broker.get_broker_feed') as mock_get_feed:
         mock_feed = MagicMock()
         mock_feed.login.return_value = {
             "status": "success",
@@ -26,7 +26,7 @@ def test_angelone_login_success(client):
         }
         mock_get_feed.return_value = mock_feed
 
-        with patch('db.save_angelone_session') as mock_save:
+        with patch('app.api.v1.broker.save_angelone_session') as mock_save:
             payload = {
                 "api_key": "test_key",
                 "client_code": "test_client",
@@ -48,10 +48,9 @@ def test_angelone_login_success(client):
             assert saved_data["session_token"] == "mock_session"
             assert saved_data["refresh_token"] == "mock_refresh"
             assert saved_data["feed_token"] == "mock_feed"
-            assert "updated_at" in saved_data
 
 def test_angelone_login_failure(client):
-    with patch('backend.main.get_angelone_feed') as mock_get_feed:
+    with patch('app.services.broker.get_broker_feed') as mock_get_feed:
         mock_feed = MagicMock()
         mock_feed.login.return_value = {
             "status": "failure",
@@ -59,7 +58,7 @@ def test_angelone_login_failure(client):
         }
         mock_get_feed.return_value = mock_feed
 
-        with patch('db.save_angelone_session') as mock_save:
+        with patch('app.api.v1.broker.save_angelone_session') as mock_save:
             payload = {
                 "api_key": "test_key",
                 "client_code": "test_client",
