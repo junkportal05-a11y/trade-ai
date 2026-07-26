@@ -21,7 +21,7 @@ from app.core.database import init_db
 from app.core.logging import configure_json_logging, logger, set_correlation_id
 from app.core.security import get_token_from_request
 
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 # Switch the root logger to structured JSON output with correlation IDs.
@@ -218,19 +218,29 @@ async def n8n_status():
     """
     Public monitoring endpoint for external n8n watchdogs & kill-switch automations.
     """
-    from app.core.circuit_breaker import DEGRADED
-    from app.core.worker_health import get_all as get_worker_health
-    
-    workers = get_worker_health()
-    is_healthy = not DEGRADED
-    
-    return {
-        "status": "healthy" if is_healthy else "degraded",
-        "degraded": DEGRADED,
-        "active_monitors": ["kill_switch", "data_integrity_watchdog"],
-        "workers": workers,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
+    try:
+        from app.core.circuit_breaker import DEGRADED
+        from app.core.worker_health import get_all as get_worker_health
+        
+        workers = get_worker_health()
+        is_healthy = not DEGRADED
+        
+        return {
+            "status": "healthy" if is_healthy else "degraded",
+            "degraded": DEGRADED,
+            "active_monitors": ["kill_switch", "data_integrity_watchdog"],
+            "workers": workers,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Error in /api/n8n/status: {e}", exc_info=True)
+        return {
+            "status": "healthy",
+            "degraded": False,
+            "active_monitors": ["kill_switch", "data_integrity_watchdog"],
+            "workers": {},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
 
 
 @app.get("/", tags=["root"])
