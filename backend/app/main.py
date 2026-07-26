@@ -236,5 +236,5 @@ async def n8n_status():
 @app.get("/", tags=["root"])
 async def read_root():
     return {"status": "ok", "message": """ApexTrade AI Core Backend Engine.
-Version: 1.0.5 (Force HF Space rebuild)
+Version: 1.0.6 (Added public /api/n8n/status monitoring endpoint)
 """}
