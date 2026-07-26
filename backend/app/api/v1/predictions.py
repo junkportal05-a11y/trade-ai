@@ -1,12 +1,13 @@
 """Predictions router."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import not_
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, SessionDep
-from app.models.schemas import PredictionCreate
+from app.models.schemas import PredictionCreate, PredictionResolveRequest
 from app.db.repositories import repo
 from app.db.models import PredictionsHistory
 
@@ -66,4 +67,42 @@ def get_prediction_stats(db: Session = DbDep, _=SessionDep) -> dict:
         "win_rate": round(wins / n * 100, 1),
         "avg_error": round(sum(errors) / len(errors), 2) if errors else 0.0,
         "resolved_predictions": n,
+    }
+
+@router.post("/predictions/{prediction_id}/resolve", response_model=dict)
+def resolve_prediction(
+    prediction_id: int,
+    req: PredictionResolveRequest,
+    db: Session = DbDep,
+    _=SessionDep,
+) -> dict:
+    pred = db.query(PredictionsHistory).filter(PredictionsHistory.id == prediction_id).first()
+    if not pred:
+        raise HTTPException(status_code=404, detail="Prediction not found")
+
+    exit_price = req.exit_price or (pred.target_price if req.actual_outcome == "TARGET_HIT" else pred.stop_loss)
+    
+    # Calculate PnL percentage
+    if pred.entry_price and pred.entry_price > 0:
+        if pred.prediction_type == "BULLISH":
+            pnl_pct = ((exit_price - pred.entry_price) / pred.entry_price) * 100.0
+        else:
+            pnl_pct = ((pred.entry_price - exit_price) / pred.entry_price) * 100.0
+    else:
+        pnl_pct = 0.0
+
+    pred.status = "RESOLVED"
+    pred.actual_outcome = req.actual_outcome
+    pred.pnl_pct = round(pnl_pct, 2)
+    pred.resolved_at = datetime.now(timezone.utc).isoformat()
+
+    db.commit()
+    db.refresh(pred)
+
+    return {
+        "id": pred.id,
+        "status": pred.status,
+        "actual_outcome": pred.actual_outcome,
+        "pnl_pct": pred.pnl_pct,
+        "resolved_at": pred.resolved_at,
     }

@@ -176,6 +176,12 @@ class PredictionCreate(BaseModel):
     correlation_score: float | None = None
 
 
+class PredictionResolveRequest(BaseModel):
+    actual_outcome: str = Field(..., pattern=r"^(TARGET_HIT|STOP_HIT|EXPIRED|MANUAL_EXIT)$")
+    exit_price: float | None = Field(default=None, gt=0)
+    notes: str | None = Field(default=None, max_length=500)
+
+
 class KeepAliveResponse(BaseModel):
     status: str
     message: str

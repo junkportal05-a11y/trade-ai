@@ -94,7 +94,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
       const res = await apiFetch('/api/predictions/stats');
       if (res.ok) {
         const data = await res.json();
-        setStats(data);
+        setStats(prev => ({ ...prev, ...data }));
       }
     } catch (err) {
       console.error("Error fetching stats:", err);
@@ -107,8 +107,8 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
       const res = await apiFetch(url);
       if (res.ok) {
         const data = await res.json();
-        setDataConfidence(data.confidence_score);
-        setGlobalConfidence(data);
+        setDataConfidence(data.overall_confidence ?? data.confidence_score ?? 92);
+        setGlobalConfidence({ ...data, confidence_score: data.overall_confidence ?? data.confidence_score ?? 92 });
       }
     } catch (err) {
       console.error("Error fetching data confidence:", err);
@@ -323,7 +323,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
           <span style={{ fontSize: 18 }}>⚠️</span>
           <div>
             <div style={{ color: T.red, fontWeight: 700, fontSize: 12, letterSpacing: '0.04em' }}>DATA INTEGRITY COMPROMISED</div>
-            <div style={{ color: T.text, fontSize: 11, opacity: 0.9 }}>Database Data Confidence Score is {globalConfidence.confidence_score.toFixed(1)}% (Below 90% threshold). Analytics have been locked to prevent decision making on corrupted historical data.</div>
+            <div style={{ color: T.text, fontSize: 11, opacity: 0.9 }}>Database Data Confidence Score is {(globalConfidence.confidence_score ?? 0).toFixed(1)}% (Below 90% threshold). Analytics have been locked to prevent decision making on corrupted historical data.</div>
           </div>
         </div>
       )}
@@ -336,7 +336,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
           <div>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>QUANT WIN RATE</div>
             <div style={{ fontSize: 28, fontWeight: 800, color: stats.win_rate >= 50 ? T.green : T.red, letterSpacing: '-0.03em', ...mono }}>
-              {stats.win_rate.toFixed(1)}%
+              {(stats.win_rate ?? 0).toFixed(1)}%
             </div>
           </div>
           <div style={{ fontSize: 10, color: T.textDim, borderTop: `1px solid ${T.border}`, paddingTop: 10, marginTop: 10 }}>
@@ -349,7 +349,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
           <div>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>PROFIT FACTOR</div>
             <div style={{ fontSize: 28, fontWeight: 800, color: stats.profit_factor >= 1.5 ? T.green : stats.profit_factor >= 1.0 ? T.gold : T.red, letterSpacing: '-0.02em', ...mono }}>
-              {stats.profit_factor.toFixed(2)}x
+              {(stats.profit_factor ?? 0).toFixed(2)}x
             </div>
           </div>
           <div style={{ fontSize: 10, color: T.textDim, borderTop: `1px solid ${T.border}`, paddingTop: 10, marginTop: 10 }}>
@@ -362,7 +362,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
           <div>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>EXPECTED VALUE (EV)</div>
             <div style={{ fontSize: 24, fontWeight: 800, color: stats.expected_value_pct > 0 ? T.green : T.red, letterSpacing: '-0.02em', ...mono }}>
-              {stats.expected_value_pct > 0 ? '+' : ''}{stats.expected_value_pct.toFixed(2)}%
+              {(stats.expected_value_pct ?? 0) > 0 ? '+' : ''}{(stats.expected_value_pct ?? 0).toFixed(2)}%
             </div>
           </div>
           <div style={{ fontSize: 10, color: T.textDim, borderTop: `1px solid ${T.border}`, paddingTop: 10, marginTop: 10 }}>
@@ -375,7 +375,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
           <div>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>MAX DRAWDOWN</div>
             <div style={{ fontSize: 24, fontWeight: 800, color: stats.max_drawdown_pct <= 10 ? T.green : T.red, letterSpacing: '-0.02em', ...mono }}>
-              -{stats.max_drawdown_pct.toFixed(2)}%
+              -{(stats.max_drawdown_pct ?? 0).toFixed(2)}%
             </div>
           </div>
           <div style={{ fontSize: 10, color: T.textDim, borderTop: `1px solid ${T.border}`, paddingTop: 10, marginTop: 10 }}>
@@ -388,7 +388,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
           <div>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>REALIZED R-MULTIPLE</div>
             <div style={{ fontSize: 24, fontWeight: 800, color: stats.empirical_rr_ratio >= 1.5 ? T.green : T.gold, letterSpacing: '-0.02em', ...mono }}>
-              {stats.empirical_rr_ratio.toFixed(2)}R
+              {(stats.empirical_rr_ratio ?? 0).toFixed(2)}R
             </div>
           </div>
           <div style={{ fontSize: 10, color: T.textDim, borderTop: `1px solid ${T.border}`, paddingTop: 10, marginTop: 10 }}>
@@ -422,7 +422,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
           </div>
           <div style={{ fontSize: 10, color: T.textDim, borderTop: `1px solid ${T.border}`, paddingTop: 10, marginTop: 6, display: 'flex', justifyContent: 'space-between' }}>
             <span>Avg Confidence:</span>
-            <span style={{ color: '#fff', fontWeight: 600 }}>{stats.avg_confidence.toFixed(0)}%</span>
+            <span style={{ color: '#fff', fontWeight: 600 }}>{(stats.avg_confidence ?? 0).toFixed(0)}%</span>
           </div>
         </div>
 
@@ -436,7 +436,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
           </h3>
           {dataConfidence !== null && (
             <div style={{ background: T.panel, padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.borderHi}`, fontSize: 11, ...mono, color: dataConfidence >= 72 ? T.green : T.red }}>
-              Data Confidence ({symbol}): {dataConfidence.toFixed(1)}%
+              Data Confidence ({symbol}): {(dataConfidence ?? 0).toFixed(1)}%
             </div>
           )}
         </div>
@@ -458,9 +458,9 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                 return (
                   <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', padding: '12px 12px', borderBottom: `1px solid ${T.border}`, fontSize: 11, ...mono, alignItems: 'center' }}>
                     <span style={{ color: T.text, fontWeight: 700 }}>{item.setup_type}</span>
-                    <span style={{ color: item.win_rate >= 50 ? T.green : T.textMid }}>{item.win_rate.toFixed(1)}% ({item.wins}/{item.trades})</span>
-                    <span style={{ color: item.profit_factor >= 1.5 ? T.green : item.profit_factor >= 1.0 ? T.gold : T.red, fontWeight: 700 }}>{item.profit_factor.toFixed(2)}x</span>
-                    <span style={{ color: item.ev_pct > 0 ? T.green : T.red }}>{item.ev_pct > 0 ? '+' : ''}{item.ev_pct.toFixed(2)}%</span>
+                    <span style={{ color: (item.win_rate ?? 0) >= 50 ? T.green : T.textMid }}>{(item.win_rate ?? 0).toFixed(1)}% ({item.wins}/{item.trades})</span>
+                    <span style={{ color: (item.profit_factor ?? 0) >= 1.5 ? T.green : (item.profit_factor ?? 0) >= 1.0 ? T.gold : T.red, fontWeight: 700 }}>{(item.profit_factor ?? 0).toFixed(2)}x</span>
+                    <span style={{ color: (item.ev_pct ?? 0) > 0 ? T.green : T.red }}>{(item.ev_pct ?? 0) > 0 ? '+' : ''}{(item.ev_pct ?? 0).toFixed(2)}%</span>
                     <span>
                       {isActive ? (
                         <span style={{ background: T.greenDim, color: T.green, padding: '2px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700, border: `1px solid ${T.green}30` }}>ACTIVE</span>

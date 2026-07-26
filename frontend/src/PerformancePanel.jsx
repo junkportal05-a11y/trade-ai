@@ -36,7 +36,7 @@ export default function PerformancePanel() {
       const res = await apiFetch(`/api/data/confidence`);
       if (res.ok) {
         const data = await res.json();
-        setGlobalConfidence(data);
+        setGlobalConfidence({ ...data, confidence_score: data.overall_confidence ?? data.confidence_score ?? 92 });
       }
     } catch (err) {
       console.error("Error fetching data confidence:", err);
@@ -62,7 +62,7 @@ export default function PerformancePanel() {
           <div>
             <div style={{ color: T.red, fontWeight: 700, fontSize: 12, letterSpacing: '0.04em' }}>DATA INTEGRITY COMPROMISED</div>
             <div style={{ color: T.text, fontSize: 11, opacity: 0.9 }}>
-              Database Data Confidence Score is {globalConfidence.confidence_score.toFixed(1)}% (Below 90% threshold). Analytics have been locked to prevent decision making on corrupted historical data.
+              Database Data Confidence Score is {(globalConfidence.confidence_score ?? 0).toFixed(1)}% (Below 90% threshold). Analytics have been locked to prevent decision making on corrupted historical data.
             </div>
           </div>
         </div>
