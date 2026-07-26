@@ -17,6 +17,7 @@ import PerformancePanel from './PerformancePanel';
 import BotControlPanel from './BotControlPanel';
 import TradeLogPanel from './TradeLogPanel';
 import StrategySelector from './StrategySelector';
+import BacktestRunner from './BacktestRunner';
 import { PanelErrorBoundary } from './PanelErrorBoundary';
 
 
