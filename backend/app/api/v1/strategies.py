@@ -1,7 +1,9 @@
 """Strategies router."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Query, Request, status
+from fastapi import APIRouter, Query, Request, status, HTTPException
+
+from app.api.deps import SessionDep
 
 router = APIRouter(prefix="/api/strategies", tags=["strategies"])
 
@@ -23,16 +25,16 @@ def get_strategies(
 
 
 @router.get("/{strategy_id}", response_model=dict)
-def get_strategy(strategy_id: int) -> dict:
+def get_strategy(strategy_id: str) -> dict:
     """Get a specific strategy by ID."""
-    for s in MOCK_STRATEGIES:
-        if s["id"] == strategy_id:
+    for s in STRATEGY_PRESETS:
+        if s["id"] == str(strategy_id):
             return s
-    return MOCK_STRATEGIES[0]
+    raise HTTPException(status_code=404, detail=f"Strategy '{strategy_id}' not found")
 
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
-def create_strategy(request: Request) -> dict:
+def create_strategy(request: Request, _=SessionDep) -> dict:
     """Create a new strategy."""
     return {
         "id": 999,

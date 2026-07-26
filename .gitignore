@@ -72,6 +72,7 @@ codebase.md
 *.backup
 CLAUDE_*_PROMPT.md
 scratchpad/
+scratch/*.json
 
 # ── Agent / System ──────────────────────────────────────────────
 .agents/
