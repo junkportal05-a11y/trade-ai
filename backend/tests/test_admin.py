@@ -11,10 +11,10 @@ def test_admin_health_success(mock_get_stats):
     mock_get_stats.return_value = {"total": 10, "active": 2}
     response = client.get("/api/admin/health", headers={"X-Admin-Key": settings.admin_key})
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "healthy",
-        "signals_stats": {"total": 10, "active": 2},
-    }
+    res = response.json()
+    assert res["status"] == "healthy"
+    assert res["signals_stats"] == {"total": 10, "active": 2}
+    assert "workers" in res
 
 
 @patch("app.db.repositories.SignalRepository.get_stats")
