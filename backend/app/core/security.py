@@ -206,8 +206,6 @@ async def require_session(
     }
 
 
-from fastapi import Header
-
-def require_admin(x_admin_key: str | None = Header(None, alias="X-Admin-Key")) -> None:
-    if not x_admin_key or not secrets.compare_digest(x_admin_key, settings.admin_key):
+def require_admin(key: str | None = None) -> None:
+    if not key or not secrets.compare_digest(key, settings.admin_key):
         raise HTTPException(status_code=403, detail="Admin access required")
