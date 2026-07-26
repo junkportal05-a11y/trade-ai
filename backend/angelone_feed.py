@@ -19,7 +19,11 @@ from app.core.circuit_breaker import CircuitBreaker
 
 FERNET_KEY = os.getenv("FERNET_KEY")
 if FERNET_KEY:
-    fernet = Fernet(FERNET_KEY.encode())
+    try:
+        fernet = Fernet(FERNET_KEY.encode())
+    except Exception as fernet_err:
+        logger.warning(f"Invalid FERNET_KEY in angelone_feed: {fernet_err}")
+        fernet = None
 else:
     fernet = None
 
