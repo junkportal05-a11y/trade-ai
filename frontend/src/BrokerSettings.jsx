@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatError } from './utils/formatError';
 
 const T = {
   bg: '#0B0E14',
@@ -87,21 +88,13 @@ export default function BrokerSettings({ apiFetch }) {
       let errMessage = 'Connection failed';
       try {
         const errData = await res.json();
-        if (errData && errData.detail) {
-          if (typeof errData.detail === 'string') {
-            errMessage = errData.detail;
-          } else if (Array.isArray(errData.detail)) {
-            errMessage = errData.detail.map(d => typeof d === 'object' ? (d.msg || JSON.stringify(d)) : String(d)).join(', ');
-          } else if (typeof errData.detail === 'object') {
-            errMessage = errData.detail.msg || JSON.stringify(errData.detail);
-          }
-        } else if (errData && errData.message) {
-          errMessage = typeof errData.message === 'string' ? errData.message : JSON.stringify(errData.message);
+        if (errData) {
+          errMessage = formatError(errData.detail || errData.message || errData, 'Connection failed');
         }
       } catch (_) {}
-      setError(String(errMessage));
+      setError(formatError(errMessage, 'Connection failed'));
     } catch (err) {
-      setError(String(err.message || 'Connection failed'));
+      setError(formatError(err, 'Connection failed'));
     } finally {
       setLoading(false);
     }

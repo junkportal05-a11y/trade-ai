@@ -1,4 +1,5 @@
 import { API_BASE_URL, apiFetch } from './api';
+import { formatError } from './utils/formatError';
 import React, { useState, useEffect, useCallback } from 'react';
 
 const BASE = API_BASE_URL;
@@ -231,7 +232,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
         fetchStats();
       } else {
         const data = await res.json();
-        setSubmitError(data.detail || "Failed to record prediction.");
+        setSubmitError(formatError(data.detail || data, "Failed to record prediction."));
       }
     } catch (err) {
       setSubmitError("Network error. Please try again.");

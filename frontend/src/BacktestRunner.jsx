@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { API_BASE_URL, apiFetch } from './api';
+import { formatError } from './utils/formatError';
 
 const T = {
   bg:         '#080a0f',
@@ -67,14 +68,14 @@ export default function BacktestRunner({ onResults }) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || `HTTP ${res.status}`);
+        throw new Error(formatError(data.detail || data, `HTTP ${res.status}`));
       }
 
       const data = await res.json();
       setResults(data);
       onResults?.(data);
     } catch (e) {
-      setError(e.message);
+      setError(formatError(e));
     } finally {
       setLoading(false);
     }

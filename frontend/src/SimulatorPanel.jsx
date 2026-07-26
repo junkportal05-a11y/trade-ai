@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL, runHistoricalSimulation, getSimulationStatus } from './api';
+import { formatError } from './utils/formatError';
 
 const T = {
   bg: '#0a0d14',
@@ -52,17 +53,17 @@ export default function SimulatorPanel({ isMobile }) {
       
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.detail || 'Failed to start simulation');
+        setError(formatError(data.detail || data, 'Failed to start simulation'));
       } else {
         const data = await res.json();
         if (data.error) {
-          setError(data.error);
+          setError(formatError(data.error));
         } else {
           setStatus(data);
         }
       }
     } catch (e) {
-      setError(e.message);
+      setError(formatError(e));
     } finally {
       setIsPolling(false);
     }
