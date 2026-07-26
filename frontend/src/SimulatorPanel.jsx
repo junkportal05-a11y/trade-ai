@@ -32,14 +32,10 @@ export default function SimulatorPanel({ isMobile }) {
     localStorage.setItem('apex_admin_key', adminKey);
   }, [adminKey]);
 
-  useEffect(() => {
-    // Polling removed as the new endpoint is synchronous
-  }, [isPolling, adminKey]);
-
   const handleStart = async () => {
     setError(null);
     setStatus(null);
-    setIsPolling(true); // Re-used for loading state
+    setIsPolling(true);
     try {
       const token = localStorage.getItem('apt_token') || localStorage.getItem('apex_token') || 'apt_fake_if_none';
       const res = await fetch(`${API_BASE_URL}/api/backtest/run`, {
@@ -176,17 +172,19 @@ export default function SimulatorPanel({ isMobile }) {
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: T.textMuted, marginBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: T.textMuted, marginBottom: '8px' }}>
                 <span>Final Capital</span>
-                <span>${stats.final_capital}</span>
+                <span style={{ color: '#fff', fontWeight: 600 }}>₹{Number(stats.final_capital || stats.capital || 10000).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px' }}>
               
               <div style={{ background: T.bg, padding: '16px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
                 <div style={{ fontSize: '12px', color: T.textMuted, marginBottom: '4px' }}>Total Return</div>
-                <div style={{ fontSize: '24px', color: '#fff', fontWeight: 600 }}>{stats.total_pnl_pct}%</div>
+                <div style={{ fontSize: '24px', color: (stats.total_pnl_pct || 0) >= 0 ? T.green : T.red, fontWeight: 600 }}>
+                  {(stats.total_pnl_pct || 0) >= 0 ? '+' : ''}{stats.total_pnl_pct || 0}%
+                </div>
               </div>
 
               <div style={{ background: T.greenDim, padding: '16px', borderRadius: '8px', border: `1px solid ${T.green}` }}>
@@ -196,17 +194,17 @@ export default function SimulatorPanel({ isMobile }) {
 
               <div style={{ background: T.redDim, padding: '16px', borderRadius: '8px', border: `1px solid ${T.red}` }}>
                 <div style={{ fontSize: '12px', color: T.red, marginBottom: '4px', fontWeight: 500 }}>Max Drawdown</div>
-                <div style={{ fontSize: '24px', color: T.red, fontWeight: 600 }}>{stats.max_drawdown}%</div>
+                <div style={{ fontSize: '24px', color: T.red, fontWeight: 600 }}>{stats.max_drawdown || 0}%</div>
               </div>
 
               <div style={{ background: T.orangeDim, padding: '16px', borderRadius: '8px', border: `1px solid ${T.orange}` }}>
                 <div style={{ fontSize: '12px', color: T.orange, marginBottom: '4px', fontWeight: 500 }}>Profit Factor</div>
-                <div style={{ fontSize: '24px', color: T.orange, fontWeight: 600 }}>{stats.profit_factor}</div>
+                <div style={{ fontSize: '24px', color: T.orange, fontWeight: 600 }}>{stats.profit_factor || '1.0'}</div>
               </div>
 
               <div style={{ background: T.bg, padding: '16px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
                 <div style={{ fontSize: '12px', color: T.textMuted, marginBottom: '4px' }}>Total Trades</div>
-                <div style={{ fontSize: '24px', color: '#fff', fontWeight: 600 }}>{stats.total_trades}</div>
+                <div style={{ fontSize: '24px', color: '#fff', fontWeight: 600 }}>{stats.total_trades || 0}</div>
               </div>
 
             </div>
