@@ -14,26 +14,22 @@ from app.core.config import settings
 Base = declarative_base()
 
 # ── Engine configuration ────────────────────────────────────────────────────
-if settings.is_postgres:
+if settings.database_url.startswith("sqlite"):
+    db_uri = settings.database_url if ":memory:" in settings.database_url else f"sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', settings.db_path))}"
+    if ":memory:" not in db_uri and "/" in db_uri:
+        os.makedirs(os.path.dirname(db_uri.replace("sqlite:///", "")) or ".", exist_ok=True)
+    engine = create_engine(
+        db_uri,
+        connect_args={"check_same_thread": False},
+        pool_pre_ping=True,
+    )
+else:
     engine = create_engine(
         settings.database_url,
         pool_pre_ping=True,
         pool_size=5,
         max_overflow=10,
         pool_recycle=3600,
-    )
-else:
-    # SQLite with WAL mode for safe multi-threaded access
-    db_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", settings.db_path)
-    )
-    os.makedirs(os.path.dirname(db_path) if "/" in db_path else ".", exist_ok=True)
-    engine = create_engine(
-        f"sqlite:///{db_path}",
-        connect_args={"check_same_thread": False},
-        pool_pre_ping=True,
-        pool_size=1,
-        max_overflow=0,
     )
 
     @event.listens_for(engine, "connect")
