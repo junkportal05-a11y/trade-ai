@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import DbDep, SessionDep
 from app.models.schemas import AngelOneCredentials, AngelOneStatusResponse
 from app.core.security import encrypt_value, decrypt_value
-from app.db.repositories import repo
+from app.db import save_angelone_session, get_angelone_session
 
 from app.core.limiter import limiter
 import os
@@ -39,7 +39,7 @@ async def angelone_login(
             totp_secret=creds.totp_secret,
         )
         if isinstance(result, dict) and result.get("status") == "success":
-            repo.broker.save(db, {
+            save_angelone_session({
                 "api_key": creds.api_key,
                 "client_code": creds.client_code,
                 "pin": creds.pin,
@@ -64,14 +64,13 @@ def angelone_status(
     _=SessionDep,
 ) -> dict:
     from app.services.broker import get_broker_feed
-    from app.db.models import AngelOneSession
 
     feed = get_broker_feed()
     connected = feed.is_authorized(force_check=True)
-    # Only fetch non-sensitive columns — never decrypt PIN/TOTP just for a status check
-    row = db.query(AngelOneSession).first()
+    session = get_angelone_session()
+    client_code = feed.client_code or (session.get("client_code") if session else "")
     return {
         "connected": connected,
-        "client_code": feed.client_code or (row.client_code if row else ""),
-        "credentials_saved": bool(row and row.pin_encrypted),
+        "client_code": client_code,
+        "credentials_saved": bool(session and session.get("pin")),
     }
