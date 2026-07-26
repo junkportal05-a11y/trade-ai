@@ -1,6 +1,6 @@
 {
   "output": {
-    "filePath": "codebase.md",
+    "filePath": "codebase.txt",
     "style": "markdown",
     "headerText": "ApexTrade Security-Hardened Codebase Export",
     "showLineNumbers": true
@@ -27,7 +27,8 @@
       "**/__pycache__/**",
       "**/.venv/**",
       "**/node_modules/**",
-      "**/*.pyc",
+      "**/scratch/**",
+      "**/work/**",
       "codebase.txt",
       "codebase.md"
     ]

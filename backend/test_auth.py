@@ -1,4 +1,4 @@
-import auth_helpers
+import app.core.security as auth_helpers
 
 print("Registry for apex_head_quant:")
 print(auth_helpers.USER_REGISTRY.get('apex_head_quant'))
