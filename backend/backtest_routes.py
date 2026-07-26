@@ -13,6 +13,21 @@ from app.core.security import require_session, require_admin
 backtest_router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 
 
+from pydantic import BaseModel, Field
+from typing import Optional
+
+class BacktestRequest(BaseModel):
+    symbol: str
+    range: Optional[str] = "3mo"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    capital: Optional[float] = 10000.0
+    stop_atr: Optional[float] = 1.5
+    target_atr: Optional[float] = 2.5
+    entry_score: Optional[int] = 5
+    risk_pct: Optional[float] = 2.0
+    early_exit: Optional[int] = -4
+
 @backtest_router.get("/run", dependencies=[Depends(require_session)])
 def run_backtest(
     symbol: str = Query(..., description="NSE symbol to backtest"),
@@ -39,6 +54,25 @@ def run_backtest(
         entry_score=entry_score,
         risk_pct=risk_pct / 100.0,
         early_exit=early_exit,
+    )
+    return backtest_engine.run_historical_backtest(sym, config)
+
+
+@backtest_router.post("/run", dependencies=[Depends(require_session)])
+def run_backtest_post(req: BacktestRequest):
+    """Run historical backtest simulation via POST JSON body."""
+    sym = req.symbol.upper().strip()
+    if not sym.endswith(".NS"):
+        sym = sym + ".NS"
+
+    config = backtest_engine.BacktestConfig(
+        period_range=req.range or "3mo",
+        initial_capital=req.capital or 10000.0,
+        stop_atr=req.stop_atr or 1.5,
+        target_atr=req.target_atr or 2.5,
+        entry_score=req.entry_score or 5,
+        risk_pct=(req.risk_pct or 2.0) / 100.0,
+        early_exit=req.early_exit or -4,
     )
     return backtest_engine.run_historical_backtest(sym, config)
 
