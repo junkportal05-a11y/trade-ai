@@ -214,7 +214,7 @@ async def run_backtest(request: Request, backtest: BacktestRequest):
 # Default & Monitoring routes
 # ----------------------------------------------------------------------
 @app.get("/api/n8n/status", tags=["monitoring"])
-async def n8n_status():
+async def n8n_status(request: Request):
     """
     Public monitoring endpoint for external n8n watchdogs & kill-switch automations.
     """
