@@ -10,6 +10,13 @@ pinned: false
 
 # ApexTrade Quant Server
 
+[![Build Status](https://github.com/apex-trade/trade-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/apex-trade/trade-ai/actions/workflows/ci.yml)
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111.0-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19.2.6-61DAFB.svg?logo=react)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-8.0-646CFF.svg?logo=vite)](https://vitejs.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ApexTrade is an advanced quantitative trading platform designed for real-time market analysis, automated technical signal generation, portfolio capital allocation, and performance tracking.
 
 This repository hosts the code for both the **FastAPI backend** (deployed as a Docker space on Hugging Face) and the **React + Vite frontend** (deployed on Vercel).
@@ -163,3 +170,12 @@ to the HF Space backend (a server-side proxy, so no browser preflight occurs).
   and the CORS failure.
 - `VITE_WS_URL` stays pointed at the HF Space `wss://` URL (Vercel rewrites cannot
   proxy WebSockets, and the WS auth uses a token query param so it is unaffected).
+
+---
+
+## Community & Security
+
+- **Contributing**: Please see [CONTRIBUTING.md](CONTRIBUTING.md) for development environment setup, testing standards, and contribution guidelines.
+- **Security Policy**: For secret management standards and reporting security issues, view our [SECURITY.md](SECURITY.md).
+- **License**: Released under the [MIT License](LICENSE).
+
