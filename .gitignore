@@ -48,6 +48,11 @@ pip-delete-this-directory.txt
 .vscode/
 .idea/
 .obsidian/
+.obsidian_backup*/
+.claude/
+.shardmind/
+caveman/
+thinking/
 *.swp
 *.swo
 *~
@@ -59,7 +64,14 @@ Thumbs.db
 # ── App generated ────────────────────────────────────────────────
 changes.txt
 apex_codebase.txt
+codebase.txt
+codebase.md
 .vercel
+*.patch
+*.diff
+*.backup
+CLAUDE_*_PROMPT.md
+scratchpad/
 
 # ── Agent / System ──────────────────────────────────────────────
 .agents/

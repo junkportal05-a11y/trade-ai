@@ -9,6 +9,15 @@ from pydantic import Field, PostgresDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+try:
+    from dotenv import load_dotenv
+    _env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+    load_dotenv(_env_path, override=False)
+    load_dotenv(override=False)
+except Exception:
+    pass
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -33,12 +42,43 @@ class Settings(BaseSettings):
 
     # ── Security ─────────────────────────────────────────────────────
     jwt_secret: str = Field(default_factory=lambda: secrets.token_hex(32), alias="JWT_SECRET")
-    # fernet_key field removed – key material is now managed via fernet_keys list
-    fernet_keys: List[str] = Field(
+    fernet_keys: List[str] | str = Field(
         default_factory=lambda: [secrets.token_urlsafe(32)],
         alias="FERNET_KEYS"
     )
+
+    @field_validator("fernet_keys", mode="before")
+    @classmethod
+    def _validate_fernet_keys(cls, v: Any) -> List[str]:
+        env_keys = os.getenv("FERNET_KEYS") or os.getenv("FERNET_KEY")
+        if env_keys:
+            if isinstance(env_keys, str):
+                if env_keys.startswith("[") and env_keys.endswith("]"):
+                    try:
+                        import json
+                        parsed = json.loads(env_keys)
+                        if isinstance(parsed, list):
+                            return [str(k) for k in parsed]
+                    except Exception:
+                        pass
+                return [k.strip() for k in env_keys.split(",") if k.strip()]
+        if isinstance(v, list) and v:
+            return v
+        if isinstance(v, str) and v:
+            return [v]
+        return [secrets.token_urlsafe(32)]
+
     admin_key: str = Field(default_factory=lambda: secrets.token_hex(24), alias="ADMIN_KEY")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        import logging
+        if not os.getenv("JWT_SECRET"):
+            logging.warning("JWT_SECRET using generated fallback — set JWT_SECRET env var for production")
+        if not (os.getenv("FERNET_KEYS") or os.getenv("FERNET_KEY")):
+            logging.warning("FERNET_KEYS using generated fallback — set FERNET_KEYS env var for production")
+        if not os.getenv("ADMIN_KEY"):
+            logging.warning("ADMIN_KEY using generated fallback — set ADMIN_KEY env var for production")
     session_ttl: int = Field(default=8 * 3600, alias="SESSION_TTL")  # 8 hours
     algorithm: str = "HS256"
 

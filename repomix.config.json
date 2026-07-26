@@ -1,0 +1,35 @@
+{
+  "output": {
+    "filePath": "codebase.md",
+    "style": "markdown",
+    "headerText": "ApexTrade Security-Hardened Codebase Export",
+    "showLineNumbers": true
+  },
+  "ignore": {
+    "useGitignore": true,
+    "customPatterns": [
+      "**/.git/**",
+      "**/.claude/**",
+      "**/.obsidian_backup*/**",
+      "**/caveman/**",
+      "**/.shardmind/**",
+      "**/thinking/**",
+      "**/logs/**",
+      "**/gsd-core/**",
+      "**/.env*",
+      "**/.secret_*",
+      "**/settings.local.json",
+      "**/*.log",
+      "**/*.lock",
+      "**/*.swp",
+      "**/*.patch",
+      "**/*.diff",
+      "**/__pycache__/**",
+      "**/.venv/**",
+      "**/node_modules/**",
+      "**/*.pyc",
+      "codebase.txt",
+      "codebase.md"
+    ]
+  }
+}

@@ -36,7 +36,9 @@ def override_get_db():
         pass
 
 
-app.dependency_overrides[app.get_db] = override_get_db
+from app.core.database import get_db
+
+app.dependency_overrides[get_db] = override_get_db
 
 
 def test_basic_endpoints():

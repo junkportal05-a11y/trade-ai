@@ -8,7 +8,7 @@ Mount this in main.py with: app.include_router(backtest_router)
 from fastapi import APIRouter, Query, Depends
 import db
 import backtest_engine
-from auth_helpers import require_session, require_admin
+from app.core.security import require_session, require_admin
 
 backtest_router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 

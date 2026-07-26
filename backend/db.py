@@ -21,46 +21,21 @@ except ImportError:
 # ── Fernet encryption for broker credentials ─────────────────────────────────
 _fernet = None
 
-def _get_fernet():
-    global _fernet
-    if _fernet is not None:
-        return _fernet
-    if Fernet is None:
-        logger.warning("\n[SECURITY WARNING] cryptography library not installed. AngelOne credentials will be stored in PLAINTEXT.")
-        return None
-    raw_key = os.environ.get("JWT_SECRET", "")
-    if not raw_key:
-        logger.warning("\n[SECURITY WARNING] JWT_SECRET not set in environment. AngelOne credentials will be stored in PLAINTEXT.")
-        return None
-    # Derive 32-byte URL-safe base64 key from JWT_SECRET
-    key_bytes = raw_key.encode("utf-8")
-    # Pad or truncate to 32 bytes, then base64-encode
-    padded = key_bytes[:32].ljust(32, b"0")
-    b64_key = base64.urlsafe_b64encode(padded)
-    _fernet = Fernet(b64_key)
-    return _fernet
-
-
 def _encrypt_field(value: str | None) -> str | None:
-    f = _get_fernet()
-    if f is None:
-        if value is not None:
-            logger.warning("[SECURITY WARNING] _encrypt_field: Fernet unavailable. Saving credential in PLAINTEXT.")
-        return value
+    from app.core.security import encrypt_value
     if value is None:
         return None
-    return f.encrypt(value.encode("utf-8")).decode("utf-8")
+    enc = encrypt_value(value)
+    return enc if enc is not None else value
 
 
 def _decrypt_field(value: str | None) -> str | None:
-    f = _get_fernet()
-    if f is None or value is None:
-        return value
-    try:
-        return f.decrypt(value.encode("utf-8")).decode("utf-8")
-    except Exception:
-        # If decryption fails, return as-is (backward compat for old plaintext)
-        return value
+    from app.core.security import decrypt_value
+    if value is None:
+        return None
+    dec = decrypt_value(value)
+    # If decryption fails (e.g. legacy plaintext or old key), return value as-is for backward compatibility
+    return dec if dec is not None else value
 
 try:
     from dotenv import load_dotenv
@@ -934,7 +909,7 @@ def get_angelone_session() -> Optional[dict]:
             if row:
                 data = json.loads(row["value"])
                 # Decrypt sensitive fields
-                for field in ("api_key", "pin", "totp_secret"):
+                for field in ("api_key", "pin", "totp_secret", "session_token", "refresh_token", "feed_token"):
                     if field in data and data[field]:
                         data[field] = _decrypt_field(data[field])
                 return data

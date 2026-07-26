@@ -97,22 +97,28 @@ class UserRegistry:
         self._load_from_env()
 
     def _load_from_env(self) -> None:
-        # Admin
         raw_admin = os.getenv("PASS_ADMIN", os.getenv("APP_PASSWORD", "")).strip()
         if not raw_admin:
-            logger.warning("\n[SECURITY WARNING] PASS_ADMIN not set. Using default 'admin' password.")
-            self._users["apex_head_quant"] = {
-                "pass_hash": get_password_hash("admin"),
-                "role": "Master Quant / Administrator",
-                "clearance": "LEVEL_4_ROOT",
-            }
+            temp_pass = secrets.token_urlsafe(16)
+            logger.warning(
+                "=" * 80
+                + "\n[SECURITY WARNING] PASS_ADMIN / APP_PASSWORD is not configured in environment!"
+                + "\n A temporary session password was generated securely for 'apex_head_quant'."
+                + "\n Set PASS_ADMIN or APP_PASSWORD in environment to set a permanent admin password."
+                + "\n" + "=" * 80
+            )
+            admin_hash = get_password_hash(temp_pass)
         else:
-            h = raw_admin if is_bcrypt_hash(raw_admin) else get_password_hash(raw_admin)
-            self._users["apex_head_quant"] = {
-                "pass_hash": h,
-                "role": "Master Quant / Administrator",
-                "clearance": "LEVEL_4_ROOT",
-            }
+            admin_hash = (
+                raw_admin
+                if is_bcrypt_hash(raw_admin)
+                else get_password_hash(raw_admin)
+            )
+        self._users["apex_head_quant"] = {
+            "pass_hash": admin_hash,
+            "role": "Master Quant / Administrator",
+            "clearance": "LEVEL_4_ROOT",
+        }
 
         # Other users
         for username, env_var, role, clearance in [
@@ -199,6 +205,8 @@ async def require_session(
     }
 
 
-def require_admin(x_admin_key: str | None = None) -> None:
-    if x_admin_key != settings.admin_key:
+from fastapi import Header
+
+def require_admin(x_admin_key: str | None = Header(None, alias="X-Admin-Key")) -> None:
+    if not x_admin_key or not secrets.compare_digest(x_admin_key, settings.admin_key):
         raise HTTPException(status_code=403, detail="Admin access required")

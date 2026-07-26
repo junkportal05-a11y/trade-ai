@@ -1,6 +1,6 @@
 import pytest
 from freezegun import freeze_time
-from app.main import is_nse_market_open
+from app.services.market_hours import is_nse_market_open
 
 def test_is_nse_market_open():
     # Monday 9:30 AM IST -> Open

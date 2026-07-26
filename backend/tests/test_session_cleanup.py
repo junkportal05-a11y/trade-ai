@@ -1,24 +1,9 @@
-import time
-import asyncio
-from app.core.auth import ACTIVE_SESSIONS, create_session, cleanup_sessions, SESSION_TTL
+from app.core.security import create_access_token, decode_access_token
 
-async def test_cleanup():
-    # Setup initial state
-    ACTIVE_SESSIONS.clear()
-    token = create_session("test_user")
-
-    # Verify token added
-    assert token in ACTIVE_SESSIONS
-
-    # Mock time so session expires
-    ACTIVE_SESSIONS[token]["time"] = time.time() - SESSION_TTL - 100
-
-    # Run cleanup
-    cleanup_sessions()
-
-    # Verify token removed
-    assert token not in ACTIVE_SESSIONS
-    print("Test passed: cleanup_sessions successfully removed expired session")
-
-if __name__ == "__main__":
-    asyncio.run(test_cleanup())
+def test_token_creation_and_decoding():
+    payload = {"sub": "test_user"}
+    token = create_access_token(payload)
+    decoded = decode_access_token(token)
+    assert decoded is not None
+    assert decoded["sub"] == "test_user"
+    print("Test passed: JWT access token created and decoded successfully")
