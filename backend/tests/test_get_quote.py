@@ -13,18 +13,18 @@ def test_get_quote_success():
         "change_percent": 0.3,
         "volume": 1234567,
     }
-    with patch("backend.main.sig_engine.get_symbol_quote", return_value=mock_quote_data) as mock_get_quote:
+    with patch("app.services.quotes.get_symbol_quote", return_value=mock_quote_data) as mock_get_quote:
         response = client.get("/api/quote?symbol=TCS.NS")
         assert response.status_code == 200
         assert response.json() == mock_quote_data
         mock_get_quote.assert_called_once_with("TCS.NS")
 
 def test_get_quote_not_found():
-    with patch("backend.main.sig_engine.get_symbol_quote", return_value=None) as mock_get_quote:
-        response = client.get("/api/quote?symbol=UNKNOWN")
+    with patch("app.services.quotes.get_symbol_quote", return_value=None) as mock_get_quote:
+        response = client.get("/api/quote?symbol=UNKNOWN.NS")
         assert response.status_code == 404
-        assert response.json() == {"detail": "No data for UNKNOWN"}
-        mock_get_quote.assert_called_once_with("UNKNOWN")
+        assert response.json() == {"detail": "No data for UNKNOWN.NS"}
+        mock_get_quote.assert_called_once_with("UNKNOWN.NS")
 
 def test_get_quote_missing_symbol():
     response = client.get("/api/quote")
