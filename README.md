@@ -1,42 +1,59 @@
 ---
-title: ApexTrade Quant Server
-emoji: 📈
+title: ApexTrade AI Quant Engine & Real-Time Trading Server
+emoji: ⚡
 colorFrom: blue
 colorTo: indigo
 sdk: docker
 app_port: 7860
-pinned: false
+pinned: true
+header: mini
+tags:
+  - quantitative-finance
+  - algorithmic-trading
+  - fastapi
+  - technical-analysis
+  - market-signals
+  - backtesting
 ---
 
-# ApexTrade Quant Server
+# 📈 ApexTrade AI Quant Engine & Real-Time Trading Server
 
-[![Build Status](https://github.com/apex-trade/trade-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/apex-trade/trade-ai/actions/workflows/ci.yml)
+[![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Space-yellow.svg)](https://huggingface.co/spaces/apextrade-core/trade-ai-backend)
+[![Build Status](https://github.com/junkportal05-a11y/trade-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/junkportal05-a11y/trade-ai/actions/workflows/ci.yml)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111.0-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-19.2.6-61DAFB.svg?logo=react)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-8.0-646CFF.svg?logo=vite)](https://vitejs.dev/)
+[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED.svg?logo=docker)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-ApexTrade is an advanced quantitative trading platform designed for real-time market analysis, automated technical signal generation, portfolio capital allocation, and performance tracking.
+**ApexTrade** is an enterprise-grade quantitative trading engine and real-time market scanner designed for algorithmic trading, technical indicator computation, risk management, and strategy backtesting.
 
-This repository hosts the code for both the **FastAPI backend** (deployed as a Docker space on Hugging Face) and the **React + Vite frontend** (deployed on Vercel).
+This repository powers the backend infrastructure hosted on **Hugging Face Spaces** as a containerized FastAPI Docker engine, connected to a React + Vite dashboard frontend on **Vercel**.
 
 ---
 
-## Architecture Overview
+## 🚀 Live Hugging Face Space & Interactive API Documentation
 
-ApexTrade uses a decoupled architecture separating data visualization and user interaction from heavy quantitative computation and broker background execution daemons.
+- **Live Space Base URL**: `https://apextrade-core-trade-ai-backend.hf.space`
+- **Interactive Swagger UI**: [https://apextrade-core-trade-ai-backend.hf.space/docs](https://apextrade-core-trade-ai-backend.hf.space/docs)
+- **ReDoc Open API**: [https://apextrade-core-trade-ai-backend.hf.space/redoc](https://apextrade-core-trade-ai-backend.hf.space/redoc)
+- **Health Check Status**: `GET /health` | `GET /api/keepalive`
+
+---
+
+## 🏗️ Architecture Overview
+
+ApexTrade separates quantitative market analysis, background signal daemons, and strategy execution from front-end visual rendering.
 
 ```mermaid
 graph TD
-    subgraph Client ["Client Layer (React + Vite SPA)"]
+    subgraph Client ["Client Layer (React + Vite SPA on Vercel)"]
         UI["ApexCharts Terminal & UI"]
         Journal["Trade Journal Panel"]
         ScannerUI["Scanner & Signals Panel"]
         SimUI["Backtest & Simulator"]
     end
 
-    subgraph Backend ["FastAPI Quantitative Engine"]
+    subgraph Backend ["Hugging Face Docker Container (Port 7860)"]
         API["FastAPI REST & WebSockets (/api/v1)"]
         
         subgraph Signals ["Quant Signal Engine"]
@@ -54,12 +71,12 @@ graph TD
     end
 
     subgraph External ["External Data & Broker Services"]
-        AngelAPI["AngelOne SmartAPI (REST & WS)"]
-        LocalLLM["Local Ollama / LiteLLM Pipeline"]
+        AngelAPI["AngelOne SmartAPI (REST & WebSocket Ticker)"]
+        LocalLLM["Local Ollama / LiteLLM AI Pipeline"]
     end
 
     subgraph Persistence ["Persistence Layer"]
-        SQLite[("SQLite / Supabase Postgres DB")]
+        SQLite[("SQLAlchemy Engine (SQLite / Supabase Postgres)")]
     end
 
     UI <-->|REST / WebSockets| API
@@ -73,11 +90,9 @@ graph TD
     API --> SQLite
 ```
 
-*For detailed sequence diagrams and component specifications, check [architecture.md](architecture.md).*
-
 ---
 
-## Bot Execution Pipeline
+## ⚡ Bot Execution & Signal Validation Pipeline
 
 ```mermaid
 flowchart LR
@@ -94,7 +109,48 @@ flowchart LR
 
 ---
 
-## API Reference
+## 🧪 Hugging Face Quick Testing Guide (`curl`)
+
+### 1. Check Space Health & Market Status
+```bash
+curl -X GET "https://apextrade-core-trade-ai-backend.hf.space/api/keepalive"
+```
+
+### 2. User Authentication (Obtain Bearer Token)
+```bash
+curl -X POST "https://apextrade-core-trade-ai-backend.hf.space/api/login" \
+     -H "Content-Type: application/json" \
+     -d '{"username": "admin", "password": "YOUR_SECURE_PASSWORD"}'
+```
+
+### 3. Run Strategy Backtest Engine
+```bash
+curl -X POST "https://apextrade-core-trade-ai-backend.hf.space/api/backtest/run" \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"symbol": "RELIANCE.NS", "timeframe": "1d", "initial_capital": 100000}'
+```
+
+---
+
+## 🔒 Hugging Face Environment Variables (Space Secrets)
+
+Configure the following secrets under **Space Settings -> Repository Secrets** on Hugging Face:
+
+| Secret Key | Description | Example / Default |
+|---|---|---|
+| `DATABASE_URL` | SQLAlchemy Database URI | `sqlite:///trading_platform.db` or PostgreSQL URI |
+| `JWT_SECRET` | Secret key for signing session JWT tokens | `your-256-bit-secret-key` |
+| `ADMIN_KEY` | Header authentication key for admin endpoints | `admin_super_secret_key` |
+| `ANGELONE_API_KEY` | AngelOne SmartAPI Key | `your_angelone_api_key` |
+| `ANGELONE_CLIENT_ID` | AngelOne Broker User ID | `A123456` |
+| `ANGELONE_PASSWORD` | AngelOne Account PIN / Password | `1234` |
+| `ANGELONE_TOTP_KEY` | Secret seed key for 2FA TOTP generation | `BASE32_TOTP_SECRET` |
+| `LITELLM_API_BASE` | Local Ollama / LiteLLM API base URL | `http://localhost:4000` |
+
+---
+
+## 📚 API Reference Overview
 
 ### 1. Authentication & Broker APIs
 | Method | Endpoint | Description | Auth Required |
@@ -105,7 +161,7 @@ flowchart LR
 | `POST` | `/api/angelone/login` | Connect to AngelOne SmartAPI broker | Yes |
 | `GET` | `/api/angelone/status` | Check AngelOne connection state | Yes |
 
-### 2. Market Data & Signals APIs
+### 2. Market Data & Scanner APIs
 | Method | Endpoint | Description | Auth Required |
 |---|---|---|---|
 | `GET` | `/api/quote` | Fetch live quote & depth for symbol | Yes |
@@ -114,7 +170,6 @@ flowchart LR
 | `GET` | `/api/market_brief` | Retrieve overall market state & regime | Yes |
 | `POST` | `/api/scan` | Trigger real-time scanner across NIFTY50 | Yes |
 | `GET` | `/api/signals` | List active technical scanner signals | Yes |
-| `GET` | `/api/signal/{symbol}` | Fetch technical signal details for symbol | Yes |
 | `POST` | `/api/allocate` | Calculate position sizing for signal | Yes |
 
 ### 3. Trade Predictions & Journal APIs
@@ -132,31 +187,16 @@ flowchart LR
 ### 4. Backtest & Simulation APIs
 | Method | Endpoint | Description | Auth Required |
 |---|---|---|---|
-| `GET` | `/api/backtest/run` | Execute historical backtest strategy | Yes |
+| `POST` | `/api/backtest/run` | Execute historical backtest strategy | Yes |
 | `GET` | `/api/backtest/stats` | Retrieve aggregate backtest performance | Yes |
 | `GET` | `/api/backtest/history` | Retrieve backtest signal history | Yes |
 | `POST` | `/api/backtest/reset` | Reset backtest data store | Yes (Admin) |
 
 ---
 
-## Repository Structure
+## 🛠️ Local Development & Quickstart
 
-```directory
-trade-ai/
-├── backend/                  # FastAPI Python Backend
-├── frontend/                 # React + Vite + Vanilla CSS Frontend
-├── architecture.md           # Visual architecture & component specifications
-├── routes.md                 # Route mapping documentation
-├── CONTRIBUTING.md           # Development & PR guidelines
-├── SECURITY.md               # Secret management & security policy
-└── LICENSE                   # MIT License
-```
-
----
-
-## Local Setup & Quickstart
-
-### 1. Backend Setup (`/backend`)
+### Backend Setup (`/backend`)
 ```bash
 cd backend
 python -m venv .venv
@@ -168,10 +208,10 @@ source .venv/bin/activate
 
 pip install -r requirements.txt
 cp .env.example .env
-uvicorn main:app --reload --port 8000
+uvicorn main:app --reload --port 7860
 ```
 
-### 2. Frontend Setup (`/frontend`)
+### Frontend Setup (`/frontend`)
 ```bash
 cd frontend
 npm install
@@ -180,8 +220,8 @@ npm run dev
 
 ---
 
-## Community & Security
+## 📄 License & Security
 
-- **Contributing**: Please see [CONTRIBUTING.md](CONTRIBUTING.md) for setup and pull request guidelines.
-- **Security Policy**: For secret management standards and reporting security issues, view [SECURITY.md](SECURITY.md).
 - **License**: Released under the [MIT License](LICENSE).
+- **Contributing**: Development guidelines in [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Security Policy**: Secret management and security reporting in [SECURITY.md](SECURITY.md).
