@@ -18,3 +18,4 @@ Architectural or workflow decisions worth recalling. Link to the full [[Decision
 - [[Patterns]] — recurring conventions
 - [[Gotchas]] — pitfalls to avoid
 - [[North Star]] — current focus
+- [[scratchpad.md]] — security hardening completion report
