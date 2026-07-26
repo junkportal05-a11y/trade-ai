@@ -17,17 +17,20 @@ from app.models.schemas import LoginRequest, LoginResponse, StatusResponse
 
 from app.main import limiter  # import limiter for rate limiting
 
+from fastapi import APIRouter, Request, Response, Depends, Body
+
 router = APIRouter(prefix="/api", tags=["auth"])
 
 
 @router.post("/login", response_model=LoginResponse)
 @limiter.limit(os.getenv("RATE_LIMIT_AUTH", "5/minute"))
 async def login(
-    req: LoginRequest,
     request: Request,
     response: Response,
     db: Session = DbDep,
 ) -> dict:
+    body = await request.json()
+    req = LoginRequest.model_validate(body)
     u = req.username.strip()
     p = req.password.strip()
 
