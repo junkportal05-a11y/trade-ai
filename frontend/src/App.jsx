@@ -17,7 +17,7 @@ import PerformancePanel from './PerformancePanel';
 import BotControlPanel from './BotControlPanel';
 import TradeLogPanel from './TradeLogPanel';
 import StrategySelector from './StrategySelector';
-import BacktestRunner from './BacktestRunner';
+import { PanelErrorBoundary } from './PanelErrorBoundary';
 
 
 const EMPTY_ARRAY = [];
@@ -2413,17 +2413,19 @@ export default function App() {
 
   if (!loggedIn) {
     return (
-      <LoginScreen 
-        onLogin={(user, role, clearance) => { 
-          setLoggedIn(true); 
-          setCurrentUser(user); 
-          setUserRole(role || 'Authorized Guest'); 
-          setUserClearance(clearance || 'LEVEL_1_GUEST'); 
-          localStorage.setItem('apex_user', user); 
-          localStorage.setItem('apex_role', role || 'Authorized Guest'); 
-          localStorage.setItem('apex_clearance', clearance || 'LEVEL_1_GUEST'); 
-        }} 
-      />
+      <PanelErrorBoundary>
+        <LoginScreen 
+          onLogin={(user, role, clearance) => { 
+            setLoggedIn(true); 
+            setCurrentUser(user); 
+            setUserRole(role || 'Authorized Guest'); 
+            setUserClearance(clearance || 'LEVEL_1_GUEST'); 
+            localStorage.setItem('apex_user', user); 
+            localStorage.setItem('apex_role', role || 'Authorized Guest'); 
+            localStorage.setItem('apex_clearance', clearance || 'LEVEL_1_GUEST'); 
+          }} 
+        />
+      </PanelErrorBoundary>
     );
   }
 

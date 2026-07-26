@@ -93,10 +93,18 @@ export default function LoginScreen({ onLogin }) {
           let errMessage = "AUTHENTICATION FAILED: Invalid access code.";
           try {
             const errData = await res.json();
-            if (errData && errData.detail) errMessage = "ERROR: " + errData.detail;
+            if (errData && errData.detail) {
+              if (typeof errData.detail === 'string') {
+                errMessage = "ERROR: " + errData.detail;
+              } else if (Array.isArray(errData.detail)) {
+                errMessage = "ERROR: " + errData.detail.map(d => typeof d === 'object' ? (d.msg || JSON.stringify(d)) : String(d)).join(', ');
+              } else if (typeof errData.detail === 'object') {
+                errMessage = "ERROR: " + (errData.detail.msg || JSON.stringify(errData.detail));
+              }
+            }
           } catch (_) {}
           // Auth errors are not retryable — break immediately
-          setError(errMessage);
+          setError(String(errMessage));
           setLoading(false);
           return;
         }

@@ -88,14 +88,20 @@ export default function BrokerSettings({ apiFetch }) {
       try {
         const errData = await res.json();
         if (errData && errData.detail) {
-          errMessage = errData.detail;
+          if (typeof errData.detail === 'string') {
+            errMessage = errData.detail;
+          } else if (Array.isArray(errData.detail)) {
+            errMessage = errData.detail.map(d => typeof d === 'object' ? (d.msg || JSON.stringify(d)) : String(d)).join(', ');
+          } else if (typeof errData.detail === 'object') {
+            errMessage = errData.detail.msg || JSON.stringify(errData.detail);
+          }
         } else if (errData && errData.message) {
-          errMessage = errData.message;
+          errMessage = typeof errData.message === 'string' ? errData.message : JSON.stringify(errData.message);
         }
       } catch (_) {}
-      setError(errMessage);
+      setError(String(errMessage));
     } catch (err) {
-      setError(err.message || 'Connection failed');
+      setError(String(err.message || 'Connection failed'));
     } finally {
       setLoading(false);
     }
