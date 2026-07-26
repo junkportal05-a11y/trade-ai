@@ -23,23 +23,119 @@ This repository hosts the code for both the **FastAPI backend** (deployed as a D
 
 ---
 
-## Architecture & Features
+## Architecture Overview
 
-ApexTrade is divided into two primary services:
+ApexTrade uses a decoupled architecture separating data visualization and user interaction from heavy quantitative computation and broker background execution daemons.
 
-1. **FastAPI Backend (`/backend`)**
-   - **Real-Time Data Feed:** Integrates with the AngelOne SmartAPI to stream live quotes and historical candlestick data.
-   - **Quant Signal Engine:** Calculates complex technical indicators (VWAP, RSI, MACD, EMA) using vectorized NumPy computations for sub-millisecond execution times.
-   - **Candlestick Pattern Analyzer:** Recognizes standard candlestick patterns (Doji, Engulfing, Hammer, Shooting Star, etc.) in real-time.
-   - **Capital Allocator:** Features algorithmic risk management and allocation guidelines for open trade entries.
-   - **SQLite Database Integration:** Tracks sessions, journaled trades, and token registry settings.
-   - **Robust API & WebSockets:** Provides endpoints for live news sentiment scoring, backtesting, and websocket connections for live prices.
+```mermaid
+graph TD
+    subgraph Client ["Client Layer (React + Vite SPA)"]
+        UI["ApexCharts Terminal & UI"]
+        Journal["Trade Journal Panel"]
+        ScannerUI["Scanner & Signals Panel"]
+        SimUI["Backtest & Simulator"]
+    end
 
-2. **React Frontend (`/frontend`)**
-   - **ApexCharts Terminal:** High-performance charting terminal with interactive crosshair overlays and symbol watermarks.
-   - **Trade Journal:** Glassmorphic trade tracker with real-time performance analytics (Total PnL, Win Rate, Best/Worst Trade metrics).
-   - **Signals Panel:** Interactive dashboard display of live bullish/bearish scanner alerts.
-   - **Account Settings:** Simplified code-based authentication and AngelOne API integration settings.
+    subgraph Backend ["FastAPI Quantitative Engine"]
+        API["FastAPI REST & WebSockets (/api/v1)"]
+        
+        subgraph Signals ["Quant Signal Engine"]
+            Indicators["Vectorized Indicators (RSI, MACD, VWAP, OBV)"]
+            Patterns["Candlestick Pattern Analyzer"]
+            QualityEngine["Trade Quality Engine (0-100 Score)"]
+        end
+
+        subgraph Execution ["Execution & Risk Daemons"]
+            AgentDaemon["Autonomous Trading Agent"]
+            CapitalAlloc["Algorithmic Capital Allocator"]
+            Governance["Governance Worker (Drawdown Kill-Switch)"]
+            Resolver["Prediction Resolver Worker"]
+        end
+    end
+
+    subgraph External ["External Data & Broker Services"]
+        AngelAPI["AngelOne SmartAPI (REST & WS)"]
+        LocalLLM["Local Ollama / LiteLLM Pipeline"]
+    end
+
+    subgraph Persistence ["Persistence Layer"]
+        SQLite[("SQLite / Supabase Postgres DB")]
+    end
+
+    UI <-->|REST / WebSockets| API
+    API --> Signals
+    AgentDaemon --> QualityEngine
+    AgentDaemon --> CapitalAlloc
+    AgentDaemon --> Governance
+    AgentDaemon --> AngelAPI
+    Resolver --> AngelAPI
+    Resolver --> SQLite
+    API --> SQLite
+```
+
+*For detailed sequence diagrams and component specifications, check [architecture.md](architecture.md).*
+
+---
+
+## Bot Execution Pipeline
+
+```mermaid
+flowchart LR
+    Scan([Market Scan 09:15 AM]) --> Indicators[Vectorized Indicators]
+    Indicators --> VWAPCheck{VWAP Veto Aligned?}
+    VWAPCheck -->|No| Veto[Signal Vetoed]
+    VWAPCheck -->|Yes| Quality[Trade Quality Score >= 70]
+    Quality --> Alloc[Capital Allocator Position Sizing]
+    Alloc --> Governance{Max Drawdown Safe?}
+    Governance -->|Safe| Execute[Execute via Broker API]
+    Governance -->|Unsafe| Halt[Kill-Switch Triggered]
+    Execute --> Resolver[Prediction Resolver Monitor]
+```
+
+---
+
+## API Reference
+
+### 1. Authentication & Broker APIs
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| `POST` | `/api/login` | Authenticate user & issue session token | No |
+| `POST` | `/api/logout` | Invalidate active user session | Yes |
+| `GET` | `/api/auth/verify` | Verify current session token validity | Yes |
+| `POST` | `/api/angelone/login` | Connect to AngelOne SmartAPI broker | Yes |
+| `GET` | `/api/angelone/status` | Check AngelOne connection state | Yes |
+
+### 2. Market Data & Signals APIs
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/quote` | Fetch live quote & depth for symbol | Yes |
+| `GET` | `/api/history` | Retrieve historical OHLCV candles | Yes |
+| `GET` | `/api/search` | Symbol & contract search lookup | Yes |
+| `GET` | `/api/market_brief` | Retrieve overall market state & regime | Yes |
+| `POST` | `/api/scan` | Trigger real-time scanner across NIFTY50 | Yes |
+| `GET` | `/api/signals` | List active technical scanner signals | Yes |
+| `GET` | `/api/signal/{symbol}` | Fetch technical signal details for symbol | Yes |
+| `POST` | `/api/allocate` | Calculate position sizing for signal | Yes |
+
+### 3. Trade Predictions & Journal APIs
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| `POST` | `/api/predictions` | Record new trade entry prediction | Yes |
+| `GET` | `/api/predictions` | List active open and resolved trades | Yes |
+| `GET` | `/api/predictions/stats` | Aggregated PnL, Win Rate, and metrics | Yes |
+| `POST` | `/api/predictions/{id}/resolve` | Manually resolve open trade | Yes |
+| `DELETE` | `/api/predictions/{id}` | Delete trade prediction record | Yes |
+| `GET` | `/api/journal` | List user journal entries | Yes |
+| `POST` | `/api/journal` | Create new trade journal log | Yes |
+| `DELETE` | `/api/journal/{id}` | Delete journal log entry | Yes |
+
+### 4. Backtest & Simulation APIs
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/backtest/run` | Execute historical backtest strategy | Yes |
+| `GET` | `/api/backtest/stats` | Retrieve aggregate backtest performance | Yes |
+| `GET` | `/api/backtest/history` | Retrieve backtest signal history | Yes |
+| `POST` | `/api/backtest/reset` | Reset backtest data store | Yes (Admin) |
 
 ---
 
@@ -48,134 +144,44 @@ ApexTrade is divided into two primary services:
 ```directory
 trade-ai/
 ├── backend/                  # FastAPI Python Backend
-│   ├── tests/                # Automated pytest suite & performance benchmarks
-│   ├── main.py               # Main application entry point & routing
-│   ├── db.py                 # SQLite ORM & database interactions
-│   ├── signals.py            # Vectorized indicator calculations (RSI, MACD, OBV, etc.)
-│   ├── angelone_feed.py      # WebSockets consumer for AngelOne real-time feeds
-│   ├── news_feed.py          # News aggregation & sentiment classification
-│   ├── backtest_routes.py    # Backtesting api execution endpoints
-│   ├── Dockerfile            # Container deployment specification
-│   └── requirements.txt      # Python dependencies
-│
 ├── frontend/                 # React + Vite + Vanilla CSS Frontend
-│   ├── src/                  # React components & state custom hooks
-│   │   ├── App.jsx           # Main trading dashboard & ApexCharts Terminal
-│   │   ├── JournalPanel.jsx  # Trade journaling dashboard & analytics
-│   │   └── hooks/            # Custom hooks (e.g., useMarketData websocket hook)
-│   ├── vercel.json           # Vercel SPA routing configurations
-│   └── package.json          # Node dependencies & scripts
-│
-├── knowledge/                # Trading reference documents & guides (PDFs/Text)
-└── pytest.ini                # Test runner configurations
+├── architecture.md           # Visual architecture & component specifications
+├── routes.md                 # Route mapping documentation
+├── CONTRIBUTING.md           # Development & PR guidelines
+├── SECURITY.md               # Secret management & security policy
+└── LICENSE                   # MIT License
 ```
 
 ---
 
-## Local Setup & Development
+## Local Setup & Quickstart
 
-### 1. Backend Setup
-
-Prerequisites: **Python 3.10+**
-
+### 1. Backend Setup (`/backend`)
 ```bash
-# Navigate to backend directory
 cd backend
-
-# Create a virtual environment
 python -m venv .venv
 
-# Activate virtual environment
 # On Windows:
 .venv\Scripts\activate
 # On macOS/Linux:
 source .venv/bin/activate
 
-# Install dependencies
 pip install -r requirements.txt
-
-# Create your .env file
-cp .env.example .env  # or manually create it
-```
-
-#### Required Backend Environment Variables (`backend/.env`):
-```env
-DATABASE_URL=postgresql://...  # Supabase Postgres or local SQLite path
-JWT_SECRET=your_jwt_secret
-ANGEL_API_KEY=your_angelone_api_key
-ANGEL_CLIENT_CODE=your_angelone_client_code
-ANGEL_PIN=your_angelone_pin
-ANGEL_TOTP_SECRET=your_angelone_totp_secret
-GEMINI_API_KEY=your_gemini_api_key
-```
-
-Run the backend server:
-```bash
+cp .env.example .env
 uvicorn main:app --reload --port 8000
 ```
 
----
-
-### 2. Frontend Setup
-
-Prerequisites: **Node.js 18+**
-
+### 2. Frontend Setup (`/frontend`)
 ```bash
-# Navigate to frontend directory
 cd frontend
-
-# Install dependencies
 npm install
-
-# Run Vite dev server
 npm run dev
 ```
-Open [http://localhost:5173](http://localhost:5173) in your browser.
-
----
-
-## Running Tests
-
-We use `pytest` for backend testing and optimization verification.
-
-```bash
-# From the root directory:
-pip install pytest pytest-asyncio
-pytest
-```
-
----
-
-## Production Deployment
-
-### Backend (Hugging Face Spaces)
-The backend uses Docker and is automatically deployed to Hugging Face Spaces on pushes to the `huggingface` remote.
-- Ensure all environment variables are set up in the Hugging Face **Space Settings ➔ Variables and secrets**.
-
-### Frontend (Vercel)
-The frontend is optimized for deployment on Vercel.
-
-**CORS note:** the backend runs on Hugging Face Spaces, whose edge gateway
-auto-answers the browser's CORS `OPTIONS` preflight and returns an empty
-`Access-Control-Allow-Credentials` header. That breaks credentialed
-(`credentials: 'include'`) cross-origin calls. To avoid it entirely, the
-frontend is served **same-origin** and `vercel.json` rewrites `/api/:path*`
-to the HF Space backend (a server-side proxy, so no browser preflight occurs).
-
-- `vercel.json` already contains the `/api/:path*` → HF Space rewrite **and** the
-  SPA fallback rewrite. Do **not** remove the API rewrite.
-- Leave `VITE_API_URL` **empty** in `vercel.json` (and in Vercel project env vars)
-  so the app calls its own origin and the rewrite proxies to the backend.
-  Setting it to the HF Space URL reintroduces the cross-origin `OPTIONS` preflight
-  and the CORS failure.
-- `VITE_WS_URL` stays pointed at the HF Space `wss://` URL (Vercel rewrites cannot
-  proxy WebSockets, and the WS auth uses a token query param so it is unaffected).
 
 ---
 
 ## Community & Security
 
-- **Contributing**: Please see [CONTRIBUTING.md](CONTRIBUTING.md) for development environment setup, testing standards, and contribution guidelines.
-- **Security Policy**: For secret management standards and reporting security issues, view our [SECURITY.md](SECURITY.md).
+- **Contributing**: Please see [CONTRIBUTING.md](CONTRIBUTING.md) for setup and pull request guidelines.
+- **Security Policy**: For secret management standards and reporting security issues, view [SECURITY.md](SECURITY.md).
 - **License**: Released under the [MIT License](LICENSE).
-
