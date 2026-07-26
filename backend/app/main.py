@@ -213,4 +213,6 @@ async def run_backtest(request: Request, backtest: BacktestRequest = Depends()):
 # ----------------------------------------------------------------------
 @app.get("/", tags=["root"])
 async def read_root():
-    return {"status": "ok", "message": "ApexTrade API – backtest endpoint available at /api/backtest/run"}
+    return {"status": "ok", "message": """ApexTrade AI Core Backend Engine.
+Version: 1.0.5 (Force HF Space rebuild)
+"""}
