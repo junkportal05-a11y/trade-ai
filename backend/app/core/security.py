@@ -132,19 +132,27 @@ class UserRegistry:
         return self._users.get(username)
 
     def authenticate(self, username: str, password: str) -> dict | None:
-        user = self._users.get(username)
-        if not user:
+        try:
+            user = self._users.get(username)
+            if not user:
+                return None
+            if verify_password(password, user["pass_hash"]):
+                return user
             return None
-        if verify_password(password, user["pass_hash"]):
-            return user
-        return None
+        except Exception as e:
+            logger.error(f"[SECURITY AUTH ERROR] authenticate() failed for user '{username}': {e}", exc_info=True)
+            return None
 
     def authenticate_by_code(self, code: str) -> tuple[str | None, dict | None]:
         """Authenticate by password alone — used for single-code login."""
-        for username, user in self._users.items():
-            if verify_password(code, user["pass_hash"]):
-                return username, user
-        return None, None
+        try:
+            for username, user in self._users.items():
+                if verify_password(code, user["pass_hash"]):
+                    return username, user
+            return None, None
+        except Exception as e:
+            logger.error(f"[SECURITY AUTH ERROR] authenticate_by_code() failed: {e}", exc_info=True)
+            return None, None
 
 
 user_registry = UserRegistry()
