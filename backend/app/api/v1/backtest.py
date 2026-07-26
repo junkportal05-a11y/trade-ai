@@ -9,11 +9,15 @@ from app.api.deps import DbDep, SessionDep
 router = APIRouter(prefix="/api", tags=["backtest"])
 
 
+from app.models.schemas import BacktestRequest
+
+
+@router.post("/backtest/run", response_model=dict)
 @router.post("/backtest", response_model=dict)
-def run_backtest(
+def run_backtest_route(
+    req: BacktestRequest | None = None,
     db: Session = DbDep,
     _=SessionDep,
 ) -> dict:
-    # Delegates to existing backtest engine
     from app.services.backtest import run_backtest as _run
     return _run()

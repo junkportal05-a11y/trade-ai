@@ -103,9 +103,9 @@ app.mount("/graphify-out", StaticFiles(directory=graph_dir), name="graphify-out"
 # ----------------------------------------------------------------------
 # New Backtest API endpoint
 # ----------------------------------------------------------------------
-@app.get("/api/backtest/run", tags=["backtest"])
+@app.post("/api/backtest/run", tags=["backtest"])
 @limiter.limit(settings.rate_limit_backtest)
-async def run_backtest(request: Request, backtest: BacktestRequest = Depends()):
+async def run_backtest(request: Request, backtest: BacktestRequest):
     """
     Execute a historical backtest and return key performance metrics.
     """
@@ -113,11 +113,11 @@ async def run_backtest(request: Request, backtest: BacktestRequest = Depends()):
     # Validate required fields
     # ------------------------------------------------------------------
     if not backtest.symbol:
-        raise HTTPException(status_code=400, detail="Missing required query parameter: symbol")
+        raise HTTPException(status_code=400, detail="Missing required parameter: symbol")
     if not backtest.start_date:
-        raise HTTPException(status_code=400, detail="Missing required query parameter: start_date")
+        raise HTTPException(status_code=400, detail="Missing required parameter: start_date")
     if not backtest.end_date:
-        raise HTTPException(status_code=400, detail="Missing required query parameter: end_date")
+        raise HTTPException(status_code=400, detail="Missing required parameter: end_date")
     # Ensure start_date is before end_date
     if backtest.start_date >= backtest.end_date:
         raise HTTPException(status_code=400, detail="start_date must be before end_date")
@@ -145,6 +145,8 @@ async def run_backtest(request: Request, backtest: BacktestRequest = Depends()):
         # Fallback if parsing fails
         period_range = "6mo"
 
+    init_capital = backtest.capital if backtest.capital is not None else backtest.initial_capital
+
     # Build strategy parameters dict
     strategy_params = {
         "risk_pct": backtest.risk_pct,
@@ -153,7 +155,7 @@ async def run_backtest(request: Request, backtest: BacktestRequest = Depends()):
         "target_atr": backtest.target_atr,
         "early_exit": backtest.early_exit,
         "adx_min": backtest.adx_min,
-        "initial_capital": backtest.initial_capital,
+        "initial_capital": init_capital,
     }
 
     try:
@@ -165,14 +167,14 @@ async def run_backtest(request: Request, backtest: BacktestRequest = Depends()):
         logger.error(f"Internal error: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    if "error" in result:
+    if isinstance(result, dict) and "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
 
     # ------------------------------------------------------------------
     # Calculate Sharpe ratio from equity curve (annualized)
     # ------------------------------------------------------------------
     sharpe_ratio = 0.0
-    equity_curve = result.get("equity_curve", [])
+    equity_curve = result.get("equity_curve", []) if isinstance(result, dict) else []
     if len(equity_curve) > 1:
         # Calculate daily returns
         returns = []
@@ -196,13 +198,13 @@ async def run_backtest(request: Request, backtest: BacktestRequest = Depends()):
     # Package metrics for the frontend
     # ------------------------------------------------------------------
     metrics = {
-        "total_pnl_pct": result["total_pnl_pct"],
-        "max_drawdown": result["max_drawdown"],
-        "win_rate": result["win_rate"],
-        "profit_factor": result["profit_factor"],
-        "total_trades": result["total_trades"],
+        "total_pnl_pct": result.get("total_pnl_pct", 0.0) if isinstance(result, dict) else 0.0,
+        "max_drawdown": result.get("max_drawdown", 0.0) if isinstance(result, dict) else 0.0,
+        "win_rate": result.get("win_rate", 0.0) if isinstance(result, dict) else 0.0,
+        "profit_factor": result.get("profit_factor", 0.0) if isinstance(result, dict) else 0.0,
+        "total_trades": result.get("total_trades", 0) if isinstance(result, dict) else 0,
         "sharpe_ratio": sharpe_ratio,
-        "final_capital": result.get("final_capital", backtest.initial_capital),
+        "final_capital": result.get("final_capital", init_capital) if isinstance(result, dict) else init_capital,
     }
 
     return metrics

@@ -262,12 +262,15 @@ class BacktestRequest(BaseModel):
     symbol: str = Field(..., pattern=r"^[A-Z][A-Z0-9.]*$")
     start_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
     end_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
-    risk_pct: float = Field(..., gt=0)
-    stop_atr: float = Field(..., gt=0)
-    target_atr: float = Field(..., gt=0)
-    initial_capital: float = Field(..., gt=0)
-    entry_score: int = Field(..., ge=0)
-    adx_min: float = Field(..., ge=0)
+    strategy: str | None = Field(default="intraday_momentum")
+    capital: float | None = Field(default=100000.0, gt=0)
+    risk_pct: float = Field(default=2.0, gt=0)
+    stop_atr: float = Field(default=1.5, gt=0)
+    target_atr: float = Field(default=2.0, gt=0)
+    initial_capital: float = Field(default=100000.0, gt=0)
+    entry_score: int = Field(default=60, ge=0)
+    adx_min: float = Field(default=20.0, ge=0)
+    early_exit: bool = Field(default=True)
 
 
 class SearchRequest(BaseModel):
