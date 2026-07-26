@@ -107,7 +107,7 @@ async def trading_agent_loop():
             # Auto-square off at 3:20 PM
             if minutes_since_midnight == end_minutes:
                 print("[trading_agent] 3:20 PM reached. Executing auto-square off.")
-                _square_off_all(now_ist)
+                await _square_off_all(now_ist)
                 await asyncio.sleep(60)  # prevent multiple triggers
                 continue
 
@@ -125,7 +125,7 @@ async def trading_agent_loop():
             open_positions = [p for p in predictions if p.get("status") == "PENDING"]
 
             if len(open_positions) >= MAX_CONCURRENT_TRADES:
-                print("[trading_agent] Max positions ({MAX_CONCURRENT_TRADES}) reached. Skipping scan.")
+                print(f"[trading_agent] Max positions ({MAX_CONCURRENT_TRADES}) reached. Skipping scan.")
                 await asyncio.sleep(1800)  # Wait 30 mins before next scan
                 continue
 
@@ -138,11 +138,11 @@ async def trading_agent_loop():
                 if correlation_engine.last_built_date:
                     days_old = (now_ist.date() - correlation_engine.last_built_date).days
                     if days_old > 14:
-                        print("[WARNING] Correlation matrix is {days_old} days old. It should be rebuilt weekly.")
+                        print(f"[WARNING] Correlation matrix is {days_old} days old. It should be rebuilt weekly.")
                 else:
                     print("[WARNING] Correlation matrix has no built date.")
 
-                print("[trading_agent] Running 30-min scan. Current time: {now_ist.strftime('%H:%M')}")
+                print(f"[trading_agent] Running 30-min scan. Current time: {now_ist.strftime('%H:%M')}")
                 results = signals.run_scan(symbols=signals.NSE_WATCHLIST)
 
                 for sig in results:
@@ -184,7 +184,7 @@ async def trading_agent_loop():
             print(f"[trading_agent] Error: {e}")
             await asyncio.sleep(60)
 
-def _square_off_all(now_ist):
+async def _square_off_all(now_ist):
     predictions = db.get_predictions()
     pending = [p for p in predictions if p.get("status") == "PENDING"]
 
@@ -192,7 +192,7 @@ def _square_off_all(now_ist):
 
     async def fetch_and_resolve(pred):
         """Fetch live quote and resolve prediction using quote executor."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         if feed.is_authorized():
             quotes = await loop.run_in_executor(
@@ -200,7 +200,7 @@ def _square_off_all(now_ist):
                 lambda: feed.get_live_quotes([pred["symbol"]])
             )
             live_quote = quotes.get(pred["symbol"])
-            live_price = live_quote.get("price", pred["entry_price"])
+            live_price = live_quote.get("price", pred["entry_price"]) if live_quote else pred["entry_price"]
         else:
             live_price = pred["entry_price"]
 
@@ -231,9 +231,9 @@ def _square_off_all(now_ist):
         print(f"[trading_agent] Auto-closed {pred['symbol']} at {live_price}")
 
     # Run all square-offs concurrently
-    loop = asyncio.get_event_loop()
     tasks = [fetch_and_resolve(pred) for pred in pending]
-    loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 def _build_prediction_payload(sig: dict) -> dict:
     """Build prediction payload for db.add_prediction."""
