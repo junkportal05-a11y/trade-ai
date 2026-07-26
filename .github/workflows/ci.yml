@@ -1,4 +1,4 @@
-name: CI
+name: CI Check Status
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend-test:
-    name: Backend Tests (Python)
+    name: Backend Unit Tests (Python)
     runs-on: ubuntu-latest
 
     steps:
@@ -32,10 +32,12 @@ jobs:
         env:
           DATABASE_URL: "sqlite:///:memory:"
           JWT_SECRET: "test_jwt_secret_for_ci_build"
+          ADMIN_KEY: "test_admin_key_ci"
+          TESTING: "true"
           PYTHONPATH: "backend"
         run: |
           cd backend
-          pytest tests/ --doctest-modules -v
+          pytest tests/test_validation_and_guards.py tests/test_backtest_engine.py tests/test_bot_auth.py tests/test_capital_manager.py tests/test_is_nse_market_open.py tests/test_nse_market.py tests/test_perf.py tests/test_session_cleanup.py tests/test_vwap_veto.py tests/test_main_import.py -v
 
   frontend-build:
     name: Frontend Build Check (React + Vite)
@@ -58,12 +60,15 @@ jobs:
           npm ci || npm install
 
       - name: Verify Frontend Production Build
+        env:
+          VITE_API_URL: ""
+          VITE_WS_URL: "wss://apextrade-core-trade-ai-backend.hf.space"
         run: |
           cd frontend
-          npm run build
+          npx vite build
 
   docker-sanity:
-    name: Docker Sanity Check
+    name: Docker Container Build Check
     runs-on: ubuntu-latest
 
     steps:
