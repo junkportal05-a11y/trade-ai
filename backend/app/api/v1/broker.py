@@ -30,26 +30,32 @@ async def angelone_login(
     creds = AngelOneCredentials.model_validate(body)
     from app.services.broker import get_broker_feed
 
-    feed = get_broker_feed()
-    result = feed.login(
-        api_key=creds.api_key,
-        client_code=creds.client_code,
-        pin=creds.pin,
-        totp_secret=creds.totp_secret,
-    )
-    if result["status"] == "success":
-        repo.broker.save(db, {
-            "api_key": creds.api_key,
-            "client_code": creds.client_code,
-            "pin": creds.pin,
-            "totp_secret": creds.totp_secret,
-            "session_token": result.get("session_token"),
-            "refresh_token": result.get("refresh_token"),
-            "feed_token": result.get("feed_token"),
-        })
-        return {"status": "success", "client_code": creds.client_code}
-    else:
-        raise HTTPException(status_code=400, detail=result.get("message", "Login failed"))
+    try:
+        feed = get_broker_feed()
+        result = feed.login(
+            api_key=creds.api_key,
+            client_code=creds.client_code,
+            pin=creds.pin,
+            totp_secret=creds.totp_secret,
+        )
+        if isinstance(result, dict) and result.get("status") == "success":
+            repo.broker.save(db, {
+                "api_key": creds.api_key,
+                "client_code": creds.client_code,
+                "pin": creds.pin,
+                "totp_secret": creds.totp_secret,
+                "session_token": result.get("session_token"),
+                "refresh_token": result.get("refresh_token"),
+                "feed_token": result.get("feed_token"),
+            })
+            return {"status": "success", "client_code": creds.client_code}
+        else:
+            msg = result.get("message", "Login failed") if isinstance(result, dict) else "Login failed"
+            raise HTTPException(status_code=400, detail=msg)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"AngelOne login error: {str(e)}")
 
 
 @router.get("/status", response_model=AngelOneStatusResponse)

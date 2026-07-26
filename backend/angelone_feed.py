@@ -76,7 +76,7 @@ class AngelOneFeed:
     # AUTHENTICATION
     # ==========================================
 
-    def login(self, api_key: str, client_code: str, pin: str, totp_code: str) -> Dict:
+    def login(self, api_key: str, client_code: str, pin: str, totp_code: str = None, totp_secret: str = None) -> Dict:
         """
         Authenticate with AngelOne using TOTP-based login
         """
@@ -87,9 +87,18 @@ class AngelOneFeed:
 
             logger.info(f"Attempting AngelOne login for client: {client_code}")
 
+            raw_totp = totp_code or totp_secret or ""
+            code_to_send = raw_totp.strip()
+            if len(code_to_send) > 6:
+                try:
+                    import pyotp
+                    code_to_send = pyotp.TOTP(code_to_send).now()
+                except Exception as pyotp_err:
+                    logger.warning(f"pyotp generation fallback failed: {pyotp_err}")
+
             # Generate session
             session_data = self.smart_api.generateSession(
-                clientCode=client_code, password=pin, totp=totp_code
+                clientCode=client_code, password=pin, totp=code_to_send
             )
 
             if not session_data or session_data["status"] == False:
