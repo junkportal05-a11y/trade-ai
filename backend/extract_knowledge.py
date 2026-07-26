@@ -100,7 +100,7 @@ def compile_system_blueprint(project_dir):
         "backtest_engine.py",
         "capital_allocator.py",
         "db.py",
-        "auth_helpers.py",
+        "app/core/security.py",
     ]
 
     jsx_files = [
