@@ -40,7 +40,7 @@ def calculate_confidence(df: pd.DataFrame, interval: str = "5m") -> float:
         if interval in ["1m", "5m", "15m"]:
             # Intraday: Any gap > expected is a hole (ignoring overnight gaps which are typical, 
             # so we only penalize gaps within the same trading day)
-            same_day_diffs = diffs[diffs.index.date == diffs.index.to_series().shift(1).dt.date.dropna()]
+            same_day_diffs = diffs[df.index[1:].date == df.index[:-1].date]
             gaps = same_day_diffs[same_day_diffs > expected_td]
             
             # Penalize 2 points for every missing intraday bar equivalent
