@@ -3,9 +3,10 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
-if (import.meta.env.DEV) {
-  import('./reticle-dev');
-}
+// Reticle disabled — causes "Invalid hook call" at import time
+// if (import.meta.env.DEV) {
+//   import('./reticle-dev');
+// }
 
 class ErrorBoundary extends React.Component {
   state = { crashed: false, error: null };

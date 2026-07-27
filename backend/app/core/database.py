@@ -23,14 +23,6 @@ if settings.database_url.startswith("sqlite"):
         connect_args={"check_same_thread": False},
         pool_pre_ping=True,
     )
-else:
-    engine = create_engine(
-        settings.database_url,
-        pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
-        pool_recycle=3600,
-    )
 
     @event.listens_for(engine, "connect")
     def _set_sqlite_pragma(dbapi_conn, _connection_record):
@@ -40,6 +32,15 @@ else:
         cursor.execute("PRAGMA temp_store=MEMORY")
         cursor.execute("PRAGMA mmap_size=30000000000")
         cursor.close()
+
+else:
+    engine = create_engine(
+        settings.database_url,
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+        pool_recycle=3600,
+    )
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
