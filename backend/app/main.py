@@ -24,6 +24,8 @@ from app.core.security import get_token_from_request
 from datetime import datetime, timezone
 import uuid
 
+import numpy as np
+
 # Switch the root logger to structured JSON output with correlation IDs.
 configure_json_logging()
 
@@ -176,23 +178,19 @@ async def run_backtest(request: Request, backtest: BacktestRequest):
     sharpe_ratio = 0.0
     equity_curve = result.get("equity_curve", []) if isinstance(result, dict) else []
     if len(equity_curve) > 1:
-        # Calculate daily returns
-        returns = []
-        for i in range(1, len(equity_curve)):
-            prev_val = equity_curve[i-1]["value"]
-            curr_val = equity_curve[i]["value"]
-            if prev_val != 0:  # Avoid division by zero
-                daily_return = (curr_val - prev_val) / prev_val
-                returns.append(daily_return)
+        # Calculate daily returns using NumPy for performance
+        vals = np.array([x["value"] for x in equity_curve])
+        prev_vals = vals[:-1]
+        curr_vals = vals[1:]
+        mask = prev_vals != 0
+        returns = (curr_vals[mask] - prev_vals[mask]) / prev_vals[mask]
 
-        if returns:
-            # Calculate Sharpe ratio: (mean return / std dev) * sqrt(252)
-            mean_return = sum(returns) / len(returns)
-            # Calculate variance
-            variance = sum((r - mean_return) ** 2 for r in returns) / len(returns)
+        if returns.size > 0:
+            mean_return = np.mean(returns)
+            variance = np.var(returns)
             if variance > 0:
-                std_return = variance ** 0.5
-                sharpe_ratio = round((mean_return / std_return) * (252 ** 0.5), 2)
+                std_return = np.sqrt(variance)
+                sharpe_ratio = round(float((mean_return / std_return) * np.sqrt(252)), 2)
 
     # ------------------------------------------------------------------
     # Package metrics for the frontend
