@@ -84,8 +84,11 @@ class SignalRepository:
         """updates: list of (status, exit_price, exit_at, pnl_pct, id)"""
         if not updates:
             return
+        sig_ids = [u[4] for u in updates]
+        rows = db.query(SignalHistory).filter(SignalHistory.id.in_(sig_ids)).all()
+        row_map = {r.id: r for r in rows}
         for status, exit_price, exit_at, pnl_pct, sig_id in updates:
-            row = db.query(SignalHistory).filter(SignalHistory.id == sig_id).first()
+            row = row_map.get(sig_id)
             if row:
                 row.status = status
                 row.exit_price = exit_price
