@@ -37,7 +37,7 @@ jobs:
           PYTHONPATH: "backend"
         run: |
           cd backend
-          python -m pytest tests/test_validation_and_guards.py tests/test_backtest_engine.py tests/test_bot_auth.py tests/test_capital_manager.py tests/test_is_nse_market_open.py tests/test_nse_market.py tests/test_perf.py tests/test_session_cleanup.py tests/test_vwap_veto.py tests/test_main_import.py tests/test_admin.py tests/test_angelone_login.py tests/test_search.py -v --disable-warnings -o asyncio_mode=auto
+          python -m pytest tests/test_validation_and_guards.py tests/test_backtest_engine.py tests/test_bot_auth.py tests/test_capital_manager.py tests/test_market_hours.py tests/test_nse_market.py tests/test_perf.py tests/test_session_cleanup.py tests/test_vwap_veto.py tests/test_main_import.py tests/test_admin.py tests/test_angelone_login.py tests/test_search.py -v --disable-warnings -o asyncio_mode=auto
 
   frontend-build:
     name: Frontend Build Check (React + Vite)
@@ -47,10 +47,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 18
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
           cache: 'npm'
           cache-dependency-path: 'frontend/package.json'
 
