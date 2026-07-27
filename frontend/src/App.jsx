@@ -86,6 +86,7 @@ const fmt  = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-US',
 const fmtK = (n) => n >= 1e9 ? `₹${(n/1e9).toFixed(2)}B` : n >= 1e6 ? `₹${(n/1e6).toFixed(1)}M` : `₹${fmt(n, 0)}`;
 const clr  = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
 const sign = (v) => v > 0 ? '+' : '';
+const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
 
 // ── Candlestick Chart (with volume and indicators) ────────────────────────
 function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [], botPaperMode }) {
@@ -173,7 +174,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
         legend.style.display = 'block';
         const color = data.close >= data.open ? T.green : T.red;
         legend.innerHTML = `
-          <div style="font-weight: 700; margin-bottom: 4px; color: ${T.text}; font-size: 14px;">${symbol} <span style="color: ${T.textMid}; font-size: 11px;">(${interval})</span></div>
+          <div style="font-weight: 700; margin-bottom: 4px; color: ${T.text}; font-size: 14px;">${escapeHTML(symbol)} <span style="color: ${T.textMid}; font-size: 11px;">(${escapeHTML(interval)})</span></div>
           <div style="display: flex; gap: 14px; font-size: 12px; color: ${T.text};">
             <span>O <span style="color: ${color}">${data.open.toFixed(2)}</span></span>
             <span>H <span style="color: ${color}">${data.high.toFixed(2)}</span></span>
