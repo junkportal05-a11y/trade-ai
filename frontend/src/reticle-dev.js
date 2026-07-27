@@ -1,6 +1,12 @@
-import { registerCapabilities } from '@reticlehq/react';
+import { reticle, registerCapabilities } from '@reticlehq/react';
 
 if (import.meta.env.DEV) {
+  try {
+    reticle.connect();
+  } catch (err) {
+    console.warn('[Reticle] Connection fallback notice:', err);
+  }
+
   registerCapabilities({
     testids: [
       'run-backtest-btn',
