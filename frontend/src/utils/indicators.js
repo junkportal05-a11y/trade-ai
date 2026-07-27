@@ -72,6 +72,7 @@ export function calcRSI(data, period = 14) {
 }
 
 export function calcMACD(data, fast = 12, slow = 26, signal = 9) {
+  if (!data || data.length === 0) return { macdLine: [], signalLine: [], histogram: [] };
   const emaFast = calcEMA(data, fast);
   const emaSlow = calcEMA(data, slow);
   
