@@ -160,7 +160,7 @@ class HistoricalSimulator:
                                     rr_target=rr_target
                                 )
                                 
-                                if result and abs(result.get('score', 0)) >= 4:
+                                if result and abs(result.get('score', 0)) >= 9:
                                     simulation_status.stats["total_signals"] += 1
                                     
                                     # Signal Details
@@ -311,11 +311,13 @@ def run_simulation_task(start_date: str, end_date: str, user: str, symbols: list
 
 if __name__ == "__main__":
     import sys
+    import asyncio
     
-    start = "2024-11-01"
-    end = "2024-12-31"
+    start_date = "2024-11-01"
+    end_date = "2024-12-31"
     
     if "--phase1" in sys.argv:
         print("Running Phase 1 validation on core watchlist...")
     
-    run_simulation_task(start, end, "admin")
+    simulator = HistoricalSimulator()
+    asyncio.run(simulator.simulate(start_date, end_date, atr_multiplier=1.0, rr_target=2.0))
