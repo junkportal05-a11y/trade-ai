@@ -20,7 +20,7 @@ def test_get_history_happy_path_daily(monkeypatch):
         }
         return pd.DataFrame(data, index=index)
 
-    monkeypatch.setattr("backend.main.sig_engine.download_market_data_df", mock_download)
+    monkeypatch.setattr("app.services.market_data.download_market_data_df", mock_download)
 
     response = client.get("/api/history", params={"symbol": "AAPL", "interval": "1d", "range": "5d"})
     assert response.status_code == 200
@@ -54,7 +54,7 @@ def test_get_history_happy_path_intraday(monkeypatch):
         }
         return pd.DataFrame(data, index=index)
 
-    monkeypatch.setattr("backend.main.sig_engine.download_market_data_df", mock_download)
+    monkeypatch.setattr("app.services.market_data.download_market_data_df", mock_download)
 
     response = client.get("/api/history", params={"symbol": "AAPL", "interval": "1m", "range": "1d"})
     assert response.status_code == 200
@@ -85,7 +85,7 @@ def test_get_history_no_data(monkeypatch):
     def mock_download(*args, **kwargs):
         return None
 
-    monkeypatch.setattr("backend.main.sig_engine.download_market_data_df", mock_download)
+    monkeypatch.setattr("app.services.market_data.download_market_data_df", mock_download)
 
     response = client.get("/api/history", params={"symbol": "AAPL", "interval": "1d", "range": "1mo"})
     assert response.status_code == 404
@@ -96,7 +96,7 @@ def test_get_history_empty_df(monkeypatch):
     def mock_download(*args, **kwargs):
         return pd.DataFrame()
 
-    monkeypatch.setattr("backend.main.sig_engine.download_market_data_df", mock_download)
+    monkeypatch.setattr("app.services.market_data.download_market_data_df", mock_download)
 
     response = client.get("/api/history", params={"symbol": "AAPL", "interval": "1d", "range": "1mo"})
     assert response.status_code == 404
@@ -115,7 +115,7 @@ def test_get_history_nan_filtering(monkeypatch):
         }
         return pd.DataFrame(data, index=index)
 
-    monkeypatch.setattr("backend.main.sig_engine.download_market_data_df", mock_download)
+    monkeypatch.setattr("app.services.market_data.download_market_data_df", mock_download)
 
     response = client.get("/api/history", params={"symbol": "AAPL", "interval": "1d", "range": "5d"})
     assert response.status_code == 200
@@ -140,8 +140,8 @@ def test_get_history_nan_filtering_all_nan(monkeypatch):
         }
         return pd.DataFrame(data, index=index)
 
-    monkeypatch.setattr("backend.main.sig_engine.download_market_data_df", mock_download)
+    monkeypatch.setattr("app.services.market_data.download_market_data_df", mock_download)
 
     response = client.get("/api/history", params={"symbol": "AAPL", "interval": "1d", "range": "5d"})
     assert response.status_code == 404
-    assert "No history data found for AAPL after filtering NaNs" in response.json()["detail"]
+    assert "No history data after filtering" in response.json()["detail"]

@@ -1,14 +1,22 @@
 """Quotes, history, and market data router."""
+
 from __future__ import annotations
 
 import asyncio
-from fastapi import APIRouter, Query, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep
 from app.core.config import settings
 from app.core.constants import VALID_INTERVALS, VALID_RANGES
-from app.models.schemas import HistoryResponse, QuoteResponse, SearchResponse, HistoryParams, SearchRequest, QuoteRequest
+from app.models.schemas import (
+    HistoryResponse,
+    QuoteResponse,
+    SearchResponse,
+    HistoryParams,
+    SearchRequest,
+    QuoteRequest,
+)
 from app.services.quotes import get_symbol_quote
 from app.core.executors import quote_executor
 from app.core.limiter import limiter
@@ -42,13 +50,14 @@ def keep_alive(request: Request) -> dict:
 
 @router.get("/quote", response_model=QuoteResponse)
 @limiter.limit(settings.rate_limit_public)
-async def get_quote(request: Request, req: QuoteRequest = Depends(QuoteRequest), db: Session = DbDep) -> dict:
+async def get_quote(
+    request: Request, req: QuoteRequest = Depends(QuoteRequest), db: Session = DbDep
+) -> dict:
     # Validate symbol again via model; it's already uppercase due to validator
     symbol = req.symbol
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
-        quote_executor,
-        lambda: get_symbol_quote(symbol)
+        quote_executor, lambda: get_symbol_quote(symbol)
     )
     if not result:
         raise HTTPException(status_code=404, detail=f"No data for {symbol}")
@@ -57,11 +66,15 @@ async def get_quote(request: Request, req: QuoteRequest = Depends(QuoteRequest),
 
 @router.get("/history", response_model=HistoryResponse)
 @limiter.limit(settings.rate_limit_public)
-def get_history(request: Request, params: HistoryParams = Depends(HistoryParams), db: Session = DbDep) -> dict:
+def get_history(
+    request: Request,
+    params: HistoryParams = Depends(HistoryParams),
+    db: Session = DbDep,
+) -> dict:
     from app.services.market_data import download_market_data_df
 
     # Validate interval and range against allowed constants
-    from app.core.constants import VALID_INTERVALS, VALID_RANGES
+
     if params.interval not in VALID_INTERVALS:
         raise HTTPException(
             status_code=400, detail=f"Invalid interval. Choose from: {VALID_INTERVALS}"
@@ -72,7 +85,9 @@ def get_history(request: Request, params: HistoryParams = Depends(HistoryParams)
         )
 
     try:
-        df = download_market_data_df(params.symbol, period=params.range, interval=params.interval)
+        df = download_market_data_df(
+            params.symbol, period=params.range, interval=params.interval
+        )
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -85,16 +100,18 @@ def get_history(request: Request, params: HistoryParams = Depends(HistoryParams)
 
     use_unix = params.interval not in {"1d", "5d", "1wk", "1mo", "3mo"}
     bars = []
-    for ts, row in df.iterrows():
-        t = int(ts.timestamp()) if use_unix else ts.strftime("%Y-%m-%d")
-        bars.append({
-            "time": t,
-            "open": round(float(row["Open"]), 4),
-            "high": round(float(row["High"]), 4),
-            "low": round(float(row["Low"]), 4),
-            "close": round(float(row["Close"]), 4),
-            "volume": int(row["Volume"]),
-        })
+    for row in df.itertuples():
+        t = int(row.Index.timestamp()) if use_unix else row.Index.strftime("%Y-%m-%d")
+        bars.append(
+            {
+                "time": t,
+                "open": round(float(row.Open), 4),
+                "high": round(float(row.High), 4),
+                "low": round(float(row.Low), 4),
+                "close": round(float(row.Close), 4),
+                "volume": int(row.Volume),
+            }
+        )
 
     return {
         "symbol": params.symbol.upper(),
@@ -107,8 +124,11 @@ def get_history(request: Request, params: HistoryParams = Depends(HistoryParams)
 
 @router.get("/search", response_model=SearchResponse)
 @limiter.limit(settings.rate_limit_public)
-async def search_symbols(request: Request, req: SearchRequest = Depends(SearchRequest), db: Session = DbDep) -> dict:
+async def search_symbols(
+    request: Request, req: SearchRequest = Depends(SearchRequest), db: Session = DbDep
+) -> dict:
     from app.services.broker import get_broker_feed
+
     symbol = req.q.upper().strip().replace(".NS", "")
     key = get_broker_feed().get_instrument_token(symbol)
     if key:

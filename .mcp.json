@@ -3,6 +3,10 @@
     "qmd": {
       "command": "node",
       "args": [".claude/scripts/qmd-mcp.mjs"]
+    },
+    "reticle": {
+      "command": "npx",
+      "args": ["-y", "@reticlehq/server", "mcp"]
     }
   }
 }
