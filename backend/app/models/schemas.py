@@ -148,7 +148,18 @@ class JournalEntryResponse(JournalEntry):
 
 class PredictionCreate(BaseModel):
     symbol: str = Field(..., min_length=1, max_length=50)
-    prediction_type: str = Field(..., pattern=r"^(BULLISH|BEARISH)$")
+    prediction_type: str = Field(..., pattern=r"^(BULLISH|BEARISH|UP|DOWN)$")
+
+    @field_validator("prediction_type", mode="before")
+    @classmethod
+    def normalize_prediction_type(cls, v: Any) -> str:
+        if isinstance(v, str):
+            val = v.upper().strip()
+            if val in ("UP", "BULLISH", "LONG"):
+                return "BULLISH"
+            if val in ("DOWN", "BEARISH", "SHORT"):
+                return "BEARISH"
+        return v
     entry_price: float = Field(..., gt=0)
     target_price: float = Field(..., gt=0)
     stop_loss: float = Field(..., gt=0)
