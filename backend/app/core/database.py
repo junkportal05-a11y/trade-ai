@@ -26,6 +26,8 @@ if settings.database_url.startswith("sqlite"):
 
     @event.listens_for(engine, "connect")
     def _set_sqlite_pragma(dbapi_conn, _connection_record):
+        if not settings.database_url.startswith("sqlite"):
+            return
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
@@ -76,7 +78,7 @@ def init_db() -> None:
     migrations.run_migrations(engine)
 
     # Startup verification of WAL mode (only for SQLite)
-    if not settings.is_postgres:
+    if settings.database_url.startswith("sqlite"):
         try:
             with engine.connect() as conn:
                 result = conn.execute(text("PRAGMA journal_mode;"))
