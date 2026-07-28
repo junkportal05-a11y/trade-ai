@@ -206,6 +206,33 @@ async def require_session(
     }
 
 
+async def optional_session(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_bearer),
+) -> dict[str, Any] | None:
+    token = get_token_from_request(request)
+    if not token:
+        return None
+
+    payload = decode_access_token(token)
+    if not payload:
+        return None
+
+    username = payload.get("sub")
+    if not username:
+        return None
+
+    user = user_registry.get_user(username)
+    if not user:
+        return None
+
+    return {
+        "username": username,
+        "role": user.get("role", "Authorized Guest"),
+        "clearance": user.get("clearance", "LEVEL_1_GUEST"),
+    }
+
+
 def require_admin(key: str | None = None) -> None:
     if not key or not secrets.compare_digest(key, settings.admin_key):
         raise HTTPException(status_code=403, detail="Admin access required")
