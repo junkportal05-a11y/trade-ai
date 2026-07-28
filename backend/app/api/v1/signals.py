@@ -10,7 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Query, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.deps import DbDep, SessionDep
+from app.api.deps import DbDep, OptionalSessionDep, SessionDep
 from app.models.schemas import ScanRequest, SignalResponse, SignalsQuery
 from app.core.config import settings
 from app.core.executors import scan_executor

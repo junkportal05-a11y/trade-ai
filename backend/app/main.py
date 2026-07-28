@@ -176,14 +176,18 @@ async def run_backtest(request: Request, backtest: BacktestRequest):
         "initial_capital": init_capital,
     }
 
+    # Normalize symbol for Indian NSE market tickers if no suffix provided
+    sym = backtest.symbol.strip().upper()
+    if not sym.endswith(".NS") and "^" not in sym and "." not in sym:
+        sym += ".NS"
+
     try:
         # Run the backtest using the engine
         config = BacktestConfig(period_range=period_range, **strategy_params)
-        result = run_historical_backtest(backtest.symbol, config)
+        result = run_historical_backtest(sym, config)
     except Exception as exc:
-        # Propagate engine errors as 500s
-        logger.error(f"Internal error: {exc}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Backtest execution error for {sym}: {exc}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Backtest failed for {sym}: {exc}")
 
     if isinstance(result, dict) and "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])

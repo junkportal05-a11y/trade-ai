@@ -64,7 +64,7 @@ class SearchResponse(BaseModel):
 
 
 class ScanRequest(BaseModel):
-    symbols: list[str] = Field(..., min_length=1, max_length=50)
+    symbols: list[str] = Field(default_factory=lambda: ["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS"])
     interval: str = Field(default="15m", pattern=r"^(1m|5m|15m|30m|1h|1d|1wk|1mo)$")
     capital: float = Field(default=100_000.0, gt=0)
     trading_style: str = Field(default="Intraday Momentum")
