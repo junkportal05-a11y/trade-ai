@@ -217,7 +217,9 @@ async def run_backtest(request: Request, backtest: BacktestRequest):
     # Package metrics for the frontend
     # ------------------------------------------------------------------
     metrics = {
+        "total_return_pct": result.get("total_pnl_pct", 0.0) if isinstance(result, dict) else 0.0,
         "total_pnl_pct": result.get("total_pnl_pct", 0.0) if isinstance(result, dict) else 0.0,
+        "max_drawdown_pct": result.get("max_drawdown", 0.0) if isinstance(result, dict) else 0.0,
         "max_drawdown": result.get("max_drawdown", 0.0) if isinstance(result, dict) else 0.0,
         "win_rate": result.get("win_rate", 0.0) if isinstance(result, dict) else 0.0,
         "profit_factor": result.get("profit_factor", 0.0) if isinstance(result, dict) else 0.0,

@@ -81,13 +81,19 @@ export default function BacktestRunner({ onResults }) {
     }
   };
 
+  const retPct = results?.total_return_pct ?? results?.total_pnl_pct ?? 0;
+  const maxDd = results?.max_drawdown_pct ?? results?.max_drawdown ?? 0;
+  const winRateVal = results?.win_rate ?? 0;
+  const sharpeVal = results?.sharpe_ratio ?? 0;
+  const profitFactorVal = results?.profit_factor ?? 0;
+
   const metricCards = results ? [
-    { label: 'TOTAL RETURN', value: fmtPct(results.total_return_pct), color: results.total_return_pct >= 0 ? T.green : T.red },
-    { label: 'WIN RATE', value: `${results.win_rate?.toFixed(1)}%`, color: results.win_rate >= 50 ? T.green : results.win_rate >= 40 ? T.gold : T.red },
-    { label: 'MAX DRAWDOWN', value: `${results.max_drawdown_pct?.toFixed(2)}%`, color: T.red },
-    { label: 'SHARPE RATIO', value: results.sharpe_ratio?.toFixed(2), color: results.sharpe_ratio >= 1.5 ? T.green : results.sharpe_ratio >= 1 ? T.gold : T.red },
-    { label: 'TOTAL TRADES', value: results.total_trades?.toString(), color: T.accent },
-    { label: 'PROFIT FACTOR', value: results.profit_factor?.toFixed(2), color: results.profit_factor >= 1.5 ? T.green : results.profit_factor >= 1 ? T.gold : T.red },
+    { label: 'TOTAL RETURN', value: fmtPct(retPct), color: retPct >= 0 ? T.green : T.red },
+    { label: 'WIN RATE', value: `${winRateVal.toFixed(1)}%`, color: winRateVal >= 50 ? T.green : winRateVal >= 40 ? T.gold : T.red },
+    { label: 'MAX DRAWDOWN', value: `${maxDd.toFixed(2)}%`, color: T.red },
+    { label: 'SHARPE RATIO', value: sharpeVal.toFixed(2), color: sharpeVal >= 1.5 ? T.green : sharpeVal >= 1 ? T.gold : T.red },
+    { label: 'TOTAL TRADES', value: (results.total_trades ?? 0).toString(), color: T.accent },
+    { label: 'PROFIT FACTOR', value: profitFactorVal.toFixed(2), color: profitFactorVal >= 1.5 ? T.green : profitFactorVal >= 1 ? T.gold : T.red },
   ] : [];
 
   return (
