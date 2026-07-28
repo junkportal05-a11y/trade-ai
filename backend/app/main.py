@@ -182,6 +182,7 @@ async def run_backtest(request: Request, backtest: BacktestRequest):
         sym += ".NS"
 
     try:
+        from backtest_engine import run_historical_backtest, BacktestConfig
         # Run the backtest using the engine
         config = BacktestConfig(period_range=period_range, **strategy_params)
         result = run_historical_backtest(sym, config)
