@@ -1755,7 +1755,9 @@ const TAB_META = {
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   // Security Authentication Gate
-  const [loggedIn, setLoggedIn] = useState(true);
+  const [loggedIn, setLoggedIn] = useState(() => {
+    return localStorage.getItem('is_logged_in') === 'true' || !!localStorage.getItem('apt_token') || !!sessionStorage.getItem('apt_token');
+  });
   const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('apex_user') || 'apex_head_quant');
   const [userRole, setUserRole] = useState(() => localStorage.getItem('apex_role') || 'Master Quant / Administrator');
   const [userClearance, setUserClearance] = useState(() => localStorage.getItem('apex_clearance') || 'LEVEL_4_ROOT');
@@ -1770,7 +1772,19 @@ export default function App() {
     setLoggedIn(false);
   }, []);
 
-  // Warm up backend in the background as soon as the app mounts (during login screen presentation)
+  // Sync hashchange for 401 redirects to show LoginScreen reactively
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash;
+      if (hash === '#/login' || hash === '/login') {
+        setLoggedIn(false);
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
+  // Warm up backend in the background as soon as the app mounts
   useEffect(() => {
     const BASE_URL = API_BASE_URL;
     fetch(`${BASE_URL}/`).catch(() => {});
