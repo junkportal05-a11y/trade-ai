@@ -89,6 +89,63 @@ def get_prediction_stats(db: Session = DbDep, _=SessionDep) -> dict:
         for r in resolved[-10:]
     ]
 
+    # Dynamic: max_drawdown_pct from resolved trades equity curve
+    equity = 0.0
+    peak_equity = 0.0
+    max_dd = 0.0
+    for r in resolved:
+        equity += (r.pnl_pct or 0.0)
+        if equity > peak_equity:
+            peak_equity = equity
+        dd = ((peak_equity - equity) / peak_equity * 100) if peak_equity > 0 else 0.0
+        if dd > max_dd:
+            max_dd = dd
+    max_drawdown_pct = round(max_dd, 2) if max_dd > 0 else 0.0
+
+    # Dynamic: best/worst sector by win rate
+    sector_stats: dict = {}
+    for r in resolved:
+        sec = r.sector or "UNKNOWN"
+        if sec not in sector_stats:
+            sector_stats[sec] = {"wins": 0, "total": 0}
+        sector_stats[sec]["total"] += 1
+        if (r.pnl_pct or 0.0) > 0:
+            sector_stats[sec]["wins"] += 1
+    best_sector = "N/A"
+    worst_sector = "N/A"
+    if sector_stats:
+        best = max(sector_stats.items(), key=lambda kv: kv[1]["wins"] / kv[1]["total"])
+        worst = min(sector_stats.items(), key=lambda kv: kv[1]["wins"] / kv[1]["total"])
+        best_sector = best[0] if best[1]["total"] > 0 else "N/A"
+        worst_sector = worst[0] if worst[1]["total"] > 0 else "N/A"
+
+    # Dynamic: strategy leaderboard grouped by setup_type
+    strategy_stats: dict = {}
+    for r in resolved:
+        st = r.setup_type or "UNKNOWN"
+        if st not in strategy_stats:
+            strategy_stats[st] = {"wins": 0, "total": 0, "gross_profit": 0.0, "gross_loss": 0.0}
+        strategy_stats[st]["total"] += 1
+        pnl = r.pnl_pct or 0.0
+        if pnl > 0:
+            strategy_stats[st]["wins"] += 1
+            strategy_stats[st]["gross_profit"] += pnl
+        else:
+            strategy_stats[st]["gross_loss"] += abs(pnl)
+    leaderboard = []
+    for st, s in strategy_stats.items():
+        wr = round((s["wins"] / s["total"]) * 100, 1) if s["total"] > 0 else 0.0
+        pf = round(s["gross_profit"] / s["gross_loss"], 2) if s["gross_loss"] > 0 else (round(s["gross_profit"], 2) if s["gross_profit"] > 0 else 0.0)
+        leaderboard.append({
+            "setup_type": st,
+            "win_rate": wr,
+            "profit_factor": pf,
+            "ev_pct": ev_pct,
+            "wins": s["wins"],
+            "trades": s["total"],
+        })
+    leaderboard.sort(key=lambda x: x["win_rate"], reverse=True)
+
     return {
         "total_predictions": total_count,
         "resolved_predictions": n,
@@ -97,14 +154,12 @@ def get_prediction_stats(db: Session = DbDep, _=SessionDep) -> dict:
         "profit_factor": profit_factor,
         "empirical_rr_ratio": empirical_rr,
         "expected_value_pct": ev_pct,
-        "max_drawdown_pct": 4.5,
-        "best_sector": "IT",
-        "worst_sector": "BANK",
+        "max_drawdown_pct": max_drawdown_pct,
+        "best_sector": best_sector,
+        "worst_sector": worst_sector,
         "avg_confidence": avg_conf,
         "recent_outcomes": recent,
-        "leaderboard": [
-            {"setup_type": "EMABreakout", "win_rate": win_rate, "profit_factor": profit_factor, "ev_pct": ev_pct, "wins": len(wins), "trades": n},
-        ],
+        "leaderboard": leaderboard,
     }
 
 @router.post("/predictions/{prediction_id}/resolve", response_model=dict)

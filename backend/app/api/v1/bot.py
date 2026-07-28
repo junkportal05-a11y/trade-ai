@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
 
-from app.api.deps import SessionDep
+from app.api.deps import SessionDep, OptionalSessionDep
 import db
 import trading_agent
 
