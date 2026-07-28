@@ -55,14 +55,19 @@ async def lifespan(app: FastAPI):
     # Startup
     init_db()
 
-    # Launch background workers as async tasks
-    import trading_agent
-    import governance_worker
-    from trading_agent import prediction_resolver_worker
+    # Launch background workers as async tasks safely
+    try:
+        import trading_agent
+        import governance_worker
 
-    asyncio.create_task(prediction_resolver_worker())
-    asyncio.create_task(trading_agent.trading_agent_loop())
-    asyncio.create_task(governance_worker.governance_loop())
+        if hasattr(trading_agent, "prediction_resolver_worker"):
+            asyncio.create_task(trading_agent.prediction_resolver_worker())
+        if hasattr(trading_agent, "trading_agent_loop"):
+            asyncio.create_task(trading_agent.trading_agent_loop())
+        if hasattr(governance_worker, "governance_loop"):
+            asyncio.create_task(governance_worker.governance_loop())
+    except Exception as exc:
+        logger.warning(f"Background worker startup skipped: {exc}")
 
     yield
     # Shutdown — cancel background tasks on app close
