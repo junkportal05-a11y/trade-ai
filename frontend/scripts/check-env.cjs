@@ -18,7 +18,8 @@ function getEnvValue(key) {
     return process.env[key];
   }
   
-  const files = ['.env', '.env.local', '.env.production', '.env.production.local'];
+  const isCI = Boolean(process.env.CI || process.env.VERCEL || process.env.NODE_ENV === 'production');
+  const files = isCI ? ['.env', '.env.production'] : ['.env'];
   let val = undefined;
   
   for (const file of files) {
