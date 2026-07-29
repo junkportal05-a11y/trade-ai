@@ -140,7 +140,7 @@ class PredictionsHistory(Base):
     market_breadth = Column(Float, nullable=True)
     sector_strength = Column(Float, nullable=True)
     nifty_trend = Column(String(20), nullable=True)
-    actual_outcome = Column(Float, nullable=True)
+    actual_outcome = Column(String(50), nullable=True)
     status = Column(String(20), default="PENDING")
     reason = Column(Text, nullable=True)
     resolved_at = Column(DateTime, nullable=True)

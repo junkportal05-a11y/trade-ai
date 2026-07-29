@@ -121,6 +121,13 @@ def run_migrations(engine: Engine) -> None:
     _add_column_safe(engine, "daily_governance_reports", "data_confidence_score", "REAL")
     _add_column_safe(engine, "daily_governance_reports", "created_at", "DateTime")
 
+    # Safe alter column type for actual_outcome in PostgreSQL
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE predictions_history ALTER COLUMN actual_outcome TYPE VARCHAR(50) USING actual_outcome::text;"))
+    except Exception:
+        pass
+
     # ── Seed data ───────────────────────────────────────────────────────
     from sqlalchemy.orm import Session
 

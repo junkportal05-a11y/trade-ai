@@ -233,6 +233,14 @@ class JournalRepository:
         return False
 
 
+def _sf(v: Any, default: float | None = None) -> float | None:
+    if v is None:
+        return default
+    try:
+        return float(v)
+    except Exception:
+        return default
+
 class PredictionRepository:
     @staticmethod
     def add(db: Session, pred: dict[str, Any]) -> int:
@@ -240,34 +248,34 @@ class PredictionRepository:
             symbol=pred["symbol"].upper(),
             prediction_date=pred.get("prediction_date", _now_ist().isoformat()),
             prediction_type=pred["prediction_type"].upper(),
-            entry_price=float(pred["entry_price"]),
-            target_price=float(pred["target_price"]),
-            stop_loss=float(pred["stop_loss"]),
-            confidence_score=int(pred["confidence_score"]),
-            rsi=float(pred["rsi"]) if pred.get("rsi") is not None else None,
-            macd=float(pred["macd"]) if pred.get("macd") is not None else None,
-            adx=float(pred["adx"]) if pred.get("adx") is not None else None,
+            entry_price=_sf(pred.get("entry_price"), 0.0),
+            target_price=_sf(pred.get("target_price"), 0.0),
+            stop_loss=_sf(pred.get("stop_loss"), 0.0),
+            confidence_score=int(pred.get("confidence_score", 50)),
+            rsi=_sf(pred.get("rsi")),
+            macd=_sf(pred.get("macd")),
+            adx=_sf(pred.get("adx")),
             sector=pred.get("sector"),
-            market_cap=float(pred["market_cap"]) if pred.get("market_cap") is not None else None,
-            volume_ratio=float(pred["volume_ratio"]) if pred.get("volume_ratio") is not None else None,
-            vwap_distance=float(pred["vwap_distance"]) if pred.get("vwap_distance") is not None else None,
-            atr=float(pred.get("atr", 0.0)),
-            news_score=float(pred.get("news_score", 0.0)),
-            market_breadth=float(pred.get("market_breadth", 0.0)),
-            sector_strength=float(pred.get("sector_strength", 0.0)),
+            market_cap=_sf(pred.get("market_cap")),
+            volume_ratio=_sf(pred.get("volume_ratio")),
+            vwap_distance=_sf(pred.get("vwap_distance")),
+            atr=_sf(pred.get("atr"), 0.0),
+            news_score=_sf(pred.get("news_score"), 0.0),
+            market_breadth=_sf(pred.get("market_breadth"), 0.0),
+            sector_strength=_sf(pred.get("sector_strength"), 0.0),
             nifty_trend=pred.get("nifty_trend", "FLAT"),
             status=pred.get("status", "PENDING"),
             reason=pred.get("reason", ""),
             setup_type=pred.get("setup_type", "UNKNOWN"),
             market_regime_snapshot=pred.get("market_regime_snapshot", "UNKNOWN"),
-            risk_amount=float(pred.get("risk_amount", 0.0)),
-            confidence_probability=float(pred.get("confidence_probability", 0.5)),
-            regime_score=float(pred.get("regime_score", 0.0)),
-            sector_score=float(pred.get("sector_score", 0.0)),
-            volume_score=float(pred.get("volume_score", 0.0)),
-            rs_score=float(pred.get("rs_score", 0.0)),
-            trade_quality_score=float(pred.get("trade_quality_score", 0.0)),
-            correlation_score=float(pred.get("correlation_score", 0.0)),
+            risk_amount=_sf(pred.get("risk_amount"), 0.0),
+            confidence_probability=_sf(pred.get("confidence_probability"), 0.5),
+            regime_score=_sf(pred.get("regime_score"), 0.0),
+            sector_score=_sf(pred.get("sector_score"), 0.0),
+            volume_score=_sf(pred.get("volume_score"), 0.0),
+            rs_score=_sf(pred.get("rs_score"), 0.0),
+            trade_quality_score=_sf(pred.get("trade_quality_score"), 0.0),
+            correlation_score=_sf(pred.get("correlation_score"), 0.0),
             signal_time=pred.get("signal_time"),
             order_time=pred.get("order_time"),
         )
