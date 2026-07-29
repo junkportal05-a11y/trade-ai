@@ -4,11 +4,14 @@ backtest_engine.py — Dynamic Historical Strategy Backtester for APEXTRADE
 Downloads daily data, computes quant signals, and runs a chronological trade simulation.
 """
 
+import os
 import math
 import pandas as pd
 import numpy as np
 from dataclasses import dataclass
 from signals import download_market_data_df
+
+backend_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 @dataclass
@@ -137,8 +140,16 @@ def run_historical_backtest(
         config = BacktestConfig()
 
     try:
-        # Download daily data via unified abstraction layer
-        df = download_market_data_df(symbol, config.period_range, "1d")
+        # Check local historical_data folder first for 10y dataset
+        clean_sym = symbol.replace("^", "INDEX_").replace(".NS", "")
+        csv_path = os.path.join(backend_dir, "historical_data", f"{clean_sym}_10y_daily.csv")
+        if os.path.exists(csv_path):
+            try:
+                df = pd.read_csv(csv_path, index_col=0, parse_dates=True)
+            except Exception:
+                df = download_market_data_df(symbol, config.period_range, "1d")
+        else:
+            df = download_market_data_df(symbol, config.period_range, "1d")
 
         if df is None or len(df) < 30:
             return {"error": f"Insufficient historical data fetched for {symbol}."}
