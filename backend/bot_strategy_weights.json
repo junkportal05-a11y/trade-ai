@@ -1,0 +1,17 @@
+{
+  "best_strategy": "MACD + RSI Confluence",
+  "best_strategy_id": 25,
+  "best_strategy_score": 17.76,
+  "best_strategy_win_rate": 49.9,
+  "best_strategy_sharpe": 0.19,
+  "ensemble_weights": {
+    "MACD + RSI Confluence": 0.2023,
+    "High Volume Surge Breakout (>2.0x Vol)": 0.2021,
+    "SuperTrend Quant (10, 3.0)": 0.1985,
+    "Parabolic SAR Acceleration": 0.1985,
+    "KAMA Adaptive Moving Average": 0.1985
+  },
+  "total_strategies_evaluated": 30,
+  "total_datasets_evaluated": 26,
+  "trained_at_utc": "2026-07-29T16:29:58.772396"
+}

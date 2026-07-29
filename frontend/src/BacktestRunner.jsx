@@ -44,8 +44,28 @@ export default function BacktestRunner({ onResults }) {
   const [capital, setCapital] = useState('100000');
   const [stopATR, setStopATR] = useState('1.5');
   const [loading, setLoading] = useState(false);
+  const [tournamentLoading, setTournamentLoading] = useState(false);
   const [results, setResults] = useState(null);
+  const [tournamentResults, setTournamentResults] = useState(null);
   const [error, setError] = useState(null);
+
+  const handleTournament = async () => {
+    setTournamentLoading(true);
+    setError(null);
+    try {
+      const res = await apiFetch('/api/backtest/tournament', { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(formatError(data.detail || data, `HTTP ${res.status}`));
+      }
+      const data = await res.json();
+      setTournamentResults(data.data);
+    } catch (e) {
+      setError(formatError(e));
+    } finally {
+      setTournamentLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -104,9 +124,16 @@ export default function BacktestRunner({ onResults }) {
           <span style={{ fontSize: 18 }}>⏱️</span>
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: T.accentAlt, ...mono }}>BACKTEST ENGINE</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Historical Truth Engine</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Historical Truth & 30-Strategy Tournament</div>
           </div>
         </div>
+        <button type="button" onClick={handleTournament} disabled={tournamentLoading} style={{
+          padding: '8px 16px', borderRadius: 6, border: `1px solid ${T.gold}`,
+          background: T.goldDim, color: T.gold, fontWeight: 700, fontSize: 10,
+          letterSpacing: '0.08em', cursor: tournamentLoading ? 'not-allowed' : 'pointer', ...mono
+        }}>
+          {tournamentLoading ? '🏆 EVALUATING 30 STRATEGIES...' : '🏆 RUN 30-STRATEGY TOURNAMENT'}
+        </button>
       </div>
 
       {/* Form */}
@@ -162,7 +189,49 @@ export default function BacktestRunner({ onResults }) {
         )}
       </form>
 
-      {/* Results */}
+      {/* Tournament Leaderboard */}
+      {tournamentResults && (
+        <div style={{ background: T.panel, border: `1px solid ${T.gold}40`, borderRadius: 8, padding: 14, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.gold, ...mono }}>
+              🏆 30-STRATEGY LEADERBOARD — BEST: {tournamentResults.best_strategy} (SCORE: {tournamentResults.best_strategy_score})
+            </div>
+            <div style={{ fontSize: 9, color: T.textDim, ...mono }}>
+              {tournamentResults.total_strategies_evaluated} STRATEGIES | {tournamentResults.total_datasets_evaluated} 10Y DATASETS
+            </div>
+          </div>
+          <div style={{ overflowX: 'auto', maxHeight: 250, overflowY: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+              <thead>
+                <tr style={{ color: T.textDim, borderBottom: `1px solid ${T.border}` }}>
+                  <th style={{ padding: '6px 8px', textAlign: 'left' }}>RANK</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'left' }}>STRATEGY</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'left' }}>CATEGORY</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'right' }}>SCORE</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'right' }}>WIN RATE</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'right' }}>SHARPE</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'right' }}>AVG RETURN</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(tournamentResults.leaderboard || []).slice(0, 10).map((r, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${T.border}30`, background: i === 0 ? T.goldDim : 'transparent' }}>
+                    <td style={{ padding: '6px 8px', fontWeight: 700, color: i === 0 ? T.gold : T.textMid, ...mono }}>#{r.rank}</td>
+                    <td style={{ padding: '6px 8px', fontWeight: 600, color: '#fff' }}>{r.strategy}</td>
+                    <td style={{ padding: '6px 8px', color: T.accentAlt, ...mono }}>{r.bucket}</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: T.gold, ...mono }}>{r.score}</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', color: T.green, ...mono }}>{r.win_rate}%</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', color: T.blue, ...mono }}>{r.sharpe_ratio}</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', color: r.total_return_pct >= 0 ? T.green : T.red, ...mono }}>
+                      {fmtPct(r.total_return_pct)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       {results && (
         <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 16, animation: 'fadeIn 0.3s ease' }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: T.accentAlt, ...mono, marginBottom: 12 }}>
