@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { API_BASE_URL, apiFetch } from './api';
 import { formatError } from './utils/formatError';
 
@@ -48,6 +48,18 @@ export default function BacktestRunner({ onResults }) {
   const [results, setResults] = useState(null);
   const [tournamentResults, setTournamentResults] = useState(null);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // Auto-fetch real 30-strategy quant leaderboard on mount
+    apiFetch('/api/backtest/tournament/leaderboard')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.data) {
+          setTournamentResults(data.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleTournament = async () => {
     setTournamentLoading(true);
@@ -214,7 +226,7 @@ export default function BacktestRunner({ onResults }) {
                 </tr>
               </thead>
               <tbody>
-                {(tournamentResults.leaderboard || []).slice(0, 10).map((r, i) => (
+                {(tournamentResults.leaderboard || []).map((r, i) => (
                   <tr key={i} style={{ borderBottom: `1px solid ${T.border}30`, background: i === 0 ? T.goldDim : 'transparent' }}>
                     <td style={{ padding: '6px 8px', fontWeight: 700, color: i === 0 ? T.gold : T.textMid, ...mono }}>#{r.rank}</td>
                     <td style={{ padding: '6px 8px', fontWeight: 600, color: '#fff' }}>{r.strategy}</td>
