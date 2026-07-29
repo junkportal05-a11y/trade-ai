@@ -270,18 +270,37 @@ class AdminKeyParams(BaseModel):
 
 
 class BacktestRequest(BaseModel):
-    symbol: str = Field(..., pattern=r"^[A-Z][A-Z0-9.]*$")
-    start_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
-    end_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    symbol: str = Field(default="RELIANCE.NS")
+    start_date: str = Field(default="2024-01-01")
+    end_date: str = Field(default="2024-12-31")
     strategy: str | None = Field(default="intraday_momentum")
-    capital: float | None = Field(default=100000.0, gt=0)
-    risk_pct: float = Field(default=2.0, gt=0)
-    stop_atr: float = Field(default=1.5, gt=0)
-    target_atr: float = Field(default=2.0, gt=0)
-    initial_capital: float = Field(default=100000.0, gt=0)
+    capital: float | None = Field(default=100000.0)
+    risk_pct: float = Field(default=2.0)
+    stop_atr: float = Field(default=1.5)
+    target_atr: float = Field(default=2.0)
+    initial_capital: float = Field(default=100000.0)
     entry_score: int = Field(default=60, ge=0)
     adx_min: float = Field(default=20.0, ge=0)
     early_exit: bool = Field(default=True)
+
+    @field_validator("symbol", mode="before")
+    @classmethod
+    def sanitize_symbol(cls, v: Any) -> str:
+        if not v or not isinstance(v, str):
+            return "RELIANCE.NS"
+        s = v.strip().upper()
+        if not s.endswith(".NS") and "^" not in s and "." not in s:
+            s += ".NS"
+        return s
+
+    @field_validator("capital", "initial_capital", "risk_pct", "stop_atr", mode="before")
+    @classmethod
+    def sanitize_positive_floats(cls, v: Any) -> float:
+        try:
+            val = float(v)
+            return abs(val) if val != 0 else 100000.0
+        except Exception:
+            return 100000.0
 
 
 class SearchRequest(BaseModel):
