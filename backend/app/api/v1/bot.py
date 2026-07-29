@@ -51,7 +51,7 @@ async def bot_stop(request: Request, _=SessionDep) -> Dict[str, Any]:
 
 
 @router.get("/status")
-async def bot_status(request: Request, _=SessionDep) -> Dict[str, Any]:
+async def bot_status(request: Request, _=OptionalSessionDep) -> Dict[str, Any]:
     """Return current state, today's P&L, last signal, and open positions."""
     state = db.get_bot_state()
     today = _now_ist().strftime("%Y-%m-%d")
@@ -103,4 +103,3 @@ async def bot_trades(request: Request, _=SessionDep) -> Dict[str, Any]:
     except Exception:
         pass
     return {"trades": trades}
-
