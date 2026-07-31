@@ -57,13 +57,21 @@ async def lifespan(app: FastAPI):
 
     # Launch background workers as async tasks safely
     try:
-        import trading_agent
+        import sys
+        backend_dir = os.path.dirname(os.path.dirname(__file__))
+        if backend_dir not in sys.path:
+            sys.path.insert(0, backend_dir)
+
+        from trading_agent import trading_agent_loop, prediction_resolver_worker
         import governance_worker
 
         if hasattr(trading_agent, "prediction_resolver_worker"):
-            asyncio.create_task(trading_agent.prediction_resolver_worker())
-        if hasattr(trading_agent, "trading_agent_loop"):
-            asyncio.create_task(trading_agent.trading_agent_loop())
+            asyncio.create_task(prediction_resolver_worker())
+
+        # Start the loop as a background asyncio task
+        app.state.agent_task = asyncio.create_task(trading_agent_loop())
+        logger.info("trading_agent_loop task created")
+
         if hasattr(governance_worker, "governance_loop"):
             asyncio.create_task(governance_worker.governance_loop())
     except Exception as exc:
@@ -71,7 +79,12 @@ async def lifespan(app: FastAPI):
 
     yield
     # Shutdown — cancel background tasks on app close
-    pass
+    if hasattr(app.state, "agent_task"):
+        try:
+            app.state.agent_task.cancel()
+            await app.state.agent_task
+        except asyncio.CancelledError:
+            pass
 
 app = FastAPI(
     title=settings.app_name,
