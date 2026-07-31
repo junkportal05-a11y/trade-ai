@@ -96,8 +96,8 @@ async def trading_agent_loop():
                         run_weekly_tasks()
                     except Exception as e:
                         print(f"[trading_agent] Weekly maintenance error: {e}")
-                print("[trading_agent] Market closed (weekend). Next check in 1 hour.")
-                await asyncio.sleep(3600)
+                print("[trading_agent] Market closed (weekend). Checking again in 30s.")
+                await asyncio.sleep(30)
                 continue
 
             minutes_since_midnight = now_ist.hour * 60 + now_ist.minute
@@ -350,4 +350,4 @@ async def prediction_resolver_worker():
         except Exception as e:
             print(f"[prediction_resolver] Error: {e}")
 
-        await asyncio.sleep(15)
+        await asyncio.sleep(30)
