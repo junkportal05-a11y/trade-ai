@@ -283,3 +283,71 @@ def _build_journal_payload(sig: dict) -> dict:
         "status": "OPEN",
         "pnl": None,
     }
+
+
+async def prediction_resolver_worker():
+    """
+    Background worker that continuously polls pending predictions to resolve SL/TP hits.
+    Emits worker_health.beat("resolver") on every iteration.
+    """
+    print("[prediction_resolver] Resolver worker loop started.")
+    while True:
+        try:
+            from app.core.worker_health import beat
+            beat("resolver")
+
+            loop = asyncio.get_running_loop()
+            predictions = await loop.run_in_executor(resolver_executor, db.get_predictions)
+            pending = [p for p in (predictions or []) if p.get("status") == "PENDING"]
+
+            if pending:
+                from angelone_feed import get_angelone_feed
+                feed = get_angelone_feed()
+                if feed.is_authorized():
+                    symbols = list({p["symbol"] for p in pending})
+                    quotes = await loop.run_in_executor(
+                        quote_executor, lambda: feed.get_live_quotes(symbols)
+                    )
+                    for pred in pending:
+                        sym = pred["symbol"]
+                        live_quote = quotes.get(sym) if quotes else None
+                        if not live_quote:
+                            continue
+                        current_price = live_quote.get("price", 0.0)
+                        entry_price = float(pred.get("entry_price", 0.0))
+                        stop_loss = float(pred.get("stop_loss", 0.0))
+                        target_price = float(pred.get("target_price", 0.0))
+                        direction = pred.get("prediction_type", "BUY")
+
+                        # Check SL / TP conditions
+                        hit_tp = (direction in ("BUY", "BULLISH") and current_price >= target_price > 0) or \
+                                 (direction in ("SELL", "BEARISH") and current_price <= target_price > 0)
+                        hit_sl = (direction in ("BUY", "BULLISH") and 0 < current_price <= stop_loss) or \
+                                 (direction in ("SELL", "BEARISH") and current_price >= stop_loss > 0)
+
+                        if hit_tp or hit_sl:
+                            pnl_inr = (current_price - entry_price) if direction in ("BUY", "BULLISH") else (entry_price - current_price)
+                            pnl_pct = (pnl_inr / entry_price) * 100 if entry_price > 0 else 0
+                            status = "RESOLVED"
+                            reason = "TARGET_HIT" if hit_tp else "STOP_LOSS_HIT"
+
+                            await loop.run_in_executor(
+                                resolver_executor,
+                                lambda: db.resolve_prediction(
+                                    pred_id=pred["id"],
+                                    actual_outcome=current_price,
+                                    status=status,
+                                    exit_price=current_price,
+                                    holding_time_minutes=15,
+                                    pnl_pct=round(pnl_pct, 2),
+                                    pnl_inr=round(pnl_inr, 2),
+                                    r_multiple=1.5 if hit_tp else -1.0,
+                                    resolution_reason=reason,
+                                    discard_reason=reason,
+                                )
+                            )
+                            print(f"[prediction_resolver] Resolved {sym}: {reason} at {current_price}")
+        except Exception as e:
+            print(f"[prediction_resolver] Error: {e}")
+
+        await asyncio.sleep(15)
