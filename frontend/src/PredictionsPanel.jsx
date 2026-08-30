@@ -60,7 +60,6 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
   const [dataConfidence, setDataConfidence] = useState(null);
   const [resolvingId, setResolvingId] = useState(null);
   const [actualOutcomeInput, setActualOutcomeInput] = useState('');
-  const [resolutionStatus, setResolutionStatus] = useState('CORRECT'); // 'CORRECT', 'INCORRECT', 'FLAT'
 
   // Form State
   const [symbol, setSymbol] = useState(selectedSymbol);
@@ -249,8 +248,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
       const res = await apiFetch(`/api/predictions/${resolvingId}/resolve`, {
         method: 'POST',
         body: JSON.stringify({
-          actual_outcome: parseFloat(actualOutcomeInput),
-          status: resolutionStatus
+          exit_price: parseFloat(actualOutcomeInput)
         })
       });
 
@@ -957,24 +955,6 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                                 ...mono
                               }}
                             />
-                            
-                            <select
-                              value={resolutionStatus}
-                              onChange={(e) => setResolutionStatus(e.target.value)}
-                              style={{
-                                padding: '5px 8px',
-                                background: T.panel,
-                                border: `1px solid ${T.border}`,
-                                borderRadius: 4,
-                                color: '#fff',
-                                fontSize: 9,
-                                outline: 'none'
-                              }}
-                            >
-                              <option value="CORRECT">CORRECT</option>
-                              <option value="INCORRECT">INCORRECT</option>
-                              <option value="FLAT">FLAT</option>
-                            </select>
 
                             <button
                               type="submit"

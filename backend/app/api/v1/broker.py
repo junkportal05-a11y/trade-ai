@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.api.deps import DbDep, SessionDep
+from app.api.deps import DbDep, SessionDep, TraderDep
 from app.models.schemas import AngelOneCredentials, AngelOneStatusResponse
 from app.core.security import encrypt_value, decrypt_value
 from app.db import save_angelone_session, get_angelone_session
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/angelone", tags=["broker"])
 async def angelone_login(
     request: Request,
     db: Session = DbDep,
-    _=SessionDep,
+    _=TraderDep,
 ) -> dict:
     body = await request.json()
     creds = AngelOneCredentials.model_validate(body)
@@ -63,6 +63,7 @@ def angelone_status(
     db: Session = DbDep,
     _=SessionDep,
 ) -> dict:
+    """Return AngelOne connection status. Requires authentication."""
     from app.services.broker import get_broker_feed
 
     feed = get_broker_feed()

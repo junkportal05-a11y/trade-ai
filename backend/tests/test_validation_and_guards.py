@@ -176,22 +176,16 @@ def test_signals_query_field_validator():
 # ---------------------------------------------------------------------------
 def test_admin_require_admin_rejects_missing_key():
     # The admin-key guard must reject a missing key with HTTP 403.
-    import asyncio
-    from fastapi import HTTPException
-
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(require_admin(None))
-    assert exc.value.status_code == 403
+    r = client.get("/api/admin/health")
+    assert r.status_code == 403
+    assert r.json()["detail"] == "Admin access required"
 
 
 def test_admin_require_admin_rejects_wrong_key():
     # The admin-key guard must reject a wrong key with HTTP 403.
-    import asyncio
-    from fastapi import HTTPException
-
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(require_admin("definitely-not-the-admin-key"))
-    assert exc.value.status_code == 403
+    r = client.get("/api/admin/health", headers={"X-Admin-Key": "wrong_key"})
+    assert r.status_code == 403
+    assert r.json()["detail"] == "Admin access required"
 
 
 @pytest.mark.xfail(

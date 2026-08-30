@@ -116,7 +116,6 @@ export function useLivePrices(symbols = []) {
       console.log("[useLivePrices] WebSocket not connected — starting HTTP polling fallback");
 
       async function poll() {
-        return; // Temporarily disabled to prevent 404 flooding
         try {
           const res = await fetch(`${BASE_URL}/api/prices`, { credentials: 'include' });
           if (!res.ok) return;

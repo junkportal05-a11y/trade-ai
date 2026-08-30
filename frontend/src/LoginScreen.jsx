@@ -44,17 +44,23 @@ export default function LoginScreen({ onLogin }) {
     const wake = async () => {
       for (let i = 0; i < 5; i++) {
         try {
-          // Use mode: 'no-cors' to bypass CORS blocks on raw waker hit
-          const r = await fetch(BASE_URL + "/", { 
-            method: "GET", 
-            mode: "no-cors",
-            signal: getTimeoutSignal(10000) 
+          // Regular fetch to properly read response and determine server status
+          const r = await fetch(BASE_URL + "/", {
+            method: "GET",
+            signal: getTimeoutSignal(10000)
           });
-          // Any non-throwing response (including opaque 0) means server is active and reachable
-          if (r && !cancelled) { 
-            setServerReady(true); 
-            setWaking(false); 
-            return; 
+          // Check if response is ok to determine server readiness
+          if (r && !cancelled) {
+            if (r.ok) {
+              setServerReady(true);
+              setWaking(false);
+              return;
+            } else {
+              // Server responded with an error status
+              setServerReady(false);
+              setWaking(false);
+              return;
+            }
           }
         } catch (_) { /* server still waking */ }
         if (!cancelled) await new Promise(ok => setTimeout(ok, 2000 * (i + 1)));

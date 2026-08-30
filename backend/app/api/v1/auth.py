@@ -28,19 +28,30 @@ async def login(
     response: Response,
     db: Session = DbDep,
 ) -> dict:
-    body = await request.json()
-    req = LoginRequest.model_validate(body)
-    
-    # Master login: accept code or credentials and grant master quant access
-    u = "apex_head_quant"
-    user_obj = user_registry.get_user("apex_head_quant")
-    if not user_obj:
-        user_obj = {
-            "role": "Master Quant / Administrator",
-            "clearance": "LEVEL_4_ROOT",
-        }
+    from fastapi import HTTPException
 
-    token = create_access_token({"sub": u})
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    try:
+        req = LoginRequest.model_validate(body)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    username, user_obj = None, None
+    if req.username and req.username != "code":
+        user_obj = user_registry.authenticate(req.username, req.password)
+        if user_obj:
+            username = req.username
+    else:
+        username, user_obj = user_registry.authenticate_by_code(req.password)
+
+    if not username or not user_obj:
+        raise HTTPException(status_code=401, detail="Invalid access code")
+
+    token = create_access_token({"sub": username})
     response.set_cookie(
         key="apt_token",
         value=token,
@@ -51,9 +62,9 @@ async def login(
     )
     return {
         "token": token,
-        "username": u,
-        "role": user_obj["role"],
-        "clearance": user_obj["clearance"],
+        "username": username,
+        "role": user_obj.get("role", "Quant Trader"),
+        "clearance": user_obj.get("clearance", "LEVEL_2_SECURE"),
         "expires_in": settings.session_ttl,
     }
 

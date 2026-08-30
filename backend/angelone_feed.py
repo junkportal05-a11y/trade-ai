@@ -16,16 +16,7 @@ from cryptography.fernet import Fernet
 
 from app.core.logging import configure_json_logging, logger
 from app.core.circuit_breaker import CircuitBreaker
-
-FERNET_KEY = os.getenv("FERNET_KEY")
-if FERNET_KEY:
-    try:
-        fernet = Fernet(FERNET_KEY.encode())
-    except Exception as fernet_err:
-        logger.warning(f"Invalid FERNET_KEY in angelone_feed: {fernet_err}")
-        fernet = None
-else:
-    fernet = None
+from app.core.security import encrypt_value, decrypt_value
 
 
 class AngelOneFeed:
@@ -60,12 +51,10 @@ class AngelOneFeed:
                     self.feed_token = saved.get('feed_token')
                     self.client_code = saved.get('client_code')
                     # Re-initialize SmartConnect with saved token
-                    api_key = saved.get('api_key')
-                    if api_key and fernet:
-                        try:
-                            api_key = fernet.decrypt(api_key.encode()).decode()
-                        except Exception:
-                            pass
+                    raw_api_key = saved.get('api_key')
+                    api_key = decrypt_value(raw_api_key) if raw_api_key else None
+                    if not api_key and raw_api_key:
+                        api_key = raw_api_key
                     if api_key:
                         self.smart_api = SmartConnect(api_key=api_key)
                         self.smart_api.setAccessToken(self.session_token)

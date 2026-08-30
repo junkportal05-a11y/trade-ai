@@ -2,6 +2,14 @@ import asyncio
 import schedule
 import os
 from datetime import datetime, timezone, timedelta
+from app.core.constants import (
+    NSE_OPEN_HOUR,
+    NSE_OPEN_MINUTE,
+    NSE_CLOSE_HOUR,
+    NSE_CLOSE_MINUTE,
+    IST_OFFSET_HOURS,
+    IST_OFFSET_MINUTES,
+)
 
 import db
 import signals
@@ -47,6 +55,60 @@ def refresh_angelone_session():
 
 # Schedule daily session refresh at 8:30 AM IST (market opens at 9:15 AM IST)
 schedule.every().day.at('08:30').do(refresh_angelone_session)
+
+
+# ─── Extracted scan logic for reuse by loop & /api/agent/trigger-scan ───
+async def run_scan_cycle() -> list[dict]:
+    """Run one scan iteration and return list of signal dicts."""
+    now_utc = datetime.now(timezone.utc)
+    now_ist = now_utc + timedelta(hours=5, minutes=30)
+
+    # Outside market hours → no trades
+    minutes_since_midnight = now_ist.hour * 60 + now_ist.minute
+    start_minutes = 9 * 60 + 15
+    end_minutes = 15 * 60 + 20
+    if minutes_since_midnight < start_minutes or minutes_since_midnight > end_minutes:
+        return []
+
+    # Check bot state
+    state = db.get_bot_state()
+    if state not in ("RUNNING",):
+        return []
+
+    # Run scan
+    results = signals.run_scan(symbols=signals.NSE_WATCHLIST)
+
+    # Apply same TQS / Correlation filters as trading_agent_loop
+    filtered = []
+    open_positions = [p for p in db.get_predictions() if p.get("status") == "PENDING"]
+
+    for sig in results:
+        if sig.get("signal") not in ("BUY", "SELL"):
+            continue
+        if len(open_positions) >= MAX_CONCURRENT_TRADES:
+            break
+
+        # TradeQualityEngine check
+        tqs = TradeQualityEngine.calculate_tqs(
+            confidence_score=sig.get("confidence", 0),
+            is_long=(sig["signal"] == "BUY"),
+            regime=sig.get("market_regime_snapshot", "UNCLEAR"),
+            volatility=sig.get("atr", 0.0),
+            volume_expansion=sig.get("vol_ratio", 1.0),
+        )
+        if tqs["classification"] not in ("INTRADAY_CANDIDATE", "ELITE_CANDIDATE"):
+            continue
+
+        # CorrelationEngine check
+        open_symbols = [p["symbol"] for p in open_positions]
+        correlation_engine = CorrelationEngine()
+        if not correlation_engine.check_trade_allowed(sig["symbol"], open_symbols):
+            continue
+
+        filtered.append(sig)
+
+    return filtered
+
 
 async def trading_agent_loop():
     """
@@ -112,8 +174,8 @@ async def trading_agent_loop():
                 continue
 
             if minutes_since_midnight > end_minutes or minutes_since_midnight < start_minutes:
-                print("[trading_agent] Market closed. Next check in 30 minutes.")
-                await asyncio.sleep(1800)
+                print("[trading_agent] Market closed. Next check in 30 seconds.")
+                await asyncio.sleep(30)
                 continue
 
             # We are within market hours
@@ -126,7 +188,7 @@ async def trading_agent_loop():
 
             if len(open_positions) >= MAX_CONCURRENT_TRADES:
                 print(f"[trading_agent] Max positions ({MAX_CONCURRENT_TRADES}) reached. Skipping scan.")
-                await asyncio.sleep(1800)  # Wait 30 mins before next scan
+                await asyncio.sleep(30)
                 continue
 
             # 3. Time to scan (e.g., every 30 mins)
@@ -200,9 +262,12 @@ async def _square_off_all(now_ist):
                 lambda: feed.get_live_quotes([pred["symbol"]])
             )
             live_quote = quotes.get(pred["symbol"])
-            live_price = live_quote.get("price", pred["entry_price"]) if live_quote else pred["entry_price"]
+            if not live_quote:
+                print(f"[trading_agent] No live quote for {pred['symbol']} during square-off, skipping")
+                return
+            live_price = live_quote.get("price", pred["entry_price"])
         else:
-            live_price = pred["entry_price"]
+            raise RuntimeError(f"[trading_agent] Cannot square off: AngelOne feed not authorized")
 
         entry_price = float(pred["entry_price"])
 
@@ -285,6 +350,30 @@ def _build_journal_payload(sig: dict) -> dict:
     }
 
 
+def resolve_price_decision(direction, entry_price, stop_loss, target_price, current_price):
+    """
+    Standalone decision function for SL/TP resolution with pessimistic priority.
+    Returns tuple (status, reason) where:
+    - status: "STOP_HIT", "TARGET_HIT", or None
+    - reason: "STOP_LOSS_HIT", "TARGET_HIT", or None
+    """
+    if direction in ("BUY", "BULLISH"):
+        hit_sl = (current_price <= stop_loss > 0)
+        hit_tp = (current_price >= target_price > 0)
+    elif direction in ("SELL", "BEARISH"):
+        hit_sl = (current_price >= stop_loss > 0)
+        hit_tp = (current_price <= target_price > 0)
+    else:
+        hit_sl = hit_tp = False
+
+    if hit_sl:
+        return ("STOP_HIT", "STOP_LOSS_HIT")
+    elif hit_tp:
+        return ("TARGET_HIT", "TARGET_HIT")
+    else:
+        return (None, None)
+
+
 async def prediction_resolver_worker():
     """
     Background worker that continuously polls pending predictions to resolve SL/TP hits.
@@ -293,8 +382,19 @@ async def prediction_resolver_worker():
     print("[prediction_resolver] Resolver worker loop started.")
     while True:
         try:
+            # Read polling interval from environment
+            poll_seconds = int(os.getenv("RESOLVER_POLL_SECONDS", "15"))
+
+            # Emit heartbeat
             from app.core.worker_health import beat
             beat("resolver")
+
+            # Market hours gate
+            from app.services.market_hours import is_nse_market_open
+            if not is_nse_market_open():
+                print("[prediction_resolver] Market closed, skipping resolve check")
+                await asyncio.sleep(poll_seconds)
+                continue
 
             loop = asyncio.get_running_loop()
             predictions = await loop.run_in_executor(resolver_executor, db.get_predictions)
@@ -303,33 +403,52 @@ async def prediction_resolver_worker():
             if pending:
                 from angelone_feed import get_angelone_feed
                 feed = get_angelone_feed()
-                if feed.is_authorized():
-                    symbols = list({p["symbol"] for p in pending})
-                    quotes = await loop.run_in_executor(
-                        quote_executor, lambda: feed.get_live_quotes(symbols)
-                    )
-                    for pred in pending:
-                        sym = pred["symbol"]
-                        live_quote = quotes.get(sym) if quotes else None
-                        if not live_quote:
-                            continue
+                if not feed.is_authorized():
+                    print("[prediction_resolver] AngelOne feed not authorized, cannot resolve predictions")
+                    await asyncio.sleep(poll_seconds)
+                    continue
+                symbols = list({p["symbol"] for p in pending})
+                quotes = await loop.run_in_executor(
+                    quote_executor, lambda: feed.get_live_quotes(symbols)
+                )
+                if not quotes:
+                    print("[prediction_resolver] No live quotes returned from broker")
+                    await asyncio.sleep(poll_seconds)
+                    continue
+                for pred in pending:
+                    sym = pred["symbol"]
+                    live_quote = quotes.get(sym)
+                    if not live_quote:
+                        print(f"[prediction_resolver] No live quote for {sym}, skipping")
+                        continue
                         current_price = live_quote.get("price", 0.0)
                         entry_price = float(pred.get("entry_price", 0.0))
                         stop_loss = float(pred.get("stop_loss", 0.0))
                         target_price = float(pred.get("target_price", 0.0))
                         direction = pred.get("prediction_type", "BUY")
 
-                        # Check SL / TP conditions
-                        hit_tp = (direction in ("BUY", "BULLISH") and current_price >= target_price > 0) or \
-                                 (direction in ("SELL", "BEARISH") and current_price <= target_price > 0)
-                        hit_sl = (direction in ("BUY", "BULLISH") and 0 < current_price <= stop_loss) or \
-                                 (direction in ("SELL", "BEARISH") and current_price >= stop_loss > 0)
+                        # Pessimistic priority rule: STOP_LOSS wins if both hit
+                        if direction in ("BUY", "BULLISH"):
+                            hit_sl = (current_price <= stop_loss > 0)
+                            hit_tp = (current_price >= target_price > 0)
+                        elif direction in ("SELL", "BEARISH"):
+                            hit_sl = (current_price >= stop_loss > 0)
+                            hit_tp = (current_price <= target_price > 0)
+                        else:
+                            hit_sl = hit_tp = False
 
-                        if hit_tp or hit_sl:
+                        status = None
+                        reason = None
+                        if hit_sl:
+                            status = "STOP_HIT"
+                            reason = "STOP_LOSS_HIT"
+                        elif hit_tp:
+                            status = "TARGET_HIT"
+                            reason = "TARGET_HIT"
+
+                        if status and reason:
                             pnl_inr = (current_price - entry_price) if direction in ("BUY", "BULLISH") else (entry_price - current_price)
                             pnl_pct = (pnl_inr / entry_price) * 100 if entry_price > 0 else 0
-                            status = "RESOLVED"
-                            reason = "TARGET_HIT" if hit_tp else "STOP_LOSS_HIT"
 
                             await loop.run_in_executor(
                                 resolver_executor,
@@ -350,4 +469,5 @@ async def prediction_resolver_worker():
         except Exception as e:
             print(f"[prediction_resolver] Error: {e}")
 
-        await asyncio.sleep(30)
+        # Use dynamic poll interval
+        await asyncio.sleep(poll_seconds)

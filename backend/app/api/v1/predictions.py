@@ -1,15 +1,17 @@
 """Predictions router."""
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import not_
 from sqlalchemy.orm import Session
 
-from app.api.deps import DbDep, SessionDep
+from app.api.deps import DbDep, SessionDep, TraderDep
 from app.models.schemas import PredictionCreate, PredictionResolveRequest
 from app.db.repositories import repo
 from app.db.models import PredictionsHistory
+from app.services.broker import get_broker_feed
 
 router = APIRouter(prefix="/api", tags=["predictions"])
 
@@ -28,7 +30,7 @@ def get_pending_predictions(db: Session = DbDep, _=SessionDep) -> list[dict]:
 def create_prediction(
     pred: PredictionCreate,
     db: Session = DbDep,
-    _=SessionDep,
+    _=TraderDep,
 ) -> dict:
     pred_id = repo.predictions.add(db, pred.model_dump())
     return {"id": pred_id, "status": "created"}
@@ -167,14 +169,81 @@ def resolve_prediction(
     prediction_id: int,
     req: PredictionResolveRequest,
     db: Session = DbDep,
-    _=SessionDep,
+    _=TraderDep,
 ) -> dict:
     pred = db.query(PredictionsHistory).filter(PredictionsHistory.id == prediction_id).first()
     if not pred:
         raise HTTPException(status_code=404, detail="Prediction not found")
 
-    exit_price = req.exit_price or (pred.target_price if req.actual_outcome == "TARGET_HIT" else pred.stop_loss)
-    
+    # Reject if already resolved by the background resolver worker.
+    if pred.status != "PENDING":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Prediction {prediction_id} already resolved ({pred.status})",
+        )
+
+    exit_price = req.exit_price
+
+    # Cross-check exit_price against live market data via the broker feed.
+    # The broker's actual fill record is not yet available (place_order is unimplemented),
+    # so AngelOne live LTP is the only trustworthy signal. A discrepancy larger than the
+    # stop-distance-scaled tolerance means the reported exit_price is not a real market quote
+    # and must be rejected rather than silently recorded.
+    try:
+        feed = get_broker_feed()
+        if not feed.is_authorized():
+            raise HTTPException(
+                status_code=503,
+                detail="Cannot verify exit price: broker feed not authorized",
+            )
+        quotes = feed.get_live_quotes([pred.symbol])
+        live_quote = quotes.get(pred.symbol) if quotes else None
+        if not live_quote:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Cannot verify exit price: no live quote for {pred.symbol}",
+            )
+        live_price = live_quote.get("price", 0.0)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("Broker feed cross-check failed for %s: %s", pred.symbol, exc)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Cannot verify exit price: broker feed error ({exc})",
+        )
+
+    entry = float(pred.entry_price or 0.0)
+    stop = float(pred.stop_loss or 0.0)
+    # Tolerance scales with the stop distance: a wide stop tolerates more quote lag; a
+    # tight stop tolerates less. Never less than one tick, never more than 20% of entry.
+    stop_distance = abs(entry - stop) if entry > 0 and stop > 0 else 0.0
+    tolerance_pct = max(0.1, min(20.0, (stop_distance / entry) * 100.0 if entry > 0 else 0.1))
+    if entry <= 0 or abs(live_price - exit_price) / entry > tolerance_pct / 100.0:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"exit_price {exit_price} does not match live quote {live_price} "
+                f"for {pred.symbol} (tolerance {tolerance_pct:.2f}%)"
+            ),
+        )
+
+    # Compute resolution outcome using pessimistic rule (stop-loss wins)
+    if pred.prediction_type == "BULLISH":
+        if exit_price >= pred.target_price:
+            outcome = "TARGET_HIT"
+        elif exit_price <= pred.stop_loss:
+            outcome = "STOP_HIT"
+        else:
+            outcome = "MANUAL_EXIT"
+    else:  # BEARISH/SELL
+        if exit_price <= pred.target_price:
+            outcome = "TARGET_HIT"
+        elif exit_price >= pred.stop_loss:
+            outcome = "STOP_HIT"
+        else:
+            outcome = "MANUAL_EXIT"
+
     # Calculate PnL percentage
     if pred.entry_price and pred.entry_price > 0:
         if pred.prediction_type == "BULLISH":
@@ -185,8 +254,10 @@ def resolve_prediction(
         pnl_pct = 0.0
 
     pred.status = "RESOLVED"
-    pred.actual_outcome = req.actual_outcome
-    pred.pnl_pct = round(pnl_pct, 2)
+    pred.actual_outcome = outcome
+    pred.exit_price = exit_price
+    pred.exit_price_verified = live_price
+    pred.resolution_reason = req.manual_override_reason
     pred.resolved_at = datetime.now(timezone.utc).isoformat()
 
     db.commit()
@@ -196,6 +267,8 @@ def resolve_prediction(
         "id": pred.id,
         "status": pred.status,
         "actual_outcome": pred.actual_outcome,
-        "pnl_pct": pred.pnl_pct,
+        "exit_price": pred.exit_price,
+        "verified_live_price": live_price,
+        "pnl_pct": round(pnl_pct, 2),
         "resolved_at": pred.resolved_at,
     }

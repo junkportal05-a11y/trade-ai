@@ -200,7 +200,9 @@ class SignalRepository:
 
 class JournalRepository:
     @staticmethod
-    def add(db: Session, entry: dict[str, Any]) -> int:
+    def add(db: Session, entry: dict[str, Any], user_id: str | None = None) -> int:
+        if not user_id:
+            raise ValueError("user_id is required for Journal operations")
         new_entry = TradeJournal(
             symbol=entry["symbol"].upper(),
             direction=entry["direction"].upper(),
@@ -212,6 +214,7 @@ class JournalRepository:
             emotion=entry.get("emotion", "Calm"),
             status=entry.get("status", "OPEN"),
             pnl=float(entry["pnl"]) if entry.get("pnl") is not None else None,
+            user_id=user_id,
         )
         db.add(new_entry)
         db.commit()
@@ -219,18 +222,25 @@ class JournalRepository:
         return new_entry.id
 
     @staticmethod
-    def get_all(db: Session) -> list[dict]:
-        rows = db.query(TradeJournal).order_by(desc(TradeJournal.entry_date)).all()
+    def get_all(db: Session, user_id: str | None = None) -> list[dict]:
+        if not user_id:
+            raise ValueError("user_id is required for Journal operations")
+        query = db.query(TradeJournal).filter(TradeJournal.user_id == user_id)
+        rows = query.order_by(desc(TradeJournal.entry_date)).all()
         return [r.to_dict() for r in rows]
 
     @staticmethod
-    def delete(db: Session, entry_id: int) -> bool:
-        row = db.query(TradeJournal).filter(TradeJournal.id == entry_id).first()
+    def delete(db: Session, entry_id: int, user_id: str | None = None) -> bool:
+        if not user_id:
+            raise ValueError("user_id is required for Journal operations")
+        query = db.query(TradeJournal).filter(TradeJournal.id == entry_id, TradeJournal.user_id == user_id)
+        row = query.first()
         if row:
             db.delete(row)
             db.commit()
             return True
         return False
+
 
 
 def _sf(v: Any, default: float | None = None) -> float | None:
@@ -381,12 +391,18 @@ class RejectedSignalRepository:
 class BrokerSessionRepository:
     @staticmethod
     def save(db: Session, data: dict[str, Any]) -> None:
+        enc_api = encrypt_value(data["api_key"])
+        enc_pin = encrypt_value(data["pin"])
+        enc_totp = encrypt_value(data["totp_secret"])
+        if not enc_api or not enc_pin or not enc_totp:
+            raise ValueError("Failed to encrypt broker credentials")
+
         row = db.query(AngelOneSession).first()
         if row:
             row.client_code = data["client_code"]
-            row.api_key_encrypted = encrypt_value(data["api_key"]) or ""
-            row.pin_encrypted = encrypt_value(data["pin"]) or ""
-            row.totp_secret_encrypted = encrypt_value(data["totp_secret"]) or ""
+            row.api_key_encrypted = enc_api
+            row.pin_encrypted = enc_pin
+            row.totp_secret_encrypted = enc_totp
             row.session_token = data.get("session_token")
             row.refresh_token = data.get("refresh_token")
             row.feed_token = data.get("feed_token")
@@ -394,9 +410,9 @@ class BrokerSessionRepository:
         else:
             db.add(AngelOneSession(
                 client_code=data["client_code"],
-                api_key_encrypted=encrypt_value(data["api_key"]) or "",
-                pin_encrypted=encrypt_value(data["pin"]) or "",
-                totp_secret_encrypted=encrypt_value(data["totp_secret"]) or "",
+                api_key_encrypted=enc_api,
+                pin_encrypted=enc_pin,
+                totp_secret_encrypted=enc_totp,
                 session_token=data.get("session_token"),
                 refresh_token=data.get("refresh_token"),
                 feed_token=data.get("feed_token"),

@@ -26,7 +26,9 @@ def _encrypt_field(value: str | None) -> str | None:
     if value is None:
         return None
     enc = encrypt_value(value)
-    return enc if enc is not None else value
+    if enc is None:
+        raise ValueError("Encryption failed: Fernet secret key is not initialized or invalid")
+    return enc
 
 
 def _decrypt_field(value: str | None) -> str | None:
@@ -34,8 +36,9 @@ def _decrypt_field(value: str | None) -> str | None:
     if value is None:
         return None
     dec = decrypt_value(value)
-    # If decryption fails (e.g. legacy plaintext or old key), return value as-is for backward compatibility
-    return dec if dec is not None else value
+    if dec is None:
+        raise ValueError("Decryption failed: Ciphertext is corrupt or encrypted with an invalid key")
+    return dec
 
 try:
     from dotenv import load_dotenv

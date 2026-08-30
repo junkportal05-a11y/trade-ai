@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
 
-from app.api.deps import SessionDep, OptionalSessionDep
+from app.api.deps import SessionDep, OptionalSessionDep, TraderDep, AdminClearanceDep
 import db
 import trading_agent
 
@@ -26,21 +26,21 @@ def _now_ist() -> datetime:
 
 
 @router.post("/start")
-async def bot_start(request: Request, _=SessionDep) -> Dict[str, Any]:
+async def bot_start(request: Request, _=TraderDep) -> Dict[str, Any]:
     """Set bot state to RUNNING."""
     db.set_bot_state("RUNNING")
     return {"status": "ok", "state": db.get_bot_state()}
 
 
 @router.post("/pause")
-async def bot_pause(request: Request, _=SessionDep) -> Dict[str, Any]:
+async def bot_pause(request: Request, _=TraderDep) -> Dict[str, Any]:
     """Set bot state to PAUSED."""
     db.set_bot_state("PAUSED")
     return {"status": "ok", "state": db.get_bot_state()}
 
 
 @router.post("/stop")
-async def bot_stop(request: Request, _=SessionDep) -> Dict[str, Any]:
+async def bot_stop(request: Request, _=AdminClearanceDep) -> Dict[str, Any]:
     """Set bot state to STOPPED and square off all open positions."""
     db.set_bot_state("STOPPED")
     try:
@@ -51,7 +51,7 @@ async def bot_stop(request: Request, _=SessionDep) -> Dict[str, Any]:
 
 
 @router.get("/status")
-async def bot_status(request: Request, _=OptionalSessionDep) -> Dict[str, Any]:
+async def bot_status(request: Request, _=TraderDep) -> Dict[str, Any]:
     """Return current state, today's P&L, last signal, and open positions."""
     state = db.get_bot_state()
     today = _now_ist().strftime("%Y-%m-%d")

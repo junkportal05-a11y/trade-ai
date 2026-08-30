@@ -7,7 +7,7 @@ from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import require_session, optional_session, get_token_from_request, decode_access_token
+from app.core.security import require_session, optional_session, require_admin, require_clearance, get_token_from_request, decode_access_token
 from app.core.config import settings
 from app.db.repositories import repo
 
@@ -19,6 +19,12 @@ DbDep = Depends(get_db)
 # ── Auth dependency ─────────────────────────────────────────────────────────
 SessionDep = Depends(require_session)
 OptionalSessionDep = Depends(optional_session)
+AdminDep = Depends(require_admin)
+TraderDep = Depends(require_clearance("LEVEL_2_TRADER"))
+AdminClearanceDep = Depends(require_clearance("LEVEL_3_ADMIN"))
+
+
+from app.core.limiter import get_real_client_ip
 
 
 # ── Rate limit key extractor ────────────────────────────────────────────────
@@ -26,7 +32,7 @@ def get_user_or_ip(request: Request) -> str:
     token = request.headers.get("x-session-token")
     if token:
         return f"user:{token}"
-    return str(request.client.host) if request.client else "unknown"
+    return get_real_client_ip(request)
 
 
 # ── Context builder for chat ─────────────────────────────────────────────────

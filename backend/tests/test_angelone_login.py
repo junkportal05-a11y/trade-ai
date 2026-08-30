@@ -7,7 +7,7 @@ from app.core.security import require_session
 
 @pytest.fixture
 def override_require_session():
-    app.dependency_overrides[require_session] = lambda: {"user_id": 1, "username": "test_user"}
+    app.dependency_overrides[require_session] = lambda: {"username": "test_user", "role": "Trader", "clearance": "LEVEL_2_TRADER"}
     yield
     app.dependency_overrides.clear()
 

@@ -3,6 +3,9 @@ import json
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import List
+import logging
+
+logger = logging.getLogger(__name__)
 import db
 from app.core.logging import logger
 
@@ -94,13 +97,26 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+def _require_ws_auth(websocket: WebSocket) -> dict | None:
+    token = websocket.query_params.get("token") or websocket.cookies.get("apt_token")
+    if not token:
+        auth = websocket.headers.get("authorization")
+        if auth and auth.lower().startswith("bearer "):
+            token = auth[7:]
+    if not token:
+        return None
+    from app.core.security import decode_access_token
+    return decode_access_token(token)
+
 @router.websocket("/bot")
 async def websocket_bot_endpoint(websocket: WebSocket):
+    session = _require_ws_auth(websocket)
+    if not session:
+        await websocket.close(code=4001, reason="Authentication required")
+        return
     await manager.connect(websocket)
     try:
         while True:
-            # We don't expect messages from the client in this flow
-            # but we need to receive to detect client disconnects
             data = await websocket.receive_text()
             if data == "ping":
                 await websocket.send_text("pong")
@@ -109,7 +125,11 @@ async def websocket_bot_endpoint(websocket: WebSocket):
 
 @router.websocket("/prices")
 async def websocket_prices_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for live price ticks - accepts optional token query param"""
+    """WebSocket endpoint for live price ticks - requires auth token query param."""
+    session = _require_ws_auth(websocket)
+    if not session:
+        await websocket.close(code=4001, reason="Authentication required")
+        return
     await websocket.accept()
     subscribed_symbols: List[str] = []
 

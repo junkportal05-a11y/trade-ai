@@ -453,6 +453,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
   const [capital, setCapital]     = useState(cash ? String(cash) : '');
   const [allocPlan, setAllocPlan] = useState(null);
   const [allocLoading, setAllocLoading] = useState(false);
+  const [allocError, setAllocError] = useState(null);
   const [allocElapsed, setAllocElapsed] = useState(0);
   const allocTimerRef = useRef(null);
 
@@ -487,9 +488,11 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
       if (!res.ok) throw new Error(`Allocate HTTP ${res.status}`);
       const data = await res.json();
       setAllocPlan(data);
-    } catch {
+      setAllocError(null);
+    } catch (e) {
       // Allocation failure is non-fatal — signals still show
       setAllocPlan(null);
+      setAllocError(e.message || 'Allocation endpoint unavailable');
     } finally {
       setAllocLoading(false);
     }
@@ -676,10 +679,10 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
           borderRadius: 5, overflow: 'hidden',
           border: `1px solid ${T.borderHi}`, flex: '1 1 120px', minWidth: 100, maxWidth: 220,
         }}>
-          <span style={{ padding: '0 8px', fontSize: 13, color: T.textMid, ...mono }}>₹</span>
+          <span style={{ padding: '0 8px', fontSize: 13, color: T.textDim, ...mono }}>₹</span>
           <input
             value={capital}
-            onChange={e => { setCapital(e.target.value); setAllocPlan(null); }}
+            onChange={e => { setCapital(e.target.value); setAllocPlan(null); setAllocError(null); }}
             onKeyDown={e => e.key === 'Enter' && handleCapitalSubmit()}
             placeholder="Custom"
             style={{
@@ -694,12 +697,12 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
             </span>
           )}
         </div>
-        <button onClick={handleCapitalSubmit} disabled={capitalNum < 500 || allocLoading} style={{
+        <button onClick={handleCapitalSubmit} disabled={capitalNum < 500 || allocLoading || !!allocError} style={{
           padding: '5px 12px', borderRadius: 5, border: 'none',
-          background: (capitalNum < 500 || allocLoading) ? T.border : T.accent,
-          color: '#fff', fontSize: 9, fontWeight: 700, cursor: (capitalNum < 500 || allocLoading) ? 'not-allowed' : 'pointer',
+          background: (capitalNum < 500 || allocLoading || !!allocError) ? T.border : T.accent,
+          color: '#fff', fontSize: 9, fontWeight: 700, cursor: (capitalNum < 500 || allocLoading || !!allocError) ? 'not-allowed' : 'pointer',
           ...mono, transition: 'all 0.2s', whiteSpace: 'nowrap',
-          opacity: (capitalNum < 500 || allocLoading) ? 0.5 : 1,
+          opacity: (capitalNum < 500 || allocLoading || !!allocError) ? 0.5 : 1,
         }}>
           {allocLoading ? '⟳ ALLOCATING...' : '📡 ALLOCATE'}
         </button>

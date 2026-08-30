@@ -90,6 +90,7 @@ class TradeJournal(Base):
     __tablename__ = "trade_journal"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(100), nullable=True, index=True)
     symbol = Column(String(50), nullable=False)
     direction = Column(String(20), nullable=False)
     entry_price = Column(Float, nullable=False)
@@ -104,6 +105,7 @@ class TradeJournal(Base):
     def to_dict(self) -> dict:
         return {
             "id": self.id,
+            "user_id": self.user_id,
             "symbol": self.symbol,
             "direction": self.direction,
             "entry_price": self.entry_price,

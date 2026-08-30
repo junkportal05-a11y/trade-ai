@@ -77,6 +77,16 @@ def run_migrations(engine: Engine) -> None:
     logger.info("Database tables created/verified.")
 
     # ── Migration: add missing columns ──────────────────────────────────
+    _add_column_safe(engine, "trade_journal", "user_id", "TEXT")
+
+    # ── Migration: assign pre-existing journal rows with NULL user_id to 'legacy' sentinel ──
+    # Application-layer access treats user_id as required; pre-existing rows that lack one
+    # are orphaned and would otherwise be invisible to every user. Assigning them to the
+    # sentinel 'legacy' preserves the data and makes it discoverable (query with user_id='legacy').
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE trade_journal SET user_id = 'legacy' WHERE user_id IS NULL"))
+        logger.info("Assigned legacy trade_journal rows (NULL user_id) to 'legacy' sentinel user")
+
     _add_column_safe(engine, "signals_history", "rr_ratio", "REAL")
     _add_column_safe(engine, "signals_history", "atr", "REAL")
 

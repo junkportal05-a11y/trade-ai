@@ -73,12 +73,32 @@ class Settings(BaseSettings):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         import logging
+        is_prod = self.environment.lower() in ("production", "prod", "staging")
+        missing = []
+
         if not os.getenv("JWT_SECRET"):
-            logging.warning("JWT_SECRET using generated fallback — set JWT_SECRET env var for production")
+            if is_prod:
+                missing.append("JWT_SECRET")
+            else:
+                logging.warning("JWT_SECRET using generated fallback — set JWT_SECRET env var for production")
+
         if not (os.getenv("FERNET_KEYS") or os.getenv("FERNET_KEY")):
-            logging.warning("FERNET_KEYS using generated fallback — set FERNET_KEYS env var for production")
+            if is_prod:
+                missing.append("FERNET_KEYS")
+            else:
+                logging.warning("FERNET_KEYS using generated fallback — set FERNET_KEYS env var for production")
+
         if not os.getenv("ADMIN_KEY"):
-            logging.warning("ADMIN_KEY using generated fallback — set ADMIN_KEY env var for production")
+            if is_prod:
+                missing.append("ADMIN_KEY")
+            else:
+                logging.warning("ADMIN_KEY using generated fallback — set ADMIN_KEY env var for production")
+
+        if missing:
+            raise ValueError(
+                f"CRITICAL SECURITY FAILURE: Missing required environment variable(s) in {self.environment} mode: "
+                f"{', '.join(missing)}. Production deployments require explicit JWT_SECRET, FERNET_KEYS, and ADMIN_KEY."
+            )
     session_ttl: int = Field(default=8 * 3600, alias="SESSION_TTL")  # 8 hours
     algorithm: str = "HS256"
 

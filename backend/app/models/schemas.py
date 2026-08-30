@@ -188,8 +188,8 @@ class PredictionCreate(BaseModel):
 
 
 class PredictionResolveRequest(BaseModel):
-    actual_outcome: str = Field(..., pattern=r"^(TARGET_HIT|STOP_HIT|EXPIRED|MANUAL_EXIT)$")
-    exit_price: float | None = Field(default=None, gt=0)
+    exit_price: float = Field(..., gt=0)
+    manual_override_reason: str = Field(..., min_length=1, max_length=500)
     notes: str | None = Field(default=None, max_length=500)
 
 

@@ -37,14 +37,15 @@ RATE_LIMIT_AUTH = os.getenv("RATE_LIMIT_AUTH", "5/minute")
 RATE_LIMIT_BROKER = os.getenv("RATE_LIMIT_BROKER", "3/minute")
 RATE_LIMIT_DEFAULT = os.getenv("RATE_LIMIT_DEFAULT", "60/minute")
 
-from app.core.limiter import limiter
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+from app.core.limiter import limiter, get_real_client_ip
 
-# Custom key function to use token if present, otherwise IP address
+# Custom key function to use token if present, otherwise real client IP address
 def custom_key_func(request: Request) -> str:
     token = get_token_from_request(request)
     if token:
         return f"user:{token}"
-    return get_remote_address(request)
+    return get_real_client_ip(request)
 
 # Override default limit with specific auth limits where needed
 # These will be applied in route decorators
@@ -62,29 +63,32 @@ async def lifespan(app: FastAPI):
         if backend_dir not in sys.path:
             sys.path.insert(0, backend_dir)
 
+        import trading_agent
         from trading_agent import trading_agent_loop, prediction_resolver_worker
         import governance_worker
 
         if hasattr(trading_agent, "prediction_resolver_worker"):
-            asyncio.create_task(prediction_resolver_worker())
+            app.state.resolver_task = asyncio.create_task(prediction_resolver_worker())
 
         # Start the loop as a background asyncio task
         app.state.agent_task = asyncio.create_task(trading_agent_loop())
         logger.info("trading_agent_loop task created")
 
         if hasattr(governance_worker, "governance_loop"):
-            asyncio.create_task(governance_worker.governance_loop())
+            app.state.governance_task = asyncio.create_task(governance_worker.governance_loop())
     except Exception as exc:
         logger.warning(f"Background worker startup skipped: {exc}")
 
     yield
     # Shutdown — cancel background tasks on app close
-    if hasattr(app.state, "agent_task"):
-        try:
-            app.state.agent_task.cancel()
-            await app.state.agent_task
-        except asyncio.CancelledError:
-            pass
+    for task_attr in ("agent_task", "resolver_task", "governance_task"):
+        if hasattr(app.state, task_attr):
+            try:
+                task = getattr(app.state, task_attr)
+                task.cancel()
+                await task
+            except asyncio.CancelledError:
+                pass
 
 app = FastAPI(
     title=settings.app_name,
@@ -92,6 +96,7 @@ app = FastAPI(
     debug=settings.debug,
     lifespan=lifespan,
 )
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

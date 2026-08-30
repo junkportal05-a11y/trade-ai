@@ -9,7 +9,7 @@ from typing import Any
 
 import bcrypt
 from cryptography.fernet import Fernet, MultiFernet
-from fastapi import HTTPException, Request
+from fastapi import Header, HTTPException, Request
 from jose import JWTError, jwt
 
 from app.core.config import settings
@@ -99,8 +99,8 @@ class UserRegistry:
     def _load_from_env(self) -> None:
         raw_admin = os.getenv("PASS_ADMIN", os.getenv("APP_PASSWORD", "")).strip()
         if not raw_admin:
-            raw_admin = "ApexSecurePass2026!"
-            logger.info("PASS_ADMIN not set in env. Using default master password.")
+            raw_admin = secrets.token_urlsafe(32)
+            logger.warning("PASS_ADMIN not set in env. Generated random ephemeral master password for runtime safety.")
 
         admin_hash = (
             raw_admin
@@ -233,6 +233,24 @@ async def optional_session(
     }
 
 
-def require_admin(key: str | None = None) -> None:
-    if not key or not secrets.compare_digest(key, settings.admin_key):
+# ── Clearance enforcement ─────────────────────────────────────────────────────
+LEVELS = ["LEVEL_1_GUEST", "LEVEL_2_TRADER", "LEVEL_3_ADMIN", "LEVEL_4_ROOT"]
+
+def require_clearance(min_level: str):
+    """Dependency that requires minimum clearance level."""
+    def checker(session: dict = Depends(require_session)):
+        user_level = session.get("clearance", "LEVEL_1_GUEST")
+        if LEVELS.index(user_level) < LEVELS.index(min_level):
+            raise HTTPException(status_code=403, detail=f"Requires {min_level} clearance")
+        return session
+    return checker
+
+
+def require_admin(
+    request: Request,
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
+) -> str:
+    provided_key = x_admin_key or request.headers.get("X-Admin-Key") or request.headers.get("x-admin-key")
+    if not provided_key or not secrets.compare_digest(provided_key, settings.admin_key):
         raise HTTPException(status_code=403, detail="Admin access required")
+    return provided_key
