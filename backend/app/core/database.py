@@ -14,12 +14,22 @@ from app.core.config import settings
 Base = declarative_base()
 
 # ── Engine configuration ────────────────────────────────────────────────────
-db_url = settings.database_url or ""
+# Force SQLite if DATABASE_URL is missing, empty, or unparseable — prevents
+# uvicorn crash when env var is unset (e.g. Hugging Face Space without secret).
+db_url = (settings.database_url or "").strip()
 
-# Default to SQLite if no valid DATABASE_URL provided
-if not db_url or db_url.startswith("sqlite"):
-    db_uri = db_url if db_url and ":memory:" in db_url else f"sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', settings.db_path))}"
-    if ":memory:" not in db_uri and "/" in db_uri:
+try:
+    from sqlalchemy.engine.url import make_url as _make_url
+    _ = _make_url(db_url)  # validate parseability
+    valid_url = True
+except Exception:
+    valid_url = False
+
+if not db_url or not valid_url:
+    # Default to SQLite; DB_PATH relative to project root
+    db_path = getattr(settings, "db_path", "../trading_platform.db")
+    db_uri = f"sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', db_path))}"
+    if "/" in db_uri.replace("sqlite:///", "") or "\\" in db_uri.replace("sqlite:///", ""):
         os.makedirs(os.path.dirname(db_uri.replace("sqlite:///", "")) or ".", exist_ok=True)
     engine = create_engine(
         db_uri,
