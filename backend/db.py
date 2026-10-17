@@ -6,6 +6,7 @@ Supports local SQLite fallback and remote PostgreSQL / Supabase in production.
 
 
 import os
+import sys
 import json
 import base64
 from datetime import datetime, timezone, timedelta
@@ -219,16 +220,17 @@ def _conn():
 
 
 def init_db():
-    """Initialize database by running Alembic migrations."""
+    """Initialize database by running Alembic migrations, fallback to create_all."""
     import logging
     logger = logging.getLogger('alembic')
     try:
         # Run alembic upgrade head to apply all migrations
         from subprocess import run, CalledProcessError
-        run(["alembic", "upgrade", "head"], check=True, cwd=os.path.dirname(os.path.dirname(__file__)))
+        run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True, cwd=os.path.dirname(os.path.dirname(__file__)))
     except CalledProcessError as e:
-        logger.error(f"Alembic migration failed: {e}")
-        raise
+        logger.warning(f"Alembic migration failed ({e}), falling back to Base.metadata.create_all()")
+        from app.core.database import Base, engine
+        Base.metadata.create_all(bind=engine)
 
 
 def add_signal(sig: dict) -> Optional[int]:

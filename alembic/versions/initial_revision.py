@@ -2,13 +2,19 @@
 
 Revision ID: initial_revision
 Revises:
-Create Date: $(date +"%Y-%m-%d %H:%M:%S.%f") ->
+Create Date: 2026-10-15 00:00:00.000000
 
 """
 
 from alembic import op
-from datetime import datetime
+import sqlalchemy as sa
 from app.core.database import Base
+
+# revision identifiers, used by Alembic.
+revision = 'initial_revision'
+down_revision = None
+branch_labels = None
+depends_on = None
 
 def upgrade():
     # Create all tables defined in Base metadata

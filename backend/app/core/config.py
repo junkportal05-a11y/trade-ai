@@ -131,6 +131,8 @@ class Settings(BaseSettings):
     daily_drawdown_limit: float = -4.0
     max_consecutive_losses: int = 5
     default_capital: float = 100_000.0
+    trading_mode: Literal["paper", "live"] = Field(default="paper", alias="TRADING_MODE")
+    live_trading_armed: bool = Field(default=False, alias="LIVE_TRADING_ARMED")
 
     # ── Rate Limits ──────────────────────────────────────────────────
     rate_limit_login: str = "10/minute"

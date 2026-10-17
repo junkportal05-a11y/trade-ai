@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from typing import Generator
 
 from sqlalchemy import create_engine, event, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 from app.core.config import settings
@@ -18,6 +19,39 @@ Base = declarative_base()
 # uvicorn crash when env var is unset (e.g. Hugging Face Space without secret).
 db_url = (settings.database_url or "").strip()
 
+def _create_sqlite_engine():
+    db_path = getattr(settings, "db_path", "../trading_platform.db")
+    db_uri = f"sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', db_path))}"
+    if "/" in db_uri.replace("sqlite:///", "") or "\\" in db_uri.replace("sqlite:///", ""):
+        os.makedirs(os.path.dirname(db_uri.replace("sqlite:///", "")) or ".", exist_ok=True)
+    eng = create_engine(
+        db_uri,
+        connect_args={"check_same_thread": False},
+        pool_pre_ping=True,
+    )
+
+    @event.listens_for(eng, "connect")
+    def _set_sqlite_pragma(dbapi_conn, _connection_record):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA temp_store=MEMORY")
+        cursor.execute("PRAGMA mmap_size=30000000000")
+        cursor.close()
+    return eng
+
+
+def _create_postgres_engine(url: str):
+    return create_engine(
+        url,
+        connect_args={"sslmode": "require"} if "supabase.com" in url or "sslmode=require" in url else {},
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+        pool_recycle=3600,
+    )
+
+
 try:
     from sqlalchemy.engine.url import make_url as _make_url
     _ = _make_url(db_url)  # validate parseability
@@ -26,35 +60,18 @@ except Exception:
     valid_url = False
 
 if not db_url or not valid_url:
-    # Default to SQLite; DB_PATH relative to project root
-    db_path = getattr(settings, "db_path", "../trading_platform.db")
-    db_uri = f"sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', db_path))}"
-    if "/" in db_uri.replace("sqlite:///", "") or "\\" in db_uri.replace("sqlite:///", ""):
-        os.makedirs(os.path.dirname(db_uri.replace("sqlite:///", "")) or ".", exist_ok=True)
-    engine = create_engine(
-        db_uri,
-        connect_args={"check_same_thread": False},
-        pool_pre_ping=True,
-    )
-
-    @event.listens_for(engine, "connect")
-    def _set_sqlite_pragma(dbapi_conn, _connection_record):
-        cursor = dbapi_conn.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")
-        cursor.execute("PRAGMA synchronous=NORMAL")
-        cursor.execute("PRAGMA temp_store=MEMORY")
-        cursor.execute("PRAGMA mmap_size=30000000000")
-        cursor.close()
-
+    logging.info("[db] No valid DATABASE_URL — using SQLite fallback")
+    engine = _create_sqlite_engine()
 else:
-    engine = create_engine(
-        db_url,
-        connect_args={"sslmode": "require"} if "supabase.com" in db_url or "sslmode=require" in db_url else {},
-        pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
-        pool_recycle=3600,
-    )
+    try:
+        engine = _create_postgres_engine(db_url)
+        # Test connection immediately to catch auth/connectivity failures
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        logging.info("[db] PostgreSQL connection verified")
+    except OperationalError as e:
+        logging.info(f"[db] PostgreSQL connection failed ({e}), falling back to SQLite")
+        engine = _create_sqlite_engine()
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

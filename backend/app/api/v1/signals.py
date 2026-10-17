@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Query, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.security import CsrfDep
 from app.api.deps import DbDep, OptionalSessionDep, SessionDep
 from app.models.schemas import ScanRequest, SignalResponse, SignalsQuery
 from app.core.config import settings
@@ -74,6 +75,7 @@ async def post_scan(
     req: ScanRequest,
     request: Request,
     db: Session = DbDep,
+    csrf=CsrfDep,
     _=SessionDep,
 ) -> dict:
     from app.services.signal_engine import NSE_WATCHLIST, run_scan

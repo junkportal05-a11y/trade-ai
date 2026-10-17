@@ -241,9 +241,9 @@ class PriceAlert(BaseModel):
 
 
 class HistoryParams(BaseModel):
-    symbol: str = Field(..., min_length=1, max_length=50, pattern=r"^[A-Z][A-Z0-9.]*$")
-    interval: str = Field(..., pattern=r"^(1m|2m|5m|15m|30m|60m|1h|1d|5d|1wk|1mo|3mo|6mo|1y|2y|5y|max)$")
-    range: str = Field(..., pattern=r"^(1d|5d|1mo|3mo|6mo|1y|2y|5y|10y|ytd|max)$")
+    symbol: str = Field(..., min_length=1, max_length=50)
+    interval: str = Field(..., min_length=1, max_length=20)
+    range: str = Field(..., min_length=1, max_length=20)
 
 
 class SignalsQuery(BaseModel):

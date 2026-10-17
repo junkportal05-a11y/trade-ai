@@ -1,18 +1,54 @@
 import pytest
 from unittest.mock import patch
 
+from sqlalchemy import create_engine, event
+
 import backend.db as db
 
 
 @pytest.fixture
-def temp_db(tmp_path):
-    """Fixture to create a temporary database for testing."""
-    test_db_path = tmp_path / "test_trading.db"
+def temp_db():
+    """Fixture that patches db.engine with an isolated in-memory SQLite database."""
+    test_engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
 
-    with patch("backend.db.DB_PATH", str(test_db_path)):
-        with patch("backend.db.IS_POSTGRES", False):
-            db.init_db()
-            yield test_db_path
+    @event.listens_for(test_engine, "connect")
+    def _set_row_factory(dbapi_conn, _):
+        dbapi_conn.row_factory = __import__("sqlite3").Row
+
+    # Create the same tables that alembic would create
+    with test_engine.connect() as conn:
+        conn.exec_driver_sql("""
+            CREATE TABLE IF NOT EXISTS signals_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol TEXT, name TEXT, sector TEXT, signal_type TEXT,
+                confidence INTEGER, score REAL, entry_price REAL,
+                target REAL, stop_loss REAL, rr_ratio REAL, atr REAL,
+                scanned_at TEXT, scan_type TEXT, status TEXT DEFAULT 'PENDING',
+                exit_price REAL, exit_at TEXT, pnl_pct REAL
+            )
+        """)
+        conn.exec_driver_sql("""
+            CREATE TABLE IF NOT EXISTS predictions_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol TEXT, sector TEXT
+            )
+        """)
+        conn.exec_driver_sql("""
+            CREATE TABLE IF NOT EXISTS trade_journal (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol TEXT
+            )
+        """)
+        conn.exec_driver_sql("""
+            CREATE TABLE IF NOT EXISTS metrics_cache (
+                key TEXT PRIMARY KEY, value TEXT
+            )
+        """)
+        conn.commit()
+
+    with patch.object(db, "engine", test_engine):
+        yield
+
 
 
 def test_init_db(tmp_path):
@@ -76,27 +112,25 @@ def test_update_signal(temp_db):
         "scan_type": "intraday",
     }
 
-    with patch("backend.db.DB_PATH", str(temp_db)):
-        with patch("backend.db.IS_POSTGRES", False):
-            # Act: Add the signal
-            signal_id = db.add_signal(mock_signal)
-            assert signal_id is not None
+    # Act: Add the signal
+    signal_id = db.add_signal(mock_signal)
+    assert signal_id is not None
 
-            # Act: Update the signal
-            db.update_signal(signal_id, "PROFIT", 110.0, 10.0)
+    # Act: Update the signal
+    db.update_signal(signal_id, "PROFIT", 110.0, 10.0)
 
-            # Assert: Verify the update
-            with db._conn() as c:
-                row = c.execute(
-                    "SELECT * FROM signals_history WHERE id=?", (signal_id,)
-                ).fetchone()
-                assert row is not None
+    # Assert: Verify the update
+    with db._conn() as c:
+        row = c.execute(
+            "SELECT * FROM signals_history WHERE id=?", (signal_id,)
+        ).fetchone()
+        assert row is not None
 
-                # Check updated fields
-                assert row["status"] == "PROFIT"
-                assert row["exit_price"] == 110.0
-                assert row["pnl_pct"] == 10.0
-                assert row["exit_at"] is not None
+        # Check updated fields
+        assert row["status"] == "PROFIT"
+        assert row["exit_price"] == 110.0
+        assert row["pnl_pct"] == 10.0
+        assert row["exit_at"] is not None
 
 
 def test_clear_history(temp_db):
@@ -119,28 +153,26 @@ def test_clear_history(temp_db):
         "scan_type": "intraday",
     }
 
-    with patch("backend.db.DB_PATH", str(temp_db)):
-        with patch("backend.db.IS_POSTGRES", False):
-            # Act: Add a signal
-            signal_id = db.add_signal(mock_signal)
-            assert signal_id is not None
+    # Act: Add a signal
+    signal_id = db.add_signal(mock_signal)
+    assert signal_id is not None
 
-            # Assert: Verify the signal was added
-            with db._conn() as c:
-                row = c.execute(
-                    "SELECT COUNT(*) FROM signals_history"
-                ).fetchone()
-                assert row[0] == 1
+    # Assert: Verify the signal was added
+    with db._conn() as c:
+        row = c.execute(
+            "SELECT COUNT(*) FROM signals_history"
+        ).fetchone()
+        assert row[0] == 1
 
-            # Act: Clear history
-            db.clear_history()
+    # Act: Clear history
+    db.clear_history()
 
-            # Assert: Verify the table is empty
-            with db._conn() as c:
-                row = c.execute(
-                    "SELECT COUNT(*) FROM signals_history"
-                ).fetchone()
-                assert row[0] == 0
+    # Assert: Verify the table is empty
+    with db._conn() as c:
+        row = c.execute(
+            "SELECT COUNT(*) FROM signals_history"
+        ).fetchone()
+        assert row[0] == 0
 
 def test_get_pending_signals(temp_db):
     """Test retrieving pending signals."""
@@ -179,23 +211,21 @@ def test_get_pending_signals(temp_db):
         "scan_type": "intraday",
     }
 
-    with patch("backend.db.DB_PATH", str(temp_db)):
-        with patch("backend.db.IS_POSTGRES", False):
-            # Act: Add two signals
-            signal_id_1 = db.add_signal(mock_signal_1)
-            signal_id_2 = db.add_signal(mock_signal_2)
+    # Act: Add two signals
+    signal_id_1 = db.add_signal(mock_signal_1)
+    signal_id_2 = db.add_signal(mock_signal_2)
 
-            assert signal_id_1 is not None
-            assert signal_id_2 is not None
+    assert signal_id_1 is not None
+    assert signal_id_2 is not None
 
-            # Update the first signal to not be PENDING
-            db.update_signal(signal_id_1, "PROFIT", 1650.0, 3.12)
+    # Update the first signal to not be PENDING
+    db.update_signal(signal_id_1, "PROFIT", 1650.0, 3.12)
 
-            # Act: Get pending signals
-            pending_signals = db.get_pending_signals()
+    # Act: Get pending signals
+    pending_signals = db.get_pending_signals()
 
-            # Assert: Verify only the second signal is returned
-            assert len(pending_signals) == 1
-            assert pending_signals[0]["id"] == signal_id_2
-            assert pending_signals[0]["symbol"] == "ICICIBANK"
-            assert pending_signals[0]["status"] == "PENDING"
+    # Assert: Verify only the second signal is returned
+    assert len(pending_signals) == 1
+    assert pending_signals[0]["id"] == signal_id_2
+    assert pending_signals[0]["symbol"] == "ICICIBANK"
+    assert pending_signals[0]["status"] == "PENDING"

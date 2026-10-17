@@ -43,6 +43,17 @@ app.dependency_overrides[get_db] = override_get_db
 
 from app.core.config import settings
 
+import pytest
+
+@pytest.fixture
+def db_session():
+    session = TestingSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
 def test_basic_endpoints():
     """Simple sanity check that the API server starts."""
     client = TestClient(app)
@@ -57,8 +68,16 @@ def test_signal_lifecycle(db_session):
     This verifies that the persistence layer works for the resolver.
     """
     # Insert a dummy record directly via the ORM
-    from app.models import Prediction  # Assume this model exists
-    pred = Prediction(symbol="TEST", score=50, status="PENDING")
+    from app.db.models import PredictionsHistory as Prediction
+    pred = Prediction(
+        symbol="TEST",
+        prediction_type="BUY",
+        entry_price=100.0,
+        target_price=110.0,
+        stop_loss=90.0,
+        confidence_score=50,
+        status="PENDING",
+    )
     db_session.add(pred)
     db_session.commit()
     db_session.refresh(pred)

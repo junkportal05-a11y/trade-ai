@@ -17,8 +17,8 @@ __pycache__/
 .env
 backend/.env
 backend/.env.*
-*.db
-backend/trading_platform.db
+*.db*
+backend/trading_platform.db*
 backend/logs/
 backend/node_modules/
 backend/upstox_instruments.json
@@ -73,6 +73,13 @@ codebase.md
 CLAUDE_*_PROMPT.md
 scratchpad/
 scratch/*.json
+*_out*.txt
+output.txt
+Csrf1.txt
+test_results.txt
+pytest_detail.txt
+.reticle/
+claude-obsidian/
 
 # ── Agent / System ──────────────────────────────────────────────
 .agents/

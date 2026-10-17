@@ -123,6 +123,7 @@ def run_migrations(engine: Engine) -> None:
         ("fill_price", "REAL"),
         ("slippage_pct", "REAL"),
         ("broker_failure_reason", "TEXT"),
+        ("order_mode", "TEXT"),
     ]
     for col_name, col_type in pred_columns:
         _add_column_safe(engine, "predictions_history", col_name, col_type)

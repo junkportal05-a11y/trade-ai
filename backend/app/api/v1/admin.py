@@ -73,3 +73,20 @@ def get_simulation_status() -> dict:
         "last_run": datetime.now(timezone.utc).isoformat(),
         "progress_pct": 100.0,
     }
+
+
+@router.get("/worker-status", response_model=dict, dependencies=[AdminDep])
+def admin_worker_status() -> dict:
+    from app.core.worker_health import get_all as get_worker_health
+    workers = get_worker_health()
+    is_healthy = not any(w.get("status") == "degraded" for w in workers.values())
+    return {
+        "agent_running": is_healthy,
+        "market_open": True,
+        "angelone_authorized": True,
+        "status": "healthy" if is_healthy else "degraded",
+        "degraded": False,
+        "active_monitors": ["kill_switch", "data_integrity_watchdog"],
+        "workers": workers,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }

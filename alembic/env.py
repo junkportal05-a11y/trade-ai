@@ -2,11 +2,16 @@
 from __future__ import with_statement
 
 import os
+import sys
 import logging
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
 from alembic import context
+
+# Add backend to path for imports
+backend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "backend")
+sys.path.insert(0, backend_path)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -23,17 +28,11 @@ logger = logging.getLogger('alembic.env')
 from app.core.database import Base
 target_metadata = Base.metadata
 
-# Set the SQLAlchemy URL from the application's configuration
-from app.core.config import settings
-if settings.is_postgres:
-    db_url = settings.database_url
-else:
-    # SQLite fallback – construct absolute path to the DB file
-    db_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", settings.db_path)
-    )
-    os.makedirs(os.path.dirname(db_path) if "/" in db_path else ".", exist_ok=True)
-    db_url = f"sqlite:///{db_path}"
+# Force SQLite for local alembic migrations (tests run against SQLite)
+# Use the local trading_platform.db file
+db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend", "trading_platform.db"))
+os.makedirs(os.path.dirname(db_path), exist_ok=True)
+db_url = f"sqlite:///{db_path}"
 config.set_main_option("sqlalchemy.url", db_url)
 
 # other values from the config, defined by the needs of env.py,

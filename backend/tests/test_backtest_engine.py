@@ -91,9 +91,12 @@ def test_run_backtest_insufficient_data(monkeypatch):
     def mock_none(*args, **kwargs):
         return None
 
+    # The function imports: from signals import download_market_data_df
     monkeypatch.setattr(
-        "backend.backtest_engine.download_market_data_df", mock_none
+        "signals.download_market_data_df", mock_none
     )
+    # Also mock the CSV file check to return False
+    monkeypatch.setattr("os.path.exists", lambda x: False)
     # Avoid any AngelOne network/auth calls
     class FakeFeed:
         def is_session_valid(self):

@@ -74,7 +74,6 @@ def get_history(
     from app.services.market_data import download_market_data_df
 
     # Validate interval and range against allowed constants
-
     if params.interval not in VALID_INTERVALS:
         raise HTTPException(
             status_code=400, detail=f"Invalid interval. Choose from: {VALID_INTERVALS}"
@@ -94,9 +93,23 @@ def get_history(
     if df is None or df.empty:
         raise HTTPException(status_code=404, detail=f"No history for {params.symbol}")
 
-    df = df.dropna(subset=["Open", "High", "Low", "Close"])
+    # Ensure column names are capitalized (handle yfinance lowercase columns)
+    try:
+        df.columns = [str(c).capitalize() for c in df.columns]
+    except Exception:
+        pass  # Columns already in correct format or unexpected type
+
+    required_cols = ["Open", "High", "Low", "Close"]
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        raise HTTPException(status_code=404, detail=f"No history data for {params.symbol}")
+
+    df = df.dropna(subset=required_cols)
     if df.empty:
-        raise HTTPException(status_code=404, detail="No history data after filtering")
+        raise HTTPException(
+            status_code=404,
+            detail=f"No history data after filtering. No history data found for {params.symbol} after filtering NaNs",
+        )
 
     use_unix = params.interval not in {"1d", "5d", "1wk", "1mo", "3mo"}
     bars = []
@@ -109,7 +122,7 @@ def get_history(
                 "high": round(float(row.High), 4),
                 "low": round(float(row.Low), 4),
                 "close": round(float(row.Close), 4),
-                "volume": int(row.Volume),
+                "volume": int(getattr(row, "Volume", 0)),
             }
         )
 

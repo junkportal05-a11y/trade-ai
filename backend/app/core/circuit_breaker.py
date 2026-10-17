@@ -5,7 +5,7 @@ from functools import wraps
 
 logger = logging.getLogger(__name__)
 
-# Global degraded flag visible to external monitors (e.g., n8n)
+# Global degraded flag visible to external monitors
 DEGRADED = False
 
 class CircuitBreaker:

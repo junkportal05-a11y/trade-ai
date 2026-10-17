@@ -251,12 +251,25 @@ def _sf(v: Any, default: float | None = None) -> float | None:
     except Exception:
         return default
 
+def _parse_datetime(v: Any) -> datetime | None:
+    if v is None:
+        return None
+    if isinstance(v, datetime):
+        return v
+    if isinstance(v, str):
+        try:
+            return datetime.fromisoformat(v.replace("Z", "+00:00"))
+        except Exception:
+            return None
+    return None
+
+
 class PredictionRepository:
     @staticmethod
     def add(db: Session, pred: dict[str, Any]) -> int:
         new_pred = PredictionsHistory(
             symbol=pred["symbol"].upper(),
-            prediction_date=pred.get("prediction_date", _now_ist().isoformat()),
+            prediction_date=_parse_datetime(pred.get("prediction_date")) or _now_ist(),
             prediction_type=pred["prediction_type"].upper(),
             entry_price=_sf(pred.get("entry_price"), 0.0),
             target_price=_sf(pred.get("target_price"), 0.0),
@@ -286,8 +299,8 @@ class PredictionRepository:
             rs_score=_sf(pred.get("rs_score"), 0.0),
             trade_quality_score=_sf(pred.get("trade_quality_score"), 0.0),
             correlation_score=_sf(pred.get("correlation_score"), 0.0),
-            signal_time=pred.get("signal_time"),
-            order_time=pred.get("order_time"),
+            signal_time=_parse_datetime(pred.get("signal_time")),
+            order_time=_parse_datetime(pred.get("order_time")),
         )
         db.add(new_pred)
         db.commit()

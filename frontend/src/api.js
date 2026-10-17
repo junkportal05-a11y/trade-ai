@@ -7,19 +7,23 @@ if (base.endsWith("/")) {
 }
 export const API_BASE_URL = base;
 
+const isDev = typeof window !== "undefined" && window.location.port === "5173";
 export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 
-  (base ? base.replace(/^http:/i, 'wss:').replace(/^https:/i, 'wss:') : 'wss://apextrade-core-trade-ai-backend.hf.space');
+  (base ? base.replace(/^http:/i, 'wss:').replace(/^https:/i, 'wss:') : (isDev ? 'ws://localhost:8000/ws' : ''));
 
 // Authenticated fetch — always sends session cookie and auth token header
 export const apiFetch = async (path, options = {}) => {
   const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
   const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
   
+  const isMutating = ["POST", "PUT", "DELETE", "PATCH"].includes((options.method || "GET").toUpperCase());
+  
   const res = await fetch(url, {
     credentials: "include",
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(isMutating ? { "X-Requested-With": "XMLHttpRequest" } : {}),
       ...(token ? { "X-Session-Token": token, "Authorization": `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },

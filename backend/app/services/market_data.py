@@ -8,6 +8,11 @@ backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-from signals import download_market_data_df
+
+def download_market_data_df(symbol: str, period: str = "5d", interval: str = "5m"):
+    """Fetch OHLCV data — AngelOne with yfinance fallback."""
+    from signals import download_market_data_df as _download
+    return _download(symbol, period, interval)
+
 
 __all__ = ["download_market_data_df"]

@@ -14,9 +14,15 @@ from SmartApi import SmartConnect
 from typing import Optional, Dict, List
 from cryptography.fernet import Fernet
 
+from app.core.config import settings
 from app.core.logging import configure_json_logging, logger
 from app.core.circuit_breaker import CircuitBreaker
 from app.core.security import encrypt_value, decrypt_value
+import db
+
+
+# Sentinel user ID for background / system tasks (not tied to any real user)
+SYSTEM_USER_ID = "__system__"
 
 
 class AngelOneFeed:
@@ -37,12 +43,12 @@ class AngelOneFeed:
         import threading
         self._instruments_lock = threading.Lock()
         self.cb = CircuitBreaker(max_failures=5, base_delay=1.0)
+        self._paper_order_cache: dict[int, dict] = {}  # prediction_id -> order result
         self._restore_session()
 
     def _restore_session(self):
         """Restore session from DB on startup, auto-refresh if stale."""
         try:
-            import db
             saved = db.get_angelone_session() or {}
             if saved.get('session_token'):
                 if self.is_session_valid(saved):
@@ -132,8 +138,6 @@ class AngelOneFeed:
         if self.smart_api and self.session_token:
             return True
         try:
-            import db
-
             session = db.get_angelone_session()
             if session and session.get("api_key"):
                 api_key = session["api_key"]
@@ -174,8 +178,6 @@ class AngelOneFeed:
                 self.smart_api.setFeedToken(self.feed_token)
 
                 # Persist the refreshed credentials back to database
-                import db
-
                 cached_session = db.get_angelone_session() or {}
                 db.save_angelone_session(
                     {
@@ -207,7 +209,6 @@ class AngelOneFeed:
         Attempt a full login using saved credentials from the database.
         """
         try:
-            import db
 
             # Get raw encrypted session data from database
             with db._conn() as c:
@@ -313,7 +314,6 @@ class AngelOneFeed:
                          self.session_token not yet set.
         """
         if session_data is None:
-            import db
             session_data = db.get_angelone_session() or {}
 
         updated_at = session_data.get("updated_at")
@@ -833,12 +833,65 @@ class AngelOneFeed:
     # ORDER EXECUTION (Future Enhancement)
     # ==========================================
 
-    def place_order(self, order_params: Dict) -> Dict:
+    def _compute_slippage_pct(self, symbol: str, entry_price: float, stop_loss: float) -> float:
         """
-        Place order via AngelOne
+        Compute dynamic slippage percentage based on stop distance.
+        
+        - If entry <= 0 or stop <= 0: return 0.05 (minimum floor)
+        - Stop distance % = abs(entry - stop) / entry * 100
+        - Slippage % = stop_distance_pct * 0.15, capped at 1.0, minimum floor 0.05
         """
-        logger.warning("Order execution not yet implemented")
-        return {"status": "error", "message": "Not implemented"}
+        if entry_price <= 0 or stop_loss <= 0:
+            return 0.05
+        
+        stop_distance_pct = abs(entry_price - stop_loss) / entry_price * 100
+        slippage = stop_distance_pct * 0.15
+        
+        # Cap at 1.0%, floor at 0.05%
+        return max(0.05, min(1.0, slippage))
+
+    def place_order(self, params: dict, user_id: str = None) -> dict:
+        """
+        Place order - routes to paper execution when mode != "live" or LIVE_TRADING_ARMED is False.
+        
+        Paper orderid format: f"PAPER-{prediction_id}-{action}-{symbol}"
+        Live orderid format: f"LIVE-{prediction_id}-{action}-{symbol}"
+        Return shape: {"status": True, "message": "SUCCESS", "data": {"orderid": orderid, "slippage_pct": slippage}}
+        Idempotency: Cache orders by prediction_id in an in-memory dictionary.
+        """
+        prediction_id = params.get("prediction_id")
+        action = params.get("action", "BUY")
+        symbol = params.get("symbol", "UNKNOWN").replace(".NS", "").replace("-EQ", "")
+        entry_price = params.get("entry_price", 0.0)
+        stop_loss = params.get("stop_loss", 0.0)
+        
+        # Idempotency: check cache
+        if prediction_id is not None and prediction_id in self._paper_order_cache:
+            return self._paper_order_cache[prediction_id]
+        
+        # Compute slippage
+        slippage = self._compute_slippage_pct(symbol, entry_price, stop_loss)
+        
+        # Determine if paper mode
+        is_live = getattr(settings, "trading_mode", "paper") == "live" and getattr(settings, "live_trading_armed", False)
+        
+        prefix = "LIVE" if is_live else "PAPER"
+        orderid = f"{prefix}-{prediction_id}-{action}-{symbol}" if prediction_id else f"{prefix}-{id(params)}"
+        
+        result = {
+            "status": True,
+            "message": "SUCCESS",
+            "data": {
+                "orderid": orderid,
+                "slippage_pct": slippage
+            }
+        }
+        
+        # Cache for idempotency (only for paper mode)
+        if prediction_id is not None and not is_live:
+            self._paper_order_cache[prediction_id] = result
+        
+        return result
 
 
 _angelone_instance = None

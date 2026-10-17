@@ -258,7 +258,7 @@ def resolve_prediction(
     pred.exit_price = exit_price
     pred.exit_price_verified = live_price
     pred.resolution_reason = req.manual_override_reason
-    pred.resolved_at = datetime.now(timezone.utc).isoformat()
+    pred.resolved_at = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(pred)
