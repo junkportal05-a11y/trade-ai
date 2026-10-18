@@ -188,11 +188,6 @@ def test_admin_require_admin_rejects_wrong_key():
     assert r.json()["detail"] == "Admin access required"
 
 
-@pytest.mark.xfail(
-    reason="admin.py calls require_admin() without awaiting it, so the coroutine "
-    "never runs and the key is not enforced at the endpoint (app bug).",
-    strict=False,
-)
 def test_admin_health_endpoint_enforces_key():
     # Without a valid admin key the endpoint must not return 200.
     r = client.get("/api/admin/health")

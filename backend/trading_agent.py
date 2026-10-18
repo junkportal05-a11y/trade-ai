@@ -57,59 +57,6 @@ def refresh_angelone_session():
 schedule.every().day.at('08:30').do(refresh_angelone_session)
 
 
-# ─── Extracted scan logic for reuse by loop & /api/agent/trigger-scan ───
-async def run_scan_cycle() -> list[dict]:
-    """Run one scan iteration and return list of signal dicts."""
-    now_utc = datetime.now(timezone.utc)
-    now_ist = now_utc + timedelta(hours=5, minutes=30)
-
-    # Outside market hours → no trades
-    minutes_since_midnight = now_ist.hour * 60 + now_ist.minute
-    start_minutes = 9 * 60 + 15
-    end_minutes = 15 * 60 + 20
-    if minutes_since_midnight < start_minutes or minutes_since_midnight > end_minutes:
-        return []
-
-    # Check bot state
-    state = db.get_bot_state()
-    if state not in ("RUNNING",):
-        return []
-
-    # Run scan
-    results = signals.run_scan(symbols=signals.NSE_WATCHLIST)
-
-    # Apply same TQS / Correlation filters as trading_agent_loop
-    filtered = []
-    open_positions = [p for p in db.get_predictions() if p.get("status") == "PENDING"]
-
-    for sig in results:
-        if sig.get("signal") not in ("BUY", "SELL"):
-            continue
-        if len(open_positions) >= MAX_CONCURRENT_TRADES:
-            break
-
-        # TradeQualityEngine check
-        tqs = TradeQualityEngine.calculate_tqs(
-            confidence_score=sig.get("confidence", 0),
-            is_long=(sig["signal"] == "BUY"),
-            regime=sig.get("market_regime_snapshot", "UNCLEAR"),
-            volatility=sig.get("atr", 0.0),
-            volume_expansion=sig.get("vol_ratio", 1.0),
-        )
-        if tqs["classification"] not in ("INTRADAY_CANDIDATE", "ELITE_CANDIDATE"):
-            continue
-
-        # CorrelationEngine check
-        open_symbols = [p["symbol"] for p in open_positions]
-        correlation_engine = CorrelationEngine()
-        if not correlation_engine.check_trade_allowed(sig["symbol"], open_symbols):
-            continue
-
-        filtered.append(sig)
-
-    return filtered
-
-
 async def trading_agent_loop():
     """
     Autonomous Trading Agent Loop for Phase 3.

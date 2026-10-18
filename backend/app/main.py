@@ -56,6 +56,11 @@ async def lifespan(app: FastAPI):
     # Startup
     init_db()
 
+    # Initialize worker task references to None explicitly
+    app.state.agent_task = None
+    app.state.resolver_task = None
+    app.state.governance_task = None
+
     # Launch background workers as async tasks safely
     try:
         import sys
@@ -77,7 +82,14 @@ async def lifespan(app: FastAPI):
         if hasattr(governance_worker, "governance_loop"):
             app.state.governance_task = asyncio.create_task(governance_worker.governance_loop())
     except Exception as exc:
-        logger.warning(f"Background worker startup skipped: {exc}")
+        # In testing environments, log warning and continue
+        if os.getenv("TESTING") or os.getenv("PYTEST_CURRENT_TEST"):
+            logger.warning(f"Background worker startup skipped in test environment: {exc}")
+        else:
+            # In live/production, fail loud - do NOT silently continue
+            logger.critical(f"Background worker startup failed: {exc}")
+            app.state.worker_startup_failed = str(exc)
+            raise
 
     yield
     # Shutdown — cancel background tasks on app close
@@ -96,7 +108,8 @@ app = FastAPI(
     debug=settings.debug,
     lifespan=lifespan,
 )
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
+trusted_hosts = [h.strip() for h in os.getenv("TRUSTED_HOSTS", "127.0.0.1").split(",") if h.strip()]
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted_hosts)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
