@@ -6,7 +6,7 @@ python-multipart==0.0.9
 google-genai>=0.1.0
 pandas>=2.0.0
 numpy>=1.24.0
-slowapi==0.1.9
+slowapi==0.1.10
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.0
 psycopg2-binary>=2.9.0
