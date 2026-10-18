@@ -30,5 +30,5 @@ cryptography>=42.0.0
 
 pydantic-settings>=2.0.0
 
-SQLAlchemy>=2.0.0
+SQLAlchemy>=2.0.51
 schedule>=1.2.0
