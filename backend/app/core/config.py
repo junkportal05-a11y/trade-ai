@@ -109,7 +109,7 @@ class Settings(BaseSettings):
     angel_totp_secret: str | None = Field(default=None, alias="ANGEL_TOTP_SECRET")
 
     # ── AI ───────────────────────────────────────────────────────────
-    gemini_api_key: str | None = Field(default="AIzaSyAZvgGUycrvWhuH37nSygGXiYWvQstPnNw", alias="GEMINI_API_KEY")
+    gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
     news_api_key: str | None = Field(default=None, alias="NEWS_API_KEY")
 
     # ── CORS ─────────────────────────────────────────────────────────

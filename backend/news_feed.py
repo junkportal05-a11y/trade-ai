@@ -12,7 +12,7 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 try:
     from google import genai as _genai
 
-    _GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyAZvgGUycrvWhuH37nSygGXiYWvQstPnNw")
+    _GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
     if _GEMINI_KEY:
         _genai_client = _genai.Client(api_key=_GEMINI_KEY)
     else:
