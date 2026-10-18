@@ -72,7 +72,7 @@ codebase.md
 *.backup
 CLAUDE_*_PROMPT.md
 scratchpad/
-scratch/*.json
+scratch/
 *_out*.txt
 output.txt
 Csrf1.txt
