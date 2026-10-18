@@ -50,6 +50,23 @@ def custom_key_func(request: Request) -> str:
 # Override default limit with specific auth limits where needed
 # These will be applied in route decorators
 
+def _attach_worker_monitor(app: FastAPI, task: asyncio.Task, name: str):
+    """Attach a done callback to detect unexpected worker termination."""
+    def _on_done(t: asyncio.Task):
+        if t.cancelled():
+            return
+        exc = t.exception()
+        if not hasattr(app.state, "degraded_workers"):
+            app.state.degraded_workers = {}
+        if exc:
+            logger.critical(f"CRITICAL: Background worker '{name}' crashed: {exc}", exc_info=exc)
+            app.state.degraded_workers[name] = str(exc)
+        else:
+            logger.critical(f"CRITICAL: Background worker '{name}' exited unexpectedly with no exception.")
+            app.state.degraded_workers[name] = "exited with no exception"
+    task.add_done_callback(_on_done)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown."""
@@ -61,31 +78,37 @@ async def lifespan(app: FastAPI):
     app.state.resolver_task = None
     app.state.governance_task = None
 
-    # Launch background workers as async tasks safely
-    try:
-        import sys
-        backend_dir = os.path.dirname(os.path.dirname(__file__))
-        if backend_dir not in sys.path:
-            sys.path.insert(0, backend_dir)
+    # Skip background workers if explicitly configured (e.g., in test environment)
+    if settings.skip_background_workers:
+        logger.info("Background workers skipped (SKIP_BACKGROUND_WORKERS=true)")
+    else:
+        # Launch background workers as async tasks safely
+        try:
+            import sys
+            backend_dir = os.path.dirname(os.path.dirname(__file__))
+            if backend_dir not in sys.path:
+                sys.path.insert(0, backend_dir)
 
-        import trading_agent
-        from trading_agent import trading_agent_loop, prediction_resolver_worker
-        import governance_worker
+            import trading_agent
+            from trading_agent import trading_agent_loop, prediction_resolver_worker
+            import governance_worker
 
-        if hasattr(trading_agent, "prediction_resolver_worker"):
-            app.state.resolver_task = asyncio.create_task(prediction_resolver_worker())
+            if hasattr(trading_agent, "prediction_resolver_worker"):
+                resolver_task = asyncio.create_task(prediction_resolver_worker())
+                app.state.resolver_task = resolver_task
+                _attach_worker_monitor(app, resolver_task, "prediction_resolver_worker")
 
-        # Start the loop as a background asyncio task
-        app.state.agent_task = asyncio.create_task(trading_agent_loop())
-        logger.info("trading_agent_loop task created")
+            # Start the loop as a background asyncio task
+            agent_task = asyncio.create_task(trading_agent_loop())
+            app.state.agent_task = agent_task
+            _attach_worker_monitor(app, agent_task, "trading_agent_loop")
+            logger.info("trading_agent_loop task created")
 
-        if hasattr(governance_worker, "governance_loop"):
-            app.state.governance_task = asyncio.create_task(governance_worker.governance_loop())
-    except Exception as exc:
-        # In testing environments, log warning and continue
-        if os.getenv("TESTING") or os.getenv("PYTEST_CURRENT_TEST"):
-            logger.warning(f"Background worker startup skipped in test environment: {exc}")
-        else:
+            if hasattr(governance_worker, "governance_loop"):
+                governance_task = asyncio.create_task(governance_worker.governance_loop())
+                app.state.governance_task = governance_task
+                _attach_worker_monitor(app, governance_task, "governance_loop")
+        except Exception as exc:
             # In live/production, fail loud - do NOT silently continue
             logger.critical(f"Background worker startup failed: {exc}")
             app.state.worker_startup_failed = str(exc)
@@ -97,8 +120,9 @@ async def lifespan(app: FastAPI):
         if hasattr(app.state, task_attr):
             try:
                 task = getattr(app.state, task_attr)
-                task.cancel()
-                await task
+                if task:
+                    task.cancel()
+                    await task
             except asyncio.CancelledError:
                 pass
 

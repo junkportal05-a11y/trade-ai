@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, AdminDep
 from app.core.worker_health import get_all as get_worker_health
+from app.services.market_hours import is_nse_market_open
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -76,17 +77,20 @@ def get_simulation_status() -> dict:
 
 
 @router.get("/worker-status", response_model=dict, dependencies=[AdminDep])
-def admin_worker_status() -> dict:
+def admin_worker_status(request: Request) -> dict:
     from app.core.worker_health import get_all as get_worker_health
     workers = get_worker_health()
     is_healthy = not any(w.get("status") == "degraded" for w in workers.values())
+    degraded_workers = getattr(request.app.state, "degraded_workers", {})
+    degraded = bool(degraded_workers)
     return {
-        "agent_running": is_healthy,
-        "market_open": True,
+        "agent_running": is_healthy and not degraded,
+        "market_open": is_nse_market_open(),
         "angelone_authorized": True,
-        "status": "healthy" if is_healthy else "degraded",
-        "degraded": False,
-        "active_monitors": ["kill_switch", "data_integrity_watchdog"],
+        "status": "healthy" if is_healthy and not degraded else "degraded",
+        "degraded": degraded,
+        "active_monitors": ["kill_switch"],
         "workers": workers,
+        "degraded_workers": degraded_workers,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

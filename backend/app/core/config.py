@@ -145,6 +145,9 @@ class Settings(BaseSettings):
     rate_limit_user_burst: str = "10/10seconds"
     rate_limit_backtest: str = "5/minute"
 
+    # ── Background Workers ───────────────────────────────────────────
+    skip_background_workers: bool = Field(default=False, alias="SKIP_BACKGROUND_WORKERS")
+
     # ── Data Paths ───────────────────────────────────────────────────
     knowledge_dir: str = "../knowledge"
     historical_data_dir: str = "../historical_data"
