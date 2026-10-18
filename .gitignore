@@ -82,6 +82,7 @@ pytest_detail.txt
 claude-obsidian/
 
 # ── Agent / System ──────────────────────────────────────────────
+AGENTS.md
 .agents/
 .system_generated/
 .env*
