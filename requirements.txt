@@ -1,29 +1,50 @@
+# ─────────────────────────────────────────────────────────────
+# Trade AI / ApexTrade Quantitative Trading Platform Dependencies
+# ─────────────────────────────────────────────────────────────
+
+# Web Framework & API Server
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
-requests>=2.31.0
-websockets>=13.0
 python-multipart==0.0.9
-google-genai>=0.1.0
-pandas>=2.0.0
-numpy>=1.24.0
 slowapi==0.1.9
-passlib[bcrypt]==1.7.4
-python-dotenv==1.0.0
+pydantic>=2.7.0
+pydantic-settings>=2.0.0
+
+# Database & ORM
+SQLAlchemy>=2.0.0
+alembic>=1.13.0
 psycopg2-binary>=2.9.0
 psycopg[binary]>=3.1.0
-bcrypt>=4.0.0
-python-dateutil>=2.8.2
-python-jose[cryptography]==3.3.0
-tqdm>=4.65.0
-yfinance>=0.2.30
-pyarrow>=14.0.0
-pyotp==2.9.0
-smartapi-python==1.5.5
-logzero==1.7.0
-websocket-client==1.9.0
-freezegun>=1.5.5
-# ── Security fix dependency ──────────────────────────────
-cryptography>=42.0.0
-# TradingAgents is vendored locally in backend/TradingAgents/
 
-# Force Docker cache invalidation for HuggingFace
+# Security, Cryptography & Auth
+passlib[bcrypt]==1.7.4
+bcrypt>=4.0.0
+python-jose[cryptography]==3.3.0
+cryptography>=42.0.0
+pyotp==2.9.0
+
+# Quant Analysis, Indicators & Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+pyarrow>=14.0.0
+yfinance>=0.2.30
+
+# Brokerage & Network Communication
+requests>=2.31.0
+websockets>=13.0
+websocket-client==1.9.0
+smartapi-python==1.5.5
+
+# Automation, Daemons & AI
+schedule>=1.2.0
+google-genai>=0.1.0
+python-dotenv==1.0.0
+python-dateutil>=2.8.2
+logzero==1.7.0
+tqdm>=4.65.0
+
+# Testing Utilities
+freezegun>=1.5.5
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+httpx>=0.27.0

@@ -21,6 +21,7 @@ from app.models.schemas import BacktestRequest
 from app.core.database import init_db
 from app.core.logging import configure_json_logging, logger, set_correlation_id
 from app.core.security import get_token_from_request
+from app.core.worker_state import set_degraded_worker, clear_all_degraded_workers
 
 from datetime import datetime, timezone
 import uuid
@@ -56,14 +57,12 @@ def _attach_worker_monitor(app: FastAPI, task: asyncio.Task, name: str):
         if t.cancelled():
             return
         exc = t.exception()
-        if not hasattr(app.state, "degraded_workers"):
-            app.state.degraded_workers = {}
         if exc:
             logger.critical(f"CRITICAL: Background worker '{name}' crashed: {exc}", exc_info=exc)
-            app.state.degraded_workers[name] = str(exc)
+            set_degraded_worker(name, str(exc))
         else:
             logger.critical(f"CRITICAL: Background worker '{name}' exited unexpectedly with no exception.")
-            app.state.degraded_workers[name] = "exited with no exception"
+            set_degraded_worker(name, "exited with no exception")
     task.add_done_callback(_on_done)
 
 
@@ -72,6 +71,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown."""
     # Startup
     init_db()
+    clear_all_degraded_workers()
 
     # Initialize worker task references to None explicitly
     app.state.agent_task = None

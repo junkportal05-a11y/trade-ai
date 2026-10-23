@@ -26,3 +26,12 @@ def _disable_csrf_bypass():
     yield
     os.environ["TESTING"] = "1"  # Reset after each test
     os.environ["SKIP_BACKGROUND_WORKERS"] = "true"
+
+
+@pytest.fixture(autouse=True)
+def _clear_degraded_workers():
+    """Clear degraded workers state before and after each test to prevent leakage."""
+    from app.core.worker_state import clear_all_degraded_workers
+    clear_all_degraded_workers()
+    yield
+    clear_all_degraded_workers()

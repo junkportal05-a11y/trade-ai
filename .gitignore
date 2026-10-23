@@ -51,7 +51,7 @@ pip-delete-this-directory.txt
 .obsidian_backup*/
 .claude/
 .shardmind/
-caveman/
+tools/
 thinking/
 *.swp
 *.swo

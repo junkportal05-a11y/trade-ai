@@ -1,6 +1,7 @@
 import asyncio
 import schedule
 import os
+import time
 from datetime import datetime, timezone, timedelta
 from app.core.constants import (
     NSE_OPEN_HOUR,
@@ -27,6 +28,8 @@ from app.core.executors import (
     governance_executor,
     trading_executor,
 )
+from app.core.worker_state import any_degraded, get_degraded_workers
+from app.core.logging import logger
 
 MAX_CONCURRENT_TRADES = 2
 MIN_AGENT_CONFIDENCE = 72
@@ -69,6 +72,10 @@ async def trading_agent_loop():
     correlation_engine = CorrelationEngine()
     last_scan_bucket = None
 
+    # Track degraded workers logging state
+    _last_logged_degraded: frozenset[str] | None = None
+    _last_log_time: float = 0.0
+
     # Instantiate additional quant utilities (may be used later)
     cost_engine = CostEngine()
     market_regime_cls = MarketRegimeClassifier()
@@ -90,6 +97,18 @@ async def trading_agent_loop():
             if state == "PAUSED":
                 # Paused: skip new scans but keep monitoring open positions.
                 # The prediction_resolver_worker polls SL/TP, so just wait.
+                await asyncio.sleep(30)
+                continue
+
+            # Block new trades if any background worker is degraded
+            if any_degraded():
+                degraded = get_degraded_workers()
+                degraded_keys = frozenset(degraded.keys())
+                now = time.monotonic()
+                if degraded_keys != _last_logged_degraded or now - _last_log_time >= 300:
+                    logger.warning("Skipping new trades - degraded workers: %s", degraded)
+                    _last_logged_degraded = degraded_keys
+                    _last_log_time = now
                 await asyncio.sleep(30)
                 continue
 
@@ -364,15 +383,33 @@ async def prediction_resolver_worker():
                     continue
                 for pred in pending:
                     sym = pred["symbol"]
+                    pred_id = pred.get("id")
                     live_quote = quotes.get(sym)
                     if not live_quote:
-                        print(f"[prediction_resolver] No live quote for {sym}, skipping")
+                        logger.warning(f"[prediction_resolver] No live quote for {sym}, skipping")
                         continue
+                    try:
                         current_price = live_quote.get("price", 0.0)
                         entry_price = float(pred.get("entry_price", 0.0))
                         stop_loss = float(pred.get("stop_loss", 0.0))
                         target_price = float(pred.get("target_price", 0.0))
                         direction = pred.get("prediction_type", "BUY")
+                        position_size = float(pred.get("position_size", 1.0))
+
+                        # Calculate holding time from prediction_date (stored as naive IST: "YYYY-MM-DD HH:MM:SS")
+                        pred_date_str = pred.get("prediction_date")
+                        holding_minutes = 15.0  # fallback
+                        if pred_date_str:
+                            try:
+                                # prediction_date is stored as naive IST (e.g., "2026-10-18 10:00:00")
+                                # Parse as naive, then treat as IST, convert to UTC for comparison
+                                pred_dt_naive = datetime.strptime(pred_date_str, "%Y-%m-%d %H:%M:%S")
+                                ist_offset = timedelta(hours=5, minutes=30)
+                                pred_dt_utc = pred_dt_naive - ist_offset
+                                now_dt = datetime.now(timezone.utc)
+                                holding_minutes = (now_dt - pred_dt_utc).total_seconds() / 60.0
+                            except Exception:
+                                pass
 
                         # Pessimistic priority rule: STOP_LOSS wins if both hit
                         if direction in ("BUY", "BULLISH"):
@@ -394,27 +431,52 @@ async def prediction_resolver_worker():
                             reason = "TARGET_HIT"
 
                         if status and reason:
-                            pnl_inr = (current_price - entry_price) if direction in ("BUY", "BULLISH") else (entry_price - current_price)
-                            pnl_pct = (pnl_inr / entry_price) * 100 if entry_price > 0 else 0
+                            try:
+                                # Price move per share
+                                if direction in ("BUY", "BULLISH"):
+                                    price_move = current_price - entry_price
+                                    risk_per_share = entry_price - stop_loss
+                                else:
+                                    price_move = entry_price - current_price
+                                    risk_per_share = stop_loss - entry_price
 
-                            await loop.run_in_executor(
-                                resolver_executor,
-                                lambda: db.resolve_prediction(
-                                    pred_id=pred["id"],
-                                    actual_outcome=current_price,
-                                    status=status,
-                                    exit_price=current_price,
-                                    holding_time_minutes=15,
-                                    pnl_pct=round(pnl_pct, 2),
-                                    pnl_inr=round(pnl_inr, 2),
-                                    r_multiple=1.5 if hit_tp else -1.0,
-                                    resolution_reason=reason,
-                                    discard_reason=reason,
+                                # r_multiple = price move per share / risk per share
+                                if risk_per_share == 0:
+                                    logger.warning(f"[prediction_resolver] Zero risk_per_share for {sym} (id={pred_id}), setting r_multiple=0")
+                                    r_multiple = 0.0
+                                else:
+                                    r_multiple = round(price_move / abs(risk_per_share), 2)
+
+                                # PnL multiplied by position_size
+                                pnl_inr = price_move * position_size
+                                pnl_pct = (price_move / entry_price) * 100 if entry_price > 0 else 0
+
+                                await loop.run_in_executor(
+                                    resolver_executor,
+                                    lambda: db.resolve_prediction(
+                                        pred_id=pred_id,
+                                        actual_outcome=current_price,
+                                        status=status,
+                                        exit_price=current_price,
+                                        holding_time_minutes=round(holding_minutes, 2),
+                                        pnl_pct=round(pnl_pct, 2),
+                                        pnl_inr=round(pnl_inr, 2),
+                                        r_multiple=r_multiple,
+                                        resolution_reason=reason,
+                                        discard_reason=reason,
+                                    )
                                 )
-                            )
-                            print(f"[prediction_resolver] Resolved {sym}: {reason} at {current_price}")
-        except Exception as e:
-            print(f"[prediction_resolver] Error: {e}")
+                                logger.info(f"[prediction_resolver] Resolved {sym}: {reason} at {current_price} (r={r_multiple}, hold={holding_minutes:.1f}m)")
+                            except Exception as e:
+                                logger.error(f"[prediction_resolver] Error resolving {sym} (id={pred_id}): {e}")
+                        else:
+                            logger.debug(f"[prediction_resolver] No hit for {sym} at {current_price}")
+                    except Exception as e:
+                        logger.error(f"[prediction_resolver] Error in per-prediction work for {sym} (id={pred_id}): {e}")
+                        continue
 
-        # Use dynamic poll interval
-        await asyncio.sleep(poll_seconds)
+                # Use dynamic poll interval
+                await asyncio.sleep(poll_seconds)
+        except Exception as e:
+            logger.error(f"[prediction_resolver] Error in resolver loop: {e}")
+            await asyncio.sleep(poll_seconds)

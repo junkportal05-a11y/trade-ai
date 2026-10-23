@@ -1,5 +1,5 @@
 import pytest
-from data_validator import validate_trade
+from data_validator import validate_trade, calculate_confidence_from_counts
 
 def test_validate_trade_happy_path_open():
     trade = {
@@ -140,3 +140,13 @@ def test_validate_trade_score_calculation():
     assert len(result["failures"]) == 6
     assert result["score"] == 0
     assert result["valid"] is False
+
+
+def test_confidence_calculation():
+    score = calculate_confidence_from_counts(valid=85, total=100)
+    assert score == 85.0
+
+
+def test_confidence_zero_trades_does_not_crash():
+    score = calculate_confidence_from_counts(valid=0, total=0)
+    assert score == 0.0

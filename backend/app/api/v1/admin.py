@@ -79,9 +79,10 @@ def get_simulation_status() -> dict:
 @router.get("/worker-status", response_model=dict, dependencies=[AdminDep])
 def admin_worker_status(request: Request) -> dict:
     from app.core.worker_health import get_all as get_worker_health
+    from app.core.worker_state import get_degraded_workers
     workers = get_worker_health()
     is_healthy = not any(w.get("status") == "degraded" for w in workers.values())
-    degraded_workers = getattr(request.app.state, "degraded_workers", {})
+    degraded_workers = get_degraded_workers()
     degraded = bool(degraded_workers)
     return {
         "agent_running": is_healthy and not degraded,

@@ -40,6 +40,51 @@ This repository powers the backend infrastructure hosted on **Hugging Face Space
 
 ---
 
+## 📂 Repository Layout & Architecture
+
+```text
+trade ai/
+├── main.py                     # Root application launcher (auto-detects .venv)
+├── requirements.txt            # Unified, categorized Python dependencies
+├── .env.example                # Blueprint for secrets, database & broker credentials
+├── Dockerfile                  # Container definition for production / Hugging Face
+├── docker-compose.yml          # Local container orchestration
+│
+├── backend/                    # Core FastAPI & Quantitative Trading Engine
+│   ├── app/                    # REST APIs, routers, models, security & DB session
+│   ├── quant/                  # Market regimes, correlation matrix & technical engines
+│   ├── tests/                  # Unified automated test suite (40 passing tests)
+│   ├── requirements.txt        # Synced Docker layer cache dependency file
+│   └── trading_agent.py        # Autonomous trading agent daemon
+│
+├── frontend/                   # React + Vite Trading Dashboard
+│   ├── src/                    # Components, state, charts & UI panels
+│   ├── scripts/                # Frontend test runners (puppeteer, URL refactors)
+│   ├── package.json            # NPM dependencies & scripts
+│   └── vite.config.js          # Vite build configuration
+│
+├── docs/                       # Architecture & Engineering Documentation
+│   ├── README.md               # Documentation directory index & navigation
+│   ├── architecture.md         # 8-tier hierarchy, execution boundaries & daemons
+│   ├── api-map.md              # REST & WebSocket endpoint catalogue
+│   ├── database-map.md         # SQLAlchemy & Supabase schemas
+│   └── incident-runbook.md     # Emergency kill-switch & recovery protocols
+│
+├── scripts/                    # Utility, Audit & Maintenance Tools
+│   ├── README.md               # Script catalogue & usage guide
+│   ├── audit.py                # Full codebase auditor
+│   ├── benchmark.py            # Latency & throughput benchmarks
+│   ├── proxy.bat               # OpenRouter proxy launcher
+│   └── experimental/           # Isolated prototype tests & spikes
+│
+├── historical_data/            # Market candle caches (NIFTY50 & multi-timeframe)
+├── knowledge/                  # Strategy manuals, guides & technical PDFs
+├── notes/                      # Obsidian knowledge vault & memory logs
+└── tools/                      # External plugins & assistant frameworks (caveman, claude-obsidian)
+```
+
+---
+
 ## 🏗️ Architecture Overview
 
 ApexTrade separates quantitative market analysis, background signal daemons, and strategy execution from front-end visual rendering.
