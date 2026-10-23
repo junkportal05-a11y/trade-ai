@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.v1 import auth, quotes, signals, broker, chat, journal, predictions, backtest, admin, bot, ws, strategies, allocate, tournament
+from app.api.v1 import auth, quotes, signals, broker, chat, journal, predictions, backtest, admin, bot, ws, strategies, allocate, tournament, health
 
 api_router = APIRouter()
+api_router.include_router(health.router)
 api_router.include_router(auth.router)
 api_router.include_router(quotes.router)
 api_router.include_router(signals.router)

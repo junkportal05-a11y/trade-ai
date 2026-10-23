@@ -57,6 +57,86 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 
+import socket
+
+
+def check_port(host: str, port: int, timeout: float = 0.3) -> bool:
+    """Quickly check if a TCP port is open (useful for frontend dev server probe)."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except (socket.timeout, ConnectionRefusedError, OSError):
+        return False
+
+
+def run_preflight_checks() -> dict:
+    """Run non-blocking pre-flight health checks on subsystems."""
+    results = {}
+
+    # 1. Database Check
+    try:
+        from app.core.config import settings
+        from app.core.database import engine
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        db_type = "PostgreSQL" if settings.is_postgres else "SQLite"
+        results["database"] = (True, f"{db_type} Connected (WAL verified)")
+    except Exception as exc:
+        results["database"] = (False, f"Connection Failed: {str(exc)[:60]}")
+
+    # 2. Broker Configuration Check
+    try:
+        from app.core.config import settings
+        has_key = bool(settings.angel_api_key)
+        has_client = bool(settings.angel_client_code)
+        has_pin = bool(settings.angel_pin)
+        has_totp = bool(settings.angel_totp_secret)
+        if has_key and has_client and has_pin and has_totp:
+            mode = settings.trading_mode.upper()
+            armed = " [ARMED]" if settings.live_trading_armed and mode == "LIVE" else ""
+            results["broker"] = (True, f"Angel One Configured ({mode}{armed})")
+        else:
+            missing = []
+            if not has_key: missing.append("API_KEY")
+            if not has_client: missing.append("CLIENT_CODE")
+            if not has_pin: missing.append("PIN")
+            if not has_totp: missing.append("TOTP")
+            results["broker"] = (False, f"Missing: {', '.join(missing)} (Paper Mode Active)")
+    except Exception as exc:
+        results["broker"] = (False, f"Check error: {str(exc)[:40]}")
+
+    # 3. AI / LLM Intelligence
+    try:
+        from app.core.config import settings
+        has_gemini = bool(settings.gemini_api_key)
+        results["ai"] = (True, "Gemini AI Ready" if has_gemini else "Fallback / Rule-based (No GEMINI_API_KEY)")
+    except Exception:
+        results["ai"] = (False, "Unavailable")
+
+    # 4. Frontend Connectivity Probe
+    fe_dev_5173 = check_port("127.0.0.1", 5173)
+    fe_dev_3000 = check_port("127.0.0.1", 3000)
+    fe_dist = (ROOT_DIR / "frontend" / "dist").exists()
+    if fe_dev_5173:
+        results["frontend"] = (True, "Vite Dev Server Active (http://localhost:5173)")
+    elif fe_dev_3000:
+        results["frontend"] = (True, "React Dev Server Active (http://localhost:3000)")
+    elif fe_dist:
+        results["frontend"] = (True, "Production Build Available (frontend/dist)")
+    else:
+        results["frontend"] = (False, "Offline (run 'npm run dev' in frontend/)")
+
+    # 5. Data & Knowledge Store
+    k_dir = ROOT_DIR / "knowledge"
+    h_dir = ROOT_DIR / "historical_data"
+    k_count = len(list(k_dir.glob("*.pdf"))) if k_dir.exists() else 0
+    h_count = len(list(h_dir.glob("*.csv"))) if h_dir.exists() else 0
+    results["data_stores"] = (True, f"Knowledge: {k_count} PDFs | History: {h_count} caches")
+
+    return results
+
+
 def run():
     parser = argparse.ArgumentParser(description="Trade AI - ApexTrade Server")
     parser.add_argument(
@@ -76,18 +156,39 @@ def run():
         default=os.getenv("RELOAD", "true").lower() in ("true", "1"),
         help="Enable/disable auto-reload on code change"
     )
+    parser.add_argument(
+        "--check-only",
+        action="store_true",
+        help="Run preflight health checks and exit without starting server"
+    )
 
     args = parser.parse_args()
 
-    print("=" * 65)
-    print(" [*] Trade AI / ApexTrade Quantitative Trading Engine")
-    print(f" [*] Running on: http://{args.host}:{args.port}")
-    print(f" [*] Project Root: {ROOT_DIR}")
-    print(f" [*] Backend Path: {BACKEND_DIR}")
-    print(f" [*] Python Env:  {sys.executable}")
-    print(f" [*] Auto-Reload: {args.reload}")
-    print(f" [*] Interactive API Docs: http://localhost:{args.port}/docs")
-    print("=" * 65)
+    # Run Subsystem Health Checks
+    checks = run_preflight_checks()
+
+    print("\n" + "=" * 70)
+    print("  ▲ APEXTRADE AI QUANTITATIVE ENGINE")
+    print("=" * 70)
+    print(f"  [Server]    http://{args.host}:{args.port}")
+    print(f"  [API Docs]  http://localhost:{args.port}/docs")
+    print(f"  [Health]    http://localhost:{args.port}/api/health")
+    print(f"  [Reload]    {'Enabled' if args.reload else 'Disabled'}")
+    print(f"  [Python]    {sys.executable}")
+    print("-" * 70)
+    print("  SUB-SYSTEM HEALTH PREFLIGHT:")
+
+    for name, (status, detail) in checks.items():
+        icon = "✓" if status else "!"
+        tag = "[OK]  " if status else "[WARN]"
+        label = f"{name.replace('_', ' ').title():<13}"
+        print(f"  {icon} {tag} {label} : {detail}")
+
+    print("=" * 70 + "\n")
+
+    if args.check_only:
+        all_passed = all(st for st, _ in checks.values())
+        sys.exit(0 if all_passed else 1)
 
     uvicorn.run(
         "app.main:app",

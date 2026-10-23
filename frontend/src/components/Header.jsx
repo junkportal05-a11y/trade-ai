@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useLivePrices, isNSEMarketOpen } from '../hooks/useMarketData';
+import { useHealthCheck } from '../hooks/useHealthCheck';
+import SystemHealthModal from './SystemHealthModal';
 import { T, fmt, clr, sign, PRIMARY_TABS, SECONDARY_TABS, TAB_META } from '../theme';
 
 export default function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, cash, stockValue, totalPnl, totalPct, selectedSymbol, prices }) {
   const [clock, setClock] = useState(() => new Date().toLocaleTimeString('en-IN', { hour12: true }));
   useEffect(() => { const t = setInterval(() => setClock(new Date().toLocaleTimeString('en-IN', { hour12: true })), 1000); return () => clearInterval(t); }, []);
   const [showMore, setShowMore] = useState(false);
+  const [showHealthModal, setShowHealthModal] = useState(false);
+  const health = useHealthCheck(20000);
   const p = prices[selectedSymbol];
   const price = p?.price ?? 0;
   const pct = p?.changePct ?? 0;
@@ -91,13 +95,29 @@ export default function Header({ connected, view, onViewChange, isMobile, onLogo
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
         {!isMobile && <span style={{ fontSize: 10, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em' }}>{clock} UTC+5:30</span>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            onClick={() => setShowHealthModal(true)}
+            title="Click to view Subsystem Health (DB, Broker, Workers, AI)"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: `1px solid ${T.border}`,
+              padding: '3px 8px',
+              borderRadius: 6,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderHi; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'; }}
+          >
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: !connected ? T.red : (isNSEMarketOpen() ? T.green : T.gold),
               boxShadow: connected && isNSEMarketOpen() ? `0 0 8px ${T.greenGlow}` : 'none', animation: connected && isNSEMarketOpen() ? 'pulse 2s ease-in-out infinite' : 'none' }} />
             <span style={{ fontSize: 10, color: !connected ? T.red : (isNSEMarketOpen() ? T.green : T.gold), fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.08em' }}>
               {!connected ? 'OFFLINE' : (isNSEMarketOpen() ? 'LIVE' : 'CLOSED')}
             </span>
-          </div>
+          </button>
           {onLogout && (
             <button onClick={onLogout} style={{ background: 'rgba(255, 61, 90, 0.05)', border: '1px solid rgba(255, 61, 90, 0.2)', borderRadius: 4, padding: '4px 10px', color: T.red,
               fontSize: 9, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace", cursor: 'pointer', transition: 'all 0.2s', letterSpacing: '0.08em', outline: 'none' }}
@@ -106,6 +126,13 @@ export default function Header({ connected, view, onViewChange, isMobile, onLogo
           )}
         </div>
       </div>
+
+      <SystemHealthModal
+        isOpen={showHealthModal}
+        onClose={() => setShowHealthModal(false)}
+        health={health}
+        onRefresh={health.refresh}
+      />
     </div>
   );
 }
