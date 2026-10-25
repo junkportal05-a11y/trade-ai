@@ -37,7 +37,7 @@ export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const isAuthenticated = !!(sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token'));
+  // Personal workstation — always authenticated
 
   const { botData, connected } = useBotWebSocket();
 
@@ -48,13 +48,7 @@ export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
     setTodayPnL(botData.status.today_pnl || 0);
   }, [botData.status]);
 
-  const ensureAuth = () => {
-    if (!isAuthenticated) {
-      setError('Authentication required. Please log in before controlling the bot.');
-      return false;
-    }
-    return true;
-  };
+  const ensureAuth = () => true;
 
   const handleStart = async () => {
     if (!ensureAuth()) return;
@@ -120,11 +114,7 @@ export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
     <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 12 }}>
-        {!isAuthenticated && (
-          <div style={{ padding: '4px 12px', background: '#252c4044', borderRadius: 4, marginBottom: 8, border: `1px solid ${T.textDim}30` }}>
-            🔒 <strong>Login required</strong> to control the bot.
-          </div>
-        )}
+
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 18 }}>🤖</span>
@@ -164,12 +154,7 @@ export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
         </div>
       </div>
 
-      {/* Auth Notice */}
-      {!isAuthenticated && (
-        <div style={{ padding: '8px 12px', background: T.goldDim, border: `1px solid ${T.gold}40`, borderRadius: 6, color: T.gold, fontSize: 10, ...mono }}>
-          🔒 Please log in to start the bot.
-        </div>
-      )}
+
 
       {/* Controls */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

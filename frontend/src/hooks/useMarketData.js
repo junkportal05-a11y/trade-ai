@@ -223,20 +223,7 @@ export function useLivePrices(symbols = []) {
           wsConnectedRef.current = false;
 
           if (event.code === 4001) {
-            console.warn("[WebSocket] Connection closed with code 4001: Session unauthorized/expired.");
-            // Graceful logout, not auto reload
-            const hadToken = !!localStorage.getItem('is_logged_in');
-            if (hadToken) {
-              // Clear auth state but stay on current page for smooth UX
-              localStorage.removeItem('is_logged_in');
-              localStorage.removeItem('apex_user');
-              localStorage.removeItem('apex_role');
-              localStorage.removeItem('apex_clearance');
-              localStorage.removeItem('apt_token');
-              // Navigate to login instead of hard reload for better UX
-              window.location.hash = '/login';
-            }
-            return;
+            console.warn("[WebSocket] Connection closed with code 4001 — ignoring (personal workstation mode).");
           }
 
           // Reconnect after 5 s with exponential backoff

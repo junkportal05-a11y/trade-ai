@@ -4,7 +4,7 @@ import { useHealthCheck } from '../hooks/useHealthCheck';
 import SystemHealthModal from './SystemHealthModal';
 import { T, fmt, clr, sign, PRIMARY_TABS, SECONDARY_TABS, TAB_META } from '../theme';
 
-export default function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, cash, stockValue, totalPnl, totalPct, selectedSymbol, prices }) {
+export default function Header({ connected, view, onViewChange, isMobile, netWorth, cash, stockValue, totalPnl, totalPct, selectedSymbol, prices }) {
   const [clock, setClock] = useState(() => new Date().toLocaleTimeString('en-IN', { hour12: true }));
   useEffect(() => { const t = setInterval(() => setClock(new Date().toLocaleTimeString('en-IN', { hour12: true })), 1000); return () => clearInterval(t); }, []);
   const [showMore, setShowMore] = useState(false);
@@ -118,12 +118,6 @@ export default function Header({ connected, view, onViewChange, isMobile, onLogo
               {!connected ? 'OFFLINE' : (isNSEMarketOpen() ? 'LIVE' : 'CLOSED')}
             </span>
           </button>
-          {onLogout && (
-            <button onClick={onLogout} style={{ background: 'rgba(255, 61, 90, 0.05)', border: '1px solid rgba(255, 61, 90, 0.2)', borderRadius: 4, padding: '4px 10px', color: T.red,
-              fontSize: 9, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace", cursor: 'pointer', transition: 'all 0.2s', letterSpacing: '0.08em', outline: 'none' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255, 61, 90, 0.15)'; e.currentTarget.style.borderColor = 'rgba(255, 61, 90, 0.4)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 61, 90, 0.05)'; e.currentTarget.style.borderColor = 'rgba(255, 61, 90, 0.2)'; }}>LOGOUT</button>
-          )}
         </div>
       </div>
 
