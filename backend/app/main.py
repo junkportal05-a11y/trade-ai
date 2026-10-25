@@ -155,11 +155,12 @@ if settings.sentry_dsn:
 
 # CORS
 # Use ALLOWED_ORIGINS env var (comma-separated) to override the hardcoded default
-allowed = settings.allowed_origins.split(",")
+allowed = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
 logger.info("CORS allowed origins configured", extra={"origins": allowed})
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed,
+    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.hf\.space|http://localhost:\d+|http://127\.0\.0\.1:\d+",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["Content-Type", "Authorization", "X-Session-Token", "x-admin-key", "Accept", "Origin", "X-Requested-With"],
