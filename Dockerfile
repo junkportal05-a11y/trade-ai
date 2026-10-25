@@ -39,7 +39,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application code
 COPY backend/ /app/backend/
-COPY alembic/ /app/alembic/
+COPY backend/alembic/ /app/alembic/
 COPY backend/alembic.ini /app/alembic.ini
 
 # Create non-root user for security
