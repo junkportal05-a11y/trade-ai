@@ -220,16 +220,18 @@ cd .. && .venv\Scripts\python.exe -m pytest backend/tests -q
 
 ### 1. Google ARTEMIS (`google/artemis`) — Mobile & Live UI Automation
 - **Repo**: `c:\Users\aryan\OneDrive\Desktop\main app\artemis`
+- **Active Connected Device**: `emulator-5554` (BlueStacks 5 Android Emulator — 127.0.0.1:5555)
+- **Status**: **ONLINE & VERIFIED** (5/5 checks pass, live screenshot & element grounding active)
 - **MCP Server Installed**: Registered in `~/.gemini/config/mcp_config.json`, `~/.claude.json`, `.opencode/opencode.json`, and `.mcp.json`.
 - **Usage Rule**: **Trigger whenever any app update occurs** to verify UI changes, inspect traces, and audit end-to-end device/browser states using:
-  - `mobile_run_task`: Launch automated natural-language tasks
-  - `mobile_get_device_state`: Pull live screenshot & hierarchy
-  - `mobile_inspect_trace`: Audit trace logs and execution overlays
-  - `mobile_diagnose`: Diagnostic doctor for connected devices / ADB
+  - `mobile_run_task(task="...")`: Launch automated natural-language tasks on `emulator-5554`
+  - `mobile_get_device_state(view_type="screenshot" | "hierarchy")`: Pull live screenshot & hierarchy
+  - `mobile_inspect_trace(trace_id="...")`: Audit trace logs and execution overlays
+  - `mobile_diagnose(attempt_fix=True)`: Diagnostic doctor for connected devices / ADB
 
 ### 2. Google Agents CLI (`google/agents-cli`) — Enterprise Agent Platform
 - **Repo**: `c:\Users\aryan\OneDrive\Desktop\main app\agents-cli`
-- **CLI Command**: `agents-cli` installed globally via `uv tool install google-agents-cli`
+- **CLI Command**: `agents-cli` installed globally via `uv tool install google-agents-cli` (v1.11.0)
 - **Skills Installed (7/7)**:
   - `google-agents-cli-workflow`: Agent development lifecycle & model routing
   - `google-agents-cli-adk-code`: ADK Python patterns, tools, state management
@@ -239,5 +241,6 @@ cd .. && .venv\Scripts\python.exe -m pytest backend/tests -q
   - `google-agents-cli-publish`: Gemini registration
   - `google-agents-cli-observability`: Cloud Trace & monitoring
 - **Usage Rule**: **Use every time** for AI agent development, scaffolding, evals, and deployment across Antigravity, OpenCode, and Claude Code.
+
 
 
