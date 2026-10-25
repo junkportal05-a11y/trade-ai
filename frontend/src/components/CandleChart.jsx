@@ -3,7 +3,7 @@ import { T, escapeHTML } from '../theme.js';
 import { apiFetch } from '../api';
 import { calcEMA, calcBollingerBands, calcRSI, calcMACD } from '../utils/indicators';
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
-import { Camera, Loader2 } from 'lucide-react';
+import { AlertTriangle, Camera, Inbox, Loader2, Sparkles, X } from 'lucide-react';
 
 export default function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [], botPaperMode }) {
   const mainContainerRef = useRef();
@@ -215,12 +215,12 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
         LOADING MARKET DATA
       </div>}
       {!loading && error && <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,12,16,0.9)', zIndex: 2, gap: 12, color: T.red, fontSize: 13, letterSpacing: '0.05em', padding: 20, textAlign: 'center' }}>
-        <span style={{ fontSize: 24 }}>⚠️</span>
+        <AlertTriangle size={24} />
         <div style={{ fontWeight: 600 }}>ERROR LOADING MARKET DATA: {error}</div>
         <div style={{ fontSize: 11, color: T.textDim, marginTop: 4, maxWidth: 300, lineHeight: 1.4 }}>Live market data unavailable. Please go to the ACCOUNT panel to authenticate with AngelOne Broker.</div>
       </div>}
       {!loading && !error && !bars.length && <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,12,16,0.9)', zIndex: 2, gap: 12, color: T.textMid, fontSize: 13, letterSpacing: '0.05em' }}>
-        <span style={{ fontSize: 24 }}>📭</span>
+        <Inbox size={24} />
         <div style={{ fontWeight: 600 }}>NO HISTORICAL DATA FOUND FOR {symbol}</div>
       </div>}
       <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
@@ -228,23 +228,32 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
         {botPaperMode === true && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, pointerEvents: 'none', color: 'rgba(255,255,255,0.05)', fontSize: '8vw', fontWeight: 900, whiteSpace: 'nowrap', userSelect: 'none' }}>SIMULATION MODE</div>}
         {botPaperMode === false && <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, background: T.red, color: '#fff', fontSize: 11, fontWeight: 800, padding: '4px 8px', borderRadius: 4, letterSpacing: '0.05em' }}>LIVE BROKER</div>}
 
-        <button
-          onClick={scanChart}
-          disabled={scanning}
-          title="Capture the chart and analyze it with Gemini 2.0 Flash"
-          style={{
-            position: 'absolute', top: 12, right: botPaperMode === false ? 108 : 12, zIndex: 11,
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '6px 10px', borderRadius: 6,
-            border: `1px solid ${T.accent}`, background: T.accentDim,
-            color: T.accentAlt, cursor: scanning ? 'wait' : 'pointer',
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
-            fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
-          }}
-        >
-          {scanning ? <Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Camera size={12} />}
-          {scanning ? 'SCANNING...' : '📸 AI SCAN CHART'}
-        </button>
+        <div style={{
+          position: 'absolute', top: 12, right: botPaperMode === false ? 118 : 12, zIndex: 11,
+          padding: 1, borderRadius: 9,
+          background: `linear-gradient(135deg, ${T.green}, ${T.accentAlt})`,
+          boxShadow: `0 0 22px ${T.greenGlow}`,
+          opacity: scanning ? 0.8 : 1,
+          transition: 'all 0.2s',
+        }}>
+          <button
+            onClick={scanChart}
+            disabled={scanning}
+            title="Capture the chart and analyze it with Gemini 2.0 Flash"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '6px 11px', borderRadius: 8, border: 'none',
+              background: T.panel, color: T.text,
+              cursor: scanning ? 'wait' : 'pointer',
+              fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',
+              fontFamily: "'IBM Plex Mono', monospace",
+            }}
+          >
+            {scanning ? <Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Sparkles size={12} color={T.green} />}
+            <Camera size={12} color={T.accentAlt} />
+            {scanning ? 'SCANNING CHART...' : 'AI SCAN CHART'}
+          </button>
+        </div>
 
         {(scanResult || scanError) && (
           <div style={{
@@ -254,8 +263,12 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
             fontSize: 10, fontFamily: "'IBM Plex Mono', monospace", color: T.text,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontWeight: 700, letterSpacing: '0.06em', color: T.text }}>📸 AI CHART SCAN</span>
-              <button onClick={() => { setScanResult(null); setScanError(null); }} style={{ background: 'transparent', border: 'none', color: T.textDim, cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>✕</button>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, letterSpacing: '0.06em', color: T.text }}>
+                <Sparkles size={13} color={T.accentAlt} /> AI CHART SCAN
+              </span>
+              <button onClick={() => { setScanResult(null); setScanError(null); }} aria-label="Close chart scan" style={{ background: 'transparent', border: 'none', color: T.textDim, cursor: 'pointer', padding: 2, lineHeight: 1 }}>
+                <X size={14} />
+              </button>
             </div>
             {scanError ? (
               <div style={{ color: T.red, lineHeight: 1.5 }}>{scanError}</div>
@@ -263,7 +276,12 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: T.textMid }}>TREND</span>
-                  <span style={{ fontWeight: 700, color: scanResult.trend === 'bullish' ? T.green : scanResult.trend === 'bearish' ? T.red : T.blue }}>
+                  <span style={{
+                    fontWeight: 700, padding: '2px 7px', borderRadius: 999,
+                    color: scanResult.trend === 'bullish' ? T.green : scanResult.trend === 'bearish' ? T.red : T.blue,
+                    background: scanResult.trend === 'bullish' ? T.greenDim : scanResult.trend === 'bearish' ? T.redDim : T.blueDim,
+                    border: `1px solid ${scanResult.trend === 'bullish' ? T.greenGlow : scanResult.trend === 'bearish' ? T.redGlow : T.blueGlow}`,
+                  }}>
                     {(scanResult.trend || 'neutral').toUpperCase()}
                   </span>
                 </div>
@@ -278,8 +296,8 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
                     <span style={{ color: T.textMid }}>CONFIDENCE</span>
                     <span style={{ fontWeight: 700 }}>{Math.round((scanResult.confidence || 0) * 100)}%</span>
                   </div>
-                  <div style={{ height: 4, background: T.border, borderRadius: 2, overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.round((scanResult.confidence || 0) * 100)}%`, height: '100%', background: (scanResult.confidence || 0) > 0.7 ? T.green : (scanResult.confidence || 0) > 0.4 ? T.blue : T.red }} />
+                  <div style={{ height: 5, background: T.border, borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.round((scanResult.confidence || 0) * 100)}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${(scanResult.confidence || 0) > 0.7 ? T.green : (scanResult.confidence || 0) > 0.4 ? T.blue : T.red}, ${T.accentAlt})` }} />
                   </div>
                 </div>
                 <div>

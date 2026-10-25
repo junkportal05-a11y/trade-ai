@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Star } from 'lucide-react';
 import { T, DEFAULT_WATCHLIST, SEED_PRICES, fmt, clr, sign } from '../theme';
 export default function WatchlistPanel({ prices, selected, onSelect, favorites = [], onToggleFavorite }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -12,7 +13,7 @@ export default function WatchlistPanel({ prices, selected, onSelect, favorites =
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: T.textMid }}>WATCHLIST</span>
           <span style={{ fontSize: 9, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>{sorted.length} SYMBOLS</span>
         </div>
-        <input type="text" placeholder="🔍 Search watchlist..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+        <input type="text" placeholder="Search watchlist..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
           style={{ width: '100%', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, color: T.text, fontSize: 11, padding: '5px 8px', outline: 'none' }}
           onFocus={e => e.target.style.borderColor = T.accent} onBlur={e => e.target.style.borderColor = T.border} />
       </div>
@@ -25,7 +26,7 @@ export default function WatchlistPanel({ prices, selected, onSelect, favorites =
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <button onClick={e => { e.stopPropagation(); onToggleFavorite(symbol); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, color: isFav ? T.gold : T.textDim }}>{isFav ? '★' : '☆'}</button>
+                    <button onClick={e => { e.stopPropagation(); onToggleFavorite(symbol); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, color: isFav ? T.gold : T.textDim }} aria-label={isFav ? `Remove ${symbol} from favorites` : `Add ${symbol} to favorites`}><Star size={12} fill={isFav ? T.gold : 'none'} /></button>
                     <span style={{ fontSize: 11, fontWeight: 700, color: isSel ? T.blue : T.text, letterSpacing: '0.02em', fontFamily: "'IBM Plex Mono', monospace", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{symbol.replace('.NS', '')}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>

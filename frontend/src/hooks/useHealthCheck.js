@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_BASE_URL } from '../api';
+import { getApiBaseUrl } from '../api';
 
 export function useHealthCheck(pollIntervalMs = 20000) {
   const [health, setHealth] = useState({
@@ -13,7 +13,7 @@ export function useHealthCheck(pollIntervalMs = 20000) {
   const checkHealth = useCallback(async () => {
     const t0 = performance.now();
     try {
-      const res = await fetch(`${API_BASE_URL}/api/health`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/health`, {
         headers: { 'Accept': 'application/json' },
       });
       const latencyMs = Math.round(performance.now() - t0);

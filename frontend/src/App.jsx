@@ -19,76 +19,42 @@ import StrategySelector from './StrategySelector';
 import BacktestRunner from './BacktestRunner';
 import { PanelErrorBoundary } from './PanelErrorBoundary';
 import CommandPalette from './components/CommandPalette';
-
-
-const EMPTY_ARRAY = [];
-
-// ── Design tokens ─────────────────────────────────────────────────────────────
-const T = {
-  bg:         '#080a0f',
-  surface:    '#0d1018',
-  panel:      '#111520',
-  panelAlt:   '#0f1219',
-  border:     '#1a1f2e',
-  borderHi:   '#252c40',
-  text:       '#d0d8ed',
-  textMid:    '#6e7a96',
-  textDim:    '#363d55',
-  green:      '#00e5a8',
-  greenDim:   'rgba(0,229,168,0.1)',
-  greenGlow:  'rgba(0,229,168,0.25)',
-  red:        '#ff3d5a',
-  redDim:     'rgba(255,61,90,0.1)',
-  redGlow:    'rgba(255,61,90,0.25)',
-  blue:       '#4da6ff',
-  blueDim:    'rgba(77,166,255,0.1)',
-  blueGlow:   'rgba(77,166,255,0.2)',
-  gold:       '#f5c842',
-  goldDim:    'rgba(245,200,66,0.1)',
-  goldGlow:   'rgba(245,200,66,0.25)',
-  accent:     '#7b6cff',
-  accentAlt:  '#9b5de5',
-  accentDim:  'rgba(123,108,255,0.12)',
-  accentGlow: 'rgba(123,108,255,0.3)',
-};
+import Header from './components/Header';
+import ChatPanel from './components/ChatPanel';
+import { T, SEED_PRICES, DEFAULT_WATCHLIST, INTERVALS, PRIMARY_TABS, SECONDARY_TABS, MOBILE_TABS, TAB_META, EMPTY_ARRAY, fmt, clr, sign, escapeHTML } from './theme';
 
 const TAB_ICONS = { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck };
 
-// ── NSE Watchlist ────────────────────────────────────────────────────────────────
-const DEFAULT_WATCHLIST = [
-  { symbol: 'YESBANK.NS',    name: 'Yes Bank',       sector: 'Banking' },
-  { symbol: 'TATASTEEL.NS',  name: 'Tata Steel',     sector: 'Metals' },
-  { symbol: 'BANKBARODA.NS', name: 'Bank of Baroda', sector: 'Banking' },
-  { symbol: 'TATAPOWER.NS',  name: 'Tata Power',     sector: 'Power' },
-  { symbol: 'SBIN.NS',       name: 'SBI',            sector: 'Banking' },
-];
-
-const SEED_PRICES = {
-  'YESBANK.NS': 25, 'TATASTEEL.NS': 170, 'BANKBARODA.NS': 280,
-  'TATAPOWER.NS': 445, 'SBIN.NS': 830
-};
-
-const INTERVALS = [
-  { label: '1D',  interval: '30m', range: '1d' },
-  { label: '1W',  interval: '30m', range: '5d' },
-  { label: '1M',  interval: '1d',  range: '1mo' },
-  { label: '3M',  interval: '1d',  range: '3mo' },
-  { label: '1Y',  interval: '1wk', range: '1y' },
-  { label: 'ALL', interval: '1mo', range: 'max' },
-];
-
-const PORTFOLIO = [
-  { symbol: 'HAL.NS',  shares: 5,  avgCost: 4400 },
-  { symbol: 'BEL.NS',  shares: 50, avgCost: 280 },
-  { symbol: 'RVNL.NS', shares: 40, avgCost: 350 },
-];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const fmt  = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtK = (n) => n >= 1e9 ? `₹${(n/1e9).toFixed(2)}B` : n >= 1e6 ? `₹${(n/1e6).toFixed(1)}M` : `₹${fmt(n, 0)}`;
-const clr  = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
-const sign = (v) => v > 0 ? '+' : '';
-const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+function MobileNavButtons({ view, onChange }) {
+  return (
+    <>
+      {MOBILE_TABS.map(tab => {
+        const meta = TAB_META[tab] || {};
+        const Icon = TAB_ICONS[meta.icon] || Home;
+        const active = view === tab;
+        return (
+          <button
+            key={tab}
+            onClick={() => onChange(tab)}
+            aria-label={meta.label || tab}
+            title={meta.label || tab}
+            style={{
+              flex: 1, padding: '10px 0', border: 'none', cursor: 'pointer',
+              background: 'transparent', color: active ? T.accent : T.textDim,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+              fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
+              borderTop: `2px solid ${active ? T.accent : 'transparent'}`,
+              marginTop: -1,
+            }}
+          >
+            <Icon size={17} strokeWidth={active ? 2.4 : 2} />
+            <span style={{ fontSize: 7.5, fontWeight: 700, letterSpacing: '0.04em' }}>{meta.label || tab}</span>
+          </button>
+        );
+      })}
+    </>
+  );
+}
 
 // ── Candlestick Chart (with volume and indicators) ────────────────────────
 function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [], botPaperMode }) {
@@ -508,7 +474,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
 
       {!loading && error && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,12,16,0.9)', zIndex: 2, gap: 12, color: T.red, fontSize: 13, letterSpacing: '0.05em', padding: 20, textAlign: 'center' }}>
-          <span style={{ fontSize: 24 }}>⚠️</span>
+          <AlertTriangle size={24} color={T.red} />
           <div style={{ fontWeight: 600 }}>ERROR LOADING MARKET DATA: {error}</div>
           <div style={{ fontSize: 11, color: T.textDim, marginTop: 4, maxWidth: 300, lineHeight: 1.4 }}>
             Live market data unavailable. Please go to the <strong>ACCOUNT</strong> panel to authenticate with <strong>AngelOne Broker</strong>.
@@ -518,7 +484,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
 
       {!loading && !error && !bars.length && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,12,16,0.9)', zIndex: 2, gap: 12, color: T.textMid, fontSize: 13, letterSpacing: '0.05em' }}>
-          <span style={{ fontSize: 24 }}>📭</span>
+          <Database size={24} color={T.textDim} />
           <div style={{ fontWeight: 600 }}>NO HISTORICAL DATA FOUND FOR {symbol}</div>
         </div>
       )}
@@ -539,67 +505,106 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
           </div>
         )}
 
-        <button
-          onClick={scanChart}
-          disabled={scanning}
-          title="Capture the chart and analyze it with Gemini 2.0 Flash"
-          style={{
-            position: 'absolute', top: 12, right: botPaperMode === false ? 108 : 12, zIndex: 11,
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '6px 10px', borderRadius: 6,
-            border: `1px solid ${T.accent}`, background: T.accentDim,
-            color: T.accentAlt, cursor: scanning ? 'wait' : 'pointer',
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
-            fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
-          }}
-        >
-          {scanning ? <Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Camera size={12} />}
-          {scanning ? 'SCANNING...' : '📸 AI SCAN CHART'}
-        </button>
+        <div style={{
+          position: 'absolute', top: 12, right: botPaperMode === false ? 118 : 12, zIndex: 11,
+          padding: 1, borderRadius: 9,
+          background: `linear-gradient(135deg, ${T.green}, ${T.accentAlt})`,
+          boxShadow: `0 0 22px ${T.greenGlow}`,
+          opacity: scanning ? 0.8 : 1,
+          transition: 'all 0.2s',
+        }}>
+          <button
+            onClick={scanChart}
+            disabled={scanning}
+            title="Capture the chart and analyze it with Gemini 2.0 Flash"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '6px 11px', borderRadius: 8, border: 'none',
+              background: T.panel, color: T.text,
+              cursor: scanning ? 'wait' : 'pointer',
+              fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',
+              fontFamily: "'IBM Plex Mono', monospace",
+            }}
+          >
+            {scanning
+              ? <Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} />
+              : <Sparkles size={12} color={T.green} />}
+            <Camera size={12} color={T.accentAlt} />
+            {scanning ? 'SCANNING CHART...' : 'AI SCAN CHART'}
+          </button>
+        </div>
 
         {(scanResult || scanError) && (
           <div style={{
-            position: 'absolute', top: 50, right: 12, zIndex: 12, width: 270, maxHeight: '75%', overflowY: 'auto',
-            background: 'rgba(13,17,26,0.96)', border: `1px solid ${T.borderHi}`, borderRadius: 10,
-            padding: 12, boxShadow: '0 12px 32px rgba(0,0,0,0.55)',
+            position: 'absolute', top: 12, right: 12, bottom: 12, zIndex: 12, width: 300,
+            maxHeight: 'calc(100% - 24px)', overflowY: 'auto',
+            background: 'rgba(13, 17, 26, 0.94)', backdropFilter: 'blur(18px)',
+            border: '1px solid rgba(99, 102, 241, 0.28)', borderRadius: 12,
+            padding: 14, boxShadow: '0 18px 44px rgba(0,0,0,0.55), 0 0 28px rgba(99,102,241,0.08)',
             fontSize: 10, fontFamily: "'IBM Plex Mono', monospace", color: T.text,
+            animation: 'slideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontWeight: 700, letterSpacing: '0.06em', color: T.text }}>📸 AI CHART SCAN</span>
-              <button onClick={() => { setScanResult(null); setScanError(null); }} style={{ background: 'transparent', border: 'none', color: T.textDim, cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>✕</button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, letterSpacing: '0.06em', color: T.text }}>
+                <Sparkles size={13} color={T.accentAlt} /> AI CHART SCAN
+              </span>
+              <button
+                onClick={() => { setScanResult(null); setScanError(null); }}
+                aria-label="Close chart scan"
+                style={{ background: 'transparent', border: 'none', color: T.textDim, cursor: 'pointer', padding: 2, lineHeight: 1 }}
+              >
+                <X size={14} />
+              </button>
             </div>
             {scanError ? (
               <div style={{ color: T.red, lineHeight: 1.5 }}>{scanError}</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ color: T.textMid }}>TREND</span>
-                  <span style={{ fontWeight: 700, color: scanResult.trend === 'bullish' ? T.green : scanResult.trend === 'bearish' ? T.red : T.blue }}>
+                  <span style={{
+                    fontWeight: 700, padding: '2px 7px', borderRadius: 999,
+                    color: scanResult.trend === 'bullish' ? T.green : scanResult.trend === 'bearish' ? T.red : T.blue,
+                    background: scanResult.trend === 'bullish' ? T.greenDim : scanResult.trend === 'bearish' ? T.redDim : T.blueDim,
+                    border: `1px solid ${scanResult.trend === 'bullish' ? T.greenGlow : scanResult.trend === 'bearish' ? T.redGlow : T.blueGlow}`,
+                  }}>
                     {(scanResult.trend || 'neutral').toUpperCase()}
                   </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ color: T.textMid }}>BREAKOUT</span>
                   <span style={{ fontWeight: 700, color: scanResult.breakout_signal === 'up' ? T.green : scanResult.breakout_signal === 'down' ? T.red : T.textMid }}>
                     {scanResult.breakout_signal ? scanResult.breakout_signal.toUpperCase() : 'NONE'}
                   </span>
                 </div>
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                    <span style={{ color: T.textMid }}>CONFIDENCE</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ color: T.textMid }}>AI CONFIDENCE</span>
                     <span style={{ fontWeight: 700 }}>{Math.round((scanResult.confidence || 0) * 100)}%</span>
                   </div>
-                  <div style={{ height: 4, background: T.border, borderRadius: 2, overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.round((scanResult.confidence || 0) * 100)}%`, height: '100%', background: (scanResult.confidence || 0) > 0.7 ? T.green : (scanResult.confidence || 0) > 0.4 ? T.blue : T.red }} />
+                  <div style={{ height: 5, background: T.border, borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${Math.round((scanResult.confidence || 0) * 100)}%`, height: '100%', borderRadius: 999,
+                      background: `linear-gradient(90deg, ${(scanResult.confidence || 0) > 0.7 ? T.green : (scanResult.confidence || 0) > 0.4 ? T.blue : T.red}, ${T.accentAlt})`,
+                      transition: 'width 0.35s ease',
+                    }} />
                   </div>
                 </div>
                 <div>
-                  <div style={{ color: T.textMid, marginBottom: 2 }}>SUPPORT</div>
-                  <div style={{ color: T.green }}>{scanResult.support_levels?.length ? scanResult.support_levels.map(l => `₹${Number(l).toLocaleString()}`).join(' · ') : 'None'}</div>
+                  <div style={{ color: T.textMid, marginBottom: 3 }}>SUPPORT</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {scanResult.support_levels?.length
+                      ? scanResult.support_levels.map((l, i) => <span key={i} style={{ color: T.green, background: T.greenDim, border: `1px solid ${T.greenGlow}`, borderRadius: 999, padding: '1px 6px' }}>₹{Number(l).toLocaleString()}</span>)
+                      : <span style={{ color: T.textDim }}>None detected</span>}
+                  </div>
                 </div>
                 <div>
-                  <div style={{ color: T.textMid, marginBottom: 2 }}>RESISTANCE</div>
-                  <div style={{ color: T.red }}>{scanResult.resistance_levels?.length ? scanResult.resistance_levels.map(l => `₹${Number(l).toLocaleString()}`).join(' · ') : 'None'}</div>
+                  <div style={{ color: T.textMid, marginBottom: 3 }}>RESISTANCE</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {scanResult.resistance_levels?.length
+                      ? scanResult.resistance_levels.map((l, i) => <span key={i} style={{ color: T.red, background: T.redDim, border: `1px solid ${T.redGlow}`, borderRadius: 999, padding: '1px 6px' }}>₹{Number(l).toLocaleString()}</span>)
+                      : <span style={{ color: T.textDim }}>None detected</span>}
+                  </div>
                 </div>
                 <div>
                   <div style={{ color: T.textMid, marginBottom: 2 }}>PATTERNS</div>
@@ -608,6 +613,9 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
                 {scanResult.notes && (
                   <div style={{ color: T.textMid, fontStyle: 'italic', lineHeight: 1.5, borderTop: `1px solid ${T.border}`, paddingTop: 6 }}>{scanResult.notes}</div>
                 )}
+                <div style={{ fontSize: 8, color: T.textDim, borderTop: `1px solid ${T.border}`, paddingTop: 6 }}>
+                  ENGINE: {(scanResult.source || 'GEMINI 2.0 FLASH').toUpperCase()}
+                </div>
               </div>
             )}
           </div>
@@ -695,7 +703,7 @@ function WatchlistPanel({ prices, selected, onSelect, favorites = [], onToggleFa
         {/* Search Input */}
         <input 
           type="text"
-          placeholder="🔍 Search watchlist..."
+          placeholder="Search watchlist..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{
@@ -1204,307 +1212,6 @@ function MdText({ text }) {
 }
 
 // ── AI Chat Panel ─────────────────────────────────────────────────────────────
-function ChatPanel({ symbol, price, changePct }) {
-  const [msgs, setMsgs]         = useState([
-    { role: 'assistant', text: `Greetings! I'm your AI Trading Mentor. Ask me any questions about trading strategies, candlestick patterns (Candlestick Bible), risk management (SL Guide), or technical indicators.` }
-  ]);
-  const [input, setInput]       = useState('');
-  const [busy, setBusy]         = useState(false);
-  const [aiSource, setAiSource] = useState(null);
-  const bottomRef               = useRef();
-  const inputRef                = useRef();
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
-
-  const send = useCallback(async (override) => {
-    const text = typeof override === 'string' ? override : input;
-    if (!text.trim() || busy) return;
-    const userMsg = text.trim();
-    setInput('');
-    setMsgs(m => [...m, { role: 'user', text: userMsg }]);
-    setBusy(true);
-    try {
-      const res = await apiFetch('/api/chat', {
-        method: 'POST',
-        body: JSON.stringify({
-          message: userMsg,
-          context: { symbol: symbol.replace('.NS', ''), price, changePct },
-          history: msgs.map(m => ({ role: m.role, text: m.text }))
-        }),
-      });
-      if (res.status === 401) {
-        localStorage.removeItem('is_logged_in');
-        localStorage.removeItem('apex_user');
-        localStorage.removeItem('apt_token');
-        sessionStorage.removeItem('apt_token');
-        window.location.reload();
-        return;
-      }
-      if (!res.ok) throw new Error('backend unavailable');
-      const data = await res.json();
-      setAiSource(data.source);
-      setMsgs(m => [...m, { role: 'assistant', text: data.reply || 'No response.' }]);
-    } catch {
-      setMsgs(m => [...m, { role: 'assistant', text: "AI Mentor is currently unavailable. Please check backend connection." }]);
-    }
-    setBusy(false);
-  }, [input, busy, symbol, price, changePct, msgs]);
-
-  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
-  const SUGGESTIONS = ['Scan Breakouts', 'Support & Resistance', 'Verify VWAP Veto', 'Explain Market Regime'];
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <div style={{ padding: '14px 16px 10px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 7, height: 7, borderRadius: '50%', background: T.green, boxShadow: `0 0 6px ${T.green}`, animation: 'pulse 2s ease-in-out infinite' }} />
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: T.textMid, fontFamily: "'IBM Plex Mono', monospace", flex: 1 }}>AI ASSISTANT</span>
-        {aiSource && (
-          <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 3, background: aiSource === 'gemini' ? T.blueDim : T.greenDim, color: aiSource === 'gemini' ? T.blue : T.green, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em' }}>
-            {aiSource === 'gemini' ? '✦ GEMINI' : 'LOCAL'}
-          </span>
-        )}
-      </div>
-
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {msgs.map((m, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', animation: 'fadeIn 0.2s ease' }}>
-            <div style={{
-              maxWidth: '88%', padding: '9px 13px', borderRadius: m.role === 'user' ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
-              background: m.role === 'user' ? T.blueDim : T.panel,
-              border: `1px solid ${m.role === 'user' ? T.accent : T.border}`,
-              fontSize: 12, lineHeight: 1.6, color: T.text,
-            }}><MdText text={m.text} /></div>
-          </div>
-        ))}
-        {busy && (
-          <div style={{ display: 'flex', gap: 4, padding: '10px 14px' }}>
-            {[0,1,2].map(i => <span key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: T.accent, animation: `bounce 1s ${i * 0.2}s ease-in-out infinite` }} />)}
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
-
-      <div style={{ padding: '0 12px 8px', display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-        {SUGGESTIONS.map(s => (
-          <button key={s} onClick={() => send(s)} disabled={busy}
-            style={{ fontSize: 9, padding: '4px 8px', borderRadius: 12, border: `1px solid ${T.borderHi}`, background: 'transparent', color: T.textMid, cursor: busy ? 'wait' : 'pointer', fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.target.style.borderColor = T.accent; e.target.style.color = T.accent; }}
-            onMouseLeave={e => { e.target.style.borderColor = T.borderHi; e.target.style.color = T.textMid; }}
-          >{s}</button>
-        ))}
-      </div>
-
-      <div style={{ padding: '10px 12px', borderTop: `1px solid ${T.border}`, display: 'flex', gap: 8 }}>
-        <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
-          placeholder="Ask the AI Mentor anything (e.g. Hammer candlestick, 2% risk)..."
-          style={{ flex: 1, background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 8, padding: '9px 12px', color: T.text, fontSize: 12, outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.2s' }}
-          onFocus={e => e.target.style.borderColor = T.accent}
-          onBlur={e => e.target.style.borderColor = T.borderHi}
-        />
-        <button onClick={send} disabled={!input.trim() || busy} style={{
-          padding: '9px 14px', background: input.trim() ? T.accent : T.border, border: 'none', borderRadius: 8,
-          color: input.trim() ? '#fff' : T.textDim, fontSize: 11, fontWeight: 700,
-          cursor: input.trim() ? 'pointer' : 'not-allowed', transition: 'all 0.2s',
-          fontFamily: "'IBM Plex Mono', monospace",
-        }}>ASK</button>
-      </div>
-    </div>
-  );
-}
-
-// ── Header ─────────────────────────────────────────────────────────────────────────────
-function Header({ connected, view, onViewChange, isMobile, netWorth, cash, stockValue, totalPnl, totalPct, selectedSymbol, prices, onCommandPaletteOpen }) {
-  const [clock, setClock] = useState(() => new Date().toLocaleTimeString('en-IN', { hour12: true }));
-  useEffect(() => {
-    const t = setInterval(() => setClock(new Date().toLocaleTimeString('en-IN', { hour12: true })), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  const [showMore, setShowMore] = useState(false);
-
-  const p = prices[selectedSymbol];
-  const price = p?.price ?? SEED_PRICES[selectedSymbol] ?? 0;
-  const pct = p?.changePct ?? 0;
-  const isUp = pct >= 0;
-
-  return (
-    <div style={{ padding: '0 16px', height: 54, display: 'flex', alignItems: 'center', gap: 16, borderBottom: `1px solid ${T.border}`, background: T.surface, flexShrink: 0 }}>
-      {/* Logo */}
-      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, letterSpacing: '0.12em', whiteSpace: 'nowrap', background: `linear-gradient(135deg, ${T.accent}, ${T.accentAlt})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', flexShrink: 0 }}>
-        ◈ ApexTrade Bot Engine
-      </div>
-
-      {/* View switcher — primary tabs (desktop) + collapsed secondary "More" menu */}
-      {!isMobile && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ display: 'flex', background: T.bg, borderRadius: 6, padding: 2, border: `1px solid ${T.border}`, flexShrink: 0 }}>
-            {PRIMARY_TABS.map(v => {
-              const meta = TAB_META[v] || { icon: '', label: v };
-              const TabIcon = TAB_ICONS[meta.icon];
-              const isActive = view === v;
-              return (
-                <button key={v} onClick={() => onViewChange(v)} style={{
-                  padding: '4px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
-                  background: isActive ? T.accentDim : 'transparent',
-                  color: isActive ? T.accentAlt : T.textDim,
-                  fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
-                  fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                }}>{TabIcon && <TabIcon size={12} />}{meta.label}</button>
-              );
-            })}
-          </div>
-
-          {SECONDARY_TABS.length > 0 && (
-            <div style={{ position: 'relative' }}>
-              <button onClick={() => setShowMore(s => !s)} style={{
-                padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.border}`, background: T.bg, cursor: 'pointer',
-                color: SECONDARY_TABS.some(t => view === t) ? T.accentAlt : T.textDim,
-                fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', fontFamily: "'Inter', sans-serif",
-              }}>⋯ MORE</button>
-              {showMore && (
-                <>
-                  <div onClick={() => setShowMore(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
-                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: 4, zIndex: 100, minWidth: 150, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
-                    {SECONDARY_TABS.map(v => {
-                      const meta = TAB_META[v] || { icon: '', label: v };
-                      const TabIcon = TAB_ICONS[meta.icon];
-                      const isActive = view === v;
-                      return (
-                        <button key={v} onClick={() => { onViewChange(v); setShowMore(false); }} style={{
-                          display: 'flex', alignItems: 'center', gap: 6, width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                          background: isActive ? T.accentDim : 'transparent',
-                          color: isActive ? T.accentAlt : T.text,
-                          fontSize: 10, fontWeight: 700, fontFamily: "'Inter', sans-serif",
-                        }}>{TabIcon && <TabIcon size={12} />}{meta.label}</button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div style={{ width: 1, height: 22, background: T.border, flexShrink: 0 }} />
-
-      {/* Active Symbol Price Quote — Display ONLY on Chart View */}
-      {!isMobile && view === 'CHART' && selectedSymbol && (
-        <>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0, flexShrink: 0 }}>
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700, color: T.textMid, letterSpacing: '0.06em' }}>
-              {selectedSymbol.replace('.NS', '')}
-            </span>
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 18, fontWeight: 700, color: T.text, letterSpacing: '-0.02em' }}>
-              ₹{fmt(price)}
-            </span>
-            <span style={{
-              fontSize: 10,
-              color: clr(pct),
-              background: isUp ? T.greenDim : T.redDim,
-              border: `1px solid ${isUp ? T.greenGlow : T.redGlow}`,
-              padding: '1px 6px',
-              borderRadius: 4,
-              fontFamily: "'IBM Plex Mono', monospace"
-            }}>
-              {sign(pct)}{fmt(pct, 2)}%
-            </span>
-          </div>
-          <div style={{ width: 1, height: 22, background: T.border, flexShrink: 0 }} />
-        </>
-      )}
-
-      {/* Account Balances Summary */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
-        {/* Net Worth */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>PORTFOLIO VALUE</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>
-            ₹{fmt(netWorth)}
-          </span>
-        </div>
-
-        {/* Total P&L */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>TOTAL P&L</span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: clr(totalPnl), fontFamily: "'IBM Plex Mono', monospace" }}>
-            {sign(totalPnl)}₹{fmt(Math.abs(totalPnl))} ({sign(totalPct)}{fmt(totalPct, 2)}%)
-          </span>
-        </div>
-
-        {!isMobile && (
-          <>
-            <div style={{ width: 1, height: 20, background: T.border, flexShrink: 0 }} />
-
-            {/* Available Cash */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>AVAILABLE CASH</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: T.blue, fontFamily: "'IBM Plex Mono', monospace" }}>
-                ₹{fmt(cash)}
-              </span>
-            </div>
-
-            {/* Stock Holdings */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>STOCKS HOLDINGS</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>
-                ₹{fmt(stockValue)}
-              </span>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
-        {onCommandPaletteOpen && (
-          <button
-            onClick={onCommandPaletteOpen}
-            title="Open command palette (Ctrl+K)"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '5px 10px', borderRadius: 6,
-              border: `1px solid ${T.border}`, background: T.bg,
-              color: T.textMid, cursor: 'pointer',
-              fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
-              fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.color = T.accentAlt; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textMid; }}
-          >
-            <Search size={12} />
-            {!isMobile && <span>SEARCH</span>}
-            {!isMobile && <kbd style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: T.panelAlt, border: `1px solid ${T.border}`, color: T.textDim }}>Ctrl K</kbd>}
-          </button>
-        )}
-        {!isMobile && <span style={{ fontSize: 10, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em' }}>{clock} UTC+5:30</span>}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: !connected ? T.red : (isNSEMarketOpen() ? T.green : T.gold),
-              boxShadow: connected && isNSEMarketOpen() ? `0 0 8px ${T.greenGlow}` : 'none',
-              animation: connected && isNSEMarketOpen() ? 'pulse 2s ease-in-out infinite' : 'none'
-            }} />
-            <span style={{
-              fontSize: 10,
-              color: !connected ? T.red : (isNSEMarketOpen() ? T.green : T.gold),
-              fontFamily: "'IBM Plex Mono', monospace",
-              letterSpacing: '0.08em'
-            }}>
-              {!connected ? 'OFFLINE' : (isNSEMarketOpen() ? 'LIVE' : 'CLOSED')}
-            </span>
-          </div>
-
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Bottom Console Tray (desktop-friendly) ───────────────────────────────────
 function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, priceAlerts, onDeleteAlert, aiRecommendation, aiRecommendationLoading, selected, onExecuteOrder, onViewChange, consoleTab, setConsoleTab, onRefreshAnalyst }) {
 
   const totalStockValue = portfolio.reduce((sum, pos) => {
@@ -1518,7 +1225,7 @@ function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, pri
       {/* Console Header */}
       <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, padding: '0 16px', height: 38 }}>
         <div style={{ display: 'flex', gap: 2 }}>
-          {[['POSITIONS', '💼 POSITIONS'], ['ORDERS', '⏳ OPEN ORDERS'], ['ALERTS', '🔔 PRICE ALERTS'], ['AI', '💡 AI ANALYST']].map(([tab, label]) => (
+          {[['POSITIONS', 'POSITIONS'], ['ORDERS', 'OPEN ORDERS'], ['ALERTS', 'PRICE ALERTS'], ['AI', 'AI ANALYST']].map(([tab, label]) => (
             <button
               key={tab}
               onClick={() => setConsoleTab(tab)}
@@ -1754,7 +1461,7 @@ function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, pri
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, height: '100%', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 4 }}>
               <div style={{ fontSize: 9.5, fontWeight: 700, color: T.accentAlt, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>💡</span> AI QUANT ANALYST: {selected.replace('.NS', '')}
+                <Sparkles size={12} /> AI QUANT ANALYST: {selected.replace('.NS', '')}
               </div>
               {aiRecommendationLoading && (
                 <span style={{ display: 'inline-block', width: 10, height: 10, border: `1.5px solid ${T.border}`, borderTopColor: T.accentAlt, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
@@ -1793,7 +1500,7 @@ function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, pri
                     e.currentTarget.style.borderColor = 'rgba(245, 200, 66, 0.25)';
                   }}
                 >
-                  🔮 LOG SYSTEM PREDICTION
+                  LOG SYSTEM PREDICTION
                 </button>
                 {onRefreshAnalyst && (
                   <button
@@ -1820,7 +1527,7 @@ function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, pri
                       e.currentTarget.style.borderColor = 'rgba(77, 166, 255, 0.25)';
                     }}
                   >
-                    🔄 REFRESH
+                              REFRESH
                   </button>
                 )}
               </div>
@@ -1834,25 +1541,6 @@ function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, pri
 
 // ── Tab configuration ────────────────────────────────────────────────────────
 // Primary tabs: shown in the desktop header and as the main mobile bottom nav.
-const PRIMARY_TABS = ['HOME', 'SIMULATOR', 'CHART', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
-// Secondary (demoted) tabs: collapsed behind a "More" menu on desktop, still reachable.
-const SECONDARY_TABS = ['SIGNALS'];
-// Mobile keeps the full list (scanner accessible via bottom nav on small screens).
-const MOBILE_TABS = ['HOME', 'SIMULATOR', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
-
-// Icon + label map for tab rendering
-const TAB_META = {
-  HOME:        { icon: '🏠', label: 'HOME' },
-  SIMULATOR:   { icon: '🤖', label: 'BOT' },
-  CHART:       { icon: '📈', label: 'CHART' },
-  SIGNALS:     { icon: '📡', label: 'SCAN' },
-  PREDICTIONS: { icon: '🔮', label: 'PREDICT' },
-  PERFORMANCE: { icon: '📊', label: 'PERF' },
-  JOURNAL:     { icon: '📓', label: 'JRNL' },
-  ACCOUNT:     { icon: '🛡️', label: 'SEC' },
-};
-
-// ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   // Personal Workstation Mode — Direct Access, No Login/Logout
   const loggedIn = true;
@@ -1937,6 +1625,7 @@ export default function App() {
         setCmdOpen(prev => !prev);
         return;
       }
+      if (cmdOpen) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
       if (e.key === 'b' || e.key === 'B') {
@@ -1958,7 +1647,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selected]);
+  }, [selected, cmdOpen]);
 
   // ── Morning Brief ───────────────────────────────────────────────────────────
   const [showBriefModal, setShowBriefModal] = useState(false);
@@ -2110,10 +1799,11 @@ export default function App() {
         setView('SIGNALS');
         break;
       case 'health-diag':
-        setView('ACCOUNT');
+        window.dispatchEvent(new CustomEvent('apex:open-health'));
         break;
       case 'clear-logs':
-        setView('PERFORMANCE');
+        setTradeMarkers({});
+        showToast('Order log markers cleared', 'info');
         break;
       case 'emergency-stop':
         try {
@@ -2563,7 +2253,7 @@ export default function App() {
             backdropFilter: 'blur(8px)',
           }}>
             <span style={{ color: t.type === 'error' ? T.red : t.type === 'info' ? T.blue : T.green }}>
-              {t.type === 'error' ? '⚠️' : t.type === 'info' ? '⏰' : '✓'}
+              {t.type === 'error' ? '!' : t.type === 'info' ? 'i' : '✓'}
             </span>
             <span>{t.message}</span>
           </div>
@@ -2657,20 +2347,7 @@ export default function App() {
               />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {MOBILE_TABS.map(tab => (
-                    <button key={tab} onClick={() => setView(tab)} style={{
-                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
-                      background: 'transparent',
-                      color: view === tab ? T.accent : T.textDim,
-                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
-                      fontFamily: "'Inter', sans-serif",
-                      transition: 'all 0.2s',
-                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
-                      marginTop: -1
-                    }}>
-                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'JOURNAL' ? '📓' : tab === 'SIMULATOR' ? '🤖' : '🛡️'}
-                    </button>
-                  ))}
+                  <MobileNavButtons view={view} onChange={setView} />
                 </div>
               )}
             </div>
@@ -2680,20 +2357,7 @@ export default function App() {
               <SignalsPanel onSelectSymbol={handleSignalSelect} selectedSymbol={selected} prices={prices} cash={cash} />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {MOBILE_TABS.map(tab => (
-                    <button key={tab} onClick={() => setView(tab)} style={{
-                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
-                      background: 'transparent',
-                      color: view === tab ? T.accent : T.textDim,
-                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
-                      fontFamily: "'Inter', sans-serif",
-                      transition: 'all 0.2s',
-                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
-                      marginTop: -1
-                    }}>
-                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
-                    </button>
-                  ))}
+                  <MobileNavButtons view={view} onChange={setView} />
                 </div>
               )}
             </div>
@@ -2703,20 +2367,7 @@ export default function App() {
               <PredictionsPanel prices={prices} selectedSymbol={selected} onSelectSymbol={setSelected} onViewChange={setView} />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {MOBILE_TABS.map(tab => (
-                    <button key={tab} onClick={() => setView(tab)} style={{
-                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
-                      background: 'transparent',
-                      color: view === tab ? T.accent : T.textDim,
-                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
-                      fontFamily: "'Inter', sans-serif",
-                      transition: 'all 0.2s',
-                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
-                      marginTop: -1
-                    }}>
-                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
-                    </button>
-                  ))}
+                  <MobileNavButtons view={view} onChange={setView} />
                 </div>
               )}
             </div>
@@ -2726,20 +2377,7 @@ export default function App() {
               <JournalPanel />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {MOBILE_TABS.map(tab => (
-                    <button key={tab} onClick={() => setView(tab)} style={{
-                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
-                      background: 'transparent',
-                      color: view === tab ? T.accent : T.textDim,
-                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
-                      fontFamily: "'Inter', sans-serif",
-                      transition: 'all 0.2s',
-                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
-                      marginTop: -1
-                    }}>
-                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
-                    </button>
-                  ))}
+                  <MobileNavButtons view={view} onChange={setView} />
                 </div>
               )}
             </div>
@@ -2749,20 +2387,7 @@ export default function App() {
               <PerformancePanel />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {MOBILE_TABS.map(tab => (
-                    <button key={tab} onClick={() => setView(tab)} style={{
-                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
-                      background: 'transparent',
-                      color: view === tab ? T.accent : T.textDim,
-                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
-                      fontFamily: "'Inter', sans-serif",
-                      transition: 'all 0.2s',
-                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
-                      marginTop: -1
-                    }}>
-                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : '🛡️'}
-                    </button>
-                  ))}
+                  <MobileNavButtons view={view} onChange={setView} />
                 </div>
               )}
             </div>
@@ -2776,20 +2401,7 @@ export default function App() {
               />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {MOBILE_TABS.map(tab => (
-                    <button key={tab} onClick={() => setView(tab)} style={{
-                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
-                      background: 'transparent',
-                      color: view === tab ? T.accent : T.textDim,
-                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
-                      fontFamily: "'Inter', sans-serif",
-                      transition: 'all 0.2s',
-                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
-                      marginTop: -1
-                    }}>
-                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'JOURNAL' ? '📓' : tab === 'SIMULATOR' ? '🤖' : '🛡️'}
-                    </button>
-                  ))}
+                  <MobileNavButtons view={view} onChange={setView} />
                 </div>
               )}
             </div>
@@ -2816,20 +2428,7 @@ export default function App() {
 
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  {MOBILE_TABS.map(tab => (
-                    <button key={tab} onClick={() => setView(tab)} style={{
-                      flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
-                      background: 'transparent',
-                      color: view === tab ? T.accent : T.textDim,
-                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
-                      fontFamily: "'Inter', sans-serif",
-                      transition: 'all 0.2s',
-                      borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
-                      marginTop: -1
-                    }}>
-                      {tab === 'HOME' ? '🏠' : tab === 'CHART' ? '📈' : tab === 'SIGNALS' ? '📡' : tab === 'PREDICTIONS' ? '🔮' : tab === 'PERFORMANCE' ? '📊' : tab === 'JOURNAL' ? '📓' : tab === 'SIMULATOR' ? '⏱️' : '🛡️'}
-                    </button>
-                  ))}
+                  <MobileNavButtons view={view} onChange={setView} />
                 </div>
               )}
             </div>
@@ -2852,7 +2451,7 @@ export default function App() {
                           borderBottom: `2px solid ${mobileSubTab === sub ? T.accent : 'transparent'}`,
                           marginTop: -1
                         }}>
-                          {sub === 'WATCHLIST' ? '📋 WATCH' : sub === 'CHART' ? '📈 CHART' : sub === 'ORDER' ? '💸 TRADE' : '✦ AI'}
+                          {sub === 'WATCHLIST' ? 'WATCH' : sub === 'CHART' ? 'CHART' : sub === 'ORDER' ? 'TRADE' : 'AI'}
                         </button>
                       ))}
                     </div>
@@ -2867,16 +2466,19 @@ export default function App() {
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                         {/* Interval picker & Indicator Toggles (Scrollable on mobile) */}
                         <div style={{ padding: '8px 12px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6, background: T.surface, overflowX: 'auto', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                          {INTERVALS.map((intv, i) => (
-                            <button key={intv.label} onClick={() => setIvIdx(i)} style={{
-                              padding: '4px 8px', border: `1px solid ${ivIdx === i ? T.accent : T.border}`,
-                              borderRadius: 5, cursor: 'pointer', fontSize: 10, fontWeight: 700,
-                              background: ivIdx === i ? T.blueDim : 'transparent',
-                              color: ivIdx === i ? T.accent : T.textMid,
-                              fontFamily: "'Inter', sans-serif",
-                              transition: 'all 0.15s', flexShrink: 0
-                            }}>{intv.label}</button>
-                          ))}
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 2, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, flexShrink: 0 }}>
+                            {INTERVALS.map((intv, i) => (
+                              <button key={intv.label} onClick={() => setIvIdx(i)} style={{
+                                padding: '4px 9px', borderRadius: 6, cursor: 'pointer', fontSize: 10.5, fontWeight: 600,
+                                border: `1px solid ${ivIdx === i ? 'rgba(99, 102, 241, 0.35)' : 'transparent'}`,
+                                background: ivIdx === i ? `linear-gradient(135deg, ${T.accentDim}, rgba(168, 85, 247, 0.08))` : 'transparent',
+                                boxShadow: ivIdx === i ? `0 0 12px ${T.accentGlow}` : 'none',
+                                color: ivIdx === i ? '#fff' : T.textMid,
+                                fontFamily: "'Inter', sans-serif",
+                                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)', flexShrink: 0
+                              }}>{intv.label}</button>
+                            ))}
+                          </div>
                           <div style={{ width: 1, height: 16, background: T.border, margin: '0 4px', flexShrink: 0 }} />
                           {/* Indicator Toggles */}
                           {[
@@ -2944,7 +2546,7 @@ export default function App() {
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: T.accentAlt }}>
-                              💡 AI QUANT ANALYST: {selected.replace('.NS', '')}
+                              <Sparkles size={12} /> AI QUANT ANALYST: {selected.replace('.NS', '')}
                             </div>
                             {aiRecommendationLoading && (
                               <span style={{ display: 'inline-block', width: 10, height: 10, border: `1.5px solid ${T.border}`, borderTopColor: T.accentAlt, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
@@ -2976,7 +2578,7 @@ export default function App() {
                               onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.15)'}
                               onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.08)'}
                             >
-                              🔮 LOG PREDICTION
+                              LOG PREDICTION
                             </button>
                             <button
                               onClick={() => setRefreshAnalystToken(prev => prev + 1)}
@@ -2997,7 +2599,7 @@ export default function App() {
                               onMouseEnter={e => !aiRecommendationLoading && (e.currentTarget.style.background = 'rgba(77, 166, 255, 0.15)')}
                               onMouseLeave={e => !aiRecommendationLoading && (e.currentTarget.style.background = 'rgba(77, 166, 255, 0.08)')}
                             >
-                              🔄 REFRESH
+                    REFRESH
                             </button>
                           </div>
                         </div>
@@ -3024,20 +2626,7 @@ export default function App() {
 
                   {/* Bottom Navigation Bar */}
                   <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                    {MOBILE_TABS.map(tab => (
-                      <button key={tab} onClick={() => setView(tab)} style={{
-                        flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
-                        background: 'transparent',
-                        color: view === tab ? T.accent : T.textDim,
-                        fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
-                        fontFamily: "'Inter', sans-serif",
-                        transition: 'all 0.2s',
-                        borderTop: `2px solid ${view === tab ? T.accent : 'transparent'}`,
-                        marginTop: -1
-                      }}>
-                        {tab === 'HOME' ? '🏠 HOME' : tab === 'CHART' ? '📈 CHART' : tab === 'SIGNALS' ? '📡 SCAN' : tab === 'PREDICTIONS' ? '🔮 PRED' : tab === 'SIMULATOR' ? '🤖 BOT' : tab === 'PERFORMANCE' ? '📊 PERF' : tab === 'JOURNAL' ? '📓 JRNL' : '🛡️ SEC'}
-                      </button>
-                    ))}
+                    <MobileNavButtons view={view} onChange={setView} />
                   </div>
                 </div>
               ) : (
@@ -3084,16 +2673,19 @@ export default function App() {
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.bg }}>
                     {/* Interval picker & Indicator Toggles */}
                     <div style={{ padding: '8px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6, background: T.surface, flexWrap: 'wrap' }}>
-                      {INTERVALS.map((intv, i) => (
-                        <button key={intv.label} onClick={() => setIvIdx(i)} style={{
-                          padding: '4px 11px', border: `1px solid ${ivIdx === i ? T.accent : T.border}`,
-                          borderRadius: 5, cursor: 'pointer', fontSize: 10, fontWeight: 700,
-                          background: ivIdx === i ? T.blueDim : 'transparent',
-                          color: ivIdx === i ? T.accent : T.textMid,
-                          fontFamily: "'Inter', sans-serif", letterSpacing: '0.06em',
-                          transition: 'all 0.15s',
-                        }}>{intv.label}</button>
-                      ))}
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 2, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8 }}>
+                        {INTERVALS.map((intv, i) => (
+                          <button key={intv.label} onClick={() => setIvIdx(i)} style={{
+                            padding: '4px 11px', borderRadius: 6, cursor: 'pointer', fontSize: 10.5, fontWeight: 600,
+                            border: `1px solid ${ivIdx === i ? 'rgba(99, 102, 241, 0.35)' : 'transparent'}`,
+                            background: ivIdx === i ? `linear-gradient(135deg, ${T.accentDim}, rgba(168, 85, 247, 0.08))` : 'transparent',
+                            boxShadow: ivIdx === i ? `0 0 12px ${T.accentGlow}` : 'none',
+                            color: ivIdx === i ? '#fff' : T.textMid,
+                            fontFamily: "'Inter', sans-serif", letterSpacing: '0.02em',
+                            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                          }}>{intv.label}</button>
+                        ))}
+                      </div>
 
                       <div style={{ width: 1, height: 16, background: T.border, margin: '0 8px' }} />
 
@@ -3219,7 +2811,7 @@ export default function App() {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}>
             <div style={{ background: T.surface, padding: 30, borderRadius: 12, border: `1px solid ${T.accent}`, width: '100%', maxWidth: 500, display: 'flex', flexDirection: 'column', gap: 20, boxShadow: `0 0 40px ${T.accentDim}` }}>
               <div>
-                <h2 style={{ margin: 0, color: T.text, fontFamily: "'IBM Plex Mono', monospace", fontSize: 18 }}>🌅 MORNING MARKET BRIEF</h2>
+                <h2 style={{ margin: 0, color: T.text, fontFamily: "'IBM Plex Mono', monospace", fontSize: 18 }}>MORNING MARKET BRIEF</h2>
                 <div style={{ color: T.textMid, fontSize: 12, marginTop: 4 }}>Top 3 algorithmic signals for today's open.</div>
               </div>
               
