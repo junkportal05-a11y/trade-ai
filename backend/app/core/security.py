@@ -113,21 +113,6 @@ class UserRegistry:
             "clearance": "LEVEL_4_ROOT",
         }
 
-        # Other users
-        for username, env_var, role, clearance in [
-            ("user1", "PASS_USER1", "Quant Trader Level 1", "LEVEL_2_SECURE"),
-            ("user2", "PASS_USER2", "Quant Trader Level 2", "LEVEL_2_SECURE"),
-            ("user3", "PASS_USER3", "Risk Manager", "LEVEL_3_ELEVATED"),
-        ]:
-            val = os.getenv(env_var)
-            if val:
-                h = val if is_bcrypt_hash(val) else get_password_hash(val)
-                self._users[username] = {
-                    "pass_hash": h,
-                    "role": role,
-                    "clearance": clearance,
-                }
-
     def get_user(self, username: str) -> dict | None:
         return self._users.get(username)
 
@@ -201,8 +186,8 @@ async def require_session(
 
     return {
         "username": username,
-        "role": user.get("role", "Authorized Guest"),
-        "clearance": user.get("clearance", "LEVEL_1_GUEST"),
+        "role": user.get("role", "Master Quant / Administrator"),
+        "clearance": user.get("clearance", "LEVEL_4_ROOT"),
     }
 
 
@@ -228,8 +213,8 @@ async def optional_session(
 
     return {
         "username": username,
-        "role": user.get("role", "Authorized Guest"),
-        "clearance": user.get("clearance", "LEVEL_1_GUEST"),
+        "role": user.get("role", "Master Quant / Administrator"),
+        "clearance": user.get("clearance", "LEVEL_4_ROOT"),
     }
 
 

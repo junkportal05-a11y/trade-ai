@@ -44,13 +44,13 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
       { time: '09:15:00', type: 'SYS', msg: 'APEXTRADE Core security framework loaded.' },
       { time: '09:15:02', type: 'NET', msg: 'Local websocket proxy secure tunnel initialized.' },
       { time: '09:15:05', type: 'SEC', msg: `Cryptographic session key set for scope: ${(currentUser || '').toUpperCase()}` },
-      { time: loginTime, type: 'AUTH', msg: `User verification passed for: ${currentUser} (${userClearance || 'LEVEL_1_GUEST'})` }
+      { time: loginTime, type: 'AUTH', msg: `User verification passed for: ${currentUser} (${userClearance || 'LEVEL_4_ROOT'})` }
     ]);
   }, [currentUser, loginTime, userClearance]);
 
 
 
-  const curUserObj = { role: userRole || 'Authorized Guest', clearance: userClearance || 'LEVEL_1_GUEST' };
+  const curUserObj = { role: userRole || 'Master Quant / Administrator', clearance: userClearance || 'LEVEL_4_ROOT' };
 
   return (
     <div style={{
@@ -241,10 +241,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
-                { level: 'LEVEL_4_ROOT', desc: 'Full administration, order routing, manual balance overwriting, custom backtests.' },
-                { level: 'LEVEL_3_ELEVATED', desc: 'Risk sizing parameter access, order cancelation keys, daily macro summaries.' },
-                { level: 'LEVEL_2_SECURE', desc: 'Standard trading execution, signals scanner scans, watchlist adjustments.' },
-                { level: 'LEVEL_1_GUEST', desc: 'Read-only access, local price feeds dashboard, guest charting.' }
+                { level: 'LEVEL_4_ROOT', desc: 'Personal Root Quant — Full administration, autonomous bot execution, order routing, manual balance overwriting, custom backtests.' }
               ].map(policy => {
                 const isActiveClearance = userClearance === policy.level;
                 return (
