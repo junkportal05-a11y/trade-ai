@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import os
-import time
 import shutil
+import time
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -13,7 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from app.core.config import settings
-from app.core.database import engine, SessionLocal
+from app.core.database import engine, SessionLocal, get_pool_status
 from app.core.worker_state import get_degraded_workers, any_degraded
 from app.services.market_hours import is_nse_market_open
 
@@ -29,23 +29,19 @@ def check_database() -> dict[str, Any]:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         latency_ms = round((time.perf_counter() - start) * 1000, 2)
-        
-        # Check WAL mode for SQLite
-        wal_mode = None
-        if (settings.database_url or "").startswith("sqlite"):
-            try:
-                with engine.connect() as conn:
-                    result = conn.execute(text("PRAGMA journal_mode;"))
-                    wal_mode = result.scalar()
-            except Exception:
-                pass
-        
+
+        db_type = "postgresql" if settings.is_postgres else "sqlite"
+
+        # Get pool status for PostgreSQL
+        pool_info = {}
+        if settings.is_postgres:
+            pool_info = get_pool_status()
+
         return {
             "status": "healthy",
             "latency_ms": latency_ms,
-            "type": "postgresql" if settings.is_postgres else "sqlite",
-            "wal_mode": wal_mode,
-            "wal_verified": wal_mode and wal_mode.lower() == "wal" if wal_mode else None,
+            "type": db_type,
+            "pool": pool_info,
         }
     except OperationalError as e:
         return {

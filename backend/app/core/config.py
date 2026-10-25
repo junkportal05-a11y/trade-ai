@@ -112,6 +112,18 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
     news_api_key: str | None = Field(default=None, alias="NEWS_API_KEY")
 
+    # ── Error Tracing ──────────────────────────────────────────────────
+    sentry_dsn: str | None = Field(default=None, alias="SENTRY_DSN")
+
+    # ── Redis / Distributed Caching ───────────────────────────────────
+    redis_url: str | None = Field(default=None, alias="REDIS_URL")
+    upstash_redis_url: str | None = Field(default=None, alias="UPSTASH_REDIS_URL")
+
+    @property
+    def effective_redis_url(self) -> str | None:
+        """Return the effective Redis URL (Upstash takes priority for free tier)."""
+        return self.upstash_redis_url or self.redis_url
+
     # ── CORS ─────────────────────────────────────────────────────────
     # Env var ALLOWED_ORIGINS (comma-separated) overrides the hardcoded default.
     allowed_origins: str = os.getenv(

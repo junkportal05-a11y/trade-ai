@@ -1,12 +1,11 @@
 import { API_BASE_URL, apiFetch } from './api';
-import { Plus, Minus, Info, AlertTriangle, Link, Link2Off, RefreshCw, Layers, Crosshair, TrendingUp, X } from 'lucide-react';
+import { Plus, Minus, Info, AlertTriangle, Link, Link2Off, RefreshCw, Layers, Crosshair, TrendingUp, X, Home, Bot, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck, Activity, Wifi, WifiOff, Search, Zap, Camera, Loader2, ChevronRight, Zap as ZapIcon, RotateCcw, Database, SkipForward, Terminal, ScanLine, Settings, HelpCircle, LayoutDashboard } from 'lucide-react';
 import { calcEMA, calcBollingerBands, calcRSI, calcMACD } from './utils/indicators';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
 import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
 import SignalsPanel from './SignalsPanel';
 import IntroSplash from './IntroSplash';
-import LoginScreen from './LoginScreen';
 import AccountPanel from './AccountPanel';
 import OrderBookPanel from './OrderBookPanel';
 import HomePanel from './HomePanel';
@@ -19,6 +18,7 @@ import TradeLogPanel from './TradeLogPanel';
 import StrategySelector from './StrategySelector';
 import BacktestRunner from './BacktestRunner';
 import { PanelErrorBoundary } from './PanelErrorBoundary';
+import CommandPalette from './components/CommandPalette';
 
 
 const EMPTY_ARRAY = [];
@@ -51,6 +51,8 @@ const T = {
   accentDim:  'rgba(123,108,255,0.12)',
   accentGlow: 'rgba(123,108,255,0.3)',
 };
+
+const TAB_ICONS = { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck };
 
 // ── NSE Watchlist ────────────────────────────────────────────────────────────────
 const DEFAULT_WATCHLIST = [
@@ -103,6 +105,10 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
   const volSeriesRef = useRef();
   const liveTickRef = useRef();
   const seriesMarkersRef = useRef();
+
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [scanError, setScanError] = useState(null);
   
   const { bars, loading, error } = useHistory(symbol, { interval, range, seedPrice: SEED_PRICES[symbol] });
 
@@ -464,6 +470,33 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
     }
   }, [bars, onLastBarUpdate]);
 
+  const scanChart = useCallback(async () => {
+    if (!mainChartRef.current || scanning) return;
+    setScanning(true);
+    setScanError(null);
+    setScanResult(null);
+    try {
+      const canvas = mainChartRef.current.takeScreenshot();
+      const dataUrl = canvas.toDataURL('image/png');
+      const res = await apiFetch('/api/chat/chart', {
+        method: 'POST',
+        body: JSON.stringify({
+          image_base64: dataUrl.split(',')[1],
+          symbol: symbol.replace('.NS', ''),
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      setScanResult(await res.json());
+    } catch (e) {
+      setScanError(e.message);
+    } finally {
+      setScanning(false);
+    }
+  }, [scanning, symbol]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
       {loading && (
@@ -503,6 +536,80 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
         {botPaperMode === false && (
           <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, background: T.red, color: '#fff', fontSize: 11, fontWeight: 800, padding: '4px 8px', borderRadius: 4, letterSpacing: '0.05em' }}>
             LIVE BROKER
+          </div>
+        )}
+
+        <button
+          onClick={scanChart}
+          disabled={scanning}
+          title="Capture the chart and analyze it with Gemini 2.0 Flash"
+          style={{
+            position: 'absolute', top: 12, right: botPaperMode === false ? 108 : 12, zIndex: 11,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '6px 10px', borderRadius: 6,
+            border: `1px solid ${T.accent}`, background: T.accentDim,
+            color: T.accentAlt, cursor: scanning ? 'wait' : 'pointer',
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+            fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
+          }}
+        >
+          {scanning ? <Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Camera size={12} />}
+          {scanning ? 'SCANNING...' : '📸 AI SCAN CHART'}
+        </button>
+
+        {(scanResult || scanError) && (
+          <div style={{
+            position: 'absolute', top: 50, right: 12, zIndex: 12, width: 270, maxHeight: '75%', overflowY: 'auto',
+            background: 'rgba(13,17,26,0.96)', border: `1px solid ${T.borderHi}`, borderRadius: 10,
+            padding: 12, boxShadow: '0 12px 32px rgba(0,0,0,0.55)',
+            fontSize: 10, fontFamily: "'IBM Plex Mono', monospace", color: T.text,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontWeight: 700, letterSpacing: '0.06em', color: T.text }}>📸 AI CHART SCAN</span>
+              <button onClick={() => { setScanResult(null); setScanError(null); }} style={{ background: 'transparent', border: 'none', color: T.textDim, cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>✕</button>
+            </div>
+            {scanError ? (
+              <div style={{ color: T.red, lineHeight: 1.5 }}>{scanError}</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: T.textMid }}>TREND</span>
+                  <span style={{ fontWeight: 700, color: scanResult.trend === 'bullish' ? T.green : scanResult.trend === 'bearish' ? T.red : T.blue }}>
+                    {(scanResult.trend || 'neutral').toUpperCase()}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: T.textMid }}>BREAKOUT</span>
+                  <span style={{ fontWeight: 700, color: scanResult.breakout_signal === 'up' ? T.green : scanResult.breakout_signal === 'down' ? T.red : T.textMid }}>
+                    {scanResult.breakout_signal ? scanResult.breakout_signal.toUpperCase() : 'NONE'}
+                  </span>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                    <span style={{ color: T.textMid }}>CONFIDENCE</span>
+                    <span style={{ fontWeight: 700 }}>{Math.round((scanResult.confidence || 0) * 100)}%</span>
+                  </div>
+                  <div style={{ height: 4, background: T.border, borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.round((scanResult.confidence || 0) * 100)}%`, height: '100%', background: (scanResult.confidence || 0) > 0.7 ? T.green : (scanResult.confidence || 0) > 0.4 ? T.blue : T.red }} />
+                  </div>
+                </div>
+                <div>
+                  <div style={{ color: T.textMid, marginBottom: 2 }}>SUPPORT</div>
+                  <div style={{ color: T.green }}>{scanResult.support_levels?.length ? scanResult.support_levels.map(l => `₹${Number(l).toLocaleString()}`).join(' · ') : 'None'}</div>
+                </div>
+                <div>
+                  <div style={{ color: T.textMid, marginBottom: 2 }}>RESISTANCE</div>
+                  <div style={{ color: T.red }}>{scanResult.resistance_levels?.length ? scanResult.resistance_levels.map(l => `₹${Number(l).toLocaleString()}`).join(' · ') : 'None'}</div>
+                </div>
+                <div>
+                  <div style={{ color: T.textMid, marginBottom: 2 }}>PATTERNS</div>
+                  <div>{scanResult.patterns?.length ? scanResult.patterns.join(', ') : 'None'}</div>
+                </div>
+                {scanResult.notes && (
+                  <div style={{ color: T.textMid, fontStyle: 'italic', lineHeight: 1.5, borderTop: `1px solid ${T.border}`, paddingTop: 6 }}>{scanResult.notes}</div>
+                )}
+              </div>
+            )}
           </div>
         )}
         
@@ -1109,9 +1216,10 @@ function ChatPanel({ symbol, price, changePct }) {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
 
-  const send = useCallback(async () => {
-    if (!input.trim() || busy) return;
-    const userMsg = input.trim();
+  const send = useCallback(async (override) => {
+    const text = typeof override === 'string' ? override : input;
+    if (!text.trim() || busy) return;
+    const userMsg = text.trim();
     setInput('');
     setMsgs(m => [...m, { role: 'user', text: userMsg }]);
     setBusy(true);
@@ -1140,10 +1248,10 @@ function ChatPanel({ symbol, price, changePct }) {
       setMsgs(m => [...m, { role: 'assistant', text: "AI Mentor is currently unavailable. Please check backend connection." }]);
     }
     setBusy(false);
-  }, [input, busy, symbol, price, changePct]);
+  }, [input, busy, symbol, price, changePct, msgs]);
 
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
-  const SUGGESTIONS = ['Explain Hammer Candlesticks', 'What is the 2% Risk Rule?', 'How to place Stop Losses?', 'Analyze market trend?'];
+  const SUGGESTIONS = ['Scan Breakouts', 'Support & Resistance', 'Verify VWAP Veto', 'Explain Market Regime'];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -1176,17 +1284,15 @@ function ChatPanel({ symbol, price, changePct }) {
         <div ref={bottomRef} />
       </div>
 
-      {msgs.length <= 2 && (
-        <div style={{ padding: '0 12px 8px', display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-          {SUGGESTIONS.map(s => (
-            <button key={s} onClick={() => { setInput(s); }}
-              style={{ fontSize: 9, padding: '4px 8px', borderRadius: 12, border: `1px solid ${T.borderHi}`, background: 'transparent', color: T.textMid, cursor: 'pointer', fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.target.style.borderColor = T.accent; e.target.style.color = T.accent; }}
-              onMouseLeave={e => { e.target.style.borderColor = T.borderHi; e.target.style.color = T.textMid; }}
-            >{s}</button>
-          ))}
-        </div>
-      )}
+      <div style={{ padding: '0 12px 8px', display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+        {SUGGESTIONS.map(s => (
+          <button key={s} onClick={() => send(s)} disabled={busy}
+            style={{ fontSize: 9, padding: '4px 8px', borderRadius: 12, border: `1px solid ${T.borderHi}`, background: 'transparent', color: T.textMid, cursor: busy ? 'wait' : 'pointer', fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.target.style.borderColor = T.accent; e.target.style.color = T.accent; }}
+            onMouseLeave={e => { e.target.style.borderColor = T.borderHi; e.target.style.color = T.textMid; }}
+          >{s}</button>
+        ))}
+      </div>
 
       <div style={{ padding: '10px 12px', borderTop: `1px solid ${T.border}`, display: 'flex', gap: 8 }}>
         <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
@@ -1207,7 +1313,7 @@ function ChatPanel({ symbol, price, changePct }) {
 }
 
 // ── Header ─────────────────────────────────────────────────────────────────────────────
-function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, cash, stockValue, totalPnl, totalPct, selectedSymbol, prices }) {
+function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, cash, stockValue, totalPnl, totalPct, selectedSymbol, prices, onCommandPaletteOpen }) {
   const [clock, setClock] = useState(() => new Date().toLocaleTimeString('en-IN', { hour12: true }));
   useEffect(() => {
     const t = setInterval(() => setClock(new Date().toLocaleTimeString('en-IN', { hour12: true })), 1000);
@@ -1234,6 +1340,7 @@ function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, c
           <div style={{ display: 'flex', background: T.bg, borderRadius: 6, padding: 2, border: `1px solid ${T.border}`, flexShrink: 0 }}>
             {PRIMARY_TABS.map(v => {
               const meta = TAB_META[v] || { icon: '', label: v };
+              const TabIcon = TAB_ICONS[meta.icon];
               const isActive = view === v;
               return (
                 <button key={v} onClick={() => onViewChange(v)} style={{
@@ -1242,7 +1349,8 @@ function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, c
                   color: isActive ? T.accentAlt : T.textDim,
                   fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
                   fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
-                }}>{meta.icon} {meta.label}</button>
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                }}>{TabIcon && <TabIcon size={12} />}{meta.label}</button>
               );
             })}
           </div>
@@ -1260,14 +1368,15 @@ function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, c
                   <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: 4, zIndex: 100, minWidth: 150, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
                     {SECONDARY_TABS.map(v => {
                       const meta = TAB_META[v] || { icon: '', label: v };
+                      const TabIcon = TAB_ICONS[meta.icon];
                       const isActive = view === v;
                       return (
                         <button key={v} onClick={() => { onViewChange(v); setShowMore(false); }} style={{
-                          display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: 6, width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
                           background: isActive ? T.accentDim : 'transparent',
                           color: isActive ? T.accentAlt : T.text,
                           fontSize: 10, fontWeight: 700, fontFamily: "'Inter', sans-serif",
-                        }}>{meta.icon} {meta.label}</button>
+                        }}>{TabIcon && <TabIcon size={12} />}{meta.label}</button>
                       );
                     })}
                   </div>
@@ -1348,6 +1457,26 @@ function Header({ connected, view, onViewChange, isMobile, onLogout, netWorth, c
       </div>
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
+        {onCommandPaletteOpen && (
+          <button
+            onClick={onCommandPaletteOpen}
+            title="Open command palette (Ctrl+K)"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '5px 10px', borderRadius: 6,
+              border: `1px solid ${T.border}`, background: T.bg,
+              color: T.textMid, cursor: 'pointer',
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+              fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.color = T.accentAlt; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textMid; }}
+          >
+            <Search size={12} />
+            {!isMobile && <span>SEARCH</span>}
+            {!isMobile && <kbd style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: T.panelAlt, border: `1px solid ${T.border}`, color: T.textDim }}>Ctrl K</kbd>}
+          </button>
+        )}
         {!isMobile && <span style={{ fontSize: 10, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em' }}>{clock} UTC+5:30</span>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1754,13 +1883,11 @@ const TAB_META = {
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
-  // Security Authentication Gate
-  const [loggedIn, setLoggedIn] = useState(() => {
-    return localStorage.getItem('is_logged_in') === 'true' || !!localStorage.getItem('apt_token') || !!sessionStorage.getItem('apt_token');
-  });
-  const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('apex_user') || 'apex_head_quant');
-  const [userRole, setUserRole] = useState(() => localStorage.getItem('apex_role') || 'Master Quant / Administrator');
-  const [userClearance, setUserClearance] = useState(() => localStorage.getItem('apex_clearance') || 'LEVEL_4_ROOT');
+  // Personal Workstation Mode — No Login Required
+  const [loggedIn, setLoggedIn] = useState(true);
+  const [currentUser, setCurrentUser] = useState('Lead Quant');
+  const [userRole, setUserRole] = useState('Master Quant / Administrator');
+  const [userClearance, setUserClearance] = useState('LEVEL_4_ROOT');
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('is_logged_in');
@@ -1770,18 +1897,6 @@ export default function App() {
     localStorage.removeItem('apt_token');
     sessionStorage.removeItem('apt_token');
     setLoggedIn(false);
-  }, []);
-
-  // Sync hashchange for 401 redirects to show LoginScreen reactively
-  useEffect(() => {
-    const handleHash = () => {
-      const hash = window.location.hash;
-      if (hash === '#/login' || hash === '/login') {
-        setLoggedIn(false);
-      }
-    };
-    window.addEventListener('hashchange', handleHash);
-    return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
   // Warm up backend in the background as soon as the app mounts
@@ -1797,6 +1912,8 @@ export default function App() {
     }
     return 'SIMULATOR';
   });   // 'SIMULATOR' is default now, but routing-aware
+
+  const [cmdOpen, setCmdOpen] = useState(false);
 
   const [selected, setSelected] = useState('YESBANK.NS');
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
@@ -1854,6 +1971,11 @@ export default function App() {
   // ── Keyboard Shortcuts ────────────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setCmdOpen(prev => !prev);
+        return;
+      }
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
       if (e.key === 'b' || e.key === 'B') {
@@ -2013,6 +2135,38 @@ export default function App() {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 5000);
   }, []);
+
+  const handleCommandAction = useCallback(async (actionId, payload) => {
+    switch (actionId) {
+      case 'selectSymbol':
+        if (payload) setSelected(payload);
+        break;
+      case 'refresh-analyst':
+        setRefreshAnalystToken(prev => prev + 1);
+        showToast('AI analyst refresh requested', 'info');
+        break;
+      case 'scan-breakouts':
+        setView('SIGNALS');
+        break;
+      case 'health-diag':
+        setView('ACCOUNT');
+        break;
+      case 'clear-logs':
+        setView('PERFORMANCE');
+        break;
+      case 'emergency-stop':
+        try {
+          const res = await apiFetch('/api/bot/stop', { method: 'POST' });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          showToast('EMERGENCY STOP — bot halted and positions squared off', 'success');
+        } catch (err) {
+          showToast(`Emergency stop failed: ${err.message}`, 'error');
+        }
+        break;
+      default:
+        break;
+    }
+  }, [showToast]);
 
   const handleToggleFavorite = useCallback((symbol) => {
     setFavorites(prev => {
@@ -2424,26 +2578,7 @@ export default function App() {
     setBackendReady(true);
     localStorage.setItem('apex_splash_shown', 'true');
   }, []);
-
-
-
-  if (!loggedIn) {
-    return (
-      <PanelErrorBoundary>
-        <LoginScreen 
-          onLogin={(user, role, clearance) => { 
-            setLoggedIn(true); 
-            setCurrentUser(user); 
-            setUserRole(role || 'Authorized Guest'); 
-            setUserClearance(clearance || 'LEVEL_1_GUEST'); 
-            localStorage.setItem('apex_user', user); 
-            localStorage.setItem('apex_role', role || 'Authorized Guest'); 
-            localStorage.setItem('apex_clearance', clearance || 'LEVEL_1_GUEST'); 
-          }} 
-        />
-      </PanelErrorBoundary>
-    );
-  }
+  // Personal Mode — Direct Access
 
   return (
     <>
@@ -2532,6 +2667,7 @@ export default function App() {
           totalPct={totalPct}
           selectedSymbol={selected}
           prices={prices}
+          onCommandPaletteOpen={() => setCmdOpen(true)}
         />
 
         {/* Main layout */}
@@ -3107,6 +3243,16 @@ export default function App() {
           )}
         </div>
         
+        <CommandPalette
+          isOpen={cmdOpen}
+          onClose={() => setCmdOpen(false)}
+          onViewChange={setView}
+          onAction={handleCommandAction}
+          currentView={view}
+          selectedSymbol={selected}
+          prices={prices}
+        />
+
         {/* Morning Brief Modal */}
         {showBriefModal && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}>

@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from typing import Generator
 
 from sqlalchemy import create_engine, event, text
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
@@ -19,7 +20,17 @@ Base = declarative_base()
 # uvicorn crash when env var is unset (e.g. Hugging Face Space without secret).
 db_url = (settings.database_url or "").strip()
 
-def _create_sqlite_engine():
+
+def _normalize_postgres_url(url: str) -> str:
+    """Normalize PostgreSQL URL to use psycopg driver."""
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+psycopg://", 1)
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+psycopg://", 1)
+    return url
+
+
+def _create_sqlite_engine() -> Engine:
     db_path = getattr(settings, "db_path", "../trading_platform.db")
     db_uri = f"sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', db_path))}"
     if "/" in db_uri.replace("sqlite:///", "") or "\\" in db_uri.replace("sqlite:///", ""):
@@ -41,38 +52,46 @@ def _create_sqlite_engine():
     return eng
 
 
-def _create_postgres_engine(url: str):
+def _create_postgres_engine(url: str) -> Engine:
+    """Create production-grade PostgreSQL engine with optimized connection pooling."""
+    normalized_url = _normalize_postgres_url(url)
     return create_engine(
-        url,
+        normalized_url,
         connect_args={"sslmode": "require"} if "supabase.com" in url or "sslmode=require" in url else {},
         pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
-        pool_recycle=3600,
+        pool_size=10,
+        max_overflow=20,
+        pool_recycle=300,
     )
 
 
-try:
-    from sqlalchemy.engine.url import make_url as _make_url
-    _ = _make_url(db_url)  # validate parseability
-    valid_url = True
-except Exception:
-    valid_url = False
+def _create_engine() -> Engine:
+    """Create database engine with automatic fallback to SQLite."""
+    if not db_url:
+        logging.info("[db] No DATABASE_URL configured — using SQLite fallback")
+        return _create_sqlite_engine()
 
-if not db_url or not valid_url:
-    logging.info("[db] No valid DATABASE_URL — using SQLite fallback")
-    engine = _create_sqlite_engine()
-else:
+    # Validate URL parseability
+    try:
+        from sqlalchemy.engine.url import make_url as _make_url
+        _ = _make_url(db_url)
+    except Exception:
+        logging.info("[db] Invalid DATABASE_URL — using SQLite fallback")
+        return _create_sqlite_engine()
+
+    # Try PostgreSQL
     try:
         engine = _create_postgres_engine(db_url)
-        # Test connection immediately to catch auth/connectivity failures
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         logging.info("[db] PostgreSQL connection verified")
+        return engine
     except OperationalError as e:
         logging.info(f"[db] PostgreSQL connection failed ({e}), falling back to SQLite")
-        engine = _create_sqlite_engine()
+        return _create_sqlite_engine()
 
+
+engine = _create_engine()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -98,6 +117,17 @@ def db_session() -> Generator[Session, None, None]:
         raise
     finally:
         db.close()
+
+
+def get_pool_status() -> dict:
+    """Get connection pool status for health checks."""
+    pool = engine.pool
+    return {
+        "size": pool.size(),
+        "checked_in": pool.checkedin(),
+        "checked_out": pool.checkedout(),
+        "overflow": pool.overflow(),
+    }
 
 
 # ── Schema initialization (migrations) ────────────────────────────────────

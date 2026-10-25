@@ -1402,7 +1402,7 @@ def analyse_symbol(
             "scan_type": scan_type,
             "reasoning": reasoning,
             "reasons": all_reasons,
-            "scanned_at": datetime.utcnow().isoformat() + "Z",
+            "scanned_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             # Sub-scores
             "_market_score": market_score,
             "_tech_score": tech_score,

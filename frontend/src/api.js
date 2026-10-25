@@ -1,19 +1,41 @@
-let base = import.meta.env.VITE_API_URL || "";
-if (base && !base.startsWith("http")) {
-  base = "https://" + base;
-}
-if (base.endsWith("/")) {
-  base = base.slice(0, -1);
-}
-export const API_BASE_URL = base;
+export const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const custom = localStorage.getItem('apex_api_url');
+    if (custom) return custom.endsWith('/') ? custom.slice(0, -1) : custom;
+  }
+  let base = import.meta.env.VITE_API_URL || "";
+  if (base && !base.startsWith("http")) {
+    base = "https://" + base;
+  }
+  if (base.endsWith("/")) {
+    base = base.slice(0, -1);
+  }
+  return base;
+};
+
+export const setApiBaseUrl = (url) => {
+  if (typeof window !== "undefined") {
+    if (!url) {
+      localStorage.removeItem('apex_api_url');
+    } else {
+      let clean = url.trim();
+      if (!clean.startsWith("http")) clean = "https://" + clean;
+      if (clean.endsWith("/")) clean = clean.slice(0, -1);
+      localStorage.setItem('apex_api_url', clean);
+    }
+  }
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 const isDev = typeof window !== "undefined" && window.location.port === "5173";
 export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 
-  (base ? base.replace(/^http:/i, 'wss:').replace(/^https:/i, 'wss:') : (isDev ? 'ws://localhost:8000/ws' : ''));
+  (API_BASE_URL ? API_BASE_URL.replace(/^http:/i, 'wss:').replace(/^https:/i, 'wss:') : (isDev ? 'ws://localhost:8000/ws' : ''));
 
 // Authenticated fetch — always sends session cookie and auth token header
 export const apiFetch = async (path, options = {}) => {
-  const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
+  const currentBase = getApiBaseUrl();
+  const url = path.startsWith("http") ? path : `${currentBase}${path}`;
   const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
   
   const isMutating = ["POST", "PUT", "DELETE", "PATCH"].includes((options.method || "GET").toUpperCase());
@@ -30,13 +52,7 @@ export const apiFetch = async (path, options = {}) => {
   });
 
   if (res.status === 401) {
-    localStorage.removeItem('is_logged_in');
-    localStorage.removeItem('apex_user');
-    localStorage.removeItem('apt_token');
-    sessionStorage.removeItem('apt_token');
-    if (typeof window !== "undefined") {
-      window.location.hash = '/login';
-    }
+    // Single user personal mode — no login redirects
   }
 
   return res;

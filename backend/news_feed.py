@@ -81,6 +81,81 @@ def fetch_ticker_news(symbol: str) -> list[dict]:
     return []
 
 
+class SentimentResult:
+    """Structured sentiment analysis result."""
+    def __init__(self, score: float, label: str, confidence: float, source: str, reasoning: str = ""):
+        self.score = score
+        self.label = label
+        self.confidence = confidence
+        self.source = source
+        self.reasoning = reasoning
+
+
+def analyze_news_sentiment(articles: list[dict]) -> SentimentResult:
+    """
+    Evaluates the aggregate sentiment of the articles.
+    Returns a SentimentResult with score, label, confidence, and source.
+    """
+    if not articles:
+        return SentimentResult(0.0, "NEUTRAL", 1.0, "heuristic", "No articles provided")
+
+    # 1. Try Gemini structured analysis if client is available
+    if _genai_client:
+        try:
+            from pydantic import BaseModel, Field
+            from typing import Literal
+
+            class SentimentSchema(BaseModel):
+                label: Literal["BULLISH", "BEARISH", "NEUTRAL"] = Field(description="Overall sentiment label")
+                confidence: float = Field(ge=0.0, le=1.0, description="Confidence 0-1")
+                reasoning: str = Field(description="Brief reasoning for the sentiment")
+
+            headlines = "\n".join(f"- {art.get('title', '')}" for art in articles)
+            prompt = (
+                "You are an expert quantitative finance sentiment analyzer. "
+                "Classify the overall sentiment of the following stock news headlines as BULLISH, BEARISH, or NEUTRAL. "
+                "Provide confidence and brief reasoning.\n\n"
+                f"Headlines:\n{headlines}"
+            )
+            response = _genai_client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+                config={
+                    "response_mime_type": "application/json",
+                    "response_schema": SentimentSchema,
+                },
+            )
+            parsed = SentimentSchema.model_validate_json(response.text)
+
+            score_map = {"BULLISH": 0.8, "BEARISH": -0.8, "NEUTRAL": 0.0}
+            return SentimentResult(
+                score=score_map[parsed.label],
+                label=parsed.label,
+                confidence=parsed.confidence,
+                source="gemini",
+                reasoning=parsed.reasoning,
+            )
+        except Exception as e:
+            logger.error(
+                f"[NewsAPI Sentiment] Gemini analysis failed, using rule-based fallback: {e}"
+            )
+
+    # 2. Rule-based keyword density fallback
+    score = 0.0
+    for art in articles:
+        text = (art.get("title", "") + " " + art.get("description", "")).lower()
+
+        bullish_matches = set(_BULLISH_PAT.findall(text))
+        score += len(bullish_matches) * 0.25
+
+        bearish_matches = set(_BEARISH_PAT.findall(text))
+        score -= len(bearish_matches) * 0.25
+
+    score = max(-1.0, min(1.0, score))
+    label = "BULLISH" if score > 0.2 else "BEARISH" if score < -0.2 else "NEUTRAL"
+    return SentimentResult(score, label, 0.6, "heuristic", "Keyword-based analysis")
+
+
 _BULLISH_KEYWORDS = [
     "profit",
     "gain",
@@ -134,51 +209,3 @@ _BULLISH_PAT = re.compile(
 _BEARISH_PAT = re.compile(
     r"\b(" + "|".join(re.escape(k) for k in _BEARISH_KEYWORDS) + r")\b"
 )
-
-
-def analyze_news_sentiment(articles: list[dict]) -> float:
-    """
-    Evaluates the aggregate sentiment of the articles.
-    Returns a score between -1.0 (highly bearish) and +1.0 (highly bullish).
-    """
-    if not articles:
-        return 0.0
-
-    # 1. Try Gemini analysis if client is available
-    if _genai_client:
-        try:
-            headlines = "\n".join(f"- {art.get('title', '')}" for art in articles)
-            prompt = (
-                "You are an expert quantitative finance sentiment analyzer. "
-                "Classify the overall sentiment of the following stock news headlines as either BULLISH, BEARISH, or NEUTRAL. "
-                "Respond with ONLY a single word: BULLISH, BEARISH, or NEUTRAL.\n\n"
-                f"Headlines:\n{headlines}"
-            )
-            response = _genai_client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt,
-            )
-            text = response.text.strip().upper()
-            if "BULLISH" in text:
-                return 80.0
-            elif "BEARISH" in text:
-                return -80.0
-            elif "NEUTRAL" in text:
-                return 0.0
-        except Exception as e:
-            logger.error(
-                f"[NewsAPI Sentiment] Gemini analysis failed, using rule-based fallback: {e}"
-            )
-
-    # 2. Rule-based keyword density fallback
-    score = 0.0
-    for art in articles:
-        text = (art.get("title", "") + " " + art.get("description", "")).lower()
-
-        bullish_matches = set(_BULLISH_PAT.findall(text))
-        score += len(bullish_matches) * 0.25
-
-        bearish_matches = set(_BEARISH_PAT.findall(text))
-        score -= len(bearish_matches) * 0.25
-
-    return max(-1.0, min(1.0, score))

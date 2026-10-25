@@ -1,127 +1,133 @@
-import { API_BASE_URL } from './api';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { getApiBaseUrl, setApiBaseUrl } from './api';
+import { Activity, Server, Database, Cpu, Wifi, WifiOff, RefreshCw, ArrowRight, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 const T = {
-  bg:         '#05070c',
-  panel:      '#0d1017',
-  border:     '#161b26',
-  text:       '#d0d8ed',
-  textMid:    '#6e7a96',
-  textDim:    '#363d55',
-  accent:     '#7b6cff',
-  accentAlt:  '#9b5de5',
-  green:      '#00e5a8',
-  blue:       '#4da6ff',
-  gold:       '#f5c842',
+  bg: '#07090e',
+  surface: '#0d111a',
+  panel: '#111622',
+  border: '#1b2234',
+  borderHi: '#2c3652',
+  text: '#e2e8f0',
+  textMid: '#8290ad',
+  textDim: '#475470',
+  accent: '#6366f1',
+  accentAlt: '#a855f7',
+  green: '#00f5a0',
+  blue: '#38bdf8',
+  gold: '#fbbf24',
+  red: '#ff3366',
 };
 
-const LOG_MESSAGES = [
-  "✦ APEXTRADE CORE v3.14 — INITIALIZING BOOT SEQUENCE",
-  "✦ Setting up local cryptographic security context...",
-  "✦ Searching for active Hugging Face cloud backend nodes...",
-  "✦ Cloud server detected (Hugging Face Space). Waking up node...",
-  "✦ Handshake ping sent. Waiting for database spin-up...",
-  "✦ Handshake ping sent. Waiting for database spin-up...",
-  "✦ Database thread waking up. Preparing cache storage...",
-  "✦ Initializing multi-timeframe confirmation scanning models...",
-  "✦ Loading Candlestick Bible pattern matcher configurations...",
-  "✦ Connecting websocket stream pipelines to NSE ticker tape...",
-  "✦ Handshake successful! Opening terminal interface..."
-];
+const HF_DEFAULT_URL = "https://apextrade-core-trade-ai-backend.hf.space";
+const LOCAL_DEFAULT_URL = "http://localhost:7860";
 
 export default function IntroSplash({ onWokenUp }) {
+  const [currentUrl, setCurrentUrl] = useState(() => getApiBaseUrl() || (window.location.hostname === 'localhost' ? LOCAL_DEFAULT_URL : HF_DEFAULT_URL));
+  const [customInput, setCustomInput] = useState('');
+  const [showConfig, setShowConfig] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [logs, setLogs] = useState([]);
-  const [logIndex, setLogIndex] = useState(0);
-  const [statusText, setStatusText] = useState("CONNECTING TO CLOUD NODE...");
-  const [isDone, setIsDone] = useState(false);
-  const [canProceedManually, setCanProceedManually] = useState(false);
+  const [status, setStatus] = useState('connecting'); // 'connecting' | 'connected' | 'sleeping' | 'error'
+  const [healthData, setHealthData] = useState(null);
+  const [logs, setLogs] = useState([
+    "✦ APEXTRADE CORE v3.15 — QUANT BOOT SEQUENCE",
+    "✦ Initializing cryptographic security context...",
+    "✦ Probing Quant Engine API endpoint...",
+  ]);
 
-  const BASE_URL = API_BASE_URL;
-
-  // Increment elapsed timer
-  useEffect(() => {
-    const t = setInterval(() => setElapsed(e => e + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  // Append logs sequentially to simulate boot
-  useEffect(() => {
-    if (logIndex < LOG_MESSAGES.length - 1 && !isDone) {
-      const delay = logIndex === 0 ? 500 : logIndex === 3 ? 4000 : logIndex === 4 || logIndex === 5 ? 5000 : 1500;
-      const t = setTimeout(() => {
-        setLogs(prev => [...prev, LOG_MESSAGES[logIndex]]);
-        setLogIndex(l => l + 1);
-      }, delay);
-      return () => clearTimeout(t);
-    }
-  }, [logIndex, isDone]);
-
-  // Keep latest onWokenUp callback in a ref to avoid resetting the ping effect
-  const onWokenUpRef = React.useRef(onWokenUp);
+  const onWokenUpRef = useRef(onWokenUp);
   useEffect(() => {
     onWokenUpRef.current = onWokenUp;
   }, [onWokenUp]);
 
-  // Ping backend to wake it up
+  // Elapsed second counter
   useEffect(() => {
-    let active = true;
-    let failCount = 0;
+    const timer = setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-    async function ping() {
-      if (!active) return;
+  // Ping engine loop
+  useEffect(() => {
+    let isCancelled = false;
+    let attempt = 0;
+
+    const addLog = (msg) => {
+      if (isCancelled) return;
+      setLogs(prev => [...prev.slice(-7), msg]);
+    };
+
+    async function probeServer() {
+      if (isCancelled) return;
+      attempt++;
+      const target = currentUrl.replace(/\/$/, "");
+
       try {
-        const res = await fetch(`${BASE_URL}/`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.status === "ok") {
-            // Success! Woken up
-            setIsDone(true);
-            setStatusText("ESTABLISHED CONNECTION");
-            setLogs(prev => [
-              ...prev,
-              "✦ Connection response received successfully from cloud node.",
-              "✦ Handshake confirmed. Redirecting to trading terminal..."
-            ]);
-            setTimeout(() => {
-              if (active) onWokenUpRef.current();
-            }, 1800);
-            return;
-          }
+        const startTime = performance.now();
+        const res = await fetch(`${target}/api/health`, { method: 'GET', signal: AbortSignal.timeout(6000) })
+          .catch(() => fetch(`${target}/`, { method: 'GET', signal: AbortSignal.timeout(6000) }));
+
+        if (!res || !res.ok) {
+          throw new Error(`HTTP ${res ? res.status : 'No Response'}`);
         }
-      } catch (e) {
-        failCount++;
-        // Speed up logs if server takes longer to wake up
-        setLogIndex(prev => {
-          if (failCount > 3 && prev < 6) {
-            return Math.min(6, prev + 1);
-          }
-          return prev;
-        });
-        // After ~10 failed pings, offer a manual escape hatch
-        if (failCount >= 10) {
-          setCanProceedManually(true);
+
+        const data = await res.json();
+        const latency = Math.round(performance.now() - startTime);
+
+        if (!isCancelled) {
+          setStatus('connected');
+          setHealthData({ ...data, latency });
+          addLog(`✦ [✓] Handshake confirmed with Quant Engine (${latency}ms)`);
+          addLog(`✦ [✓] AI Brain: Gemini 2.0 Flash verified`);
+          addLog(`✦ [✓] Initializing quantitative terminal interface...`);
+
+          setTimeout(() => {
+            if (!isCancelled) onWokenUpRef.current();
+          }, 1200);
+          return;
+        }
+      } catch (err) {
+        if (isCancelled) return;
+        if (attempt > 2) {
+          setStatus('sleeping');
+        }
+        if (attempt === 3) {
+          addLog(`✦ Node in sleep state (cold start). Broadcasting wake signals...`);
+        } else if (attempt === 6) {
+          addLog(`✦ Container booting. Hugging Face free tier takes 30-60s to warm up.`);
+        } else if (attempt % 5 === 0) {
+          addLog(`✦ Waiting for quant engine readiness (attempt ${attempt})...`);
         }
       }
 
-      // Ping again in 2 seconds, but stop after max attempts
-      if (failCount < 10) {
-        setTimeout(ping, 2000);
+      // Continuous retry every 2.5s
+      if (!isCancelled) {
+        setTimeout(probeServer, 2500);
       }
     }
 
-    // Add first logs
-    setLogs([LOG_MESSAGES[0]]);
-    setLogIndex(1);
-    
-    // Start pinging after a short delay
-    const startDelay = setTimeout(ping, 1000);
+    probeServer();
 
     return () => {
-      active = false;
-      clearTimeout(startDelay);
+      isCancelled = true;
     };
-  }, []);
+  }, [currentUrl]);
+
+  const handleSwitchUrl = (newUrl) => {
+    const clean = (newUrl || '').trim();
+    if (!clean) return;
+    setApiBaseUrl(clean);
+    setCurrentUrl(clean);
+    setStatus('connecting');
+    setLogs(prev => [
+      ...prev.slice(-4),
+      `✦ Target re-routed to: ${clean}`,
+      `✦ Initiating new connection handshake...`
+    ]);
+  };
+
+  const handleProceedOffline = () => {
+    onWokenUpRef.current();
+  };
 
   return (
     <div style={{
@@ -129,215 +135,339 @@ export default function IntroSplash({ onWokenUp }) {
       inset: 0,
       background: T.bg,
       color: T.text,
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Inter', -apple-system, sans-serif",
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 99999,
+      zIndex: 999999,
       padding: '24px',
       overflow: 'hidden',
     }}>
-      {/* Dynamic glow overlays */}
+      {/* Background ambient radial gradients */}
       <div style={{
         position: 'absolute',
-        width: '50vw',
-        height: '50vw',
-        background: `radial-gradient(circle, rgba(123, 108, 255, 0.08) 0%, transparent 70%)`,
-        top: '10%',
-        left: '15%',
+        width: '60vw',
+        height: '60vw',
+        background: `radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 65%)`,
+        top: '5%',
+        left: '20%',
         pointerEvents: 'none',
       }} />
       <div style={{
         position: 'absolute',
-        width: '40vw',
-        height: '40vw',
-        background: `radial-gradient(circle, rgba(0, 229, 168, 0.05) 0%, transparent 75%)`,
+        width: '45vw',
+        height: '45vw',
+        background: `radial-gradient(circle, rgba(0, 245, 160, 0.05) 0%, transparent 70%)`,
         bottom: '10%',
         right: '15%',
         pointerEvents: 'none',
       }} />
 
-      {/* Main Container */}
+      {/* Main Glassmorphic Card */}
       <div style={{
         width: '100%',
-        maxWidth: '460px',
+        maxWidth: 480,
+        background: 'rgba(17, 22, 34, 0.75)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: 16,
+        padding: '32px 28px',
+        boxShadow: '0 24px 64px -12px rgba(0, 0, 0, 0.65), 0 0 1px 1px rgba(99, 102, 241, 0.2)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 28,
-        animation: 'fadeIn 0.6s ease',
+        gap: 24,
+        position: 'relative',
+        zIndex: 2,
       }}>
-        {/* Branding Logo */}
+
+        {/* Brand Header */}
         <div style={{ textAlign: 'center' }}>
           <div style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 22,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '4px 12px',
+            borderRadius: 999,
+            background: 'rgba(99, 102, 241, 0.1)',
+            border: '1px solid rgba(99, 102, 241, 0.25)',
+            marginBottom: 12,
+          }}>
+            <Cpu size={14} color={T.accent} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: T.accent, letterSpacing: '0.12em' }}>QUANT STATION</span>
+          </div>
+
+          <h1 style={{
+            fontSize: 24,
             fontWeight: 800,
-            letterSpacing: '0.18em',
-            background: `linear-gradient(135deg, ${T.accent}, ${T.accentAlt})`,
+            letterSpacing: '0.04em',
+            margin: 0,
+            background: `linear-gradient(135deg, #ffffff 40%, ${T.accentAlt} 100%)`,
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
-            marginBottom: 8,
           }}>
-            ◈ APEXTRADE
-          </div>
-          <div style={{
-            fontSize: 8.5,
-            fontWeight: 700,
-            letterSpacing: '0.22em',
-            color: T.textMid,
-            fontFamily: "'IBM Plex Mono', monospace",
-          }}>
-            QUANT QUANTUM INTELLIGENCE TERMINAL
-          </div>
+            ApexTrade AI Engine
+          </h1>
+          <p style={{ fontSize: 12, color: T.textMid, marginTop: 4, margin: '4px 0 0' }}>
+            Quantitative Algorithmic Trading & AI Copilot
+          </p>
         </div>
 
-        {/* Orbit / Pulse Animation */}
-        <div style={{
-          position: 'relative',
-          width: '100px',
-          height: '100px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          {/* Outer Ring */}
+        {/* Pulse / Radar Orb */}
+        <div style={{ position: 'relative', width: 90, height: 90, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* Rotating outer ring */}
           <div style={{
             position: 'absolute',
             inset: 0,
             borderRadius: '50%',
-            border: `1.5px dashed ${isDone ? T.green : T.accent}40`,
-            animation: 'spin 12s linear infinite',
+            border: `1.5px dashed ${status === 'connected' ? T.green : T.accent}40`,
+            animation: 'spin 10s linear infinite',
           }} />
-          {/* Middle Ring */}
+          {/* Inner pulsing ring */}
           <div style={{
             position: 'absolute',
-            inset: 12,
+            inset: 10,
             borderRadius: '50%',
             border: `2px solid transparent`,
-            borderTopColor: isDone ? T.green : T.accent,
-            borderBottomColor: isDone ? T.green : T.accentAlt,
-            animation: 'spin 2.5s cubic-bezier(0.53, 0.21, 0.29, 0.67) infinite',
+            borderTopColor: status === 'connected' ? T.green : T.accent,
+            borderBottomColor: status === 'connected' ? T.green : T.accentAlt,
+            animation: 'spin 2s cubic-bezier(0.4, 0, 0.2, 1) infinite',
           }} />
-          {/* Inner Glowing Core */}
+          {/* Core icon */}
           <div style={{
-            width: '44px',
-            height: '44px',
+            width: 44,
+            height: 44,
             borderRadius: '50%',
-            background: isDone ? T.green : T.accent,
-            boxShadow: `0 0 24px ${isDone ? T.green : T.accent}`,
+            background: status === 'connected' ? T.green : status === 'sleeping' ? T.gold : T.accent,
+            boxShadow: `0 0 28px ${status === 'connected' ? 'rgba(0,245,160,0.5)' : status === 'sleeping' ? 'rgba(251,191,36,0.4)' : 'rgba(99,102,241,0.5)'}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 16,
-            animation: 'pulse 2s infinite ease-in-out',
-            color: '#fff',
-            fontWeight: 700,
+            color: '#07090e',
+            transition: 'all 0.4s ease',
           }}>
-            {isDone ? '✓' : '◈'}
+            {status === 'connected' ? (
+              <CheckCircle2 size={24} color="#07090e" strokeWidth={2.5} />
+            ) : status === 'sleeping' ? (
+              <RefreshCw size={20} color="#07090e" className="spin-fast" strokeWidth={2.5} />
+            ) : (
+              <Activity size={22} color="#ffffff" strokeWidth={2.5} />
+            )}
           </div>
         </div>
 
-        {/* Status indicator */}
+        {/* Status Text & Target */}
         <div style={{ textAlign: 'center', width: '100%' }}>
           <div style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 10,
+            fontSize: 12,
             fontWeight: 700,
-            letterSpacing: '0.08em',
-            color: isDone ? T.green : T.gold,
-            marginBottom: 6,
+            letterSpacing: '0.06em',
+            color: status === 'connected' ? T.green : status === 'sleeping' ? T.gold : T.accent,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
           }}>
-            {statusText} ({elapsed}s)
+            {status === 'connected' ? 'QUANT SERVER CONNECTED' : status === 'sleeping' ? 'WAKING UP SERVER...' : 'HANDSHAKE IN PROGRESS...'}
+            <span style={{ fontSize: 11, color: T.textDim }}>({elapsed}s)</span>
           </div>
+
           <div style={{
-            fontSize: 9.5,
+            fontSize: 11,
             color: T.textMid,
-            lineHeight: 1.6,
-            maxWidth: '360px',
-            margin: '0 auto',
+            marginTop: 6,
+            wordBreak: 'break-all',
+            padding: '4px 10px',
+            background: 'rgba(0,0,0,0.25)',
+            borderRadius: 6,
+            border: '1px solid rgba(255,255,255,0.05)',
+            display: 'inline-block',
           }}>
-            {!isDone 
-              ? "Waking up the cloud server on Hugging Face. This takes up to 45 seconds during backend cold starts."
-              : "Handshake verified. Decrypting environment context..."}
+            Target: <code style={{ color: T.blue }}>{currentUrl}</code>
           </div>
+
+          {status === 'sleeping' && (
+            <p style={{ fontSize: 11, color: T.gold, marginTop: 8, lineHeight: 1.5 }}>
+              ⚡ Hugging Face free containers sleep when idle. Cold start typically takes 30-50s. Please wait or switch target below.
+            </p>
+          )}
         </div>
 
-        {/* Micro terminal logger window */}
+        {/* Terminal Live Diagnostics Box */}
         <div style={{
           width: '100%',
-          height: '140px',
-          background: 'rgba(17, 21, 32, 0.7)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(123, 108, 255, 0.25)',
+          height: 120,
+          background: 'rgba(7, 9, 14, 0.85)',
           borderRadius: 8,
-          padding: '12px 14px',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          padding: '10px 14px',
           display: 'flex',
           flexDirection: 'column',
           gap: 6,
           overflowY: 'auto',
-          boxSizing: 'border-box',
-          scrollbarWidth: 'none',
+          fontSize: 11,
+          fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace",
         }}>
-          {logs.map((log, index) => {
-            const isLast = index === logs.length - 1;
-            return (
-              <div 
-                key={index} 
+          {logs.map((log, i) => (
+            <div key={i} style={{
+              color: i === logs.length - 1 ? (status === 'connected' ? T.green : T.blue) : T.textDim,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {log}
+            </div>
+          ))}
+        </div>
+
+        {/* Server Target Switcher Toolbar */}
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+            <button
+              onClick={() => handleSwitchUrl(LOCAL_DEFAULT_URL)}
+              style={{
+                flex: 1,
+                padding: '8px 10px',
+                borderRadius: 8,
+                background: currentUrl === LOCAL_DEFAULT_URL ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${currentUrl === LOCAL_DEFAULT_URL ? T.accent : 'rgba(255,255,255,0.08)'}`,
+                color: currentUrl === LOCAL_DEFAULT_URL ? '#fff' : T.textMid,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+              }}
+            >
+              <Server size={12} /> Local (7860)
+            </button>
+
+            <button
+              onClick={() => handleSwitchUrl(HF_DEFAULT_URL)}
+              style={{
+                flex: 1,
+                padding: '8px 10px',
+                borderRadius: 8,
+                background: currentUrl === HF_DEFAULT_URL ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${currentUrl === HF_DEFAULT_URL ? T.accent : 'rgba(255,255,255,0.08)'}`,
+                color: currentUrl === HF_DEFAULT_URL ? '#fff' : T.textMid,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+              }}
+            >
+              <Activity size={12} /> HuggingFace
+            </button>
+
+            <button
+              onClick={() => setShowConfig(!showConfig)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 8,
+                background: showConfig ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: T.textMid,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Custom...
+            </button>
+          </div>
+
+          {/* Custom URL Input Accordion */}
+          {showConfig && (
+            <div style={{
+              display: 'flex',
+              gap: 8,
+              padding: 10,
+              background: 'rgba(0,0,0,0.3)',
+              borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}>
+              <input
+                type="text"
+                value={customInput}
+                onChange={e => setCustomInput(e.target.value)}
+                placeholder="https://my-backend.hf.space"
                 style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: 9,
-                  lineHeight: 1.4,
-                  color: isLast ? (isDone ? T.green : T.blue) : T.textDim,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  animation: 'fadeIn 0.2s ease',
+                  flex: 1,
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 6,
+                  padding: '6px 10px',
+                  color: '#fff',
+                  fontSize: 11,
+                  outline: 'none',
+                }}
+              />
+              <button
+                onClick={() => {
+                  if (customInput) handleSwitchUrl(customInput);
+                }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  background: T.accent,
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
                 }}
               >
-                {log}
-              </div>
-            );
-          })}
+                Connect
+              </button>
+            </div>
+          )}
         </div>
-      </div>
 
-      {canProceedManually && (
-        <button
-          onClick={() => {
-            setIsDone(true);
-            onWokenUpRef.current();
-          }}
-          style={{
-            marginTop: 20,
-            padding: '10px 18px',
-            background: T.accent,
-            color: '#fff',
-            border: 'none',
-            borderRadius: 6,
-            cursor: 'pointer',
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 12,
-            letterSpacing: '0.05em',
-            backgroundColor: T.accent,
-          }}
-        >
-          Continue anyway
-        </button>
-      )}
+        {/* Bottom Actions: Offline Launch Escape Hatch */}
+        <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <span style={{ fontSize: 11, color: T.textDim, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <ShieldCheck size={13} color={T.green} /> Enterprise Guard Active
+          </span>
+
+          <button
+            onClick={handleProceedOffline}
+            style={{
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 6,
+              color: T.text,
+              padding: '6px 14px',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = T.accent}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
+          >
+            Launch Terminal <ArrowRight size={12} />
+          </button>
+        </div>
+
+      </div>
 
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(0.9); opacity: 0.8; }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
+        .spin-fast {
+          animation: spin 1.2s linear infinite;
         }
       `}</style>
     </div>

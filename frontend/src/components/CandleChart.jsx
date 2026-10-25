@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { T, escapeHTML } from '../theme.js';
+import { apiFetch } from '../api';
 import { calcEMA, calcBollingerBands, calcRSI, calcMACD } from '../utils/indicators';
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
+import { Camera, Loader2 } from 'lucide-react';
 
 export default function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [], botPaperMode }) {
   const mainContainerRef = useRef();
@@ -18,6 +20,9 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
   const [bars, setBars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [scanError, setScanError] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -176,6 +181,33 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
     if (bars && bars.length > 0 && onLastBarUpdate) onLastBarUpdate(bars[bars.length - 1].time);
   }, [bars, onLastBarUpdate]);
 
+  const scanChart = useCallback(async () => {
+    if (!mainChartRef.current || scanning) return;
+    setScanning(true);
+    setScanError(null);
+    setScanResult(null);
+    try {
+      const canvas = mainChartRef.current.takeScreenshot();
+      const dataUrl = canvas.toDataURL('image/png');
+      const res = await apiFetch('/api/chat/chart', {
+        method: 'POST',
+        body: JSON.stringify({
+          image_base64: dataUrl.split(',')[1],
+          symbol: symbol.replace('.NS', ''),
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      setScanResult(await res.json());
+    } catch (e) {
+      setScanError(e.message);
+    } finally {
+      setScanning(false);
+    }
+  }, [scanning, symbol]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
       {loading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,12,16,0.7)', zIndex: 2, gap: 10, color: T.textMid, fontSize: 13, letterSpacing: '0.05em' }}>
@@ -195,6 +227,81 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
         <div ref={legendRef} style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, fontFamily: "'IBM Plex Mono', monospace", pointerEvents: 'none', background: 'rgba(13,16,24,0.65)', backdropFilter: 'blur(4px)', padding: '8px 12px', borderRadius: 6, display: 'none', border: `1px solid ${T.borderHi}` }} />
         {botPaperMode === true && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, pointerEvents: 'none', color: 'rgba(255,255,255,0.05)', fontSize: '8vw', fontWeight: 900, whiteSpace: 'nowrap', userSelect: 'none' }}>SIMULATION MODE</div>}
         {botPaperMode === false && <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, background: T.red, color: '#fff', fontSize: 11, fontWeight: 800, padding: '4px 8px', borderRadius: 4, letterSpacing: '0.05em' }}>LIVE BROKER</div>}
+
+        <button
+          onClick={scanChart}
+          disabled={scanning}
+          title="Capture the chart and analyze it with Gemini 2.0 Flash"
+          style={{
+            position: 'absolute', top: 12, right: botPaperMode === false ? 108 : 12, zIndex: 11,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '6px 10px', borderRadius: 6,
+            border: `1px solid ${T.accent}`, background: T.accentDim,
+            color: T.accentAlt, cursor: scanning ? 'wait' : 'pointer',
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+            fontFamily: "'IBM Plex Mono', monospace", transition: 'all 0.2s',
+          }}
+        >
+          {scanning ? <Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Camera size={12} />}
+          {scanning ? 'SCANNING...' : '📸 AI SCAN CHART'}
+        </button>
+
+        {(scanResult || scanError) && (
+          <div style={{
+            position: 'absolute', top: 50, right: 12, zIndex: 12, width: 270, maxHeight: '75%', overflowY: 'auto',
+            background: 'rgba(13,17,26,0.96)', border: `1px solid ${T.borderHi}`, borderRadius: 10,
+            padding: 12, boxShadow: '0 12px 32px rgba(0,0,0,0.55)',
+            fontSize: 10, fontFamily: "'IBM Plex Mono', monospace", color: T.text,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontWeight: 700, letterSpacing: '0.06em', color: T.text }}>📸 AI CHART SCAN</span>
+              <button onClick={() => { setScanResult(null); setScanError(null); }} style={{ background: 'transparent', border: 'none', color: T.textDim, cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>✕</button>
+            </div>
+            {scanError ? (
+              <div style={{ color: T.red, lineHeight: 1.5 }}>{scanError}</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: T.textMid }}>TREND</span>
+                  <span style={{ fontWeight: 700, color: scanResult.trend === 'bullish' ? T.green : scanResult.trend === 'bearish' ? T.red : T.blue }}>
+                    {(scanResult.trend || 'neutral').toUpperCase()}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: T.textMid }}>BREAKOUT</span>
+                  <span style={{ fontWeight: 700, color: scanResult.breakout_signal === 'up' ? T.green : scanResult.breakout_signal === 'down' ? T.red : T.textMid }}>
+                    {scanResult.breakout_signal ? scanResult.breakout_signal.toUpperCase() : 'NONE'}
+                  </span>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                    <span style={{ color: T.textMid }}>CONFIDENCE</span>
+                    <span style={{ fontWeight: 700 }}>{Math.round((scanResult.confidence || 0) * 100)}%</span>
+                  </div>
+                  <div style={{ height: 4, background: T.border, borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.round((scanResult.confidence || 0) * 100)}%`, height: '100%', background: (scanResult.confidence || 0) > 0.7 ? T.green : (scanResult.confidence || 0) > 0.4 ? T.blue : T.red }} />
+                  </div>
+                </div>
+                <div>
+                  <div style={{ color: T.textMid, marginBottom: 2 }}>SUPPORT</div>
+                  <div style={{ color: T.green }}>{scanResult.support_levels?.length ? scanResult.support_levels.map(l => `₹${Number(l).toLocaleString()}`).join(' · ') : 'None'}</div>
+                </div>
+                <div>
+                  <div style={{ color: T.textMid, marginBottom: 2 }}>RESISTANCE</div>
+                  <div style={{ color: T.red }}>{scanResult.resistance_levels?.length ? scanResult.resistance_levels.map(l => `₹${Number(l).toLocaleString()}`).join(' · ') : 'None'}</div>
+                </div>
+                <div>
+                  <div style={{ color: T.textMid, marginBottom: 2 }}>PATTERNS</div>
+                  <div>{scanResult.patterns?.length ? scanResult.patterns.join(', ') : 'None'}</div>
+                </div>
+                {scanResult.notes && (
+                  <div style={{ color: T.textMid, fontStyle: 'italic', lineHeight: 1.5, borderTop: `1px solid ${T.border}`, paddingTop: 6 }}>{scanResult.notes}</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         <div ref={mainContainerRef} style={{ position: 'absolute', inset: 0, zIndex: 2 }} />
       </div>
       {indicators.rsi && (

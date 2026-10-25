@@ -1,19 +1,69 @@
+# Git & VCS
 .git/
+.gitignore
+
+# Virtual environments
 .venv/
+backend/.venv/
+**/.venv/
+
+# Environment files
 .env
+.env.*
+backend/.env
+backend/.env.*
+
+# Frontend (built separately)
 frontend/
 node_modules/
-backend/.venv/
-backend/__pycache__/
-backend/trading_platform.db
-backend/tests/__pycache__/
+
+# Python cache
 **/__pycache__/
 **/*.pyc
 **/*.pyo
 **/*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Database files
+backend/trading_platform.db*
+*.db
+*.sqlite*
+
+# IDE & OS
+.vscode/
+.idea/
 .DS_Store
-codebase_dump.txt
+Thumbs.db
+
+# Logs
+*.log
+logs/
+backend/logs/
+
+# Testing & development
+tests/
+**/tests/
 scratch/
+codebase_dump.txt
 .agents/
-backend/TradingAgents/.git/
-backend/TradingAgents/tests/
+backend/TradingAgents/
+backend/Vibe-Trading/
+
+# Build artifacts
+build/
+dist/
+*.egg
+*.whl
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Documentation
+README.md
+*.md
+docs/

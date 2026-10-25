@@ -7,6 +7,16 @@
     "reticle": {
       "command": "npx",
       "args": ["-y", "@reticlehq/server", "mcp"]
+    },
+    "artemis": {
+      "command": "C:\\Users\\aryan\\OneDrive\\Desktop\\main app\\artemis\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "mcp_server"],
+      "cwd": "C:\\Users\\aryan\\OneDrive\\Desktop\\main app\\artemis",
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONPATH": "C:\\Users\\aryan\\OneDrive\\Desktop\\main app\\artemis",
+        "ARTEMIS_DESKTOP_NOTIFY": "true"
+      }
     }
   }
 }

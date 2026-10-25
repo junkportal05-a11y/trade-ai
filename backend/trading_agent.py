@@ -480,3 +480,28 @@ async def prediction_resolver_worker():
         except Exception as e:
             logger.error(f"[prediction_resolver] Error in resolver loop: {e}")
             await asyncio.sleep(poll_seconds)
+
+
+# ── Standalone Entry Point ──────────────────────────────────────────────
+# Allows running workers independently: python -m backend.trading_agent
+if __name__ == "__main__":
+    import sys
+    import asyncio
+
+    async def run_workers():
+        """Run background workers as standalone processes."""
+        logger.info("Starting standalone background workers...")
+        try:
+            await asyncio.gather(
+                trading_agent_loop(),
+                prediction_resolver_worker(),
+            )
+        except KeyboardInterrupt:
+            logger.info("Standalone workers stopped by user")
+        except Exception as e:
+            logger.critical(f"Standalone worker error: {e}")
+            raise
+
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    asyncio.run(run_workers())

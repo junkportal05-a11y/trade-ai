@@ -1,12 +1,31 @@
 export const T = {
-  bg: '#080a0f', surface: '#0d1018', panel: '#111520', panelAlt: '#0f1219',
-  border: '#1a1f2e', borderHi: '#252c40', text: '#d0d8ed', textMid: '#6e7a96',
-  textDim: '#363d55', green: '#00e5a8', greenDim: 'rgba(0,229,168,0.1)',
-  greenGlow: 'rgba(0,229,168,0.25)', red: '#ff3d5a', redDim: 'rgba(255,61,90,0.1)',
-  redGlow: 'rgba(255,61,90,0.25)', blue: '#4da6ff', blueDim: 'rgba(77,166,255,0.1)',
-  blueGlow: 'rgba(77,166,255,0.2)', gold: '#f5c842', goldDim: 'rgba(245,200,66,0.1)',
-  goldGlow: 'rgba(245,200,66,0.25)', accent: '#7b6cff', accentAlt: '#9b5de5',
-  accentDim: 'rgba(123,108,255,0.12)', accentGlow: 'rgba(123,108,255,0.3)',
+  bg: '#07090e',
+  surface: '#0d111a',
+  panel: '#111622',
+  panelAlt: '#141a29',
+  glass: 'rgba(17, 22, 34, 0.75)',
+  border: '#1b2234',
+  borderHi: '#2c3652',
+  text: '#e2e8f0',
+  textMid: '#8290ad',
+  textDim: '#475470',
+  green: '#00f5a0',
+  greenDim: 'rgba(0, 245, 160, 0.12)',
+  greenGlow: 'rgba(0, 245, 160, 0.3)',
+  red: '#ff3366',
+  redDim: 'rgba(255, 51, 102, 0.12)',
+  redGlow: 'rgba(255, 51, 102, 0.3)',
+  blue: '#38bdf8',
+  blueDim: 'rgba(56, 189, 248, 0.12)',
+  blueGlow: 'rgba(56, 189, 248, 0.3)',
+  gold: '#f5c842',
+  goldDim: 'rgba(245, 200, 66, 0.12)',
+  goldGlow: 'rgba(245, 200, 66, 0.3)',
+  yellow: '#f5c842',
+  accent: '#6366f1',
+  accentAlt: '#a855f7',
+  accentDim: 'rgba(99, 102, 241, 0.15)',
+  accentGlow: 'rgba(99, 102, 241, 0.35)',
 };
 
 export const SEED_PRICES = {
@@ -41,16 +60,21 @@ export const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('e
 export const fmtK = (n) => n >= 1e9 ? `₹${(n/1e9).toFixed(2)}B` : n >= 1e6 ? `₹${(n/1e6).toFixed(1)}M` : `₹${fmt(n, 0)}`;
 export const clr = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
 export const sign = (v) => v > 0 ? '+' : '';
-export const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, tag => ({ '&': '&', '<': '<', '>': '>', "'": ''', '"': '"' }[tag] || tag));
+export const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, tag => ({ '&': '&', '<': '<', '>': '>', "'": "\'", '"': '"' }[tag] || tag));
 
-export const PRIMARY_TABS = ['HOME', 'SIMULATOR', 'CHART', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
-export const SECONDARY_TABS = ['SIGNALS'];
+export const PRIMARY_TABS = ['HOME', 'SIMULATOR', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
+export const SECONDARY_TABS = [];
 export const MOBILE_TABS = ['HOME', 'SIMULATOR', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
 
 export const TAB_META = {
-  HOME: { icon: '🏠', label: 'HOME' }, SIMULATOR: { icon: '🤖', label: 'BOT' }, CHART: { icon: '📈', label: 'CHART' },
-  SIGNALS: { icon: '📡', label: 'SCAN' }, PREDICTIONS: { icon: '🔮', label: 'PREDICT' }, PERFORMANCE: { icon: '📊', label: 'PERF' },
-  JOURNAL: { icon: '📓', label: 'JRNL' }, ACCOUNT: { icon: '🛡️', label: 'SEC' },
+  HOME: { label: 'Home', icon: 'Home' },
+  SIMULATOR: { label: 'Bot Engine', icon: 'Bot' },
+  CHART: { label: 'Terminal', icon: 'TrendingUp' },
+  SIGNALS: { label: 'Scanner', icon: 'Radio' },
+  PREDICTIONS: { label: 'Predictions', icon: 'Sparkles' },
+  PERFORMANCE: { label: 'Analytics', icon: 'BarChart3' },
+  JOURNAL: { label: 'Journal', icon: 'BookOpen' },
+  ACCOUNT: { label: 'Security', icon: 'ShieldCheck' },
 };
 
 export const EMPTY_ARRAY = [];

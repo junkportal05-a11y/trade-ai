@@ -13,8 +13,12 @@ def test_lifespan_crashes_loudly_on_worker_startup_error():
     """Proves that when skip_background_workers is False, any worker startup failure raises immediately."""
     async def _run():
         original_skip = settings.skip_background_workers
+        original_enable = settings.environment  # will be checked via os.getenv
+        import os
+        original_env = os.getenv("ENABLE_BACKGROUND_WORKERS")
         try:
             settings.skip_background_workers = False
+            os.environ["ENABLE_BACKGROUND_WORKERS"] = "true"
             with patch("asyncio.create_task", side_effect=RuntimeError("Simulated broker/worker crash")):
                 with pytest.raises(RuntimeError, match="Simulated broker/worker crash"):
                     async with lifespan(app):
@@ -22,6 +26,10 @@ def test_lifespan_crashes_loudly_on_worker_startup_error():
                 assert app.state.worker_startup_failed == "Simulated broker/worker crash"
         finally:
             settings.skip_background_workers = original_skip
+            if original_env is not None:
+                os.environ["ENABLE_BACKGROUND_WORKERS"] = original_env
+            elif "ENABLE_BACKGROUND_WORKERS" in os.environ:
+                del os.environ["ENABLE_BACKGROUND_WORKERS"]
 
     asyncio.run(_run())
 

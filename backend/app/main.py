@@ -78,8 +78,11 @@ async def lifespan(app: FastAPI):
     app.state.resolver_task = None
     app.state.governance_task = None
 
-    # Skip background workers if explicitly configured (e.g., in test environment)
-    if settings.skip_background_workers:
+    # Skip background workers if explicitly configured (e.g., in serverless/Cloud Run web instances)
+    enable_workers = os.getenv("ENABLE_BACKGROUND_WORKERS", "false").lower() == "true"
+    if not enable_workers:
+        logger.info("Background workers disabled (ENABLE_BACKGROUND_WORKERS=false)")
+    elif settings.skip_background_workers:
         logger.info("Background workers skipped (SKIP_BACKGROUND_WORKERS=true)")
     else:
         # Launch background workers as async tasks safely
@@ -136,6 +139,19 @@ trusted_hosts = [h.strip() for h in os.getenv("TRUSTED_HOSTS", "127.0.0.1").spli
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted_hosts)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Initialize Sentry error tracing if DSN is configured
+if settings.sentry_dsn:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        integrations=[FastApiIntegration()],
+        traces_sample_rate=0.2,
+        profiles_sample_rate=0.1,
+        environment=settings.environment,
+    )
+    logger.info("Sentry error tracing initialized")
 
 # CORS
 # Use ALLOWED_ORIGINS env var (comma-separated) to override the hardcoded default

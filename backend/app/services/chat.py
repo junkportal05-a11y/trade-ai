@@ -1,130 +1,130 @@
-"""AI Chat service."""
+"""AI Chat service with Gemini 2.0 Flash structured output & multimodal analysis."""
 from __future__ import annotations
 
+import base64
+import json
 import os
 from typing import Optional
 
+from pydantic import BaseModel, Field
 from app.models.schemas import ChatRequest
 from app.core.config import settings
 
 
-def _get_heuristic_reply(req: ChatRequest, symbol: str, price: Optional[float], chg_pct: Optional[float]) -> dict:
-    """Fallback heuristic engine when Gemini is unavailable."""
-    msg_lower = req.message.lower()
-    price_str = f"₹{price:,.2f}" if price else "current levels"
-    chg_str = f"{chg_pct:+.2f}%" if chg_pct is not None else "unchanged"
-
-    responses = {
-        "hammer": (
-            "**Hammer Candlestick** — A bullish reversal pattern. Small body at the top with a long lower shadow (≥2x body). "
-            "Confirmation requires a close above the hammer's body. *(Local fallback — set GEMINI_API_KEY for AI mentoring)*"
-        ),
-        "doji": (
-            "**Doji Candlestick** — Market equilibrium. Dragonfly Doji = bullish rejection; Gravestone = bearish rejection. "
-            "*(Local fallback — set GEMINI_API_KEY for AI mentoring)*"
-        ),
-        "engulfing": (
-            "**Engulfing Pattern** — A large candle wrapping the previous one. Bullish = buyers took control. "
-            "*(Local fallback — set GEMINI_API_KEY for AI mentoring)*"
-        ),
-        "candlestick": (
-            "**Candlestick Patterns** — Visual maps of price. Seek confluence with support/resistance and volume expansion. "
-            "*(Local fallback — set GEMINI_API_KEY for AI mentoring)*"
-        ),
-        "rsi": (
-            "**RSI** — Momentum oscillator 0-100. >70 = overbought; <30 = oversold. *(Local fallback)*"
-        ),
-        "macd": (
-            "**MACD** — Trend-following momentum. Crossover above signal = bullish. Divergence warns reversals. *(Local fallback)*"
-        ),
-    }
-
-    for key, reply in responses.items():
-        if key in msg_lower:
-            return {"reply": reply, "source": "heuristic"}
-
-    if any(w in msg_lower for w in ["buy", "long", "bullish"]):
-        reply = (
-            f"**{symbol} Bull Case** — At {price_str} ({chg_str}), accumulate on dips. "
-            "Watch for volume confirmation on breakouts. Set SL below recent swing low."
-        )
-    elif any(w in msg_lower for w in ["sell", "short", "bearish"]):
-        reply = (
-            f"**{symbol} Bear Case** — At {price_str}, if price breaks key support with volume, "
-            "path may be lower. Use defined risk limits."
-        )
-    elif any(w in msg_lower for w in ["price", "target", "value"]):
-        reply = (
-            f"**{symbol}** is at {price_str} ({chg_str}). Use technical levels or DCF for targets."
-        )
-    elif any(w in msg_lower for w in ["risk", "stop", "position"]):
-        reply = (
-            f"**Risk Management** — Never risk >1-2% per trade. Position size = (Capital × 0.01) / (Entry - SL)."
-        )
-    else:
-        reply = (
-            f"**{symbol}** @ {price_str} ({chg_str}) — Ask about signals, risk, or catalysts. "
-            "💡 Tip: Set GEMINI_API_KEY for real AI responses."
-        )
-
-    return {"reply": reply, "source": "heuristic"}
+class ChatResponse(BaseModel):
+    """Structured chat response from Gemini."""
+    reply: str = Field(description="The mentor's response to the user")
+    source: str = Field(description="Source of the response: 'gemini' or 'heuristic'")
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Confidence score 0-1")
+    reasoning: Optional[str] = Field(default=None, description="Brief reasoning for the response")
 
 
-def _get_gemini_reply(req: ChatRequest, symbol: str, price: Optional[float], chg_pct: Optional[float]) -> Optional[dict]:
-    """Attempts to get a reply from Gemini AI."""
+class ChartAnalysis(BaseModel):
+    """Structured chart analysis from Gemini multimodal."""
+    trend: str = Field(description="Overall trend: bullish, bearish, or sideways")
+    support_levels: list[float] = Field(default_factory=list, description="Key support price levels")
+    resistance_levels: list[float] = Field(default_factory=list, description="Key resistance price levels")
+    patterns: list[str] = Field(default_factory=list, description="Identified chart patterns")
+    breakout_signal: Optional[str] = Field(default=None, description="Breakout direction if detected: up, down, or none")
+    confidence: float = Field(description="Analysis confidence 0-1")
+    notes: str = Field(description="Brief analytical notes")
+
+
+def _analyze_chart_base64(image_b64: str, symbol: str = "") -> dict:
+    """
+    Multimodal analysis of a candlestick chart from base64 image data.
+    Returns structured ChartAnalysis with support/resistance, patterns, and breakout signals.
+    """
     if not settings.gemini_api_key:
-        return None
+        return {
+            "trend": "unknown",
+            "support_levels": [],
+            "resistance_levels": [],
+            "patterns": [],
+            "breakout_signal": None,
+            "confidence": 0.0,
+            "notes": "GEMINI_API_KEY not configured — multimodal analysis unavailable",
+            "source": "heuristic",
+        }
 
     try:
         from google import genai as _genai
         client = _genai.Client(api_key=settings.gemini_api_key)
 
-        knowledge_content = ""
-        knowledge_path = os.path.join(os.path.dirname(__file__), "..", "..", "trading_knowledge.txt")
-        if os.path.exists(knowledge_path):
-            with open(knowledge_path, "r", encoding="utf-8") as kf:
-                knowledge_content = kf.read(140000)
-
-        news_context = ""
-        if symbol and symbol != "the market":
-            try:
-                import sys
-                import os
-                backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-                if backend_dir not in sys.path:
-                    sys.path.insert(0, backend_dir)
-                from news_feed import fetch_ticker_news
-                articles = fetch_ticker_news(symbol)
-                if articles:
-                    news_context = "--- LATEST NEWS ---\n"
-                    for art in articles[:3]:
-                        news_context += f"• {art.get('title')} ({art.get('publishedAt', '')[:10]})\n"
-                    news_context += "\n"
-            except Exception:
-                pass
-
-        system_ctx = (
-            f"You are an expert trading mentor in ApexTrade. "
-            f"Use knowledge context to answer trading queries.\n\n"
-            f"--- KNOWLEDGE ---\n{knowledge_content}\n---\n\n"
-            f"{news_context}"
-            f"Active: {symbol}"
-            + (f" @ ₹{price:.2f}" if price else "")
-            + (f" ({chg_pct:+.2f}%)" if chg_pct is not None else "")
-            + ". Keep under 180 words. Use **bold** sparingly."
+        prompt = (
+            f"You are an expert technical analyst. Analyze this {symbol} candlestick chart image. "
+            "Identify: 1) Overall trend (bullish/bearish/sideways), 2) Key support and resistance levels, "
+            "3) Chart patterns (e.g., head and shoulders, double top/bottom, flags, triangles, wedges, "
+            "cup and handle, channels), 4) Any breakout signals with direction. "
+            "Return structured JSON only."
         )
 
-        formatted_history = ""
-        if req.history:
-            for h in req.history:
-                role = "User" if h.role == "user" else "Assistant"
-                formatted_history += f"{role}: {h.text}\n"
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=[
+                prompt,
+                {"inline_data": {"mime_type": "image/png", "data": image_b64}},
+            ],
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": ChartAnalysis,
+            },
+        )
+        parsed = ChartAnalysis.model_validate_json(response.text)
+        result = parsed.model_dump()
+        result["source"] = "gemini"
+        return result
+    except Exception as e:
+        return {
+            "trend": "unknown",
+            "support_levels": [],
+            "resistance_levels": [],
+            "patterns": [],
+            "breakout_signal": None,
+            "confidence": 0.0,
+            "notes": f"Multimodal analysis failed: {e}",
+            "source": "heuristic",
+        }
 
-        prompt = f"{system_ctx}\n\n{formatted_history}User: {req.message}\nAssistant:"
-        response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
-        return {"reply": response.text.strip(), "source": "gemini"}
-    except Exception:
-        return None
+
+def analyze_chart_image(image_path: str, symbol: str = "") -> dict:
+    """
+    Multimodal analysis of a candlestick chart image using Gemini 2.0 Flash.
+    Returns structured ChartAnalysis with support/resistance, patterns, and breakout signals.
+    """
+    if not settings.gemini_api_key:
+        return {
+            "trend": "unknown",
+            "support_levels": [],
+            "resistance_levels": [],
+            "patterns": [],
+            "breakout_signal": None,
+            "confidence": 0.0,
+            "notes": "GEMINI_API_KEY not configured — multimodal analysis unavailable",
+            "source": "heuristic",
+        }
+
+    try:
+        from google import genai as _genai
+        client = _genai.Client(api_key=settings.gemini_api_key)
+
+        # Read and encode image
+        with open(image_path, "rb") as img_file:
+            image_data = img_file.read()
+        image_b64 = base64.b64encode(image_data).decode("utf-8")
+
+        return _analyze_chart_base64(image_b64, symbol)
+    except Exception as e:
+        return {
+            "trend": "unknown",
+            "support_levels": [],
+            "resistance_levels": [],
+            "patterns": [],
+            "breakout_signal": None,
+            "confidence": 0.0,
+            "notes": f"Multimodal analysis failed: {e}",
+            "source": "heuristic",
+        }
 
 
 def get_chat_reply(req: ChatRequest, symbol: str, price: Optional[float], chg_pct: Optional[float]) -> dict:

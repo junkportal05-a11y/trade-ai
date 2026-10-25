@@ -309,3 +309,21 @@ class SearchRequest(BaseModel):
 
 class QuoteRequest(BaseModel):
     symbol: str = Field(..., min_length=1, max_length=20, pattern=r"^[A-Z0-9]+(?:\.[A-Z0-9]+)?$")
+
+
+class ChartAnalysisRequest(BaseModel):
+    """Request schema for chart analysis endpoint."""
+    image_base64: str = Field(..., description="Base64 encoded PNG/JPEG image")
+    symbol: str = Field(default="", description="Optional symbol for context")
+
+
+class ChartAnalysisResponse(BaseModel):
+    """Response schema for chart analysis."""
+    trend: str
+    support_levels: list[float]
+    resistance_levels: list[float]
+    patterns: list[str]
+    breakout_signal: str | None
+    confidence: float
+    notes: str
+    source: str
