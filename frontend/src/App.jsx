@@ -23,6 +23,10 @@ import { PanelErrorBoundary } from './PanelErrorBoundary';
 import CommandPalette from './components/CommandPalette';
 import Header from './components/Header';
 import ChatPanel from './components/ChatPanel';
+import TickerBar from './components/TickerBar';
+import BottomConsole from './components/BottomConsole';
+import WatchlistPanel from './components/WatchlistPanel';
+import OrderPanel from './components/OrderPanel';
 import { T, SEED_PRICES, DEFAULT_WATCHLIST, INTERVALS, PRIMARY_TABS, SECONDARY_TABS, MOBILE_TABS, TAB_META, EMPTY_ARRAY, fmt, clr, sign, escapeHTML } from './theme';
 
 const TAB_ICONS = { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck };
@@ -857,7 +861,7 @@ export default function App() {
           <div style={{
             background: 'rgba(245,200,66,0.08)',
             borderBottom: `1px solid rgba(245,200,66,0.2)`,
-            color: T.gold,
+            color: '#f5c842',
             padding: '6px 16px',
             fontSize: 10,
             display: 'flex',
@@ -869,7 +873,7 @@ export default function App() {
             letterSpacing: '0.04em',
             flexShrink: 0
           }}>
-            <span style={{ display: 'inline-block', width: 12, height: 12, border: `2px solid rgba(245,200,66,0.3)`, borderTopColor: T.gold, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <span style={{ display: 'inline-block', width: 12, height: 12, border: `2px solid rgba(245,200,66,0.3)`, borderTopColor: '#f5c842', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
             CONNECTING TO QUANT SERVER...
           </div>
         )}
@@ -1135,9 +1139,9 @@ export default function App() {
                               style={{
                                 padding: '3px 8px',
                                 background: 'rgba(245, 200, 66, 0.08)',
-                                border: `1px solid ${T.gold}30`,
+                                border: `1px solid ${'#f5c842'}30`,
                                 borderRadius: 5,
-                                color: T.gold,
+                                color: '#f5c842',
                                 fontSize: 9,
                                 fontWeight: 700,
                                 cursor: 'pointer',

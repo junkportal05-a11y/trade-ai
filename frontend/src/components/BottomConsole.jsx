@@ -144,7 +144,7 @@ export default function BottomConsole({ prices, portfolio, cash, openOrders, onC
             </div>
             {!aiRecommendationLoading && aiRecommendation && (
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                <button onClick={() => onViewChange('PREDICTIONS')} style={{ padding: '3px 8px', background: 'rgba(245, 200, 66, 0.06)', border: `1px solid rgba(245, 200, 66, 0.25)`, borderRadius: 5, color: T.gold, fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Sparkles size={10} /> LOG SYSTEM PREDICTION</button>
+                <button onClick={() => onViewChange('PREDICTIONS')} style={{ padding: '3px 8px', background: 'rgba(245, 200, 66, 0.06)', border: `1px solid rgba(245, 200, 66, 0.25)`, borderRadius: 5, color: '#f5c842', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Sparkles size={10} /> LOG SYSTEM PREDICTION</button>
                 {onRefreshAnalyst && (
                   <button onClick={onRefreshAnalyst} style={{ padding: '3px 8px', background: 'rgba(77, 166, 255, 0.06)', border: `1px solid rgba(77, 166, 255, 0.25)`, borderRadius: 5, color: T.blue, fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 4 }}><RefreshCw size={10} /> REFRESH</button>
                 )}

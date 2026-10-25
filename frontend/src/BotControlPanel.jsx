@@ -105,7 +105,7 @@ export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
 
   const statusConfig = {
     running: { color: T.green, bg: T.greenDim, glow: T.greenGlow, label: 'RUNNING', icon: '●' },
-    paused:  { color: T.gold,  bg: T.goldDim,  glow: 'rgba(245,200,66,0.3)', label: 'PAUSED',  icon: '⏸' },
+    paused:  { color: '#f5c842',  bg: 'rgba(245,200,66,0.12)',  glow: 'rgba(245,200,66,0.3)', label: 'PAUSED',  icon: '⏸' },
     stopped: { color: T.red,   bg: T.redDim,   glow: T.redGlow, label: 'STOPPED', icon: '■' },
   };
 
@@ -170,7 +170,7 @@ export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
         </button>
         <button onClick={handlePause} disabled={loading || botStatus !== 'running'} style={{
           flex: 1, minWidth: 80, padding: '10px 16px', borderRadius: 8, border: 'none',
-          background: botStatus === 'paused' ? T.gold : T.goldDim, color: botStatus === 'paused' ? '#000' : T.gold,
+          background: botStatus === 'paused' ? '#f5c842' : 'rgba(245,200,66,0.12)', color: botStatus === 'paused' ? '#000' : '#f5c842',
           fontWeight: 700, fontSize: 11, letterSpacing: '0.06em', cursor: botStatus !== 'running' || loading ? 'not-allowed' : 'pointer',
           fontFamily: "'IBM Plex Mono', monospace", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           opacity: botStatus !== 'running' || loading ? 0.5 : 1,

@@ -49,7 +49,7 @@ const T = {
 const SIGNAL_CFG = {
   'BUY':       { color: T.green,   bg: T.greenDim,                          glow: T.greenGlow,                      icon: '▲', label: 'BUY'       },
   'WEAK BUY':  { color: '#7bdb9e', bg: 'rgba(123,219,158,0.08)',            glow: 'rgba(123,219,158,0.2)',           icon: '△', label: 'WEAK BUY'  },
-  'HOLD':      { color: T.gold,    bg: T.goldDim,                           glow: 'rgba(245,200,66,0.2)',            icon: '◆', label: 'HOLD'      },
+  'HOLD':      { color: '#f5c842',    bg: 'rgba(245,200,66,0.12)',                           glow: 'rgba(245,200,66,0.2)',            icon: '◆', label: 'HOLD'      },
   'WEAK SELL': { color: '#ff9a7b', bg: 'rgba(255,154,123,0.08)',            glow: 'rgba(255,154,123,0.2)',           icon: '▽', label: 'WEAK SELL' },
   'SELL':      { color: T.red,     bg: T.redDim,                            glow: T.redGlow,                         icon: '▼', label: 'SELL'      },
 };
@@ -123,7 +123,7 @@ function Countdown({ target, onFire }) {
   }, [target, onFire]);
   const m = Math.floor(secs / 60), s = secs % 60;
   return (
-    <span style={{ ...mono, fontSize: 10, color: secs < 60 ? T.gold : T.textDim }}>
+    <span style={{ ...mono, fontSize: 10, color: secs < 60 ? '#f5c842' : T.textDim }}>
       {String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
     </span>
   );
@@ -323,7 +323,7 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
         {[
           { label: 'ENTRY',   value: `₹${fmt(sig.entry)}`,     color: T.text },
           { label: 'CURRENT', value: `₹${fmt(currentPrice)}`,  color: T.blue, isLive: true },
-          { label: 'TARGET',  value: `₹${fmt(sig.target)}`,    color: isBull ? T.green : isBear ? T.red : T.gold },
+          { label: 'TARGET',  value: `₹${fmt(sig.target)}`,    color: isBull ? T.green : isBear ? T.red : '#f5c842' },
           { label: 'STOP',    value: `₹${fmt(sig.stop_loss)}`, color: isBull ? T.red : isBear ? T.green : T.textMid },
           { label: 'LIVE P&L', value: pnlValue,                color: pnlColor },
         ].map(({ label, value, color, isLive }) => (
@@ -347,7 +347,7 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
 
       {/* Target % badge */}
       <div style={{ marginBottom: 8 }}>
-        <span style={{ fontSize: 9, color: isBull ? T.green : isBear ? T.red : T.gold, ...mono }}>
+        <span style={{ fontSize: 9, color: isBull ? T.green : isBear ? T.red : '#f5c842', ...mono }}>
           {fmtPct(sig.target_pct)} target move
         </span>
         <span style={{ fontSize: 9, color: T.textDim, marginLeft: 8 }}>
@@ -560,7 +560,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
   const sells = signals.filter(s => s.signal === 'SELL' || s.signal === 'WEAK SELL').length;
   const holds = signals.filter(s => s.signal === 'HOLD').length;
   const marketBias = buys > sells + 2 ? 'BULLISH' : sells > buys + 2 ? 'BEARISH' : 'NEUTRAL';
-  const biasColor  = marketBias === 'BULLISH' ? T.green : marketBias === 'BEARISH' ? T.red : T.gold;
+  const biasColor  = marketBias === 'BULLISH' ? T.green : marketBias === 'BEARISH' ? T.red : '#f5c842';
 
   const showProfitBanner = capitalNum > 0 && allocPlan && allocPlan.positions?.length > 0 && !allocLoading;
 
@@ -641,7 +641,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
           {[
             { label: 'BUY SIGNALS',  count: buys,  color: T.green },
             { label: 'SELL SIGNALS', count: sells, color: T.red },
-            { label: 'HOLD',         count: holds, color: T.gold },
+            { label: 'HOLD',         count: holds, color: '#f5c842' },
           ].map(({ label, count, color }) => (
             <div key={label} style={{
               flex: 1, background: T.panel, borderRadius: 5, padding: '6px 10px',
@@ -735,7 +735,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
             {[
               { label: 'DEPLOYED',     value: `${allocPlan.deployment_pct}%`, color: T.blue },
               { label: 'MAX LOSS',     value: `-${fmtINR(allocPlan.total_potential_loss)}`, color: T.red },
-              { label: 'PORTFOLIO R:R', value: `1:${allocPlan.portfolio_rr}`, color: allocPlan.portfolio_rr >= 2 ? T.green : T.gold },
+              { label: 'PORTFOLIO R:R', value: `1:${allocPlan.portfolio_rr}`, color: allocPlan.portfolio_rr >= 2 ? T.green : '#f5c842' },
             ].map(({ label, value, color }) => (
               <div key={label} style={{
                 background: T.panel, borderRadius: 6, padding: '8px 12px',
@@ -789,12 +789,12 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
             padding: '10px 14px', borderRadius: 6,
             background: 'rgba(245,200,66,0.06)',
             border: '1px solid rgba(245,200,66,0.15)',
-            fontSize: 10, color: T.gold, ...mono, lineHeight: 1.4,
+            fontSize: 10, color: '#f5c842', ...mono, lineHeight: 1.4,
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <span style={{
               display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-              background: T.gold, animation: 'sp_pulse 1.5s infinite',
+              background: '#f5c842', animation: 'sp_pulse 1.5s infinite',
             }} />
             <span>⚠ BACKEND OFFLINE — {error}</span>
           </div>

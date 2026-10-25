@@ -114,7 +114,7 @@ export default function PerformancePanel() {
         <p style={{ fontSize: 11, color: T.textMid, marginTop: 4 }}>Historical analytics, risk metrics, and strategy edge calculation.</p>
         {source !== 'loading' && (
           <div style={{ marginTop: 8, fontSize: 10, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>
-            Data source: <span style={{ color: source === 'live' ? T.green : source === 'error' ? T.red : T.gold }}>{source === 'live' ? 'LIVE (predictions resolved)' : source === 'error' ? 'UNAVAILABLE' : 'SIMULATED (no resolved predictions)'}</span>
+            Data source: <span style={{ color: source === 'live' ? T.green : source === 'error' ? T.red : '#f5c842' }}>{source === 'live' ? 'LIVE (predictions resolved)' : source === 'error' ? 'UNAVAILABLE' : 'SIMULATED (no resolved predictions)'}</span>
             {stats && stats.total_trades !== undefined && (
               <> · <span style={{ color: T.textMid }}>Total trades: {stats.total_trades}</span></>
             )}

@@ -46,7 +46,7 @@ export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteO
       <div style={{ display: 'flex', gap: 6 }}>
         {['market', 'limit'].map(t => (
           <button key={t} onClick={() => setType(t)} style={{ flex: 1, padding: '6px 0', border: `1px solid ${type === t ? T.accent : T.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10,
-            background: type === t ? T.blueDim : 'transparent', color: type === t ? T.accent : T.textDim, fontFamily: "'Inter', sans-serif" }}>{t.toUpperCase()}</button>
+            background: type === t ? 'rgba(56,189,248,0.12)' : 'transparent', color: type === t ? T.accent : T.textDim, fontFamily: "'Inter', sans-serif" }}>{t.toUpperCase()}</button>
         ))}
       </div>
       <Label text="QUANTITY"><Input value={qty} onChange={e => setQty(e.target.value)} placeholder="0.00" suffix="SHARES" /></Label>
@@ -59,7 +59,7 @@ export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteO
         <span style={{ color: T.textDim }}>EST. TOTAL</span><span style={{ color: total === '—' ? T.textDim : T.text }}>₹{total === '—' ? '—' : fmt(total)}</span>
       </div>
       {status === 'filled' && <div style={{ padding: '8px 10px', background: T.greenDim, border: `1px solid ${T.green}`, borderRadius: 6, fontSize: 10, color: T.green, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>✓ ORDER FILLED (PAPER)</div>}
-      {status === 'placed' && <div style={{ padding: '8px 10px', background: T.blueDim, border: `1px solid ${T.blue}`, borderRadius: 6, fontSize: 10, color: T.blue, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>✓ LIMIT ORDER PLACED (PAPER)</div>}
+      {status === 'placed' && <div style={{ padding: '8px 10px', background: 'rgba(56,189,248,0.12)', border: `1px solid ${T.blue}`, borderRadius: 6, fontSize: 10, color: T.blue, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>✓ LIMIT ORDER PLACED (PAPER)</div>}
       <button onClick={submit} disabled={!qty || status === 'placing'} style={{ padding: '11px', border: 'none', borderRadius: 6, cursor: qty ? 'pointer' : 'not-allowed',
         background: side === 'buy' ? T.green : T.red, color: '#000', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', fontFamily: "'Inter', sans-serif", opacity: qty ? 1 : 0.4 }}>{status === 'placing' ? 'PLACING...' : `${side.toUpperCase()} ${symbol.replace('.NS', '')}`}</button>
 

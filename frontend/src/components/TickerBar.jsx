@@ -22,7 +22,7 @@ export default function TickerBar({ prices, dataSource }) {
               <span style={{ color: T.textMid, fontWeight: 600, letterSpacing: '0.05em', fontSize: 10 }}>{sym.replace('.NS', '')}</span>
               <span style={{ color: T.text, fontWeight: 500 }}>₹{fmt(price)}</span>
               <span style={{ color: isUp ? T.green : T.red, fontSize: 10, background: isUp ? T.greenDim : T.redDim, padding: '1px 5px', borderRadius: 3 }}>{sign(pct)}{fmt(pct, 2)}%</span>
-              {isSimulated && <span style={{ color: T.gold, fontSize: 9, background: T.goldDim, padding: '1px 4px', borderRadius: 3, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, marginLeft: 4 }}>SIM</span>}
+              {isSimulated && <span style={{ color: '#f5c842', fontSize: 9, background: 'rgba(245,200,66,0.12)', padding: '1px 4px', borderRadius: 3, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, marginLeft: 4 }}>SIM</span>}
             </span>
           );
         })}

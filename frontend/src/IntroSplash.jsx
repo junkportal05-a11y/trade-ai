@@ -13,7 +13,7 @@ const LOCAL_DEFAULT_URL = typeof window !== 'undefined' && window.location.hostn
 
 function StatusRow({ state, children }) {
   const Icon = state === 'ok' ? CheckCircle2 : state === 'warn' ? AlertTriangle : Loader2;
-  const color = state === 'ok' ? T.green : state === 'warn' ? T.gold : T.textDim;
+  const color = state === 'ok' ? T.green : state === 'warn' ? '#f5c842' : T.textDim;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace", color: state === 'ok' ? T.text : T.textMid }}>
       <Icon size={12} color={color} style={state === 'pending' ? { animation: 'spin 1s linear infinite' } : undefined} />
@@ -229,7 +229,7 @@ const [elapsed, setElapsed] = useState(0);
               width: 38,
               height: 38,
               borderRadius: '50%',
-              background: connected ? T.green : failed ? T.red : status === 'sleeping' ? T.gold : T.accent,
+              background: connected ? T.green : failed ? T.red : status === 'sleeping' ? '#f5c842' : T.accent,
               boxShadow: `0 0 26px ${connected ? 'rgba(0,245,160,0.5)' : failed ? 'rgba(255,51,102,0.5)' : status === 'sleeping' ? 'rgba(245,200,66,0.4)' : 'rgba(99,102,241,0.5)'}`,
               display: 'flex',
               alignItems: 'center',
@@ -242,7 +242,7 @@ const [elapsed, setElapsed] = useState(0);
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: connected ? T.green : failed ? T.red : status === 'sleeping' ? T.gold : T.accent }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: connected ? T.green : failed ? T.red : status === 'sleeping' ? '#f5c842' : T.accent }}>
               {connected ? 'QUANT SERVER CONNECTED' : failed ? 'CONNECTION FAILED' : status === 'sleeping' ? 'WAKING UP SERVER' : 'HANDSHAKE IN PROGRESS'}
               <span style={{ fontSize: 10, color: T.textDim, marginLeft: 6 }}>({elapsed}s)</span>
             </div>
@@ -347,7 +347,7 @@ const [elapsed, setElapsed] = useState(0);
           </div>
 
           {status === 'sleeping' && !showConfig && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: T.gold, lineHeight: 1.5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: '#f5c842', lineHeight: 1.5 }}>
               <AlertTriangle size={13} />
               Free-tier containers sleep when idle. Cold start usually takes 30-50s.
             </div>

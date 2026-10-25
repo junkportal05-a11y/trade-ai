@@ -280,8 +280,8 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
                   <span style={{
                     fontWeight: 700, padding: '2px 7px', borderRadius: 999,
                     color: scanResult.trend === 'bullish' ? T.green : scanResult.trend === 'bearish' ? T.red : T.blue,
-                    background: scanResult.trend === 'bullish' ? T.greenDim : scanResult.trend === 'bearish' ? T.redDim : T.blueDim,
-                    border: `1px solid ${scanResult.trend === 'bullish' ? T.greenGlow : scanResult.trend === 'bearish' ? T.redGlow : T.blueGlow}`,
+                    background: scanResult.trend === 'bullish' ? T.greenDim : scanResult.trend === 'bearish' ? T.redDim : 'rgba(56,189,248,0.12)',
+                    border: `1px solid ${scanResult.trend === 'bullish' ? T.greenGlow : scanResult.trend === 'bearish' ? T.redGlow : 'rgba(56,189,248,0.3)'}`,
                   }}>
                     {(scanResult.trend || 'neutral').toUpperCase()}
                   </span>

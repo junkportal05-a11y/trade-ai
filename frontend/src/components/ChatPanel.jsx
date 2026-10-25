@@ -11,7 +11,7 @@ const SUGGESTIONS = [
   { label: 'Explain Market Regime', icon: BarChart3 },
 ];
 
-const confidenceColor = (value) => value > 0.7 ? T.green : value > 0.4 ? T.yellow : T.red;
+const confidenceColor = (value) => value > 0.7 ? T.green : value > 0.4 ? '#f5c842' : T.red;
 
 function priceList(levels) {
   if (!levels?.length) return 'None';
@@ -198,7 +198,7 @@ export default function ChatPanel({ symbol, price, changePct }) {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     <div>
                       <div style={{ color: T.textMid, fontSize: 9 }}>TREND</div>
-                      <div style={{ color: m.chartAnalysis.trend === 'bullish' ? T.green : m.chartAnalysis.trend === 'bearish' ? T.red : T.yellow, fontWeight: 700 }}>
+                      <div style={{ color: m.chartAnalysis.trend === 'bullish' ? T.green : m.chartAnalysis.trend === 'bearish' ? T.red : '#f5c842', fontWeight: 700 }}>
                         {m.chartAnalysis.trend?.toUpperCase() || 'UNKNOWN'}
                       </div>
                     </div>
@@ -245,9 +245,9 @@ export default function ChatPanel({ symbol, price, changePct }) {
             fontSize: 8,
             padding: '2px 7px',
             borderRadius: 999,
-            background: aiSource === 'gemini' ? T.blueDim : T.greenDim,
+            background: aiSource === 'gemini' ? 'rgba(56,189,248,0.12)' : T.greenDim,
             color: aiSource === 'gemini' ? T.blue : T.green,
-            border: `1px solid ${aiSource === 'gemini' ? T.blueGlow : T.greenGlow}`,
+            border: `1px solid ${aiSource === 'gemini' ? 'rgba(56,189,248,0.3)' : T.greenGlow}`,
             fontFamily: "'IBM Plex Mono', monospace",
             letterSpacing: '0.06em',
           }}>

@@ -165,7 +165,7 @@ export default function SimulatorPanel({ isMobile }) {
                 {status.is_running ? 'Simulation Active' : 'Simulation Complete'}
               </h3>
               {status.symbol && (
-                <span style={{ fontSize: '12px', padding: '4px 8px', background: T.blueDim, color: T.blue, borderRadius: '4px', fontWeight: 600 }}>
+                <span style={{ fontSize: '12px', padding: '4px 8px', background: 'rgba(56,189,248,0.12)', color: T.blue, borderRadius: '4px', fontWeight: 600 }}>
                   Analyzing: {status.symbol}
                 </span>
               )}

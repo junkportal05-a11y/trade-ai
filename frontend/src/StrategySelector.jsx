@@ -77,9 +77,9 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
     { key: 'total_return', label: 'TOTAL RETURN', value: `${perf.total_return >= 0 ? '+' : ''}${perf.total_return.toFixed(2)}%`, color: perf.total_return >= 0 ? T.green : T.red },
     { key: 'win_rate', label: 'WIN RATE', value: `${perf.win_rate.toFixed(1)}%`, color: T.blue },
     { key: 'max_drawdown', label: 'MAX DRAWDOWN', value: `${perf.max_drawdown.toFixed(2)}%`, color: T.red },
-    { key: 'sharpe_ratio', label: 'SHARPE RATIO', value: perf.sharpe_ratio.toFixed(2), color: T.gold },
+    { key: 'sharpe_ratio', label: 'SHARPE RATIO', value: perf.sharpe_ratio.toFixed(2), color: '#f5c842' },
     { key: 'total_trades', label: 'TOTAL TRADES', value: perf.total_trades.toString(), color: T.accent },
-    { key: 'profit_factor', label: 'PROFIT FACTOR', value: perf.profit_factor.toFixed(2), color: perf.profit_factor >= 1.5 ? T.green : perf.profit_factor >= 1 ? T.gold : T.red },
+    { key: 'profit_factor', label: 'PROFIT FACTOR', value: perf.profit_factor.toFixed(2), color: perf.profit_factor >= 1.5 ? T.green : perf.profit_factor >= 1 ? '#f5c842' : T.red },
   ];
 
   return (
@@ -133,7 +133,7 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? T.accentAlt : T.text, ...mono }}>{strat.name}</span>
-                      <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: strat.riskProfile === 'High' ? T.redDim : strat.riskProfile === 'Moderate' ? T.goldDim : T.greenDim, color: strat.riskProfile === 'High' ? T.red : strat.riskProfile === 'Moderate' ? T.gold : T.green, ...mono }}>
+                      <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: strat.riskProfile === 'High' ? T.redDim : strat.riskProfile === 'Moderate' ? 'rgba(245,200,66,0.12)' : T.greenDim, color: strat.riskProfile === 'High' ? T.red : strat.riskProfile === 'Moderate' ? '#f5c842' : T.green, ...mono }}>
                         {strat.riskProfile}
                       </span>
                       <span style={{ fontSize: 9, color: T.textDim, ...mono }}>{strat.typicalHold}</span>
@@ -164,7 +164,7 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
           <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8, padding: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 10, ...mono }}>
               <span style={{ color: T.textDim }}>CURRENT DRAWDOWN</span>
-              <span style={{ color: perf.current_drawdown > 10 ? T.red : perf.current_drawdown > 5 ? T.gold : T.green }}>
+              <span style={{ color: perf.current_drawdown > 10 ? T.red : perf.current_drawdown > 5 ? '#f5c842' : T.green }}>
                 {perf.current_drawdown.toFixed(2)}% / {perf.max_drawdown.toFixed(2)}% limit
               </span>
             </div>
@@ -207,7 +207,7 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
                         <td style={{ padding: '8px 12px', textAlign: 'right', color: T.textMid }}>{s.trades}</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', color: s.win_rate >= 50 ? T.green : T.red }}>{s.win_rate.toFixed(1)}%</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', color: s.return >= 0 ? T.green : T.red }}>{s.return >= 0 ? '+' : ''}{s.return.toFixed(2)}%</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', color: T.gold }}>{s.sharpe.toFixed(2)}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#f5c842' }}>{s.sharpe.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>

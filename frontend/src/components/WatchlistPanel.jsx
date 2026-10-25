@@ -22,11 +22,11 @@ export default function WatchlistPanel({ prices, selected, onSelect, favorites =
         sorted.map(({ symbol, name, sector }) => {
           const p = prices[symbol], price = p?.price ?? SEED_PRICES[symbol] ?? 0, pct = p?.changePct ?? 0, isUp = pct >= 0, isSel = selected === symbol, isFav = favorites.includes(symbol);
           return (
-            <div key={symbol} onClick={() => onSelect(symbol)} style={{ padding: '10px 14px', cursor: 'pointer', transition: 'background 0.15s', background: isSel ? T.blueDim : 'transparent', borderLeft: `2px solid ${isSel ? T.blue : 'transparent'}`, borderBottom: `1px solid ${T.border}` }}>
+            <div key={symbol} onClick={() => onSelect(symbol)} style={{ padding: '10px 14px', cursor: 'pointer', transition: 'background 0.15s', background: isSel ? 'rgba(56,189,248,0.12)' : 'transparent', borderLeft: `2px solid ${isSel ? T.blue : 'transparent'}`, borderBottom: `1px solid ${T.border}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <button onClick={e => { e.stopPropagation(); onToggleFavorite(symbol); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, color: isFav ? T.gold : T.textDim }} aria-label={isFav ? `Remove ${symbol} from favorites` : `Add ${symbol} to favorites`}><Star size={12} fill={isFav ? T.gold : 'none'} /></button>
+                    <button onClick={e => { e.stopPropagation(); onToggleFavorite(symbol); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, color: isFav ? '#f5c842' : T.textDim }} aria-label={isFav ? `Remove ${symbol} from favorites` : `Add ${symbol} to favorites`}><Star size={12} fill={isFav ? '#f5c842' : 'none'} /></button>
                     <span style={{ fontSize: 11, fontWeight: 700, color: isSel ? T.blue : T.text, letterSpacing: '0.02em', fontFamily: "'IBM Plex Mono', monospace", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{symbol.replace('.NS', '')}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>

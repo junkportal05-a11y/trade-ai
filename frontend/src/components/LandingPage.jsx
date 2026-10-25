@@ -50,7 +50,7 @@ export default function LandingPage() {
               <BarChart3 size={14} color={T.blue} /> 30-strategy backtesting
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Zap size={14} color={T.gold} /> Real-time NSE data
+              <Zap size={14} color={'#f5c842'} /> Real-time NSE data
             </div>
           </div>
         </div>

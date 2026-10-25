@@ -39,7 +39,7 @@ const T = {
 const SIGNAL_CFG = {
   'BUY':       { color: T.green, bg: T.greenDim, glow: T.greenGlow,  icon: '▲', label: 'BUY'       },
   'WEAK BUY':  { color: '#7bdb9e', bg: 'rgba(123,219,158,0.08)', glow: 'rgba(123,219,158,0.2)', icon: '△', label: 'WEAK BUY'  },
-  'HOLD':      { color: T.gold,  bg: T.goldDim,  glow: 'rgba(245,200,66,0.2)',  icon: '◆', label: 'HOLD'      },
+  'HOLD':      { color: '#f5c842',  bg: 'rgba(245,200,66,0.12)',  glow: 'rgba(245,200,66,0.2)',  icon: '◆', label: 'HOLD'      },
   'WEAK SELL': { color: '#ff9a7b', bg: 'rgba(255,154,123,0.08)', glow: 'rgba(255,154,123,0.2)', icon: '▽', label: 'WEAK SELL' },
   'SELL':      { color: T.red,   bg: T.redDim,   glow: T.redGlow,    icon: '▼', label: 'SELL'      },
 };
@@ -91,7 +91,7 @@ function Countdown({ target, onFire }) {
     return () => clearInterval(t);
   }, [target, onFire]);
   const m = Math.floor(secs / 60), s = secs % 60;
-  return <span style={{ ...mono, fontSize: 10, color: secs < 60 ? T.gold : T.textDim }}>
+  return <span style={{ ...mono, fontSize: 10, color: secs < 60 ? '#f5c842' : T.textDim }}>
     {String(m).padStart(2,'0')}:{String(s).padStart(2,'0')}
   </span>;
 }
@@ -200,7 +200,7 @@ function ProfitBanner({ profit, profitPct, capital }) {
       </div>
       <div style={{ textAlign: 'right' }}>
         <div style={{ fontSize: 9, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace", marginBottom: 4 }}>RETURN TIER</div>
-        <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace", color: profitPct >= 15 ? T.gold : profitPct >= 8 ? T.green : T.textMid }}>
+        <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace", color: profitPct >= 15 ? '#f5c842' : profitPct >= 8 ? T.green : T.textMid }}>
           {profitPct >= 20 ? ' AGGRESSIVE' : profitPct >= 12 ? ' HIGH RETURN' : profitPct >= 7 ? ' GOOD RETURN' : ' MODERATE'}
         </div>
       </div>
@@ -256,7 +256,7 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
               {sig.sector}
             </span>
             {sig.top_pattern && (
-              <span style={{ fontSize: 9, color: T.gold, background: T.goldDim, padding: '2px 6px', borderRadius: 3, border: `1px solid ${T.gold}40`, ...mono, fontWeight: 700 }}>
+              <span style={{ fontSize: 9, color: '#f5c842', background: 'rgba(245,200,66,0.12)', padding: '2px 6px', borderRadius: 3, border: `1px solid ${'#f5c842'}40`, ...mono, fontWeight: 700 }}>
                  {sig.top_pattern}
               </span>
             )}
@@ -280,7 +280,7 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
         {[
           { label: 'ENTRY', value: `₹${fmt(sig.entry)}`, color: T.text },
           { label: 'CURRENT', value: `₹${fmt(currentPrice)}`, color: T.blue, isLive: true },
-          { label: 'TARGET', value: `₹${fmt(sig.target)}`, color: isBull ? T.green : isBear ? T.red : T.gold },
+          { label: 'TARGET', value: `₹${fmt(sig.target)}`, color: isBull ? T.green : isBear ? T.red : '#f5c842' },
           { label: 'STOP', value: `₹${fmt(sig.stop_loss)}`, color: isBull ? T.red : isBear ? T.green : T.textMid },
           { label: 'LIVE P&L', value: pnlValue, color: pnlColor },
         ].map(({ label, value, color, isLive }) => (
@@ -298,7 +298,7 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
 
       {/* Stats row */}
       <div style={{ marginBottom: 8 }}>
-        <span style={{ fontSize: 9, color: isBull ? T.green : isBear ? T.red : T.gold, ...mono }}>
+        <span style={{ fontSize: 9, color: isBull ? T.green : isBear ? T.red : '#f5c842', ...mono }}>
           {fmtPct(sig.target_pct)} target move
         </span>
         <span style={{ fontSize: 9, color: T.textDim, marginLeft: 8 }}>
@@ -553,7 +553,7 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
   const sells = signals.filter(s => s.signal === 'SELL' || s.signal === 'WEAK SELL').length;
   const holds = signals.filter(s => s.signal === 'HOLD').length;
   const marketBias = buys > sells + 1 ? 'BULLISH' : sells > buys + 1 ? 'BEARISH' : 'NEUTRAL';
-  const biasColor  = marketBias === 'BULLISH' ? T.green : marketBias === 'BEARISH' ? T.red : T.gold;
+  const biasColor  = marketBias === 'BULLISH' ? T.green : marketBias === 'BEARISH' ? T.red : '#f5c842';
 
   // Map allocations by symbol for O(1) lookup
   const allocationsMap = {};
@@ -655,11 +655,11 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
         {error && !loading && (
           <div style={{
             padding: '9px 12px', borderRadius: 7, background: 'rgba(245,200,66,0.06)',
-            border: `1px solid rgba(245,200,66,0.18)`, fontSize: 10, color: T.gold,
+            border: `1px solid rgba(245,200,66,0.18)`, fontSize: 10, color: '#f5c842',
             fontFamily: "'IBM Plex Mono', monospace", lineHeight: 1.4, display: 'flex',
             alignItems: 'center', gap: 8
           }}>
-            <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: T.gold, animation: 'pulse 1.5s infinite' }} />
+            <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#f5c842', animation: 'pulse 1.5s infinite' }} />
             <span>{error}</span>
           </div>
         )}
@@ -784,7 +784,7 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
                   { label: 'CAPITAL',   val: fmtINR(plan.capital),           color: T.text },
                   { label: 'DEPLOYED',  val: fmtINR(plan.total_deployed),    color: T.blue, sub: `${plan.deployment_pct}%` },
                   { label: 'MAX RISK',  val: `-${fmtINR(plan.total_potential_loss)}`, color: T.red, sub: `${plan.max_risk_pct}% limit` },
-                  { label: 'PORTFOLIO RR', val: `1 : ${plan.portfolio_rr}`, color: plan.portfolio_rr >= 2 ? T.green : T.gold },
+                  { label: 'PORTFOLIO RR', val: `1 : ${plan.portfolio_rr}`, color: plan.portfolio_rr >= 2 ? T.green : '#f5c842' },
                 ].map(({ label, val, color, sub }) => (
                   <div key={label} style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px' }}>
                     <div style={{ fontSize: 7, color: T.textDim, letterSpacing: '0.08em', fontFamily: "'IBM Plex Mono', monospace" }}>{label}</div>

@@ -130,8 +130,8 @@ export default function TradeLogPanel({ maxItems = 50 }) {
                   <td style={{ padding: '8px 4px' }}>
                     <span style={{
                       padding: '2px 6px', borderRadius: 3, fontSize: 8, fontWeight: 700, ...mono,
-                      background: trade.status === 'OPEN' ? T.blueDim : T.goldDim,
-                      color: trade.status === 'OPEN' ? T.blue : T.gold,
+                      background: trade.status === 'OPEN' ? 'rgba(56,189,248,0.12)' : 'rgba(245,200,66,0.12)',
+                      color: trade.status === 'OPEN' ? T.blue : '#f5c842',
                     }}>{trade.status}</span>
                   </td>
                   <td style={{ padding: '8px 4px', ...mono }}>

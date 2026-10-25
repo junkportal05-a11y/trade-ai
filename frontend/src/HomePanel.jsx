@@ -184,17 +184,17 @@ export default function HomePanel({
         </div>
         <div style={{
           padding: '6px 14px',
-          background: isMarketOpen ? T.greenDim : T.goldDim,
-          border: `1px solid ${isMarketOpen ? T.green : T.gold}30`,
+          background: isMarketOpen ? T.greenDim : 'rgba(245,200,66,0.12)',
+          border: `1px solid ${isMarketOpen ? T.green : '#f5c842'}30`,
           borderRadius: 6,
-          color: isMarketOpen ? T.green : T.gold,
+          color: isMarketOpen ? T.green : '#f5c842',
           fontSize: 10,
           fontWeight: 700,
           display: 'flex',
           alignItems: 'center',
           gap: 6
         }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: isMarketOpen ? T.green : T.gold, animation: isMarketOpen ? 'pulse 1.8s infinite' : 'none' }} />
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: isMarketOpen ? T.green : '#f5c842', animation: isMarketOpen ? 'pulse 1.8s infinite' : 'none' }} />
           NSE MARKET: {isMarketOpen ? 'OPEN (IST)' : 'CLOSED'}
         </div>
       </div>
@@ -251,7 +251,7 @@ export default function HomePanel({
                 <span style={{
                   fontSize: 14,
                   fontWeight: 800,
-                  color: brief.nifty_trend === 'BULLISH' ? T.green : brief.nifty_trend === 'BEARISH' ? T.red : T.gold
+                  color: brief.nifty_trend === 'BULLISH' ? T.green : brief.nifty_trend === 'BEARISH' ? T.red : '#f5c842'
                 }}>
                   {brief.nifty_trend === 'BULLISH' ? '▲ BULLISH' : brief.nifty_trend === 'BEARISH' ? '▼ BEARISH' : '◆ CONSOLIDATION'}
                 </span>
@@ -492,9 +492,9 @@ export default function HomePanel({
               width: '100%',
               padding: '8px 0',
               background: 'rgba(245, 200, 66, 0.08)',
-              border: `1px solid ${T.gold}30`,
+              border: `1px solid ${'#f5c842'}30`,
               borderRadius: 6,
-              color: T.gold,
+              color: '#f5c842',
               fontSize: 10,
               fontWeight: 700,
               cursor: 'pointer',
