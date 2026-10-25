@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.deps import DbDep, OptionalSessionDep
+from app.api.deps import DbDep, SessionDep
 from app.models.schemas import BacktestRequest
 
 router = APIRouter(prefix="/api", tags=["backtest"])
@@ -16,7 +16,7 @@ async def run_backtest_route(
     request: Request,
     req: BacktestRequest | None = None,
     db: Session = DbDep,
-    _=OptionalSessionDep,
+    _=SessionDep,
 ) -> dict:
     from app.main import run_backtest as _run_main_backtest
     if req is None:

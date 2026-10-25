@@ -1,4 +1,3 @@
-import { API_BASE_URL, WS_BASE_URL } from '../api';
 /**
  * useMarketData.js
  * ─────────────────────────────────────────────────────────────────────────────
@@ -13,14 +12,8 @@ import { API_BASE_URL, WS_BASE_URL } from '../api';
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-
-const BASE_URL = API_BASE_URL;
-const WS_URL = WS_BASE_URL;
-
-const SEED_PRICES = {
-  'YESBANK.NS': 25, 'TATASTEEL.NS': 170, 'BANKBARODA.NS': 280,
-  'TATAPOWER.NS': 445, 'SBIN.NS': 830
-};
+import { API_BASE_URL, WS_BASE_URL } from '../api';
+import { SEED_PRICES } from '../theme';
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  useQuote — single symbol quote
@@ -35,7 +28,7 @@ export function useQuote(symbol) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${BASE_URL}/api/quote?symbol=${symbol}`);
+      const res = await fetch(`${API_BASE_URL}/api/quote?symbol=${symbol}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData(await res.json());
     } catch (e) {
@@ -67,7 +60,7 @@ export function useHistory(symbol, { interval = "1d", range = "3mo", seedPrice =
       setLoading(true);
       setError(null);
       try {
-        const url = `${BASE_URL}/api/history?symbol=${symbol}&interval=${interval}&range=${range}`;
+        const url = `${API_BASE_URL}/api/history?symbol=${symbol}&interval=${interval}&range=${range}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -98,6 +91,7 @@ export function useLivePrices(symbols = []) {
   // prices: { AAPL: { price, change, changePct, timestamp, prevClose }, ... }
   const [prices,    setPrices]    = useState({});
   const [connected, setConnected] = useState(false);
+  const [dataSource, setDataSource] = useState({}); // 'live' | 'simulated'
   const wsRef         = useRef(null);
   const fallbackTimer = useRef(null);
   const seedRef       = useRef({});
@@ -117,7 +111,7 @@ export function useLivePrices(symbols = []) {
 
       async function poll() {
         try {
-          const res = await fetch(`${BASE_URL}/api/prices?symbols=${encodeURIComponent(symbolKey)}`, { credentials: 'include' });
+          const res = await fetch(`${API_BASE_URL}/api/prices?symbols=${encodeURIComponent(symbolKey)}`, { credentials: 'include' });
           if (!res.ok) return;
           const json = await res.json();
           if (json.type === "tick" && Array.isArray(json.data)) {
@@ -132,7 +126,15 @@ export function useLivePrices(symbols = []) {
                   changePct: prevClose ? (change / prevClose) * 100 : 0,
                   timestamp: tick.timestamp,
                   prevClose,
+                  source: 'simulated',
                 };
+              });
+              return next;
+            });
+            setDataSource(prev => {
+              const next = { ...prev };
+              json.data.forEach(tick => {
+                next[tick.symbol] = 'simulated';
               });
               return next;
             });
@@ -171,7 +173,7 @@ export function useLivePrices(symbols = []) {
     function connect() {
       try {
         const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
-        const ws = new WebSocket(`${WS_URL}/ws/prices?symbols=${symbolKey}&token=${token}`);
+        const ws = new WebSocket(`${WS_BASE_URL}/ws/prices?symbols=${symbolKey}&token=${token}`);
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -203,7 +205,15 @@ export function useLivePrices(symbols = []) {
                     changePct: prevClose ? (change / prevClose) * 100 : 0,
                     timestamp: tick.timestamp,
                     prevClose,
+                    source: 'live',
                   };
+                });
+                return next;
+              });
+              setDataSource(prev => {
+                const next = { ...prev };
+                msg.data.forEach(tick => {
+                  next[tick.symbol] = 'live';
                 });
                 return next;
               });
@@ -250,7 +260,7 @@ export function useLivePrices(symbols = []) {
     };
   }, [symbolKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { prices, connected };
+  return { prices, connected, dataSource };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

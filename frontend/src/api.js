@@ -37,9 +37,9 @@ export const apiFetch = async (path, options = {}) => {
   const currentBase = getApiBaseUrl();
   const url = path.startsWith("http") ? path : `${currentBase}${path}`;
   const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
-  
+
   const isMutating = ["POST", "PUT", "DELETE", "PATCH"].includes((options.method || "GET").toUpperCase());
-  
+
   const res = await fetch(url, {
     credentials: "include",
     ...options,
@@ -52,10 +52,33 @@ export const apiFetch = async (path, options = {}) => {
   });
 
   if (res.status === 401) {
-    // Single user personal mode — no login redirects
+    // Token expired or invalid — clear stored tokens
+    sessionStorage.removeItem('apt_token');
+    localStorage.removeItem('apt_token');
+    // Dispatch event for UI to show code entry screen
+    window.dispatchEvent(new CustomEvent('apex:auth-required'));
   }
 
   return res;
+};
+
+// Verify current token with backend
+export const verifyToken = async () => {
+  const currentBase = getApiBaseUrl();
+  const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
+  if (!token) return false;
+
+  try {
+    const res = await fetch(`${currentBase}/api/auth/verify`, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'X-Session-Token': token, 'Authorization': `Bearer ${token}` } : {}),
+      },
+    });
+    if (res.ok) return true;
+  } catch (_) {}
+  return false;
 };
 
 // Admin Simulation Endpoints

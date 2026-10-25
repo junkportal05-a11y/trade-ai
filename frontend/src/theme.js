@@ -16,12 +16,6 @@ export const T = {
   redDim: 'rgba(255, 51, 102, 0.12)',
   redGlow: 'rgba(255, 51, 102, 0.3)',
   blue: '#38bdf8',
-  blueDim: 'rgba(56, 189, 248, 0.12)',
-  blueGlow: 'rgba(56, 189, 248, 0.3)',
-  gold: '#f5c842',
-  goldDim: 'rgba(245, 200, 66, 0.12)',
-  goldGlow: 'rgba(245, 200, 66, 0.3)',
-  yellow: '#f5c842',
   accent: '#6366f1',
   accentAlt: '#a855f7',
   accentDim: 'rgba(99, 102, 241, 0.15)',
@@ -29,8 +23,14 @@ export const T = {
 };
 
 export const SEED_PRICES = {
-  'YESBANK.NS': 25, 'TATASTEEL.NS': 170, 'BANKBARODA.NS': 280,
-  'TATAPOWER.NS': 445, 'SBIN.NS': 830, 'HAL.NS': 4400, 'BEL.NS': 280, 'RVNL.NS': 350,
+  'YESBANK.NS': 25,
+  'TATASTEEL.NS': 170,
+  'BANKBARODA.NS': 280,
+  'TATAPOWER.NS': 445,
+  'SBIN.NS': 830,
+  'HAL.NS': 4400,
+  'BEL.NS': 280,
+  'RVNL.NS': 350,
 };
 
 export const DEFAULT_WATCHLIST = [
@@ -56,14 +56,20 @@ export const PORTFOLIO_SEED = [
   { symbol: 'RVNL.NS', shares: 40, avgCost: 350 },
 ];
 
-export const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+export const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
 export const fmtK = (n) => n >= 1e9 ? `₹${(n/1e9).toFixed(2)}B` : n >= 1e6 ? `₹${(n/1e6).toFixed(1)}M` : `₹${fmt(n, 0)}`;
+export const fmtINR = (n, d = 2) => n == null ? '—' : `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })}`;
+export const fmtPct = (n, d = 2) => n == null ? '—' : `${n >= 0 ? '+' : ''}${Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })}%`;
 export const clr = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
 export const sign = (v) => v > 0 ? '+' : '';
-export const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+export const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, c => ({ '&': '&', '<': '<', '>': '>', "'": "'", '"': '"' }[c] || c));
+
+export const fmtIST = (date = new Date()) => date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+export const fmtISTDate = (date = new Date()) => date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+export const fmtISTShort = (date = new Date()) => date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
 
 export const PRIMARY_TABS = ['HOME', 'SIMULATOR', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
-export const SECONDARY_TABS = [];
+export const SECONDARY_TABS = ['STRATEGIES', 'SETTINGS', 'HELP'];
 export const MOBILE_TABS = ['HOME', 'SIMULATOR', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
 
 export const TAB_META = {
@@ -75,6 +81,9 @@ export const TAB_META = {
   PERFORMANCE: { label: 'Analytics', icon: 'BarChart3' },
   JOURNAL: { label: 'Journal', icon: 'BookOpen' },
   ACCOUNT: { label: 'Security', icon: 'ShieldCheck' },
+  STRATEGIES: { label: 'Strategies', icon: 'Settings' },
+  SETTINGS: { label: 'Settings', icon: 'Settings' },
+  HELP: { label: 'Help', icon: 'HelpCircle' },
 };
 
 export const EMPTY_ARRAY = [];

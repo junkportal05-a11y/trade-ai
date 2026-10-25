@@ -3,16 +3,14 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
-// Reticle disabled — causes "Invalid hook call" at import time
-// if (import.meta.env.DEV) {
-//   import('./reticle-dev');
-// }
-
 class ErrorBoundary extends React.Component {
   state = { crashed: false, error: null };
   componentDidCatch(error) { 
     this.setState({ crashed: true, error }); 
   }
+  handleRetry = () => {
+    this.setState({ crashed: false, error: null });
+  };
   render() {
     if (this.state.crashed) {
       return (
@@ -28,21 +26,24 @@ class ErrorBoundary extends React.Component {
           fontFamily: 'monospace',
           textAlign: 'center'
         }}>
-          <h2 style={{ marginBottom: '1rem' }}>⚠ Something crashed inside ApexTrade.</h2>
+          <h2 style={{ marginBottom: '1rem' }}>Something crashed inside ApexTrade.</h2>
           <p style={{ color: '#6e7a96', marginBottom: '2rem' }}>Please refresh the page to restart the terminal.</p>
-          {this.state.error && (
-            <pre style={{ 
-              backgroundColor: '#0d1017', 
-              padding: '16px', 
-              borderRadius: '8px', 
-              border: '1px solid #161b26',
-              maxWidth: '80%',
-              overflowX: 'auto',
-              color: '#d0d8ed'
-            }}>
-              {this.state.error.toString()}
-            </pre>
-          )}
+          <button
+            onClick={this.handleRetry}
+            style={{
+              padding: '10px 20px',
+              background: '#6366f1',
+              color: '#0a0e14',
+              border: 'none',
+              borderRadius: 6,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+            }}
+          >
+            Try Again
+          </button>
         </div>
       );
     }

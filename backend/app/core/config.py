@@ -94,6 +94,13 @@ class Settings(BaseSettings):
             else:
                 logging.warning("ADMIN_KEY using generated fallback — set ADMIN_KEY env var for production")
 
+        # PASS_ADMIN / APP_PASSWORD required in production (single-code login)
+        if not (os.getenv("PASS_ADMIN") or os.getenv("APP_PASSWORD")):
+            if is_prod:
+                missing.append("PASS_ADMIN")
+            else:
+                logging.warning("PASS_ADMIN/APP_PASSWORD not set in env. Using generated ephemeral code for development.")
+
         if missing:
             raise ValueError(
                 f"CRITICAL SECURITY FAILURE: Missing required environment variable(s) in {self.environment} mode: "

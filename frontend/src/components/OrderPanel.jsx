@@ -11,11 +11,17 @@ export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteO
   const [status, setStatus] = useState(null);
   const [alertCondition, setAlertCondition] = useState('above');
   const [alertPrice, setAlertPrice] = useState('');
+  const [limitError, setLimitError] = useState(false);
 
-  const executionPrice = type === 'limit' ? parseFloat(limit) : price;
-  const total = qty && executionPrice ? (parseFloat(qty) * executionPrice).toFixed(2) : '—';
+  const executionPrice = type === 'limit' ? (limit ? parseFloat(limit) : NaN) : price;
+  const total = qty && !isNaN(executionPrice) ? (parseFloat(qty) * executionPrice).toFixed(2) : '—';
 
   const submit = () => {
+    if (type === 'limit' && (!limit || isNaN(parseFloat(limit)))) {
+      setLimitError(true);
+      return;
+    }
+    setLimitError(false);
     setStatus('placing');
     setTimeout(() => {
       const res = onExecuteOrder({ side, symbol, type, qty, limitPrice: type === 'limit' ? limit : price, price });
@@ -44,9 +50,13 @@ export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteO
         ))}
       </div>
       <Label text="QUANTITY"><Input value={qty} onChange={e => setQty(e.target.value)} placeholder="0.00" suffix="SHARES" /></Label>
-      {type === 'limit' && <Label text="LIMIT PRICE"><Input value={limit} onChange={e => setLimit(e.target.value)} placeholder={fmt(price)} prefix="₹" /></Label>}
+      {type === 'limit' && (
+        <Label text="LIMIT PRICE">
+          <Input value={limit} onChange={e => { setLimit(e.target.value); setLimitError(false); }} placeholder={fmt(price)} prefix="₹" error={limitError} />
+        </Label>
+      )}
       <div style={{ padding: '8px 10px', background: T.bg, borderRadius: 6, border: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', fontSize: 10, fontFamily: "'IBM Plex Mono', monospace" }}>
-        <span style={{ color: T.textDim }}>EST. TOTAL</span><span style={{ color: T.text }}>₹{total === '—' ? '—' : fmt(total)}</span>
+        <span style={{ color: T.textDim }}>EST. TOTAL</span><span style={{ color: total === '—' ? T.textDim : T.text }}>₹{total === '—' ? '—' : fmt(total)}</span>
       </div>
       {status === 'filled' && <div style={{ padding: '8px 10px', background: T.greenDim, border: `1px solid ${T.green}`, borderRadius: 6, fontSize: 10, color: T.green, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>✓ ORDER FILLED (PAPER)</div>}
       {status === 'placed' && <div style={{ padding: '8px 10px', background: T.blueDim, border: `1px solid ${T.blue}`, borderRadius: 6, fontSize: 10, color: T.blue, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>✓ LIMIT ORDER PLACED (PAPER)</div>}

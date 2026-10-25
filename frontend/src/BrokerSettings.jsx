@@ -25,6 +25,7 @@ export default function BrokerSettings({ apiFetch }) {
     pin: '',
     totp_secret: ''
   });
+  const [showSensitive, setShowSensitive] = useState(false);
   const [status, setStatus] = useState({ connected: false });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -166,7 +167,7 @@ export default function BrokerSettings({ apiFetch }) {
           <div>
             <label style={{ fontSize: 11, color: T.textMid, display: 'block', marginBottom: 4 }}>API Key</label>
             <input
-              type="text"
+              type={showSensitive ? 'text' : 'password'}
               value={credentials.api_key}
               onChange={(e) => setCredentials({...credentials, api_key: e.target.value})}
               placeholder="Your AngelOne API Key"
@@ -196,7 +197,7 @@ export default function BrokerSettings({ apiFetch }) {
           <div>
             <label style={{ fontSize: 11, color: T.textMid, display: 'block', marginBottom: 4 }}>Trading PIN (MPIN)</label>
             <input
-              type="password"
+              type={showSensitive ? 'text' : 'password'}
               value={credentials.pin}
               onChange={(e) => setCredentials({...credentials, pin: e.target.value})}
               placeholder="4-digit PIN"
@@ -209,10 +210,10 @@ export default function BrokerSettings({ apiFetch }) {
             />
           </div>
 
-          <div>
+<div>
             <label style={{ fontSize: 11, color: T.textMid, display: 'block', marginBottom: 4 }}>TOTP Secret Key</label>
             <input
-              type="text"
+              type={showSensitive ? 'text' : 'password'}
               value={credentials.totp_secret}
               onChange={(e) => setCredentials({...credentials, totp_secret: e.target.value})}
               placeholder="BASE32 secret from AngelOne app"
@@ -227,6 +228,16 @@ export default function BrokerSettings({ apiFetch }) {
             </div>
           </div>
 
+          <button
+            type="button"
+            onClick={() => setShowSensitive(s => !s)}
+            style={{
+              width: '100%', padding: '8px 12px', background: T.panelAlt, border: `1px solid ${T.border}`,
+              borderRadius: 6, color: T.textMid, fontSize: 10, fontWeight: 600, cursor: 'pointer', marginTop: 4, ...mono
+            }}
+          >
+            {showSensitive ? 'HIDE SENSITIVE FIELDS' : 'SHOW SENSITIVE FIELDS'}
+          </button>
           {error && <div style={{ fontSize: 12, color: T.red, background: 'rgba(255, 59, 105, 0.1)', padding: 8, borderRadius: 4, ...mono }}>{error}</div>}
 
           <button

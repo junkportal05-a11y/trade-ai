@@ -1,12 +1,17 @@
-from fastapi.testclient import TestClient
+import pytest
 from unittest.mock import patch
 import pandas as pd
-from app.main import app
 
-client = TestClient(app)
+
+@pytest.fixture(autouse=True)
+def _patch_download(monkeypatch):
+    """Ensure signals.download_market_data_df is patchable."""
+    import signals
+    monkeypatch.setattr(signals, 'download_market_data_df', lambda *a, **kw: None)
+
 
 @patch('signals.download_market_data_df')
-def test_get_history_valid(mock_download):
+def test_get_history_valid(mock_download, auth_client):
     dates = pd.date_range("2023-01-01", periods=2, freq="D")
     df = pd.DataFrame(
         {
@@ -19,46 +24,53 @@ def test_get_history_valid(mock_download):
         index=dates
     )
     mock_download.return_value = df
-    response = client.get("/api/history?symbol=RELIANCE&interval=1d&range=1mo")
+    response = auth_client.get("/api/history?symbol=RELIANCE&interval=1d&range=1mo")
     assert response.status_code == 200
 
-def test_get_history_invalid_interval():
-    response = client.get("/api/history?symbol=RELIANCE&interval=invalid&range=1mo")
+
+def test_get_history_invalid_interval(auth_client):
+    response = auth_client.get("/api/history?symbol=RELIANCE&interval=invalid&range=1mo")
     assert response.status_code == 400
     assert "Invalid interval" in response.json()["detail"]
 
-def test_get_history_invalid_range():
-    response = client.get("/api/history?symbol=RELIANCE&interval=1d&range=invalid")
+
+def test_get_history_invalid_range(auth_client):
+    response = auth_client.get("/api/history?symbol=RELIANCE&interval=1d&range=invalid")
     assert response.status_code == 400
     assert "Invalid range" in response.json()["detail"]
 
-def test_get_history_missing_symbol():
-    response = client.get("/api/history?interval=1d&range=1mo")
+
+def test_get_history_missing_symbol(auth_client):
+    response = auth_client.get("/api/history?interval=1d&range=1mo")
     assert response.status_code == 422
 
+
 @patch('signals.download_market_data_df')
-def test_get_history_empty_data(mock_download):
+def test_get_history_empty_data(mock_download, auth_client):
     mock_download.return_value = pd.DataFrame()
-    response = client.get("/api/history?symbol=FAKE&interval=1d&range=1mo")
+    response = auth_client.get("/api/history?symbol=FAKE&interval=1d&range=1mo")
     assert response.status_code == 404
     assert "No history for FAKE" in response.json()["detail"]
 
+
 @patch('signals.download_market_data_df')
-def test_get_history_none_data(mock_download):
+def test_get_history_none_data(mock_download, auth_client):
     mock_download.return_value = None
-    response = client.get("/api/history?symbol=FAKE&interval=1d&range=1mo")
+    response = auth_client.get("/api/history?symbol=FAKE&interval=1d&range=1mo")
     assert response.status_code == 404
     assert "No history for FAKE" in response.json()["detail"]
 
+
 @patch('signals.download_market_data_df')
-def test_get_history_nan_data(mock_download):
+def test_get_history_nan_data(mock_download, auth_client):
     mock_download.return_value = pd.DataFrame({'Open': [float('nan')], 'High': [float('nan')], 'Low': [float('nan')], 'Close': [float('nan')], 'Volume': [float('nan')]})
-    response = client.get("/api/history?symbol=FAKE&interval=1d&range=1mo")
+    response = auth_client.get("/api/history?symbol=FAKE&interval=1d&range=1mo")
     assert response.status_code == 404
     assert "No history data found for FAKE after filtering NaNs" in response.json()["detail"]
 
+
 @patch('signals.download_market_data_df')
-def test_get_history_intraday(mock_download):
+def test_get_history_intraday(mock_download, auth_client):
     dates = pd.date_range("2023-01-01 10:00:00", periods=2, freq="15min")
     df = pd.DataFrame(
         {
@@ -72,7 +84,7 @@ def test_get_history_intraday(mock_download):
     )
     mock_download.return_value = df
 
-    response = client.get("/api/history?symbol=RELIANCE&interval=15m&range=1d")
+    response = auth_client.get("/api/history?symbol=RELIANCE&interval=15m&range=1d")
     assert response.status_code == 200
     data = response.json()
     assert data["symbol"] == "RELIANCE"
@@ -85,8 +97,9 @@ def test_get_history_intraday(mock_download):
     assert data["bars"][0]["open"] == 100.0
     assert data["bars"][0]["volume"] == 1000
 
+
 @patch('signals.download_market_data_df')
-def test_get_history_daily(mock_download):
+def test_get_history_daily(mock_download, auth_client):
     dates = pd.date_range("2023-01-01", periods=2, freq="D")
     df = pd.DataFrame(
         {
@@ -100,7 +113,7 @@ def test_get_history_daily(mock_download):
     )
     mock_download.return_value = df
 
-    response = client.get("/api/history?symbol=RELIANCE&interval=1d&range=1mo")
+    response = auth_client.get("/api/history?symbol=RELIANCE&interval=1d&range=1mo")
     assert response.status_code == 200
     data = response.json()
     assert data["count"] == 2

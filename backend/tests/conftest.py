@@ -35,3 +35,16 @@ def _clear_degraded_workers():
     clear_all_degraded_workers()
     yield
     clear_all_degraded_workers()
+
+
+@pytest.fixture
+def auth_client():
+    """TestClient with a valid apt_token cookie for authenticated requests."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.core.security import create_access_token
+    
+    client = TestClient(app)
+    token = create_access_token({"sub": "apex_head_quant"})
+    client.cookies.set("apt_token", token)
+    return client

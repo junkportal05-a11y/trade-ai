@@ -31,17 +31,18 @@ export default function IntroSplash({ onWokenUp }) {
   });
   const [customInput, setCustomInput] = useState('');
   const [showConfig, setShowConfig] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
+const [elapsed, setElapsed] = useState(0);
   const [status, setStatus] = useState('connecting');
   const [healthData, setHealthData] = useState(null);
   const [latency, setLatency] = useState(null);
   const [attempts, setAttempts] = useState(0);
   const [retryToken, setRetryToken] = useState(0);
   const [logs, setLogs] = useState([
-    'APEXTRADE CORE v3.15 · QUANT BOOT SEQUENCE',
+    'APEXTRADE CORE v4.1 · QUANT BOOT SEQUENCE',
     'Initializing cryptographic security context...',
     'Probing Quant Server /api/health endpoint...',
   ]);
+  const maxRetries = 30; // ~75 seconds max
 
   const finishedRef = useRef(false);
   const onWokenUpRef = useRef(onWokenUp);
@@ -102,6 +103,12 @@ export default function IntroSplash({ onWokenUp }) {
         timer = setTimeout(finish, 1200);
       } catch (error) {
         if (cancelled) return;
+        if (attempt >= maxRetries) {
+          setStatus('failed');
+          addLog(`[FAIL] Max retries (${maxRetries}) reached. Server unreachable.`);
+          setShowConfig(true);
+          return;
+        }
         if (attempt === 1) addLog(`[WAIT] ${target} unreachable (${error.message})`);
         else if (attempt === 3) addLog('[WAIT] Quant node in cold start · broadcasting wake signals...');
         else if (attempt === 6) addLog('[WAIT] Container boot may take 30-60s on free tier...');
@@ -149,6 +156,7 @@ export default function IntroSplash({ onWokenUp }) {
   const geminiReady = healthData?.checks?.ai_services?.gemini?.status === 'configured';
   const marketStatus = healthData?.checks?.market?.status;
   const connected = status === 'connected';
+  const failed = status === 'failed';
 
   return (
     <div style={{
@@ -215,27 +223,27 @@ export default function IntroSplash({ onWokenUp }) {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
           <div style={{ position: 'relative', width: 72, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `1.5px dashed ${connected ? T.green : T.accent}40`, animation: 'spin 10s linear infinite' }} />
-            <div style={{ position: 'absolute', inset: 9, borderRadius: '50%', border: '2px solid transparent', borderTopColor: connected ? T.green : T.accent, borderBottomColor: connected ? T.green : T.accentAlt, animation: 'spin 2s cubic-bezier(0.4, 0, 0.2, 1) infinite' }} />
+            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `1.5px dashed ${connected ? T.green : failed ? T.red : T.accent}40`, animation: 'spin 10s linear infinite' }} />
+            <div style={{ position: 'absolute', inset: 9, borderRadius: '50%', border: '2px solid transparent', borderTopColor: connected ? T.green : failed ? T.red : T.accent, borderBottomColor: connected ? T.green : failed ? T.red : T.accentAlt, animation: 'spin 2s cubic-bezier(0.4, 0, 0.2, 1) infinite' }} />
             <div style={{
               width: 38,
               height: 38,
               borderRadius: '50%',
-              background: connected ? T.green : status === 'sleeping' ? T.gold : T.accent,
-              boxShadow: `0 0 26px ${connected ? 'rgba(0,245,160,0.5)' : status === 'sleeping' ? 'rgba(245,200,66,0.4)' : 'rgba(99,102,241,0.5)'}`,
+              background: connected ? T.green : failed ? T.red : status === 'sleeping' ? T.gold : T.accent,
+              boxShadow: `0 0 26px ${connected ? 'rgba(0,245,160,0.5)' : failed ? 'rgba(255,51,102,0.5)' : status === 'sleeping' ? 'rgba(245,200,66,0.4)' : 'rgba(99,102,241,0.5)'}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#07090e',
               transition: 'all 0.4s ease',
             }}>
-              {connected ? <CheckCircle2 size={21} strokeWidth={2.5} /> : status === 'sleeping' ? <RefreshCw size={18} strokeWidth={2.5} /> : <Activity size={20} color="#fff" strokeWidth={2.5} />}
+              {connected ? <CheckCircle2 size={21} strokeWidth={2.5} /> : failed ? <AlertTriangle size={21} strokeWidth={2.5} /> : status === 'sleeping' ? <RefreshCw size={18} strokeWidth={2.5} /> : <Activity size={20} color="#fff" strokeWidth={2.5} />}
             </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: connected ? T.green : status === 'sleeping' ? T.gold : T.accent }}>
-              {connected ? 'QUANT SERVER CONNECTED' : status === 'sleeping' ? 'WAKING UP SERVER' : 'HANDSHAKE IN PROGRESS'}
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: connected ? T.green : failed ? T.red : status === 'sleeping' ? T.gold : T.accent }}>
+              {connected ? 'QUANT SERVER CONNECTED' : failed ? 'CONNECTION FAILED' : status === 'sleeping' ? 'WAKING UP SERVER' : 'HANDSHAKE IN PROGRESS'}
               <span style={{ fontSize: 10, color: T.textDim, marginLeft: 6 }}>({elapsed}s)</span>
             </div>
             <div style={{ fontSize: 10, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>
@@ -245,17 +253,17 @@ export default function IntroSplash({ onWokenUp }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', background: 'rgba(7, 9, 14, 0.5)', borderRadius: 10, border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-          <StatusRow state={connected ? 'ok' : status === 'sleeping' ? 'warn' : 'pending'}>
-            {connected ? `Quant Server Engine: CONNECTED (${latency ?? healthData?.total_latency_ms ?? 0}ms)` : 'Quant Server Engine: CONNECTING...'}
+          <StatusRow state={connected ? 'ok' : failed ? 'error' : status === 'sleeping' ? 'warn' : 'pending'}>
+            {connected ? `Quant Server Engine: CONNECTED (${latency ?? healthData?.total_latency_ms ?? 0}ms)` : failed ? 'Quant Server Engine: UNREACHABLE' : 'Quant Server Engine: CONNECTING...'}
           </StatusRow>
-          <StatusRow state={connected ? (databaseOk ? 'ok' : 'warn') : 'pending'}>
-            {connected ? `Storage Engine: ${databaseType} ${databaseOk ? 'ONLINE' : 'DEGRADED'}` : 'Storage Engine: WAITING'}
+          <StatusRow state={connected ? (databaseOk ? 'ok' : 'warn') : failed ? 'error' : 'pending'}>
+            {connected ? `Storage Engine: ${databaseType} ${databaseOk ? 'ONLINE' : 'DEGRADED'}` : failed ? 'Storage Engine: UNREACHABLE' : 'Storage Engine: WAITING'}
           </StatusRow>
-          <StatusRow state={connected ? (geminiReady ? 'ok' : 'warn') : 'pending'}>
-            {connected ? `AI Brain: ${geminiReady ? 'GEMINI 2.0 FLASH READY' : 'LOCAL FALLBACK ACTIVE'}` : 'AI Brain: WAITING'}
+          <StatusRow state={connected ? (geminiReady ? 'ok' : 'warn') : failed ? 'error' : 'pending'}>
+            {connected ? `AI Brain: ${geminiReady ? 'GEMINI 2.0 FLASH READY' : 'LOCAL FALLBACK ACTIVE'}` : failed ? 'AI Brain: UNREACHABLE' : 'AI Brain: WAITING'}
           </StatusRow>
-          <StatusRow state={connected ? 'ok' : 'pending'}>
-            {connected ? `Market Feed: NSE IST CLOCK SYNCED · ${marketStatus ? marketStatus.toUpperCase() : 'UNKNOWN'}` : 'Market Feed: WAITING'}
+          <StatusRow state={connected ? 'ok' : failed ? 'error' : 'pending'}>
+            {connected ? `Market Feed: NSE IST CLOCK SYNCED · ${marketStatus ? marketStatus.toUpperCase() : 'UNKNOWN'}` : failed ? 'Market Feed: UNREACHABLE' : 'Market Feed: WAITING'}
           </StatusRow>
         </div>
 
@@ -429,8 +437,8 @@ export default function IntroSplash({ onWokenUp }) {
             onMouseEnter={event => { event.currentTarget.style.borderColor = T.accent; }}
             onMouseLeave={event => { event.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
           >
-            {connected ? <Sparkles size={12} /> : <ArrowRight size={12} />}
-            {connected ? 'Enter Terminal' : 'Enter Terminal (Offline Demo Mode)'}
+            {connected ? <Sparkles size={12} /> : failed ? <AlertTriangle size={12} /> : <ArrowRight size={12} />}
+            {connected ? 'Enter Terminal' : failed ? 'Enter Terminal (Offline Demo Mode)' : 'Enter Terminal (Offline Demo Mode)'}
           </button>
         </div>
       </div>

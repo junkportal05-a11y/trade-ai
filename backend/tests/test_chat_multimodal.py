@@ -2,23 +2,18 @@
 import base64
 import pytest
 from unittest.mock import patch
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-client = TestClient(app)
 
 # 1x1 transparent PNG base64 for testing
 TEST_IMAGE_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 
 
-def test_analyze_chart_json_missing_image_base64():
+def test_analyze_chart_json_missing_image_base64(auth_client):
     """Test JSON endpoint with missing image_base64 returns 422 (validation error)."""
-    response = client.post("/api/chat/chart", json={"symbol": "NIFTY"})
+    response = auth_client.post("/api/chat/chart", json={"symbol": "NIFTY"})
     assert response.status_code == 422  # FastAPI validation error for missing required field
 
 
-def test_analyze_chart_json_valid():
+def test_analyze_chart_json_valid(auth_client):
     """Test JSON endpoint with valid base64 returns 200 with structured response."""
     with patch("app.services.chat._analyze_chart_base64") as mock_analyze:
         mock_analyze.return_value = {
@@ -31,7 +26,7 @@ def test_analyze_chart_json_valid():
             "notes": "Strong uptrend with clear ascending triangle pattern",
             "source": "gemini",
         }
-        response = client.post(
+        response = auth_client.post(
             "/api/chat/chart",
             json={"image_base64": TEST_IMAGE_B64, "symbol": "NIFTY"}
         )
@@ -46,13 +41,13 @@ def test_analyze_chart_json_valid():
     assert data["source"] == "gemini"
 
 
-def test_analyze_chart_upload_no_file():
+def test_analyze_chart_upload_no_file(auth_client):
     """Test file upload endpoint with no file returns 422."""
-    response = client.post("/api/chat/chart/upload")
+    response = auth_client.post("/api/chat/chart/upload")
     assert response.status_code == 422  # FastAPI validation error for missing file
 
 
-def test_analyze_chart_upload_valid():
+def test_analyze_chart_upload_valid(auth_client):
     """Test file upload endpoint with valid PNG returns 200."""
     test_file = base64.b64decode(TEST_IMAGE_B64)
     with patch("app.services.chat._analyze_chart_base64") as mock_analyze:
@@ -66,7 +61,7 @@ def test_analyze_chart_upload_valid():
             "notes": "Range-bound consolidation",
             "source": "gemini",
         }
-        response = client.post(
+        response = auth_client.post(
             "/api/chat/chart/upload",
             files={"file": ("chart.png", test_file, "image/png")}
         )
@@ -77,10 +72,10 @@ def test_analyze_chart_upload_valid():
     assert data["breakout_signal"] == "none"
 
 
-def test_analyze_chart_upload_invalid_type():
+def test_analyze_chart_upload_invalid_type(auth_client):
     """Test file upload with invalid content type returns 400."""
     test_file = b"not an image"
-    response = client.post(
+    response = auth_client.post(
         "/api/chat/chart/upload",
         files={"file": ("chart.txt", test_file, "text/plain")}
     )
@@ -88,11 +83,11 @@ def test_analyze_chart_upload_invalid_type():
     assert "Only PNG/JPEG images supported" in response.json()["detail"]
 
 
-def test_analyze_chart_upload_too_large():
+def test_analyze_chart_upload_too_large(auth_client):
     """Test file upload with file > 10MB returns 400."""
     # Create a file larger than 10MB
     large_file = b"x" * (11 * 1024 * 1024)
-    response = client.post(
+    response = auth_client.post(
         "/api/chat/chart/upload",
         files={"file": ("large.png", large_file, "image/png")}
     )
@@ -100,7 +95,7 @@ def test_analyze_chart_upload_too_large():
     assert "File too large" in response.json()["detail"]
 
 
-def test_analyze_chart_missing_gemini_key():
+def test_analyze_chart_missing_gemini_key(auth_client):
     """Test endpoint gracefully handles missing GEMINI_API_KEY."""
     # This test relies on the actual service fallback since we don't mock settings
     # The service should return heuristic response when key is missing
@@ -108,7 +103,7 @@ def test_analyze_chart_missing_gemini_key():
     original_key = settings.gemini_api_key
     try:
         settings.gemini_api_key = None
-        response = client.post(
+        response = auth_client.post(
             "/api/chat/chart",
             json={"image_base64": TEST_IMAGE_B64, "symbol": "NIFTY"}
         )

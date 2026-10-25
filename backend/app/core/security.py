@@ -99,6 +99,9 @@ class UserRegistry:
     def _load_from_env(self) -> None:
         raw_admin = os.getenv("PASS_ADMIN", os.getenv("APP_PASSWORD", "")).strip()
         if not raw_admin:
+            is_prod = os.getenv("ENVIRONMENT", "development").lower() in ("production", "prod", "staging")
+            if is_prod:
+                raise RuntimeError("CRITICAL SECURITY FAILURE: PASS_ADMIN/APP_PASSWORD must be set in production environment.")
             raw_admin = secrets.token_urlsafe(32)
             logger.warning("PASS_ADMIN not set in env. Generated random ephemeral master password for runtime safety.")
 

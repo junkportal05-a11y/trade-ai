@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck, Activity, Search, Zap } from 'lucide-react';
+import { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck, Activity, Search, Zap, Settings, HelpCircle } from 'lucide-react';
 import SystemHealthModal from './SystemHealthModal';
 import { useHealthCheck } from '../hooks/useHealthCheck';
 import { T, fmt, clr, sign, PRIMARY_TABS, SECONDARY_TABS, TAB_META } from '../theme';
 
-const ICON_MAP = { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck };
+const ICON_MAP = { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck, Settings, HelpCircle };
 
 function getMarketSession(now = new Date()) {
   const ist = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));

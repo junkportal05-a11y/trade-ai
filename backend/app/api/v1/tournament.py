@@ -4,7 +4,7 @@ backend/app/api/v1/tournament.py — FastAPI Router for 30-Strategy Quant Tourna
 import os
 import json
 from fastapi import APIRouter, Request, HTTPException
-from app.api.deps import OptionalSessionDep
+from app.api.deps import SessionDep
 from app.core.limiter import limiter
 from strategy_tournament import run_full_tournament
 from bot_trainer import train_and_export_weights, WEIGHTS_FILE
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/backtest/tournament", tags=["tournament"])
 
 @router.post("", response_model=dict)
 @limiter.limit("5/minute")
-async def run_tournament(request: Request, _=OptionalSessionDep) -> dict:
+async def run_tournament(request: Request, _=SessionDep) -> dict:
     """Run full 30-strategy quant tournament across local 10y datasets."""
     data = train_and_export_weights()
     if not data:
@@ -21,7 +21,7 @@ async def run_tournament(request: Request, _=OptionalSessionDep) -> dict:
     return {"status": "success", "data": data}
 
 @router.get("/leaderboard", response_model=dict)
-def get_leaderboard(_=OptionalSessionDep) -> dict:
+def get_leaderboard(_=SessionDep) -> dict:
     """Fetch current 30-strategy leaderboard and ensemble weights."""
     if os.path.exists(WEIGHTS_FILE):
         try:

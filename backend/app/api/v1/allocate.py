@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, Body
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.deps import DbDep, OptionalSessionDep
+from app.api.deps import DbDep, SessionDep
 from app.core.limiter import limiter
 
 router = APIRouter(prefix="/api", tags=["allocation"])
@@ -32,7 +32,7 @@ async def allocate_capital(
     request: Request,
     req: AllocateRequest = Body(...),
     db: Session = DbDep,
-    _=OptionalSessionDep,
+    _=SessionDep,
 ) -> dict:
     """
     Allocate capital across signals with position sizing.

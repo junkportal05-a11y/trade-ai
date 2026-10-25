@@ -37,6 +37,7 @@ async def chat(
 async def analyze_chart_json(
     req: ChartAnalysisRequest,
     request: Request,
+    _=SessionDep,
 ) -> ChartAnalysisResponse:
     """
     Analyze a candlestick chart image using Gemini 2.0 Flash multimodal.
@@ -63,7 +64,8 @@ async def analyze_chart_json(
 async def analyze_chart_upload(
     request: Request,
     file: Any = File(...),
-):
+    _=SessionDep,
+) -> JSONResponse:
     """
     Analyze a candlestick chart image using Gemini 2.0 Flash multimodal.
     

@@ -69,6 +69,9 @@ export default function BacktestRunner({ onResults }) {
       const res = await apiFetch('/api/backtest/tournament', { method: 'POST' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status === 429) {
+          throw new Error('Tournament rate limited (5/min). Please wait before retrying.');
+        }
         throw new Error(formatError(data.detail || data, `HTTP ${res.status}`));
       }
       const data = await res.json();
@@ -204,7 +207,7 @@ export default function BacktestRunner({ onResults }) {
       </form>
 
       {/* Tournament Leaderboard */}
-      {tournamentResults && (
+      {tournamentResults && tournamentResults.leaderboard?.length && (
         <div style={{ background: T.panel, border: `1px solid ${T.gold}40`, borderRadius: 8, padding: 14, marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: T.gold, ...mono }}>

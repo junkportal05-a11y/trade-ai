@@ -6,7 +6,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 
-from app.api.deps import DbDep
+from app.api.deps import DbDep, SessionDep
 from app.core.config import settings
 from app.core.constants import VALID_INTERVALS, VALID_RANGES
 from app.models.schemas import (
@@ -32,7 +32,7 @@ def root(request: Request) -> dict:
 
 @router.get("/keepalive", response_model=dict)
 @limiter.limit(settings.rate_limit_public)
-def keep_alive(request: Request) -> dict:
+def keep_alive(request: Request, _=SessionDep) -> dict:
     from datetime import datetime, timezone, timedelta
     from app.services.market_hours import is_nse_market_open
 
@@ -86,7 +86,7 @@ async def get_live_prices(request: Request, symbols: str = "") -> dict:
 @router.get("/quote", response_model=QuoteResponse)
 @limiter.limit(settings.rate_limit_public)
 async def get_quote(
-    request: Request, req: QuoteRequest = Depends(QuoteRequest), db: Session = DbDep
+    request: Request, req: QuoteRequest = Depends(QuoteRequest), db: Session = DbDep, _=SessionDep
 ) -> dict:
     # Validate symbol again via model; it's already uppercase due to validator
     symbol = req.symbol
@@ -105,6 +105,7 @@ def get_history(
     request: Request,
     params: HistoryParams = Depends(HistoryParams),
     db: Session = DbDep,
+    _=SessionDep,
 ) -> dict:
     from app.services.market_data import download_market_data_df
 
@@ -173,7 +174,7 @@ def get_history(
 @router.get("/search", response_model=SearchResponse)
 @limiter.limit(settings.rate_limit_public)
 async def search_symbols(
-    request: Request, req: SearchRequest = Depends(SearchRequest), db: Session = DbDep
+    request: Request, req: SearchRequest = Depends(SearchRequest), db: Session = DbDep, _=SessionDep
 ) -> dict:
     from app.services.broker import get_broker_feed
 

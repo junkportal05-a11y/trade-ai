@@ -10,63 +10,67 @@ from app.models.schemas import SignalsQuery
 client = TestClient(app)
 
 
+# Tests that override auth dependencies don't need auth_client
+# Tests using the base client for public endpoints (health, prices) don't need auth_client
+# Tests for protected endpoints need auth_client
+
 # ---------------------------------------------------------------------------
 # /quote validation
 # ---------------------------------------------------------------------------
-def test_quote_valid_symbol():
+def test_quote_valid_symbol(auth_client):
     with patch("app.api.v1.quotes.get_symbol_quote", return_value={"symbol": "TCS.NS", "price": 1.0}) as m:
-        r = client.get("/api/quote?symbol=TCS.NS")
+        r = auth_client.get("/api/quote?symbol=TCS.NS")
         assert r.status_code == 200
         m.assert_called_once_with("TCS.NS")
 
 
-def test_quote_lowercase_symbol_rejected():
-    r = client.get("/api/quote?symbol=tcs.ns")
+def test_quote_lowercase_symbol_rejected(auth_client):
+    r = auth_client.get("/api/quote?symbol=tcs.ns")
     assert r.status_code == 422
 
 
-def test_quote_missing_symbol_rejected():
-    r = client.get("/api/quote")
+def test_quote_missing_symbol_rejected(auth_client):
+    r = auth_client.get("/api/quote")
     assert r.status_code == 422
 
 
 # ---------------------------------------------------------------------------
 # /search validation
 # ---------------------------------------------------------------------------
-def test_search_valid():
+def test_search_valid(auth_client):
     with patch("app.services.broker.get_broker_feed") as mock_get_feed:
         feed = MagicMock()
         feed.get_instrument_token.return_value = "123"
         mock_get_feed.return_value = feed
-        r = client.get("/api/search?q=RELIANCE")
+        r = auth_client.get("/api/search?q=RELIANCE")
         assert r.status_code == 200
         assert r.json()["results"][0]["symbol"] == "RELIANCE.NS"
 
 
-def test_search_empty_q_rejected():
-    r = client.get("/api/search?q=")
+def test_search_empty_q_rejected(auth_client):
+    r = auth_client.get("/api/search?q=")
     assert r.status_code == 422
 
 
 # ---------------------------------------------------------------------------
 # /history validation
 # ---------------------------------------------------------------------------
-def test_history_invalid_interval_rejected():
-    r = client.get("/api/history?symbol=RELIANCE&interval=bad&range=1mo")
+def test_history_invalid_interval_rejected(auth_client):
+    r = auth_client.get("/api/history?symbol=RELIANCE&interval=bad&range=1mo")
     assert r.status_code in [400, 422]
 
 
-def test_history_invalid_range_rejected():
-    r = client.get("/api/history?symbol=RELIANCE&interval=1d&range=bad")
+def test_history_invalid_range_rejected(auth_client):
+    r = auth_client.get("/api/history?symbol=RELIANCE&interval=1d&range=bad")
     assert r.status_code in [400, 422]
 
 
-def test_history_valid_params():
+def test_history_valid_params(auth_client):
     # symbol/interval/range format accepted; downstream data fetch may 404/500
     # but validation itself must not reject with 422.
     with patch("app.services.market_data.download_market_data_df") as mock_download:
         mock_download.return_value = None  # Will cause 404, not 422
-        r = client.get("/api/history?symbol=RELIANCE&interval=1d&range=1mo")
+        r = auth_client.get("/api/history?symbol=RELIANCE&interval=1d&range=1mo")
         assert r.status_code != 422  # Should be 404 (not found) or 500, not 422 (validation)
 
 
