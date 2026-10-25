@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Settings2, BarChart3 } from 'lucide-react';
 import { API_BASE_URL, apiFetch } from './api';
 
 const T = {
@@ -86,8 +87,8 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
       {/* Tab Bar */}
       <div style={{ display: 'flex', background: T.bg, borderBottom: `1px solid ${T.border}` }}>
         {[
-          { id: 'selector', label: 'STRATEGIES', icon: '⚙️' },
-          { id: 'performance', label: 'PERFORMANCE', icon: '📊' },
+          { id: 'selector', label: 'STRATEGIES', Icon: Settings2 },
+          { id: 'performance', label: 'PERFORMANCE', Icon: BarChart3 },
         ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
             flex: 1, padding: '10px 12px', border: 'none', background: 'transparent', cursor: 'pointer',
@@ -95,7 +96,7 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
             letterSpacing: '0.08em', fontFamily: "'Inter', sans-serif", borderBottom: `2px solid ${activeTab === tab.id ? T.accent : 'transparent'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.2s',
           }}>
-            <span>{tab.icon}</span> {tab.label}
+            <tab.Icon size={12} /> {tab.label}
           </button>
         ))}
       </div>

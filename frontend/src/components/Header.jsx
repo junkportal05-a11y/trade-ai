@@ -44,7 +44,7 @@ function NavButton({ tab, active, onClick }) {
           : 'transparent',
         boxShadow: active ? `0 0 18px ${T.accentGlow}, inset 0 0 12px rgba(99, 102, 241, 0.06)` : 'none',
         color: active ? '#fff' : T.textMid,
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: 600,
         letterSpacing: '0.02em',
         fontFamily: "'Inter', sans-serif",

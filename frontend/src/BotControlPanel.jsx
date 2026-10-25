@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Bot } from 'lucide-react';
 import { API_BASE_URL, apiFetch } from './api';
 import { useBotWebSocket } from './hooks/useBotWebSocket';
 
@@ -117,7 +118,7 @@ export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
 
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>🤖</span>
+          <Bot size={18} color={T.accentAlt} />
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: T.accentAlt, ...mono }}>BOT ENGINE</div>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>ApexTrade Autonomous</div>

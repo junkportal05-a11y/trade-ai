@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Timer, Trophy } from 'lucide-react';
 import { API_BASE_URL, apiFetch } from './api';
 import { formatError } from './utils/formatError';
 
@@ -133,7 +134,7 @@ export default function BacktestRunner({ onResults }) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>⏱️</span>
+          <Timer size={18} color={T.accentAlt} />
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: T.accentAlt, ...mono }}>BACKTEST ENGINE</div>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Historical Truth & 30-Strategy Tournament</div>
@@ -144,7 +145,8 @@ export default function BacktestRunner({ onResults }) {
           background: T.goldDim, color: T.gold, fontWeight: 700, fontSize: 10,
           letterSpacing: '0.08em', cursor: tournamentLoading ? 'not-allowed' : 'pointer', ...mono
         }}>
-          {tournamentLoading ? '🏆 EVALUATING 30 STRATEGIES...' : '🏆 RUN 30-STRATEGY TOURNAMENT'}
+          <Trophy size={12} style={{ marginRight: 6, verticalAlign: '-1px' }} />
+          {tournamentLoading ? 'EVALUATING 30 STRATEGIES...' : 'RUN 30-STRATEGY TOURNAMENT'}
         </button>
       </div>
 
@@ -206,7 +208,7 @@ export default function BacktestRunner({ onResults }) {
         <div style={{ background: T.panel, border: `1px solid ${T.gold}40`, borderRadius: 8, padding: 14, marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: T.gold, ...mono }}>
-              🏆 30-STRATEGY LEADERBOARD — BEST: {tournamentResults.best_strategy} (SCORE: {tournamentResults.best_strategy_score})
+              30-STRATEGY LEADERBOARD — BEST: {tournamentResults.best_strategy} (SCORE: {tournamentResults.best_strategy_score})
             </div>
             <div style={{ fontSize: 9, color: T.textDim, ...mono }}>
               {tournamentResults.total_strategies_evaluated} STRATEGIES | {tournamentResults.total_datasets_evaluated} 10Y DATASETS

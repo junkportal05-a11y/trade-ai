@@ -180,7 +180,7 @@ function ScanProgress({ elapsed }) {
         <div style={{ position: 'relative', width: 38, height: 38, flexShrink: 0 }}>
           <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${T.border}` }} />
           <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid transparent', borderTopColor: T.accent, animation: 'sp_spin 0.9s linear infinite' }} />
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🔍</div>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}></div>
         </div>
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: T.text, ...mono }}>DEEP MARKET ANALYSIS</div>
@@ -391,7 +391,7 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
             fontSize: 9, fontWeight: 700, color: T.accent, letterSpacing: '0.1em',
             ...mono, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            💰 ALLOCATION
+             ALLOCATION
           </div>
 
           {/* Shares / Amount / Profit / Loss / R:R */}
@@ -590,7 +590,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: T.text, ...mono, letterSpacing: '0.08em' }}>
-                📡 NSE SMART SCANNER
+                 NSE SMART SCANNER
               </span>
               <span style={{
                 fontSize: 9, padding: '2px 7px', borderRadius: 3,
@@ -661,7 +661,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
         display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
       }}>
         <span style={{ fontSize: 9, color: T.textDim, ...mono, letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
-          💰 CAPITAL:
+           CAPITAL:
         </span>
         {PRESETS.map(p => (
           <button key={p.label} onClick={() => handlePreset(p.value)} style={{
@@ -704,7 +704,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
           ...mono, transition: 'all 0.2s', whiteSpace: 'nowrap',
           opacity: (capitalNum < 500 || allocLoading || !!allocError) ? 0.5 : 1,
         }}>
-          {allocLoading ? '⟳ ALLOCATING...' : '📡 ALLOCATE'}
+          {allocLoading ? '⟳ ALLOCATING...' : ' ALLOCATE'}
         </button>
       </div>
 
@@ -719,7 +719,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
         }}>
           <div>
             <div style={{ fontSize: 9, color: T.green, letterSpacing: '0.12em', ...mono, fontWeight: 700, marginBottom: 4 }}>
-              🎯 TARGET PROFIT IF ALL SIGNALS HIT
+               TARGET PROFIT IF ALL SIGNALS HIT
             </div>
             <div style={{
               fontSize: 28, fontWeight: 900, color: T.green, ...mono,

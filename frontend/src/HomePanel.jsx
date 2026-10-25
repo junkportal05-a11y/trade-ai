@@ -179,7 +179,7 @@ export default function HomePanel({
       {/* Title */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 16 }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff', marginBottom: 4 }}>📈 QUANT OPERATIONS CENTRE</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff', marginBottom: 4 }}> QUANT OPERATIONS CENTRE</h2>
           <p style={{ fontSize: 11, color: T.textMid }}>Active workspace metrics, portfolio weights, and AI mentor insights.</p>
         </div>
         <div style={{
@@ -211,7 +211,7 @@ export default function HomePanel({
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 12 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: T.accentAlt, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>🧠</span> AI DAILY MARKET BRIEFING
+            <span></span> AI DAILY MARKET BRIEFING
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {onRefreshBrief && (
@@ -229,7 +229,7 @@ export default function HomePanel({
                   padding: 0
                 }}
               >
-                {loadingBrief ? '⏳ REFRESHING...' : '🔄 REFRESH'}
+                {loadingBrief ? '⏳ REFRESHING...' : ' REFRESH'}
               </button>
             )}
             <span style={{ fontSize: 9, color: T.textDim, ...mono }}>GENERATED DAILY AT MARKET OPEN</span>
@@ -298,7 +298,7 @@ export default function HomePanel({
             {/* Risk Events list */}
             {brief.risk_events && brief.risk_events.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: T.textMid, letterSpacing: '0.04em' }}>⚠️ DAILY MACRO / RISK CALENDAR EVENTS</div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: T.textMid, letterSpacing: '0.04em' }}>⚠ DAILY MACRO / RISK CALENDAR EVENTS</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {brief.risk_events.map((evt, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: T.textMid }}>
@@ -342,7 +342,7 @@ export default function HomePanel({
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(123, 108, 255, 0.15)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(123, 108, 255, 0.08)'}
               >
-                ✏️ ADJUST BALANCE
+                ✏ ADJUST BALANCE
               </button>
             </div>
             <div 
@@ -455,7 +455,7 @@ export default function HomePanel({
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(123, 108, 255, 0.15)'}
             onMouseLeave={e => e.currentTarget.style.background = 'rgba(123, 108, 255, 0.08)'}
           >
-            🛰️ OPEN SIGNAL SCANNER
+             OPEN SIGNAL SCANNER
           </button>
         </div>
 
@@ -504,7 +504,7 @@ export default function HomePanel({
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.15)'}
             onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.08)'}
           >
-            🔮 PREDICTIONS CENTRE
+             PREDICTIONS CENTRE
           </button>
         </div>
 
@@ -521,7 +521,7 @@ export default function HomePanel({
               AI QUANT MENTOR RECOMMENDATION
             </div>
             <div style={{ fontSize: 12, color: T.text, lineHeight: 1.6, background: T.panelAlt, border: `1px solid ${T.border}`, padding: '12px 14px', borderRadius: 8 }}>
-              💡 <strong>Intraday Sizing Pulse:</strong> Market breadth is testing key resistance blocks. Maintain strict position allocations. Do not deploy more than 2% of simulated capital per stock. Set stop losses below pivot averages to prevent standard sweeps.
+               <strong>Intraday Sizing Pulse:</strong> Market breadth is testing key resistance blocks. Maintain strict position allocations. Do not deploy more than 2% of simulated capital per stock. Set stop losses below pivot averages to prevent standard sweeps.
             </div>
           </div>
           <button
@@ -546,7 +546,7 @@ export default function HomePanel({
             onMouseEnter={e => e.currentTarget.style.background = '#6c5ce7'}
             onMouseLeave={e => e.currentTarget.style.background = T.accent}
           >
-            📈 OPEN INTERACTIVE CHARTS
+             OPEN INTERACTIVE CHARTS
           </button>
         </div>
 
@@ -613,7 +613,7 @@ export default function HomePanel({
           }}>
             {/* Modal Header */}
             <div style={{ padding: '16px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.panelAlt }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '0.04em' }}>⚙️ MANAGE ACCOUNT BALANCE</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '0.04em' }}> MANAGE ACCOUNT BALANCE</span>
               <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', fontSize: 16 }}>×</button>
             </div>
             

@@ -60,7 +60,7 @@ export const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('e
 export const fmtK = (n) => n >= 1e9 ? `₹${(n/1e9).toFixed(2)}B` : n >= 1e6 ? `₹${(n/1e6).toFixed(1)}M` : `₹${fmt(n, 0)}`;
 export const clr = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
 export const sign = (v) => v > 0 ? '+' : '';
-export const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, tag => ({ '&': '&', '<': '<', '>': '>', "'": "\'", '"': '"' }[tag] || tag));
+export const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
 
 export const PRIMARY_TABS = ['HOME', 'SIMULATOR', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
 export const SECONDARY_TABS = [];

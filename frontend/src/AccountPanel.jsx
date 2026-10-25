@@ -66,7 +66,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
       {/* Title */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 16 }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff', marginBottom: 4 }}>🛡️ SECURITY SYSTEM & PROFILE</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff', marginBottom: 4 }}> SECURITY SYSTEM & PROFILE</h2>
           <p style={{ fontSize: 11, color: T.textMid }}>Manage active terminal authorization tokens and security access levels.</p>
         </div>
         <div style={{
@@ -115,7 +115,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
                 fontSize: 22,
                 boxShadow: `0 0 16px ${T.accentGlow}`
               }}>
-                👤
+                
               </div>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 2 }}>{currentUser}</div>
@@ -154,7 +154,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
             borderRadius: 12,
             padding: 24
           }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, ...mono }}>🛡️ PLATFORM HARDENING SETTINGS</h3>
+            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, ...mono }}> PLATFORM HARDENING SETTINGS</h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -237,7 +237,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
             borderRadius: 12,
             padding: 24
           }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, ...mono }}>🔒 TERMINAL CLEARANCE POLICIES</h3>
+            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, ...mono }}> TERMINAL CLEARANCE POLICIES</h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
@@ -284,7 +284,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
             flex: 1,
             minHeight: '260px'
           }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, ...mono }}>📁 REAL-TIME SECURITY AUDIT FEED</h3>
+            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, ...mono }}> REAL-TIME SECURITY AUDIT FEED</h3>
             
             <div style={{
               flex: 1,

@@ -142,7 +142,7 @@ function ScanProgress({ elapsed }) {
         <div style={{ position: 'relative', width: 36, height: 36, flexShrink: 0 }}>
           <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${T.border}` }} />
           <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid transparent`, borderTopColor: T.accent, animation: 'spin 0.9s linear infinite' }} />
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🔍</div>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}></div>
         </div>
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: "'IBM Plex Mono', monospace" }}>DEEP QUANTITATIVE SCANNING</div>
@@ -170,7 +170,7 @@ function ScanProgress({ elapsed }) {
           fontFamily: "'IBM Plex Mono', monospace",
           animation: 'shimmer 2s infinite ease-in-out'
         }}>
-          💡 Cloud server cold-start detected. Waking up server threads on Hugging Face. This can take up to 45 seconds on the free tier. Please stand by...
+           Cloud server cold-start detected. Waking up server threads on Hugging Face. This can take up to 45 seconds on the free tier. Please stand by...
         </div>
       )}
     </div>
@@ -189,7 +189,7 @@ function ProfitBanner({ profit, profitPct, capital }) {
     }}>
       <div>
         <div style={{ fontSize: 9, color: isGood ? T.green : T.red, letterSpacing: '0.12em', fontFamily: "'IBM Plex Mono', monospace", marginBottom: 6, fontWeight: 700 }}>
-          🎯 TARGET PORTFOLIO PROFIT IF TARGETS HIT
+           TARGET PORTFOLIO PROFIT IF TARGETS HIT
         </div>
         <div style={{ fontSize: 30, fontWeight: 900, color: isGood ? T.green : T.red, fontFamily: "'IBM Plex Mono', monospace", textShadow: isGood ? `0 0 20px ${T.greenGlow}` : 'none' }}>
           +{fmtINR(profit)}
@@ -201,7 +201,7 @@ function ProfitBanner({ profit, profitPct, capital }) {
       <div style={{ textAlign: 'right' }}>
         <div style={{ fontSize: 9, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace", marginBottom: 4 }}>RETURN TIER</div>
         <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace", color: profitPct >= 15 ? T.gold : profitPct >= 8 ? T.green : T.textMid }}>
-          {profitPct >= 20 ? '🔥 AGGRESSIVE' : profitPct >= 12 ? '⚡ HIGH RETURN' : profitPct >= 7 ? '✅ GOOD RETURN' : '📊 MODERATE'}
+          {profitPct >= 20 ? ' AGGRESSIVE' : profitPct >= 12 ? ' HIGH RETURN' : profitPct >= 7 ? ' GOOD RETURN' : ' MODERATE'}
         </div>
       </div>
     </div>
@@ -257,7 +257,7 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
             </span>
             {sig.top_pattern && (
               <span style={{ fontSize: 9, color: T.gold, background: T.goldDim, padding: '2px 6px', borderRadius: 3, border: `1px solid ${T.gold}40`, ...mono, fontWeight: 700 }}>
-                📊 {sig.top_pattern}
+                 {sig.top_pattern}
               </span>
             )}
           </div>
@@ -329,7 +329,7 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
       {allocation ? (
         <div style={{ background: 'rgba(0, 229, 168, 0.02)', border: `1px solid rgba(0, 229, 168, 0.25)`, borderRadius: 8, padding: 12, marginTop: 10, cursor: 'default' }} onClick={e => e.stopPropagation()}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, color: T.green, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.08em' }}>⚡ CAPITAL ALLOCATION APPROVED</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: T.green, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.08em' }}> CAPITAL ALLOCATION APPROVED</span>
             <span style={{ fontSize: 9, color: T.textMid, ...mono }}>{allocation.allocation_pct}% of capital</span>
           </div>
           
@@ -570,7 +570,7 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
       <div style={{ padding: '14px 16px', borderBottom: `1px solid ${T.border}`, background: T.surface, flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>
-            📡 QUANT SCANNER & CAPITAL ALLOCATOR
+             QUANT SCANNER & CAPITAL ALLOCATOR
           </span>
           {nextScan && !loading && (
             <div style={{ fontSize: 9, color: T.textDim, display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -643,7 +643,7 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
             fontFamily: "'IBM Plex Mono', monospace", whiteSpace: 'nowrap',
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            {loading ? '⟳ SCANNING...' : '📡 SCAN & SIZE'}
+            {loading ? '⟳ SCANNING...' : ' SCAN & SIZE'}
           </button>
         </div>
       </div>
@@ -692,7 +692,7 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
               fontSize: 22,
               animation: 'pulse 2s infinite'
             }}>
-              📡
+              
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

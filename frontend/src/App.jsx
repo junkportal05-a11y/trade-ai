@@ -511,6 +511,7 @@ function CandleChart({ symbol, interval, range, indicators, livePrice, markers, 
           background: `linear-gradient(135deg, ${T.green}, ${T.accentAlt})`,
           boxShadow: `0 0 22px ${T.greenGlow}`,
           opacity: scanning ? 0.8 : 1,
+          animation: scanning ? 'pulse 1.4s ease-in-out infinite' : 'none',
           transition: 'all 0.2s',
         }}>
           <button

@@ -144,7 +144,7 @@ export default function JournalPanel() {
         <div style={{ color: T.red, ...mono, fontSize: 12 }}>ERROR: {error}</div>
       ) : entries.length === 0 ? (
         <div style={{ color: T.textMid, ...mono, fontSize: 13, textAlign: 'center', padding: 60, border: `1px dashed ${T.borderHi}`, borderRadius: 12, background: 'rgba(26,31,46,0.2)' }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>📓</div>
+          <div style={{ fontSize: 32, marginBottom: 12 }}></div>
           <div style={{ fontWeight: 'bold', color: T.text, marginBottom: 8 }}>NO TRADE LOGS YET</div>
           <div>Start journaling your trades to analyze your edge over time.</div>
           <button

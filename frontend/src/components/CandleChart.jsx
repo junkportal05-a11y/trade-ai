@@ -27,7 +27,7 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/history?symbol=${symbol}&interval=${interval}&range=${range}`);
+        const res = await apiFetch(`/api/history?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&range=${encodeURIComponent(range)}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         setBars(json.bars || []);
@@ -234,6 +234,7 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
           background: `linear-gradient(135deg, ${T.green}, ${T.accentAlt})`,
           boxShadow: `0 0 22px ${T.greenGlow}`,
           opacity: scanning ? 0.8 : 1,
+          animation: scanning ? 'pulse 1.4s ease-in-out infinite' : 'none',
           transition: 'all 0.2s',
         }}>
           <button

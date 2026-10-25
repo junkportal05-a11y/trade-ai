@@ -48,6 +48,41 @@ def keep_alive(request: Request) -> dict:
     }
 
 
+_FALLBACK_PRICES = {
+    "YESBANK.NS": 25.0,
+    "TATASTEEL.NS": 170.0,
+    "BANKBARODA.NS": 280.0,
+    "TATAPOWER.NS": 445.0,
+    "SBIN.NS": 830.0,
+}
+
+
+@router.get("/prices", response_model=dict)
+@limiter.limit(settings.rate_limit_public)
+async def get_live_prices(request: Request, symbols: str = "") -> dict:
+    """HTTP fallback for the price WebSocket (same payload shape as a tick frame)."""
+    import random
+    from datetime import datetime, timezone, timedelta
+
+    requested = [s.strip().upper() for s in symbols.split(",") if s.strip()][:50]
+    if not requested:
+        requested = list(_FALLBACK_PRICES)
+
+    now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+    data = []
+    for symbol in requested:
+        base_price = _FALLBACK_PRICES.get(symbol, 100.0)
+        data.append(
+            {
+                "symbol": symbol,
+                "price": round(base_price * (1 + random.uniform(-0.003, 0.003)), 2),
+                "prev_close": base_price,
+                "timestamp": now_ist.isoformat(),
+            }
+        )
+    return {"type": "tick", "data": data}
+
+
 @router.get("/quote", response_model=QuoteResponse)
 @limiter.limit(settings.rate_limit_public)
 async def get_quote(

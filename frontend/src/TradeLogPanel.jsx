@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { ClipboardList } from 'lucide-react';
 import { API_BASE_URL, apiFetch } from './api';
 import { useBotWebSocket } from './hooks/useBotWebSocket';
 
@@ -56,7 +57,7 @@ export default function TradeLogPanel({ maxItems = 50 }) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>📋</span>
+          <ClipboardList size={18} color={T.accentAlt} />
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: T.accentAlt, ...mono }}>TRADE LOG</div>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Live Bot Decisions</div>
@@ -88,7 +89,7 @@ export default function TradeLogPanel({ maxItems = 50 }) {
 
         {!loading && filteredTrades.length === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 120, gap: 8, color: T.textDim, ...mono }}>
-            <span style={{ fontSize: 24 }}>📋</span>
+            <ClipboardList size={24} color={T.textDim} />
             <span style={{ fontSize: 10 }}>No trades {filter !== 'ALL' ? `(${filter})` : ''} yet</span>
             <span style={{ fontSize: 9, color: T.textDim }}>Bot will log decisions here when running</span>
           </div>

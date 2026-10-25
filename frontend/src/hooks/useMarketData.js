@@ -117,7 +117,7 @@ export function useLivePrices(symbols = []) {
 
       async function poll() {
         try {
-          const res = await fetch(`${BASE_URL}/api/prices`, { credentials: 'include' });
+          const res = await fetch(`${BASE_URL}/api/prices?symbols=${encodeURIComponent(symbolKey)}`, { credentials: 'include' });
           if (!res.ok) return;
           const json = await res.json();
           if (json.type === "tick" && Array.isArray(json.data)) {

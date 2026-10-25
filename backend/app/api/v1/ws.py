@@ -125,11 +125,10 @@ async def websocket_bot_endpoint(websocket: WebSocket):
 
 @router.websocket("/prices")
 async def websocket_prices_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for live price ticks - requires auth token query param."""
-    session = _require_ws_auth(websocket)
-    if not session:
-        await websocket.close(code=4001, reason="Authentication required")
-        return
+    """Read-only live price ticks for the personal workstation.
+
+    Market data is public; mutations remain protected on their own routers.
+    """
     await websocket.accept()
     subscribed_symbols: List[str] = []
 

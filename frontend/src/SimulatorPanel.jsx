@@ -74,7 +74,7 @@ export default function SimulatorPanel({ isMobile }) {
         
         <div style={{ marginBottom: '32px' }}>
           <h1 style={{ fontSize: '24px', margin: '0 0 8px 0', color: '#fff', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '1.2em' }}>⏱️</span> Historical Truth Engine
+            <span style={{ fontSize: '1.2em' }}>⏱</span> Historical Truth Engine
           </h1>
           <p style={{ color: T.textMuted, margin: 0, fontSize: '14px' }}>
             Time-travel simulation pipeline for backtesting trading signals at scale.
@@ -151,7 +151,7 @@ export default function SimulatorPanel({ isMobile }) {
             {isPolling || status?.is_running ? (
               <><div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> Processing Simulation...</>
             ) : (
-              '🚀 LAUNCH SIMULATION'
+              ' LAUNCH SIMULATION'
             )}
           </button>
         </div>

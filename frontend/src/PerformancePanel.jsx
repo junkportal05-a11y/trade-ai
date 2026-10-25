@@ -52,13 +52,13 @@ export default function PerformancePanel() {
   return (
     <div style={{ flex: 1, background: T.bg, padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div style={{ borderBottom: `1px solid ${T.border}`, paddingBottom: 16 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: '#fff', margin: 0 }}>📊 SYSTEM PERFORMANCE</h2>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: '#fff', margin: 0 }}> SYSTEM PERFORMANCE</h2>
         <p style={{ fontSize: 11, color: T.textMid, marginTop: 4 }}>Historical analytics, risk metrics, and strategy edge calculation.</p>
       </div>
 
       {isLocked && (
         <div style={{ background: T.redDim, border: `1px solid ${T.red}`, padding: 12, borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>⚠️</span>
+          <span style={{ fontSize: 18 }}>⚠</span>
           <div>
             <div style={{ color: T.red, fontWeight: 700, fontSize: 12, letterSpacing: '0.04em' }}>DATA INTEGRITY COMPROMISED</div>
             <div style={{ color: T.text, fontSize: 11, opacity: 0.9 }}>

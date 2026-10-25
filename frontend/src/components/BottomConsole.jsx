@@ -1,4 +1,5 @@
 import React from 'react';
+import { Briefcase, Clock, Bell, Lightbulb, Sparkles, RefreshCw } from 'lucide-react';
 import Label from './Label';
 import Input from './TextInput';
 import { T, fmt, clr, sign, SEED_PRICES } from '../theme';
@@ -14,10 +15,11 @@ export default function BottomConsole({ prices, portfolio, cash, openOrders, onC
     <div style={{ height: 220, borderTop: `1px solid ${T.border}`, background: T.surface, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, padding: '0 16px', height: 38 }}>
         <div style={{ display: 'flex', gap: 2 }}>
-          {[['POSITIONS', '💼 POSITIONS'], ['ORDERS', '⏳ OPEN ORDERS'], ['ALERTS', '🔔 PRICE ALERTS'], ['AI', '💡 AI ANALYST']].map(([tab, label]) => (
+          {[['POSITIONS', 'POSITIONS', Briefcase], ['ORDERS', 'OPEN ORDERS', Clock], ['ALERTS', 'PRICE ALERTS', Bell], ['AI', 'AI ANALYST', Lightbulb]].map(([tab, label, Icon]) => (
             <button key={tab} onClick={() => setConsoleTab(tab)} style={{ padding: '0 12px', background: 'transparent', border: 'none', cursor: 'pointer',
               color: consoleTab === tab ? T.accent : T.textMid, fontSize: 9.5, fontWeight: 700, letterSpacing: '0.04em', fontFamily: "'Inter', sans-serif",
-              borderBottom: `2px solid ${consoleTab === tab ? T.accent : 'transparent'}`, height: 38, transition: 'all 0.15s' }}>{label}</button>
+              borderBottom: `2px solid ${consoleTab === tab ? T.accent : 'transparent'}`, height: 38, transition: 'all 0.15s', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <Icon size={11} />{label}</button>
           ))}
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 16, fontSize: 10, fontFamily: "'IBM Plex Mono', monospace" }}>
@@ -134,7 +136,7 @@ export default function BottomConsole({ prices, portfolio, cash, openOrders, onC
         {consoleTab === 'AI' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, height: '100%', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 4 }}>
-              <div style={{ fontSize: 9.5, fontWeight: 700, color: T.accentAlt, display: 'flex', alignItems: 'center', gap: 6 }}><span>💡</span> AI QUANT ANALYST: {selected.replace('.NS', '')}</div>
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: T.accentAlt, display: 'flex', alignItems: 'center', gap: 6 }}><Lightbulb size={11} /> AI QUANT ANALYST: {selected.replace('.NS', '')}</div>
               {aiRecommendationLoading && <span style={{ display: 'inline-block', width: 10, height: 10, border: `1.5px solid ${T.border}`, borderTopColor: T.accentAlt, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />}
             </div>
             <div style={{ fontSize: 11.5, color: T.text, lineHeight: 1.5, overflowY: 'auto', flex: 1, paddingRight: 4 }}>
@@ -142,9 +144,9 @@ export default function BottomConsole({ prices, portfolio, cash, openOrders, onC
             </div>
             {!aiRecommendationLoading && aiRecommendation && (
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                <button onClick={() => onViewChange('PREDICTIONS')} style={{ padding: '3px 8px', background: 'rgba(245, 200, 66, 0.06)', border: `1px solid rgba(245, 200, 66, 0.25)`, borderRadius: 5, color: T.gold, fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em', transition: 'all 0.2s' }}>🔮 LOG SYSTEM PREDICTION</button>
+                <button onClick={() => onViewChange('PREDICTIONS')} style={{ padding: '3px 8px', background: 'rgba(245, 200, 66, 0.06)', border: `1px solid rgba(245, 200, 66, 0.25)`, borderRadius: 5, color: T.gold, fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Sparkles size={10} /> LOG SYSTEM PREDICTION</button>
                 {onRefreshAnalyst && (
-                  <button onClick={onRefreshAnalyst} style={{ padding: '3px 8px', background: 'rgba(77, 166, 255, 0.06)', border: `1px solid rgba(77, 166, 255, 0.25)`, borderRadius: 5, color: T.blue, fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em', transition: 'all 0.2s' }}>🔄 REFRESH</button>
+                  <button onClick={onRefreshAnalyst} style={{ padding: '3px 8px', background: 'rgba(77, 166, 255, 0.06)', border: `1px solid rgba(77, 166, 255, 0.25)`, borderRadius: 5, color: T.blue, fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 4 }}><RefreshCw size={10} /> REFRESH</button>
                 )}
               </div>
             )}
