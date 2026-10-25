@@ -1855,6 +1855,7 @@ const TAB_META = {
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   // Personal Workstation Mode — Direct Access, No Login/Logout
+  const loggedIn = true;
   const currentUser = 'Lead Quant';
   const userRole = 'Master Quant / Administrator';
   const userClearance = 'LEVEL_4_ROOT';
