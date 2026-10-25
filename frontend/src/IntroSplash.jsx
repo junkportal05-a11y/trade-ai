@@ -7,7 +7,9 @@ import { getApiBaseUrl, setApiBaseUrl } from './api';
 import { T } from './theme';
 
 const HF_DEFAULT_URL = 'https://apextrade-core-trade-ai-backend.hf.space';
-const LOCAL_DEFAULT_URL = 'http://localhost:7860';
+const LOCAL_DEFAULT_URL = typeof window !== 'undefined' && window.location.hostname === '127.0.0.1'
+  ? 'http://127.0.0.1:7860'
+  : 'http://localhost:7860';
 
 function StatusRow({ state, children }) {
   const Icon = state === 'ok' ? CheckCircle2 : state === 'warn' ? AlertTriangle : Loader2;
@@ -24,7 +26,8 @@ export default function IntroSplash({ onWokenUp }) {
   const [currentUrl, setCurrentUrl] = useState(() => {
     const configured = getApiBaseUrl();
     if (configured) return configured;
-    return window.location.hostname === 'localhost' ? LOCAL_DEFAULT_URL : HF_DEFAULT_URL;
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    return isLocal ? LOCAL_DEFAULT_URL : HF_DEFAULT_URL;
   });
   const [customInput, setCustomInput] = useState('');
   const [showConfig, setShowConfig] = useState(false);
