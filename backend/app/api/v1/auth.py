@@ -85,12 +85,13 @@ async def logout(request: Request, response: Response) -> dict:
     return {"status": "logged out", "message": "Session terminated"}
 
 
-@router.get("/auth/verify", response_model=StatusResponse)
+@router.get("/auth/verify")
 @limiter.limit(os.getenv("RATE_LIMIT_AUTH", "5/minute"))
-async def verify(request: Request, token: str = Depends(lambda r: get_token_from_request(r))) -> dict:
+async def verify(request: Request) -> dict:
     from fastapi import HTTPException
-    from app.core.security import decode_access_token
+    from app.core.security import decode_access_token, get_token_from_request
 
+    token = get_token_from_request(request)
     if not token or not decode_access_token(token):
         raise HTTPException(status_code=401, detail="Invalid token")
     return {"status": "valid", "message": "Token is valid"}

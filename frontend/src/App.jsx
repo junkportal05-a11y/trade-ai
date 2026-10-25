@@ -958,7 +958,7 @@ export default function App() {
           ) : view === 'PERFORMANCE' ? (
             /* PERFORMANCE VIEW — full width */
             <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-              <PerformancePanel />
+              <PerformancePanel onViewChange={setView} />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
                   <MobileNavButtons view={view} onChange={setView} />

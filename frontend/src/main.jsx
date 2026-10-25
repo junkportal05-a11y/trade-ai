@@ -15,19 +15,19 @@ class ErrorBoundary extends React.Component {
     if (this.state.crashed) {
       return (
         <div style={{
-          color: '#ff3d5a', 
+          color: '#ff3d5a',
           backgroundColor: '#0a0e14',
           height: '100vh',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: 40, 
+          padding: 40,
           fontFamily: 'monospace',
           textAlign: 'center'
         }}>
           <h2 style={{ marginBottom: '1rem' }}>Something crashed inside ApexTrade.</h2>
-          <p style={{ color: '#6e7a96', marginBottom: '2rem' }}>Please refresh the page to restart the terminal.</p>
+          <p style={{ color: '#6e7a96', marginBottom: '2rem' }}>Attempting recovery...</p>
           <button
             onClick={this.handleRetry}
             style={{

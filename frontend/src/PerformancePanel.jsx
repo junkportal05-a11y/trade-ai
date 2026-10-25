@@ -1,7 +1,10 @@
 import { API_BASE_URL, apiFetch } from './api';
 import React, { useState, useEffect, useCallback } from 'react';
+import { T } from './theme';
 
-export default function PerformancePanel() {
+const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+
+export default function PerformancePanel({ onViewChange }) {
   const [globalConfidence, setGlobalConfidence] = useState(null);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -99,12 +102,12 @@ export default function PerformancePanel() {
     { label: "AVG LOSER", value: `${stats.avg_loser}%`, color: T.red },
     { label: "EXPECTANCY", value: `${stats.expectancy}%`, color: stats.expectancy > 0 ? T.green : T.red },
   ] : [
-    { label: "TOTAL TRADES", value: "—", action: () => setView('PREDICTIONS'), label: "Log a prediction to start tracking" },
-    { label: "WIN RATE", value: "—", action: () => setView('PREDICTIONS'), label: "Resolve predictions to see win rate" },
-    { label: "PROFIT FACTOR", value: "—", action: () => setView('PREDICTIONS'), label: "Add predictions to calculate" },
-    { label: "AVG WINNER", value: "—", action: () => setView('PREDICTIONS'), label: "Log trades to see avg winner" },
-    { label: "AVG LOSER", value: "—", action: () => setView('PREDICTIONS'), label: "Log trades to see avg loser" },
-    { label: "EXPECTANCY", value: "—", action: () => setView('PREDICTIONS'), label: "Add predictions to calculate" },
+    { label: "TOTAL TRADES", value: "—", action: () => onViewChange?.('PREDICTIONS'), label: "Log a prediction to start tracking" },
+    { label: "WIN RATE", value: "—", action: () => onViewChange?.('PREDICTIONS'), label: "Resolve predictions to see win rate" },
+    { label: "PROFIT FACTOR", value: "—", action: () => onViewChange?.('PREDICTIONS'), label: "Add predictions to calculate" },
+    { label: "AVG WINNER", value: "—", action: () => onViewChange?.('PREDICTIONS'), label: "Log trades to see avg winner" },
+    { label: "AVG LOSER", value: "—", action: () => onViewChange?.('PREDICTIONS'), label: "Log trades to see avg loser" },
+    { label: "EXPECTANCY", value: "—", action: () => onViewChange?.('PREDICTIONS'), label: "Add predictions to calculate" },
   ];
 
   return (
