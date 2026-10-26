@@ -6,6 +6,8 @@ Handles authentication, websocket streams, and historical data fetching.
 
 import os
 import json
+import time
+import threading
 import pyotp
 import pandas as pd
 from datetime import datetime, timedelta, timezone
@@ -31,6 +33,8 @@ class AngelOneFeed:
     Handles: Authentication, Market Data, Historical Data, Order Execution
     """
 
+    LOGIN_COOLDOWN = 30.0  # seconds between full auto-login attempts (3 rps API limit)
+
     def __init__(self):
         self.smart_api = None
         self.session_token = None
@@ -40,8 +44,9 @@ class AngelOneFeed:
         self.instruments = {}
         self.instruments_file = Path(os.path.join(os.path.dirname(__file__), "angelone_instruments.json"))
 
-        import threading
         self._instruments_lock = threading.Lock()
+        self._login_lock = threading.Lock()
+        self._last_login_attempt = 0.0
         self.cb = CircuitBreaker(max_failures=5, base_delay=1.0)
         self._paper_order_cache: dict[int, dict] = {}  # prediction_id -> order result
         self._restore_session()
@@ -207,6 +212,28 @@ class AngelOneFeed:
     def auto_login(self) -> bool:
         """
         Attempt a full login using saved credentials from the database.
+        Guarded so concurrent callers never stampede the rate-limited login API:
+        one attempt runs at a time and retries back off for LOGIN_COOLDOWN.
+        """
+        if not self._login_lock.acquire(blocking=False):
+            # Another thread is already logging in: wait for it, then report state
+            if self._login_lock.acquire(timeout=15):
+                self._login_lock.release()
+                return self.session_token is not None
+            return False
+        try:
+            if time.time() - self._last_login_attempt < self.LOGIN_COOLDOWN:
+                # A recent attempt exists: report current session state, don't retry
+                return self.session_token is not None
+            self._last_login_attempt = time.time()
+            return self._auto_login_unlocked()
+        finally:
+            self._login_lock.release()
+
+    def _auto_login_unlocked(self) -> bool:
+        """
+        Attempt a full login using saved credentials from the database.
+        Caller must hold self._login_lock.
         """
         try:
 
@@ -694,7 +721,6 @@ class AngelOneFeed:
                 tokens[i : i + batch_size] for i in range(0, len(tokens), batch_size)
             ]
 
-            import threading
             from concurrent.futures import ThreadPoolExecutor, as_completed
 
             # Initialize a lock for token refresh if it doesn't exist

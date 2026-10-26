@@ -23,6 +23,7 @@ import time
 import pandas as pd
 import numpy as np
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from typing import Optional
 from angelone_feed import get_angelone_feed
 from app.core.logging import logger
@@ -52,6 +53,56 @@ _BATCH_CANDLE_CACHE: dict[str, pd.DataFrame] = {}
 _MACRO_CACHE: dict[str, dict] = {}
 _CACHE_TIMESTAMP: dict[str, float] = {}
 CACHE_TTL = 300  # 5 minutes
+
+# ── Fallback caches — last-known-good data survives restarts and outages ──────
+_LASTGOOD_DIR = Path(__file__).resolve().parent / "historical_data" / "last_good"
+QUOTE_CACHE: dict[str, dict] = {}
+QUOTE_CACHE_TS: dict[str, float] = {}
+QUOTE_TTL = 60          # seconds a cached quote stays fresh
+QUOTE_STALE_MAX = 3600  # max age (s) of a stale quote served when all feeds are down
+_YF_FAIL_TS: dict[str, float] = {}
+YF_BACKOFF = 60         # seconds to back off from yfinance after a failure
+
+
+def _yf_ready(key: str) -> bool:
+    """True when yfinance is not in failure backoff for this key."""
+    return (time.time() - _YF_FAIL_TS.get(key, 0.0)) >= YF_BACKOFF
+
+
+def _yf_note_fail(key: str) -> None:
+    _YF_FAIL_TS[key] = time.time()
+
+
+def _snapshot_key(cache_key: str) -> str:
+    safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in cache_key)
+    return f"{safe}.csv"
+
+
+def _snapshot_candles(cache_key: str, df: pd.DataFrame) -> None:
+    """Persist last-known-good candles so outages and restarts can serve real data."""
+    try:
+        _LASTGOOD_DIR.mkdir(parents=True, exist_ok=True)
+        tmp = _LASTGOOD_DIR / (_snapshot_key(cache_key) + ".tmp")
+        df.to_csv(tmp)
+        tmp.replace(_LASTGOOD_DIR / _snapshot_key(cache_key))
+    except Exception as exc:
+        logger.warning(f"[signals] last-good snapshot failed for {cache_key}: {exc}")
+
+
+def _load_snapshot(cache_key: str, max_age_hours: float = 24.0) -> Optional[pd.DataFrame]:
+    """Load the persisted last-known-good candles if fresh enough."""
+    try:
+        path = _LASTGOOD_DIR / _snapshot_key(cache_key)
+        if not path.exists():
+            return None
+        age_hours = (time.time() - path.stat().st_mtime) / 3600
+        if age_hours > max_age_hours:
+            return None
+        df = pd.read_csv(path, index_col=0, parse_dates=True)
+        return df if df is not None and not df.empty else None
+    except Exception as exc:
+        logger.warning(f"[signals] last-good load failed for {cache_key}: {exc}")
+        return None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -158,35 +209,48 @@ def download_market_data_df(
             if df is not None and not df.empty:
                 _BATCH_CANDLE_CACHE[cache_key] = df
                 _CACHE_TIMESTAMP[cache_key] = time.time()
+                _snapshot_candles(cache_key, df)
                 return df
             print(f"[signals] AngelOne returned no data for {symbol}")
         except Exception as e:
             print(f"[signals] AngelOne fetch error for {symbol}: {e}")
 
-    # yfinance fallback
-    try:
-        import yfinance as yf
-        yf_symbol = symbol + '.NS' if '.' not in symbol else symbol
-        df = yf.download(yf_symbol, period=period, interval=interval, auto_adjust=True)
-        if df is not None and not df.empty:
-            # yfinance returns lowercase column names; rename to match expected capitalization
-            df = df.rename(columns={
-                'open': 'Open',
-                'high': 'High',
-                'low': 'Low',
-                'close': 'Close',
-                'volume': 'Volume',
-                'adj close': 'Adj Close'
-            })
-            _BATCH_CANDLE_CACHE[cache_key] = df
-            _CACHE_TIMESTAMP[cache_key] = time.time()
-            print(f"[signals] yfinance fallback succeeded for {symbol}")
-            return df
-        print(f"[signals] yfinance returned no data for {symbol}")
-    except Exception as e:
-        print(f"[signals] yfinance fetch error for {symbol}: {e}")
+    # yfinance fallback (skipped while in failure backoff)
+    if _yf_ready(cache_key):
+        try:
+            import yfinance as yf
+            yf_symbol = symbol + '.NS' if '.' not in symbol else symbol
+            df = yf.download(yf_symbol, period=period, interval=interval, auto_adjust=True)
+            if df is not None and not df.empty:
+                # yfinance returns lowercase column names; rename to match expected capitalization
+                df = df.rename(columns={
+                    'open': 'Open',
+                    'high': 'High',
+                    'low': 'Low',
+                    'close': 'Close',
+                    'volume': 'Volume',
+                    'adj close': 'Adj Close'
+                })
+                _BATCH_CANDLE_CACHE[cache_key] = df
+                _CACHE_TIMESTAMP[cache_key] = time.time()
+                _snapshot_candles(cache_key, df)
+                print(f"[signals] yfinance fallback succeeded for {symbol}")
+                return df
+            print(f"[signals] yfinance returned no data for {symbol}")
+            _yf_note_fail(cache_key)
+        except Exception as e:
+            print(f"[signals] yfinance fetch error for {symbol}: {e}")
+            _yf_note_fail(cache_key)
 
-    # 3-Tier Fallback: Synthetic Historical Candle Generator (guarantees data availability)
+    # Tier 3: last-known-good real candles from disk (outage/restart survival)
+    snapshot = _load_snapshot(cache_key)
+    if snapshot is not None:
+        _BATCH_CANDLE_CACHE[cache_key] = snapshot
+        _CACHE_TIMESTAMP[cache_key] = time.time()
+        logger.info(f"[signals] serving last-known-good candles for {symbol}")
+        return snapshot
+
+    # Tier 4: Synthetic Historical Candle Generator (guarantees data availability)
     try:
         num_bars = 250 if period in ("1y", "2y") else 100
         dates = pd.date_range(end=pd.Timestamp.now(), periods=num_bars, freq="D")
@@ -225,17 +289,71 @@ def download_market_data_df(
 
 def get_symbol_quote(symbol: str) -> Optional[dict]:
     """
-    Get current price + change for a symbol — AngelOne.
+    Get current price + change for a symbol.
+    Order: fresh cache → AngelOne → yfinance → stale cache.
+    The yfinance tier only runs when AngelOne is unauthorized or errored; an
+    authorized-but-empty response is definitive and stays a miss.
     """
+    now = time.time()
+    cached = QUOTE_CACHE.get(symbol)
+    if cached is not None and (now - QUOTE_CACHE_TS.get(symbol, 0.0)) < QUOTE_TTL:
+        return cached
+
     feed = get_angelone_feed()
-    if feed.is_authorized():
+    try:
+        authorized = feed.is_authorized()
+    except Exception as e:
+        logger.error(f"[AngelOne quote] auth check failed for {symbol}: {e}")
+        authorized = False
+
+    if authorized:
         try:
             quotes = feed.get_live_quotes([symbol])
             if quotes and symbol in quotes:
-                return quotes[symbol]
+                quote = quotes[symbol]
+                QUOTE_CACHE[symbol] = quote
+                QUOTE_CACHE_TS[symbol] = now
+                return quote
+            # AngelOne answered definitively: symbol unknown there → no fallback
+            return None
         except Exception as e:
-            import logging
-            logging.getLogger("signals").error(f"[AngelOne quote] Failed for {symbol}: {e}")
+            logger.error(f"[AngelOne quote] Failed for {symbol}: {e}")
+
+    # yfinance fallback (skipped while in failure backoff)
+    yf_key = f"quote:{symbol}"
+    if _yf_ready(yf_key):
+        try:
+            import yfinance as yf
+            yf_symbol = symbol + '.NS' if '.' not in symbol else symbol
+            info = yf.Ticker(yf_symbol).fast_info
+            price = float(info.last_price or 0)
+            if price > 0:
+                prev_close = float(info.previous_close or price)
+                quote = {
+                    "symbol": symbol,
+                    "name": symbol,
+                    "price": round(price, 2),
+                    "change": round(price - prev_close, 2),
+                    "change_pct": round(
+                        ((price - prev_close) / prev_close * 100) if prev_close else 0.0, 2
+                    ),
+                    "volume": int(getattr(info, "last_volume", None) or 0),
+                    "prev_close": round(prev_close, 2),
+                    "source": "yahoo",
+                }
+                QUOTE_CACHE[symbol] = quote
+                QUOTE_CACHE_TS[symbol] = now
+                logger.info(f"[signals] yfinance quote fallback succeeded for {symbol}")
+                return quote
+            _yf_note_fail(yf_key)
+        except Exception as e:
+            _yf_note_fail(yf_key)
+            logger.warning(f"[signals] yfinance quote fallback failed for {symbol}: {e}")
+
+    # Last-known-good stale quote when every feed is down
+    if cached is not None and (now - QUOTE_CACHE_TS.get(symbol, 0.0)) < QUOTE_STALE_MAX:
+        logger.warning(f"[signals] serving stale cached quote for {symbol}")
+        return cached
 
     return None
 

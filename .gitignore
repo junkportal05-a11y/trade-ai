@@ -22,6 +22,7 @@ backend/trading_platform.db*
 backend/logs/
 backend/node_modules/
 backend/upstox_instruments.json
+backend/historical_data/last_good/
 
 # ── Python ──────────────────────────────────────────────────────
 *.so
