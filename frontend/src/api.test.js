@@ -30,12 +30,16 @@ describe('buildApiHeaders', () => {
 
 describe('apiFetch', () => {
   beforeEach(() => {
+    // Resolve relative paths deterministically, even when a local .env.local
+    // exports a VITE_API_URL (tests assert the path, not the base).
+    vi.stubEnv('VITE_API_URL', '');
     vi.stubGlobal('sessionStorage', makeStorage({ apt_token: 'jwt-token' }));
     vi.stubGlobal('localStorage', makeStorage());
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it('keeps JSON Content-Type for JSON bodies and sends both token headers', async () => {
@@ -69,12 +73,14 @@ describe('apiFetch', () => {
 
 describe('deletePrediction', () => {
   beforeEach(() => {
+    vi.stubEnv('VITE_API_URL', '');
     vi.stubGlobal('sessionStorage', makeStorage({ apt_token: 'jwt-token' }));
     vi.stubGlobal('localStorage', makeStorage());
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it('sends DELETE /api/predictions/{id} with auth headers', async () => {

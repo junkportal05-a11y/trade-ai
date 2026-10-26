@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { isNSEMarketOpen, tickToQuote } from './useMarketData';
+import { isNSEMarketOpen, tickToQuote, shouldReconnect, getReconnectDelay } from './useMarketData';
 
 describe('isNSEMarketOpen', () => {
   beforeEach(() => {
@@ -73,5 +73,23 @@ describe('tickToQuote', () => {
   it('falls back to the previous quote close, then the tick price', () => {
     expect(tickToQuote({ price: 50 }, { prevClose: 40 }).changePct).toBe(25);
     expect(tickToQuote({ price: 50 }, undefined).change).toBe(0);
+  });
+});
+
+describe('price stream reconnect policy', () => {
+  it('never reconnects after an auth or policy close', () => {
+    expect(shouldReconnect(4001)).toBe(false);
+    expect(shouldReconnect(1008)).toBe(false);
+    expect(shouldReconnect(1006)).toBe(true);
+    expect(shouldReconnect(1000)).toBe(true);
+  });
+
+  it('backs off exponentially up to a 30 second cap', () => {
+    expect(getReconnectDelay(0)).toBe(3000);
+    expect(getReconnectDelay(1)).toBe(6000);
+    expect(getReconnectDelay(2)).toBe(12000);
+    expect(getReconnectDelay(3)).toBe(24000);
+    expect(getReconnectDelay(4)).toBe(30000);
+    expect(getReconnectDelay(20)).toBe(30000);
   });
 });

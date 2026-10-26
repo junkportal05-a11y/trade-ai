@@ -1105,6 +1105,7 @@ export default function App() {
                             onDrawComplete={handleDrawComplete}
                             customLines={chartLines[selected] || EMPTY_ARRAY}
                             botPaperMode={botPaperMode}
+                            dataSource={dataSource[selected]}
                           />
                         </div>
                         {/* Embedded AI Analyst Card */}
@@ -1292,15 +1293,17 @@ export default function App() {
 
                     {/* Chart */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                      <CandleChart 
-                        key={`${selected}-${INTERVALS[ivIdx].interval}-${INTERVALS[ivIdx].range}-${indicators.rsi}-${indicators.macd}`} 
-                        symbol={selected} 
-                        interval={INTERVALS[ivIdx].interval} 
-                        range={INTERVALS[ivIdx].range} 
-                        indicators={indicators} 
+                      <CandleChart
+                        key={`${selected}-${INTERVALS[ivIdx].interval}-${INTERVALS[ivIdx].range}-${indicators.rsi}-${indicators.macd}`}
+                        symbol={selected}
+                        interval={INTERVALS[ivIdx].interval}
+                        range={INTERVALS[ivIdx].range}
+                        indicators={indicators}
                         livePrice={prices[selected]}
                         markers={tradeMarkers[selected] || EMPTY_ARRAY}
                         onLastBarUpdate={handleLastBarUpdate}
+                        botPaperMode={botPaperMode}
+                        dataSource={dataSource[selected]}
                       />
                     </div>
 

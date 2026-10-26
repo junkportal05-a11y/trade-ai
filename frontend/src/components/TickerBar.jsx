@@ -1,5 +1,4 @@
 import React from 'react';
-import { useLivePrices, isNSEMarketOpen } from '../hooks/useMarketData';
 
 import { T, DEFAULT_WATCHLIST, SEED_PRICES, fmt, clr, sign } from '../theme';
 

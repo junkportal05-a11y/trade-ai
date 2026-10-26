@@ -178,6 +178,7 @@ export function useLivePrices(symbols = []) {
 
     let reconnectTimeout = null;
     let isMounted = true;
+    let attempt = 0;
 
     function connect() {
       try {
@@ -187,6 +188,7 @@ export function useLivePrices(symbols = []) {
 
         ws.onopen = () => {
           if (!isMounted) return;
+          attempt = 0; // healthy connection — reset backoff
           setConnected(true);
           wsConnectedRef.current = true;
           // Stop HTTP polling if it was running
@@ -217,6 +219,15 @@ export function useLivePrices(symbols = []) {
                 });
                 return next;
               });
+            } else if (msg.type === "subscribed" && Array.isArray(msg.symbols)) {
+              // Confirmation frame: label every subscribed symbol simulated
+              setDataSource(prev => {
+                const next = { ...prev };
+                msg.symbols.forEach(sym => {
+                  next[sym] = PRICE_FEED_SOURCE;
+                });
+                return next;
+              });
             }
           } catch (_) { /* malformed frame */ }
         };
@@ -232,15 +243,16 @@ export function useLivePrices(symbols = []) {
           setConnected(false);
           wsConnectedRef.current = false;
 
-          if (event.code === 4001) {
-            console.warn("[WebSocket] Connection closed with code 4001 — ignoring (personal workstation mode).");
+          if (!shouldReconnect(event.code)) {
+            console.warn(`[useLivePrices] close ${event.code} (auth/policy) — not reconnecting.`);
+            return;
           }
 
-          // Reconnect after 5 s with exponential backoff
-          let reconnectDelay = 5000;
+          // Exponential backoff: 3s → 6s → 12s → 24s → 30s cap, reset on open
           reconnectTimeout = setTimeout(() => {
             if (isMounted) connect();
-          }, reconnectDelay);
+          }, getReconnectDelay(attempt));
+          attempt += 1;
         };
       } catch (_) {
         setConnected(false);
@@ -266,6 +278,17 @@ export function useLivePrices(symbols = []) {
 // ══════════════════════════════════════════════════════════════════════════════
 //  Helpers
 // ══════════════════════════════════════════════════════════════════════════════
+
+// Never reconnect after an auth (4001) or policy (1008) close; the agreed
+// interface is exponential backoff otherwise (never a tight reconnect loop).
+export function shouldReconnect(code) {
+  return code !== 4001 && code !== 1008;
+}
+
+export function getReconnectDelay(attempt) {
+  const delay = 3000 * Math.pow(2, Math.max(0, attempt));
+  return Math.min(delay, 30000);
+}
 
 // Removed simulateTick and generateFallbackBars
 

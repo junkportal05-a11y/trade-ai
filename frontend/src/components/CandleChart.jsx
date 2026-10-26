@@ -3,9 +3,10 @@ import { T, escapeHTML } from '../theme.js';
 import { apiFetch } from '../api';
 import { calcEMA, calcBollingerBands, calcRSI, calcMACD } from '../utils/indicators';
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
+import { PRICE_FEED_SOURCE } from '../hooks/useMarketData';
 import { AlertTriangle, Camera, Inbox, Loader2, Sparkles, X } from 'lucide-react';
 
-export default function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [], botPaperMode }) {
+export default function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [], botPaperMode, dataSource }) {
   const mainContainerRef = useRef();
   const legendRef = useRef();
   const rsiContainerRef = useRef();
@@ -217,7 +218,7 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
       {!loading && error && <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,12,16,0.9)', zIndex: 2, gap: 12, color: T.red, fontSize: 13, letterSpacing: '0.05em', padding: 20, textAlign: 'center' }}>
         <AlertTriangle size={24} />
         <div style={{ fontWeight: 600 }}>ERROR LOADING MARKET DATA: {error}</div>
-        <div style={{ fontSize: 11, color: T.textDim, marginTop: 4, maxWidth: 300, lineHeight: 1.4 }}>Live market data unavailable. Please go to the ACCOUNT panel to authenticate with AngelOne Broker.</div>
+        <div style={{ fontSize: 11, color: T.textDim, marginTop: 4, maxWidth: 300, lineHeight: 1.4 }}>Chart data unavailable. The price stream is a simulated feed and market data can be transient — try again shortly.</div>
       </div>}
       {!loading && !error && !bars.length && <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,12,16,0.9)', zIndex: 2, gap: 12, color: T.textMid, fontSize: 13, letterSpacing: '0.05em' }}>
         <Inbox size={24} />
@@ -226,10 +227,10 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
       <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
         <div ref={legendRef} style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, fontFamily: "'IBM Plex Mono', monospace", pointerEvents: 'none', background: 'rgba(13,16,24,0.65)', backdropFilter: 'blur(4px)', padding: '8px 12px', borderRadius: 6, display: 'none', border: `1px solid ${T.borderHi}` }} />
         {botPaperMode === true && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, pointerEvents: 'none', color: 'rgba(255,255,255,0.05)', fontSize: '8vw', fontWeight: 900, whiteSpace: 'nowrap', userSelect: 'none' }}>SIMULATION MODE</div>}
-        {botPaperMode === false && <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, background: T.red, color: '#fff', fontSize: 11, fontWeight: 800, padding: '4px 8px', borderRadius: 4, letterSpacing: '0.05em' }}>LIVE BROKER</div>}
+        {dataSource === PRICE_FEED_SOURCE && <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 9, color: '#f5c842', fontSize: 9, background: 'rgba(245,200,66,0.12)', padding: '2px 6px', borderRadius: 3, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, letterSpacing: '0.05em' }}>SIMULATED FEED</div>}
 
         <div style={{
-          position: 'absolute', top: 12, right: botPaperMode === false ? 118 : 12, zIndex: 11,
+          position: 'absolute', top: 12, right: 12, zIndex: 11,
           padding: 1, borderRadius: 9,
           background: `linear-gradient(135deg, ${T.green}, ${T.accentAlt})`,
           boxShadow: `0 0 22px ${T.greenGlow}`,
