@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { isNSEMarketOpen } from './useMarketData';
+import { isNSEMarketOpen, tickToQuote } from './useMarketData';
 
 describe('isNSEMarketOpen', () => {
   beforeEach(() => {
@@ -58,5 +58,20 @@ describe('isNSEMarketOpen', () => {
     const date = new Date('2023-10-16T10:30:00Z');
     vi.setSystemTime(date);
     expect(isNSEMarketOpen()).toBe(false);
+  });
+});
+
+describe('tickToQuote', () => {
+  it('labels every /api/prices and /ws/prices tick as simulated', () => {
+    const quote = tickToQuote({ symbol: 'SBIN.NS', price: 101, prev_close: 100, timestamp: 't' }, undefined);
+
+    expect(quote.source).toBe('simulated');
+    expect(quote.change).toBe(1);
+    expect(quote.changePct).toBe(1);
+  });
+
+  it('falls back to the previous quote close, then the tick price', () => {
+    expect(tickToQuote({ price: 50 }, { prevClose: 40 }).changePct).toBe(25);
+    expect(tickToQuote({ price: 50 }, undefined).change).toBe(0);
   });
 });

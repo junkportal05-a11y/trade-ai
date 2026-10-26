@@ -264,8 +264,8 @@ export default function App() {
   // Mobile layout sub-tab for Chart page
   const [mobileSubTab, setMobileSubTab] = useState('CHART');
 
-  // Bot Engine State
-  const [botPaperMode, setBotPaperMode] = useState(true);
+  // Bot Engine State — paper only, live trading is not exposed.
+  const botPaperMode = true;
   const [selectedStrategy, setSelectedStrategy] = useState('intraday_momentum');
   const [strategyPerformance, setStrategyPerformance] = useState(null);
   const [backtestResults, setBacktestResults] = useState(null);
@@ -892,6 +892,7 @@ export default function App() {
           totalPct={totalPct}
           selectedSymbol={selected}
           prices={prices}
+          dataSource={dataSource}
           onCommandPaletteOpen={() => setCmdOpen(true)}
         />
 
@@ -985,7 +986,7 @@ export default function App() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16, flex: 1, overflow: 'auto' }}>
                 {/* Top Row: Bot Control + Trade Log */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, minHeight: 0 }}>
-                  <BotControlPanel isPaperMode={botPaperMode} onModeChange={setBotPaperMode} />
+                  <BotControlPanel />
                   <TradeLogPanel />
                 </div>
 
@@ -1344,7 +1345,7 @@ export default function App() {
                     <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                       {rightTab === 'BOT ENGINE' && (
                         <div style={{ flex: 1, overflow: 'hidden', padding: 12 }}>
-                          <BotControlPanel isPaperMode={botPaperMode} onModeChange={setBotPaperMode} />
+                          <BotControlPanel />
                         </div>
                       )}
                       {rightTab === 'TRADE LOG' && (

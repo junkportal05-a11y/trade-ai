@@ -13,7 +13,25 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { API_BASE_URL, WS_BASE_URL } from '../api';
+import { buildWsUrl } from '../utils/wsUrl';
 import { SEED_PRICES } from '../theme';
+
+// /api/prices and /ws/prices both serve a simulated feed (random walk around
+// seeded prices), so every tick is labelled simulated regardless of transport.
+export const PRICE_FEED_SOURCE = 'simulated';
+
+export function tickToQuote(tick, prev) {
+  const prevClose = tick.prev_close || prev?.prevClose || tick.price;
+  const change = tick.price - prevClose;
+  return {
+    price: tick.price,
+    change,
+    changePct: prevClose ? (change / prevClose) * 100 : 0,
+    timestamp: tick.timestamp,
+    prevClose,
+    source: PRICE_FEED_SOURCE,
+  };
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  useQuote — single symbol quote
@@ -118,23 +136,14 @@ export function useLivePrices(symbols = []) {
             setPrices(prev => {
               const next = { ...prev };
               json.data.forEach(tick => {
-                const prevClose = tick.prev_close || prev[tick.symbol]?.prevClose || tick.price;
-                const change    = tick.price - prevClose;
-                next[tick.symbol] = {
-                  price:     tick.price,
-                  change,
-                  changePct: prevClose ? (change / prevClose) * 100 : 0,
-                  timestamp: tick.timestamp,
-                  prevClose,
-                  source: 'simulated',
-                };
+                next[tick.symbol] = tickToQuote(tick, prev[tick.symbol]);
               });
               return next;
             });
             setDataSource(prev => {
               const next = { ...prev };
               json.data.forEach(tick => {
-                next[tick.symbol] = 'simulated';
+                next[tick.symbol] = PRICE_FEED_SOURCE;
               });
               return next;
             });
@@ -173,7 +182,7 @@ export function useLivePrices(symbols = []) {
     function connect() {
       try {
         const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
-        const ws = new WebSocket(`${WS_BASE_URL}/ws/prices?symbols=${symbolKey}&token=${token}`);
+        const ws = new WebSocket(buildWsUrl(WS_BASE_URL, '/ws/prices', { symbols: symbolKey, token }));
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -197,23 +206,14 @@ export function useLivePrices(symbols = []) {
               setPrices(prev => {
                 const next = { ...prev };
                 msg.data.forEach(tick => {
-                  const prevClose = tick.prev_close || prev[tick.symbol]?.prevClose || tick.price;
-                  const change    = tick.price - prevClose;
-                  next[tick.symbol] = {
-                    price:     tick.price,
-                    change,
-                    changePct: prevClose ? (change / prevClose) * 100 : 0,
-                    timestamp: tick.timestamp,
-                    prevClose,
-                    source: 'live',
-                  };
+                  next[tick.symbol] = tickToQuote(tick, prev[tick.symbol]);
                 });
                 return next;
               });
               setDataSource(prev => {
                 const next = { ...prev };
                 msg.data.forEach(tick => {
-                  next[tick.symbol] = 'live';
+                  next[tick.symbol] = PRICE_FEED_SOURCE;
                 });
                 return next;
               });

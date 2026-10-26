@@ -1,8 +1,35 @@
 import { useState, useEffect, useRef } from "react";
 import { WS_BASE_URL } from "../api";
+import { buildWsUrl } from "../utils/wsUrl";
 
 const WS_URL = WS_BASE_URL;
-const WS_PATH = '/ws/bot';
+export const BOT_WS_PATH = '/ws/bot';
+export const AUTH_CLOSE_CODES = [4001, 1008];
+const RECONNECT_BASE_MS = 3000;
+const RECONNECT_MAX_MS = 30000;
+
+export function getBotToken() {
+  if (typeof sessionStorage !== 'undefined') {
+    const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token');
+    if (token) return token;
+  }
+  if (typeof localStorage !== 'undefined') {
+    return localStorage.getItem('apt_token') || '';
+  }
+  return '';
+}
+
+export function buildBotWsUrl(baseUrl, token) {
+  return buildWsUrl(baseUrl, BOT_WS_PATH, { token });
+}
+
+export function shouldReconnect(code) {
+  return !AUTH_CLOSE_CODES.includes(code);
+}
+
+export function getReconnectDelay(attempt) {
+  return Math.min(RECONNECT_BASE_MS * (2 ** attempt), RECONNECT_MAX_MS);
+}
 
 export function useBotWebSocket() {
   const [botData, setBotData] = useState({
@@ -14,15 +41,17 @@ export function useBotWebSocket() {
 
   useEffect(() => {
     let reconnectTimeout = null;
+    let reconnectAttempt = 0;
     let isMounted = true;
 
     function connect() {
       try {
-        const ws = new WebSocket(`${WS_URL}${WS_PATH}`);
+        const ws = new WebSocket(buildBotWsUrl(WS_URL, getBotToken()));
         wsRef.current = ws;
 
         ws.onopen = () => {
           if (!isMounted) return;
+          reconnectAttempt = 0;
           setConnected(true);
         };
 
@@ -44,16 +73,25 @@ export function useBotWebSocket() {
           setConnected(false);
         };
 
-        ws.onclose = () => {
+        ws.onclose = (event) => {
           if (!isMounted) return;
           setConnected(false);
-          // Reconnect after 3s
+          if (!shouldReconnect(event.code)) return;
+
+          const delay = getReconnectDelay(reconnectAttempt);
+          reconnectAttempt += 1;
           reconnectTimeout = setTimeout(() => {
             if (isMounted) connect();
-          }, 3000);
+          }, delay);
         };
       } catch (_) {
+        if (!isMounted) return;
         setConnected(false);
+        const delay = getReconnectDelay(reconnectAttempt);
+        reconnectAttempt += 1;
+        reconnectTimeout = setTimeout(() => {
+          if (isMounted) connect();
+        }, delay);
       }
     }
 
