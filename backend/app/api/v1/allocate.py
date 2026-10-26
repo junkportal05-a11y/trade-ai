@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, SessionDep
+from app.core.security import CsrfDep
 from app.core.limiter import limiter
 
 router = APIRouter(prefix="/api", tags=["allocation"])
@@ -32,6 +33,7 @@ async def allocate_capital(
     request: Request,
     req: AllocateRequest = Body(...),
     db: Session = DbDep,
+    csrf=CsrfDep,
     _=SessionDep,
 ) -> dict:
     """

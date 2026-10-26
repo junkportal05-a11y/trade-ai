@@ -5,6 +5,7 @@ import os
 import json
 from fastapi import APIRouter, Request, HTTPException
 from app.api.deps import SessionDep
+from app.core.security import CsrfDep
 from app.core.limiter import limiter
 from strategy_tournament import run_full_tournament
 from bot_trainer import train_and_export_weights, WEIGHTS_FILE
@@ -13,7 +14,7 @@ router = APIRouter(prefix="/api/backtest/tournament", tags=["tournament"])
 
 @router.post("", response_model=dict)
 @limiter.limit("5/minute")
-async def run_tournament(request: Request, _=SessionDep) -> dict:
+async def run_tournament(request: Request, csrf=CsrfDep, _=SessionDep) -> dict:
     """Run full 30-strategy quant tournament across local 10y datasets."""
     data = train_and_export_weights()
     if not data:

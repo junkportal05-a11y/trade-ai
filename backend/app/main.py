@@ -21,7 +21,7 @@ from app.core.config import settings
 from app.models.schemas import BacktestRequest
 from app.core.database import init_db
 from app.core.logging import configure_json_logging, logger, set_correlation_id
-from app.core.security import get_token_from_request
+from app.core.security import get_token_from_request, CsrfDep
 from app.core.worker_state import set_degraded_worker, clear_all_degraded_workers
 
 from datetime import datetime, timezone
@@ -194,7 +194,7 @@ app.mount("/graphify-out", StaticFiles(directory=graph_dir), name="graphify-out"
 # ----------------------------------------------------------------------
 # New Backtest API endpoint
 # ----------------------------------------------------------------------
-@app.post("/api/backtest/run", tags=["backtest"], dependencies=[SessionDep])
+@app.post("/api/backtest/run", tags=["backtest"], dependencies=[SessionDep, CsrfDep])
 @limiter.limit(settings.rate_limit_backtest)
 async def run_backtest(request: Request, backtest: BacktestRequest):
     """

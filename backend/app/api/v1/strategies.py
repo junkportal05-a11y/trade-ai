@@ -5,6 +5,7 @@ from fastapi import APIRouter, Query, Request, status, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, SessionDep
+from app.core.security import CsrfDep
 from app.db.models import Strategy
 
 router = APIRouter(prefix="/api/strategies", tags=["strategies"])
@@ -40,6 +41,7 @@ def get_strategy(strategy_id: str, _=SessionDep) -> dict:
 async def create_strategy(
     request: Request,
     db: Session = DbDep,
+    csrf=CsrfDep,
     _=SessionDep,
 ) -> dict:
     """Create and persist a new strategy."""

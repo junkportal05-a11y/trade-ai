@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, SessionDep
+from app.core.security import CsrfDep
 from app.models.schemas import JournalEntry, JournalEntryResponse
 from app.db.repositories import repo
 
@@ -19,6 +20,7 @@ def get_journal(db: Session = DbDep, session: dict = SessionDep) -> list[dict]:
 @router.post("/journal", response_model=JournalEntryResponse)
 def add_journal(
     entry: JournalEntry,
+    csrf=CsrfDep,
     db: Session = DbDep,
     session: dict = SessionDep,
 ) -> dict:
@@ -29,6 +31,7 @@ def add_journal(
 @router.delete("/journal/{entry_id}", response_model=dict)
 def delete_journal(
     entry_id: int,
+    csrf=CsrfDep,
     db: Session = DbDep,
     session: dict = SessionDep,
 ) -> dict:

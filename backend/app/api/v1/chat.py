@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, SessionDep
+from app.core.security import CsrfDep
 from app.models.schemas import ChatRequest, ChatResponse, ChartAnalysisRequest, ChartAnalysisResponse
 from app.core.config import settings
 from app.core.limiter import limiter
@@ -21,6 +22,7 @@ async def chat(
     req: ChatRequest,
     request: Request,
     db: Session = DbDep,
+    csrf=CsrfDep,
     _=SessionDep,
 ) -> dict:
     from app.services.chat import get_chat_reply
@@ -37,6 +39,7 @@ async def chat(
 async def analyze_chart_json(
     req: ChartAnalysisRequest,
     request: Request,
+    csrf=CsrfDep,
     _=SessionDep,
 ) -> ChartAnalysisResponse:
     """
@@ -64,6 +67,7 @@ async def analyze_chart_json(
 async def analyze_chart_upload(
     request: Request,
     file: Any = File(...),
+    csrf=CsrfDep,
     _=SessionDep,
 ) -> JSONResponse:
     """

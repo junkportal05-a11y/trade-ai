@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, SessionDep, TraderDep
 from app.models.schemas import AngelOneCredentials, AngelOneStatusResponse
-from app.core.security import encrypt_value, decrypt_value
+from app.core.security import encrypt_value, decrypt_value, CsrfDep
 from app.db import save_angelone_session, get_angelone_session
 
 from app.core.limiter import limiter
@@ -24,6 +24,7 @@ router = APIRouter(prefix="/api/angelone", tags=["broker"])
 async def angelone_login(
     request: Request,
     db: Session = DbDep,
+    csrf=CsrfDep,
     _=TraderDep,
 ) -> dict:
     body = await request.json()

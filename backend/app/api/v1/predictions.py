@@ -9,9 +9,12 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, SessionDep, TraderDep
 from app.models.schemas import PredictionCreate, PredictionResolveRequest
+from app.core.security import CsrfDep
 from app.db.repositories import repo
 from app.db.models import PredictionsHistory
 from app.services.broker import get_broker_feed
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["predictions"])
 
@@ -30,6 +33,7 @@ def get_pending_predictions(db: Session = DbDep, _=SessionDep) -> list[dict]:
 def create_prediction(
     pred: PredictionCreate,
     db: Session = DbDep,
+    csrf=CsrfDep,
     _=TraderDep,
 ) -> dict:
     pred_id = repo.predictions.add(db, pred.model_dump())
@@ -40,6 +44,7 @@ def create_prediction(
 def delete_prediction(
     prediction_id: int,
     db: Session = DbDep,
+    csrf=CsrfDep,
     _=TraderDep,
 ) -> dict:
     pred = db.query(PredictionsHistory).filter(PredictionsHistory.id == prediction_id).first()
@@ -189,6 +194,7 @@ def resolve_prediction(
     prediction_id: int,
     req: PredictionResolveRequest,
     db: Session = DbDep,
+    csrf=CsrfDep,
     _=TraderDep,
 ) -> dict:
     pred = db.query(PredictionsHistory).filter(PredictionsHistory.id == prediction_id).first()
