@@ -18,6 +18,8 @@ from app.models.schemas import (
     QuoteRequest,
 )
 from app.services.quotes import get_symbol_quote
+from signals import generate_synthetic_candles
+from app.core.logging import logger
 from app.core.executors import quote_executor
 from app.core.limiter import limiter
 
@@ -124,15 +126,24 @@ def get_history(
             status_code=400, detail=f"Invalid range. Choose from: {VALID_RANGES}"
         )
 
+    # CandleChart always needs renderable bars: any feeder failure falls through
+    # to the synthetic generator instead of an HTTP 404/500.
+    df = None
     try:
         df = download_market_data_df(
             params.symbol, period=params.range, interval=params.interval
         )
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as exc:
+        logger.warning(f"[history] download failed for {params.symbol}: {exc}")
 
+    fallback = False
     if df is None or df.empty:
-        raise HTTPException(status_code=404, detail=f"No history for {params.symbol}")
+        df = generate_synthetic_candles(params.symbol, params.range, params.interval)
+        fallback = True
+        logger.warning(
+            f"[history] synthetic fallback generated for {params.symbol} "
+            f"({params.interval}, {params.range})"
+        )
 
     # Ensure column names are capitalized (handle yfinance lowercase columns)
     try:
@@ -143,14 +154,15 @@ def get_history(
     required_cols = ["Open", "High", "Low", "Close"]
     missing = [c for c in required_cols if c not in df.columns]
     if missing:
-        raise HTTPException(status_code=404, detail=f"No history data for {params.symbol}")
+        logger.warning(f"[history] malformed columns for {params.symbol}: {missing}")
+        df = generate_synthetic_candles(params.symbol, params.range, params.interval)
+        fallback = True
 
     df = df.dropna(subset=required_cols)
     if df.empty:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No history data after filtering. No history data found for {params.symbol} after filtering NaNs",
-        )
+        logger.warning(f"[history] all-NaN candles for {params.symbol}, using synthetic")
+        df = generate_synthetic_candles(params.symbol, params.range, params.interval)
+        fallback = True
 
     use_unix = params.interval not in {"1d", "5d", "1wk", "1mo", "3mo"}
     bars = []
@@ -173,6 +185,7 @@ def get_history(
         "range": params.range,
         "count": len(bars),
         "bars": bars,
+        "fallback": fallback,
     }
 
 

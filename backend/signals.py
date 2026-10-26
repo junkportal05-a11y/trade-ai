@@ -181,6 +181,67 @@ def validate_risk_reward(entry: float, stop: float, target: float, min_rr: float
     return rr_ratio >= min_rr
 
 
+def _synthetic_walk(symbol: str, idx: pd.DatetimeIndex) -> pd.DataFrame:
+    """Deterministic seeded OHLCV random walk over the given timestamps."""
+    rng = np.random.default_rng(abs(hash(symbol)) % (2**32 - 1))
+    base_price = 2500.0 if "RELIANCE" in symbol.upper() else 1000.0
+    n = len(idx)
+    close = base_price * np.cumprod(1 + rng.normal(0.0005, 0.015, size=n))
+    high = close * (1 + np.abs(rng.normal(0.005, 0.005, size=n)))
+    low = close * (1 - np.abs(rng.normal(0.005, 0.005, size=n)))
+    open_ = low + (high - low) * rng.random(size=n)
+    volume = rng.integers(100_000, 5_000_000, size=n)
+    return pd.DataFrame(
+        {"Open": open_, "High": high, "Low": low, "Close": close, "Volume": volume},
+        index=idx,
+    )
+
+
+def generate_synthetic_candles(
+    symbol: str,
+    period: str = "5d",
+    interval: str = "5m",
+) -> Optional[pd.DataFrame]:
+    """
+    Deterministic synthetic OHLCV generator — final fallback tier so charts and
+    scans never end up with an empty frame.
+
+    The timeline adapts to the interval: daily bars for daily/weekly/monthly
+    intervals, NSE session bars (09:15-15:30) for intraday intervals. This data
+    is not market data; it only keeps consumers responsive and rendered.
+    """
+    try:
+        if interval in ("1d", "5d", "1wk", "1mo", "3mo"):
+            num_bars = 250 if period in ("1y", "2y", "5y", "10y", "max") else 100
+            idx = pd.date_range(end=pd.Timestamp.now(), periods=num_bars, freq="D")
+            return _synthetic_walk(symbol, idx)
+
+        iv_min = {"1m": 1, "2m": 2, "5m": 5, "15m": 15, "30m": 30, "1h": 60, "60m": 60}.get(interval, 5)
+        days = {"1y": 60, "2y": 60, "5y": 60, "10y": 60, "max": 60, "ytd": 40, "6mo": 40, "3mo": 30, "1mo": 20}.get(period, 10)
+        end = pd.Timestamp.now()
+        session_days = []
+        cursor = end.normalize()
+        while len(session_days) < days:
+            if cursor.weekday() < 5:
+                session_days.append(cursor)
+            cursor -= pd.Timedelta(days=1)
+        session_days.reverse()
+
+        start_td = pd.Timedelta(hours=9, minutes=15)
+        end_td = pd.Timedelta(hours=15, minutes=30)
+        iv_td = pd.Timedelta(minutes=iv_min)
+        stamps = []
+        for i, day in enumerate(session_days):
+            cur = day + start_td
+            day_end = day + end_td if i < len(session_days) - 1 else min(day + end_td, end)
+            while cur <= day_end:
+                stamps.append(cur)
+                cur += iv_td
+        return _synthetic_walk(symbol, pd.DatetimeIndex(stamps))
+    except Exception:
+        return None
+
+
 def download_market_data_df(
     symbol: str,
     period: str = "5d",
@@ -222,6 +283,11 @@ def download_market_data_df(
             yf_symbol = symbol + '.NS' if '.' not in symbol else symbol
             df = yf.download(yf_symbol, period=period, interval=interval, auto_adjust=True)
             if df is not None and not df.empty:
+                # Newer yfinance versions return MultiIndex columns
+                # (e.g. ("close", "RELIANCE.NS")); flatten to the price level
+                # so the lowercase rename below matches and the frame is usable.
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
                 # yfinance returns lowercase column names; rename to match expected capitalization
                 df = df.rename(columns={
                     'open': 'Open',
@@ -251,33 +317,12 @@ def download_market_data_df(
         return snapshot
 
     # Tier 4: Synthetic Historical Candle Generator (guarantees data availability)
-    try:
-        num_bars = 250 if period in ("1y", "2y") else 100
-        dates = pd.date_range(end=pd.Timestamp.now(), periods=num_bars, freq="D")
-        seed_val = abs(hash(symbol)) % (2**32 - 1)
-        rng = np.random.default_rng(seed_val)
-        base_price = 2500.0 if "RELIANCE" in symbol.upper() else 1000.0
-        returns = rng.normal(0.0005, 0.015, size=num_bars)
-        price_series = base_price * np.cumprod(1 + returns)
-        high_series = price_series * (1 + np.abs(rng.normal(0.005, 0.005, size=num_bars)))
-        low_series = price_series * (1 - np.abs(rng.normal(0.005, 0.005, size=num_bars)))
-        open_series = low_series + (high_series - low_series) * rng.random(size=num_bars)
-        volume_series = rng.integers(100000, 5000000, size=num_bars)
-
-        synth_df = pd.DataFrame({
-            "Open": open_series,
-            "High": high_series,
-            "Low": low_series,
-            "Close": price_series,
-            "Volume": volume_series
-        }, index=dates)
-
+    synth_df = generate_synthetic_candles(symbol, period, interval)
+    if synth_df is not None:
         _BATCH_CANDLE_CACHE[cache_key] = synth_df
         _CACHE_TIMESTAMP[cache_key] = time.time()
-        print(f"[signals] Synthetic 3-tier fallback activated for {symbol}")
+        print(f"[signals] Synthetic fallback activated for {symbol}")
         return synth_df
-    except Exception as exc:
-        print(f"[signals] Synthetic fallback error: {exc}")
 
     return None
 

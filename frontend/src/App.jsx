@@ -28,6 +28,7 @@ import BottomConsole from './components/BottomConsole';
 import WatchlistPanel from './components/WatchlistPanel';
 import OrderPanel from './components/OrderPanel';
 import { T, SEED_PRICES, DEFAULT_WATCHLIST, INTERVALS, PRIMARY_TABS, SECONDARY_TABS, MOBILE_TABS, TAB_META, EMPTY_ARRAY, fmt, clr, sign, escapeHTML } from './theme';
+import { BRIEF_TIMEOUT_MS, briefErrorMessage } from './utils/briefing';
 
 const TAB_ICONS = { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck };
 
@@ -288,21 +289,33 @@ export default function App() {
   // App-level Cache for Daily Market Briefing & Stats
   const [marketBrief, setMarketBrief] = useState(null);
   const [loadingBrief, setLoadingBrief] = useState(true);
+  const [briefError, setBriefError] = useState(null);
+  const briefAbortRef = useRef(null);
   const [predictionStats, setPredictionStats] = useState(null);
   const [refreshAnalystToken, setRefreshAnalystToken] = useState(0);
 
   const fetchMarketBrief = useCallback(() => {
     if (!loggedIn || !backendReady) return;
-    apiFetch('/api/market_brief')
-    .then(res => res.ok ? res.json() : Promise.reject())
+    if (briefAbortRef.current) briefAbortRef.current.abort();
+    const controller = new AbortController();
+    briefAbortRef.current = controller;
+    setBriefError(null);
+    setLoadingBrief(true);
+    const timeout = setTimeout(() => controller.abort(), BRIEF_TIMEOUT_MS);
+    apiFetch('/api/market_brief', { signal: controller.signal })
+    .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
     .then(data => {
+      if (briefAbortRef.current !== controller) return;
       setMarketBrief(data);
       setLoadingBrief(false);
     })
-    .catch(() => {
+    .catch(err => {
+      if (briefAbortRef.current !== controller) return;
+      setBriefError(briefErrorMessage(err));
       setLoadingBrief(false);
-    });
-  }, [loggedIn]);
+    })
+    .finally(() => clearTimeout(timeout));
+  }, [loggedIn, backendReady]);
 
   const fetchPredictionStats = useCallback(() => {
     if (!loggedIn || !backendReady) return;
@@ -913,6 +926,7 @@ export default function App() {
                 onDeleteAlert={handleDeleteAlert} 
                 brief={marketBrief}
                 loadingBrief={loadingBrief}
+                briefError={briefError}
                 stats={predictionStats}
                 onRefreshBrief={fetchMarketBrief}
                 onUpdateBalances={(newCash, newPortfolio) => {

@@ -57,6 +57,7 @@ class HistoryResponse(BaseModel):
     range: str
     count: int
     bars: list[CandleBar]
+    fallback: bool = False
 
 
 class SearchResponse(BaseModel):

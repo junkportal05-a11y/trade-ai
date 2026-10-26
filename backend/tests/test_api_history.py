@@ -49,24 +49,30 @@ def test_get_history_missing_symbol(auth_client):
 def test_get_history_empty_data(mock_download, auth_client):
     mock_download.return_value = pd.DataFrame()
     response = auth_client.get("/api/history?symbol=FAKE&interval=1d&range=1mo")
-    assert response.status_code == 404
-    assert "No history for FAKE" in response.json()["detail"]
+    assert response.status_code == 200
+    data = response.json()
+    assert data["fallback"] is True
+    assert data["count"] > 0
 
 
 @patch('signals.download_market_data_df')
 def test_get_history_none_data(mock_download, auth_client):
     mock_download.return_value = None
     response = auth_client.get("/api/history?symbol=FAKE&interval=1d&range=1mo")
-    assert response.status_code == 404
-    assert "No history for FAKE" in response.json()["detail"]
+    assert response.status_code == 200
+    data = response.json()
+    assert data["fallback"] is True
+    assert data["count"] > 0
 
 
 @patch('signals.download_market_data_df')
 def test_get_history_nan_data(mock_download, auth_client):
     mock_download.return_value = pd.DataFrame({'Open': [float('nan')], 'High': [float('nan')], 'Low': [float('nan')], 'Close': [float('nan')], 'Volume': [float('nan')]})
     response = auth_client.get("/api/history?symbol=FAKE&interval=1d&range=1mo")
-    assert response.status_code == 404
-    assert "No history data found for FAKE after filtering NaNs" in response.json()["detail"]
+    assert response.status_code == 200
+    data = response.json()
+    assert data["fallback"] is True
+    assert data["count"] > 0
 
 
 @patch('signals.download_market_data_df')

@@ -82,27 +82,31 @@ def test_get_history_invalid_range(auth_client):
 
 
 def test_get_history_no_data(monkeypatch, auth_client):
-    """Test when sig_engine returns None"""
+    """Test when sig_engine returns None — synthetic fallback activates"""
     def mock_download(*args, **kwargs):
         return None
 
     monkeypatch.setattr("app.services.market_data.download_market_data_df", mock_download)
 
     response = auth_client.get("/api/history", params={"symbol": "AAPL", "interval": "1d", "range": "1mo"})
-    assert response.status_code == 404
-    assert "No history for AAPL" in response.json()["detail"]
+    assert response.status_code == 200
+    data = response.json()
+    assert data["fallback"] is True
+    assert data["count"] > 0
 
 
 def test_get_history_empty_df(monkeypatch, auth_client):
-    """Test when sig_engine returns an empty DataFrame"""
+    """Test when sig_engine returns an empty DataFrame — synthetic fallback activates"""
     def mock_download(*args, **kwargs):
         return pd.DataFrame()
 
     monkeypatch.setattr("app.services.market_data.download_market_data_df", mock_download)
 
     response = auth_client.get("/api/history", params={"symbol": "AAPL", "interval": "1d", "range": "1mo"})
-    assert response.status_code == 404
-    assert "No history for AAPL" in response.json()["detail"]
+    assert response.status_code == 200
+    data = response.json()
+    assert data["fallback"] is True
+    assert data["count"] > 0
 
 
 def test_get_history_nan_filtering(monkeypatch, auth_client):
@@ -132,7 +136,7 @@ def test_get_history_nan_filtering(monkeypatch, auth_client):
 
 
 def test_get_history_nan_filtering_all_nan(monkeypatch, auth_client):
-    """Test that rows with NaN are dropped and returns 404 if resulting df is empty"""
+    """Test that rows with NaN are dropped and synthetic fallback activates"""
     def mock_download(*args, **kwargs):
         index = pd.DatetimeIndex([datetime.datetime(2023, 1, 1)])
         data = {
@@ -147,5 +151,7 @@ def test_get_history_nan_filtering_all_nan(monkeypatch, auth_client):
     monkeypatch.setattr("app.services.market_data.download_market_data_df", mock_download)
 
     response = auth_client.get("/api/history", params={"symbol": "AAPL", "interval": "1d", "range": "5d"})
-    assert response.status_code == 404
-    assert "No history data after filtering" in response.json()["detail"]
+    assert response.status_code == 200
+    data = response.json()
+    assert data["fallback"] is True
+    assert data["count"] > 0

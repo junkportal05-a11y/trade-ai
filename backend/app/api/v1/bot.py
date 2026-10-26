@@ -61,7 +61,7 @@ async def bot_stop(request: Request, csrf=CsrfDep, admin=AdminClearanceDep) -> D
 
 
 @router.get("/status")
-async def bot_status(request: Request, csrf=CsrfDep, trader=TraderDep) -> Dict[str, Any]:
+async def bot_status(request: Request, trader=TraderDep) -> Dict[str, Any]:
     """Return current state, today's P&L, last signal, and open positions."""
     state = db.get_bot_state()
     today = _now_ist().strftime("%Y-%m-%d")
@@ -99,7 +99,7 @@ async def bot_status(request: Request, csrf=CsrfDep, trader=TraderDep) -> Dict[s
 
 
 @router.get("/trades")
-async def bot_trades(request: Request, csrf=CsrfDep, session=SessionDep) -> Dict[str, Any]:
+async def bot_trades(request: Request, session=SessionDep) -> Dict[str, Any]:
     """Return recent live trade log."""
     trades = []
     try:

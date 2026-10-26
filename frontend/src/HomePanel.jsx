@@ -48,6 +48,7 @@ export default function HomePanel({
   onDeleteAlert, 
   brief, 
   loadingBrief, 
+  briefError,
   stats, 
   onRefreshBrief, 
   onUpdateBalances 
