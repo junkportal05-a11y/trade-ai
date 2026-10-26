@@ -577,8 +577,8 @@ def add_prediction(pred: dict) -> int:
                 market_breadth, sector_strength, nifty_trend, status, reason,
                 setup_type, market_regime_snapshot, risk_amount, confidence_probability,
                 regime_score, sector_score, volume_score, rs_score, trade_quality_score, correlation_score,
-                signal_time, order_time)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                signal_time, order_time, order_mode)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 pred["symbol"].upper(),
                 pred.get("prediction_date", now),
@@ -612,7 +612,8 @@ def add_prediction(pred: dict) -> int:
                 float(pred.get("trade_quality_score", 0.0)),
                 float(pred.get("correlation_score", 0.0)),
                 pred.get("signal_time", now),
-                pred.get("order_time", now)
+                pred.get("order_time", now),
+                pred.get("order_mode", "paper") if pred.get("order_mode") in ("paper", "live") else "paper",
             ),
         )
         c.commit()

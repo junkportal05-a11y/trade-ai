@@ -21,7 +21,7 @@ export default function PerformancePanel({ onViewChange }) {
         const data = await res.json();
         if (data.resolved_predictions > 0) {
           setStats({
-            total_trades: data.total_predictions,
+            total_trades: data.total_trades ?? data.resolved_predictions ?? 0,
             win_rate: data.win_rate,
             profit_factor: data.profit_factor,
             avg_winner: data.avg_win || 0,
@@ -80,7 +80,7 @@ export default function PerformancePanel({ onViewChange }) {
       const res = await apiFetch(`/api/data/confidence`);
       if (res.ok) {
         const data = await res.json();
-        setGlobalConfidence({ ...data, confidence_score: data.overall_confidence ?? data.confidence_score ?? 92 });
+        setGlobalConfidence({ ...data, confidence_score: data.overall_confidence ?? data.confidence_score ?? null });
       }
     } catch (err) {
       console.error("Error fetching data confidence:", err);
@@ -92,7 +92,7 @@ export default function PerformancePanel({ onViewChange }) {
     fetchStats();
   }, [fetchDataConfidence, fetchStats]);
 
-  const isLocked = globalConfidence?.confidence_score !== undefined && globalConfidence.confidence_score < 90;
+  const isLocked = typeof globalConfidence?.confidence_score === 'number' && globalConfidence.confidence_score < 90;
 
   const metricCards = stats ? [
     { label: "TOTAL TRADES", value: stats.total_trades },

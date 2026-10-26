@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api", tags=["quotes"])
 
 @router.get("/", response_model=dict)
 @limiter.limit(settings.rate_limit_public)
-def root(request: Request) -> dict:
+def root(request: Request, _=SessionDep) -> dict:
     return {"status": "ok", "message": "Trading Platform API is running"}
 
 
@@ -60,7 +60,7 @@ _FALLBACK_PRICES = {
 @router.get("/prices", response_model=dict)
 @limiter.limit(settings.rate_limit_public)
 async def get_live_prices(request: Request, symbols: str = "") -> dict:
-    """HTTP fallback for the price WebSocket (same payload shape as a tick frame)."""
+    """HTTP fallback for the price WebSocket (simulated ticks, not exchange data)."""
     import random
     from datetime import datetime, timezone, timedelta
 
@@ -80,7 +80,12 @@ async def get_live_prices(request: Request, symbols: str = "") -> dict:
                 "timestamp": now_ist.isoformat(),
             }
         )
-    return {"type": "tick", "data": data}
+    return {
+        "type": "tick",
+        "simulated": True,
+        "data_source": "SIMULATED",
+        "data": data,
+    }
 
 
 @router.get("/quote", response_model=QuoteResponse)

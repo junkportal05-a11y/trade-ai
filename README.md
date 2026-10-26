@@ -53,7 +53,7 @@ trade ai/
 ├── backend/                    # Core FastAPI & Quantitative Trading Engine
 │   ├── app/                    # REST APIs, routers, models, security & DB session
 │   ├── quant/                  # Market regimes, correlation matrix & technical engines
-│   ├── tests/                  # Unified automated test suite (40 passing tests)
+│   ├── tests/                  # Unified automated test suite (233 passing tests)
 │   ├── requirements.txt        # Synced Docker layer cache dependency file
 │   └── trading_agent.py        # Autonomous trading agent daemon
 │
@@ -262,6 +262,18 @@ cd frontend
 npm install
 npm run dev
 ```
+
+### Tests & Verification
+```bash
+# Full backend suite (233 tests)
+cd backend && python -m pytest -q
+
+# Frontend unit tests + production build
+cd frontend && npm test && npm run build
+```
+
+> **CI note:** `.github/workflows/ci.yml` currently executes only 13 of the 41 backend test files.
+> Run the full suite locally before releasing; the CI job is not a complete regression gate.
 
 ---
 

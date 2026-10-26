@@ -298,6 +298,7 @@ def _build_prediction_payload(sig: dict) -> dict:
         "correlation_score": sig.get("correlation_score", 0.0),
         "signal_time": sig.get("signal_time", datetime.now(timezone.utc).isoformat()),
         "order_time": sig.get("order_time", datetime.now(timezone.utc).isoformat()),
+        "order_mode": "paper",
     }
 
 def _build_journal_payload(sig: dict) -> dict:

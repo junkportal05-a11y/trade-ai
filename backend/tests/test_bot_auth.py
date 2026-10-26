@@ -48,8 +48,13 @@ def test_bot_status_with_valid_token():
     assert "today_pnl" in data
 
 
-def test_get_strategy_by_id_no_name_error():
-    response = client.get("/api/strategies/intraday_momentum")
+def test_get_strategy_by_id_no_name_error(auth_client):
+    response = auth_client.get("/api/strategies/intraday_momentum")
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == "intraday_momentum"
+
+
+def test_strategies_require_auth():
+    response = client.get("/api/strategies")
+    assert response.status_code == 401

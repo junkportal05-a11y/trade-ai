@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BarChart3, Camera, ChevronDown, ChevronUp, ShieldCheck, Sparkles, Target, Zap } from 'lucide-react';
 import MdText from './MdText';
-import { apiFetch, getApiBaseUrl } from '../api';
+import { apiFetch } from '../api';
 import { T } from '../theme';
 
 const SUGGESTIONS = [
@@ -86,7 +86,7 @@ export default function ChatPanel({ symbol, price, changePct }) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(`${getApiBaseUrl()}/api/chat/chart/upload`, { method: 'POST', body: formData });
+      const res = await apiFetch('/api/chat/chart/upload', { method: 'POST', body: formData });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || 'Chart analysis failed');

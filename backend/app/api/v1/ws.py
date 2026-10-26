@@ -151,10 +151,16 @@ async def websocket_prices_endpoint(websocket: WebSocket):
                     "symbol": sym,
                     "price": price,
                     "prev_close": base_price,
-                    "timestamp": now
+                    "timestamp": now,
+                    "simulated": True,
                 })
             try:
-                await websocket.send_text(json.dumps({"type": "tick", "data": ticks}))
+                await websocket.send_text(json.dumps({
+                    "type": "tick",
+                    "simulated": True,
+                    "data_source": "SIMULATED",
+                    "data": ticks,
+                }))
             except Exception:
                 break
 
@@ -173,7 +179,11 @@ async def websocket_prices_endpoint(websocket: WebSocket):
                     if isinstance(syms, list):
                         subscribed_symbols.clear()
                         subscribed_symbols.extend(syms)
-                        await websocket.send_text(json.dumps({"type": "subscribed", "symbols": syms}))
+                        await websocket.send_text(json.dumps({
+                            "type": "subscribed",
+                            "symbols": syms,
+                            "simulated": True,
+                        }))
             except Exception:
                 pass
     except WebSocketDisconnect:

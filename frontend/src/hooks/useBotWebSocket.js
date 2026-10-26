@@ -3,6 +3,19 @@ import { WS_BASE_URL } from "../api";
 
 const WS_URL = WS_BASE_URL;
 const WS_PATH = '/ws/bot';
+const AUTH_CLOSE_CODES = new Set([4001, 1008]);
+const INITIAL_RECONNECT_MS = 3000;
+const MAX_RECONNECT_MS = 30000;
+
+const getToken = () => {
+  if (typeof window === "undefined") return "";
+  return sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
+};
+
+export const buildBotWsUrl = (token) => {
+  if (!token || !WS_URL) return null;
+  return `${WS_URL}${WS_PATH}?token=${encodeURIComponent(token)}`;
+};
 
 export function useBotWebSocket() {
   const [botData, setBotData] = useState({
@@ -14,15 +27,31 @@ export function useBotWebSocket() {
 
   useEffect(() => {
     let reconnectTimeout = null;
+    let reconnectDelay = INITIAL_RECONNECT_MS;
     let isMounted = true;
 
+    function scheduleReconnect() {
+      if (!isMounted) return;
+      reconnectTimeout = setTimeout(() => {
+        reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_MS);
+        connect();
+      }, reconnectDelay);
+    }
+
     function connect() {
+      const url = buildBotWsUrl(getToken());
+      if (!url) {
+        setConnected(false);
+        return;
+      }
+
       try {
-        const ws = new WebSocket(`${WS_URL}${WS_PATH}`);
+        const ws = new WebSocket(url);
         wsRef.current = ws;
 
         ws.onopen = () => {
           if (!isMounted) return;
+          reconnectDelay = INITIAL_RECONNECT_MS;
           setConnected(true);
         };
 
@@ -36,7 +65,9 @@ export function useBotWebSocket() {
                 trades: msg.trades
               });
             }
-          } catch (_) { }
+          } catch {
+            return;
+          }
         };
 
         ws.onerror = () => {
@@ -44,16 +75,15 @@ export function useBotWebSocket() {
           setConnected(false);
         };
 
-        ws.onclose = () => {
+        ws.onclose = (event) => {
           if (!isMounted) return;
           setConnected(false);
-          // Reconnect after 3s
-          reconnectTimeout = setTimeout(() => {
-            if (isMounted) connect();
-          }, 3000);
+          if (AUTH_CLOSE_CODES.has(event.code)) return;
+          scheduleReconnect();
         };
-      } catch (_) {
+      } catch {
         setConnected(false);
+        scheduleReconnect();
       }
     }
 

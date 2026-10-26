@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Query, Request, status, HTTPException
+from sqlalchemy.orm import Session
 
-from app.api.deps import SessionDep
+from app.api.deps import DbDep, SessionDep
+from app.db.models import Strategy
 
 router = APIRouter(prefix="/api/strategies", tags=["strategies"])
 
@@ -19,13 +21,14 @@ STRATEGY_PRESETS = [
 @router.get("", response_model=dict)
 def get_strategies(
     active_only: bool = Query(True, description="Filter to only active strategies"),
+    _=SessionDep,
 ) -> dict:
     """Get all strategies."""
     return {"status": "success", "strategies": STRATEGY_PRESETS}
 
 
 @router.get("/{strategy_id}", response_model=dict)
-def get_strategy(strategy_id: str) -> dict:
+def get_strategy(strategy_id: str, _=SessionDep) -> dict:
     """Get a specific strategy by ID."""
     for s in STRATEGY_PRESETS:
         if s["id"] == str(strategy_id):
@@ -34,11 +37,25 @@ def get_strategy(strategy_id: str) -> dict:
 
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
-def create_strategy(request: Request, _=SessionDep) -> dict:
-    """Create a new strategy."""
-    return {
-        "id": 999,
-        "name": "New Strategy",
-        "description": "Created from UI",
-        "is_active": True,
-    }
+async def create_strategy(
+    request: Request,
+    db: Session = DbDep,
+    _=SessionDep,
+) -> dict:
+    """Create and persist a new strategy."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+
+    strategy = Strategy(
+        name=str(body.get("name") or "New Strategy")[:64],
+        description=str(body.get("description") or "Created from UI")[:256],
+        is_active=bool(body.get("is_active", True)),
+    )
+    db.add(strategy)
+    db.commit()
+    db.refresh(strategy)
+    return strategy.to_dict()
