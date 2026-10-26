@@ -161,26 +161,40 @@ def get_data_confidence(
     _=SessionDep,
 ) -> dict:
     """
-    Returns data quality & confidence score for requested symbols or market overall.
+    Returns the latest measured data-quality score. When no check has been
+    recorded, confidence is reported as unknown instead of a fabricated value.
     """
+    from app.db.repositories import repo
+
     now = datetime.now(timezone.utc)
     sym_list = [s.strip().upper() for s in symbols.split(",") if s.strip()] if symbols else ["RELIANCE.NS", "TCS.NS", "NIFTY"]
-    
+    latest = repo.data_quality.get_latest(db)
+
+    confidence = latest.get("confidence_score") if latest else None
+    checked_at = latest.get("checked_at") if latest else None
+    freshness = "MEASURED" if latest else "UNKNOWN"
+    source = "DATA_QUALITY_CHECK" if latest else "NOT_MEASURED"
+    locked = bool(latest.get("locked")) if latest else False
+
     scores = []
     for s in sym_list:
         scores.append({
             "symbol": s,
-            "confidence_score": 92,
-            "freshness_status": "REALTIME",
-            "last_updated": now.isoformat(),
-            "data_source": "NSE_LIVE",
-            "latency_ms": 145,
+            "confidence_score": None,
+            "freshness_status": freshness,
+            "last_updated": checked_at,
+            "data_source": source,
+            "latency_ms": None,
+            "note": "Global data-quality score; per-symbol freshness is not measured.",
         })
-        
+
     return {
         "market": "NSE",
-        "overall_confidence": 92,
-        "freshness_status": "REALTIME",
+        "overall_confidence": confidence,
+        "confidence_measured": latest is not None,
+        "freshness_status": freshness,
+        "data_source": source,
+        "locked": locked,
         "symbols_evaluated": len(scores),
         "scores": scores,
         "timestamp": now.isoformat(),

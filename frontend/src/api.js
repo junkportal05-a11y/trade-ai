@@ -30,7 +30,7 @@ export const API_BASE_URL = getApiBaseUrl();
 
 const isDev = typeof window !== "undefined" && window.location.port === "5173";
 export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 
-  (API_BASE_URL ? API_BASE_URL.replace(/^http:/i, 'wss:').replace(/^https:/i, 'wss:') : (isDev ? 'ws://localhost:8000/ws' : ''));
+  (API_BASE_URL ? API_BASE_URL.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:') : (isDev ? 'ws://localhost:8000' : ''));
 
 // Authenticated fetch — always sends session cookie and auth token header
 export const apiFetch = async (path, options = {}) => {
@@ -39,12 +39,13 @@ export const apiFetch = async (path, options = {}) => {
   const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
 
   const isMutating = ["POST", "PUT", "DELETE", "PATCH"].includes((options.method || "GET").toUpperCase());
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
 
   const res = await fetch(url, {
     credentials: "include",
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(isMutating ? { "X-Requested-With": "XMLHttpRequest" } : {}),
       ...(token ? { "X-Session-Token": token, "Authorization": `Bearer ${token}` } : {}),
       ...(options.headers || {}),
@@ -77,7 +78,9 @@ export const verifyToken = async () => {
       },
     });
     if (res.ok) return true;
-  } catch (_) {}
+  } catch {
+    return false;
+  }
   return false;
 };
 

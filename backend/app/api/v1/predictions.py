@@ -36,6 +36,20 @@ def create_prediction(
     return {"id": pred_id, "status": "created"}
 
 
+@router.delete("/predictions/{prediction_id}", response_model=dict)
+def delete_prediction(
+    prediction_id: int,
+    db: Session = DbDep,
+    _=TraderDep,
+) -> dict:
+    pred = db.query(PredictionsHistory).filter(PredictionsHistory.id == prediction_id).first()
+    if not pred:
+        raise HTTPException(status_code=404, detail="Prediction not found")
+    db.delete(pred)
+    db.commit()
+    return {"id": prediction_id, "status": "deleted"}
+
+
 @router.get("/predictions/stats", response_model=dict)
 def get_prediction_stats(db: Session = DbDep, _=SessionDep) -> dict:
     all_preds = db.query(PredictionsHistory).all()
@@ -48,7 +62,10 @@ def get_prediction_stats(db: Session = DbDep, _=SessionDep) -> dict:
         return {
             "total_predictions": total_count,
             "resolved_predictions": 0,
+            "total_trades": 0,
             "win_rate": 0.0,
+            "avg_win": 0.0,
+            "avg_loss": 0.0,
             "avg_error": 0.0,
             "profit_factor": 0.0,
             "empirical_rr_ratio": 0.0,
@@ -151,7 +168,10 @@ def get_prediction_stats(db: Session = DbDep, _=SessionDep) -> dict:
     return {
         "total_predictions": total_count,
         "resolved_predictions": n,
+        "total_trades": n,
         "win_rate": win_rate,
+        "avg_win": round(avg_win, 2),
+        "avg_loss": round(-avg_loss, 2),
         "avg_error": 0.0,
         "profit_factor": profit_factor,
         "empirical_rr_ratio": empirical_rr,

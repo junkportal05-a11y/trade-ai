@@ -16,6 +16,7 @@ from slowapi.errors import RateLimitExceeded
 from pydantic import ValidationError
 import logging
 
+from app.api.deps import SessionDep
 from app.core.config import settings
 from app.models.schemas import BacktestRequest
 from app.core.database import init_db
@@ -160,7 +161,7 @@ logger.info("CORS allowed origins configured", extra={"origins": allowed})
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed,
-    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.hf\.space|http://localhost:\d+|http://127\.0\.0\.1:\d+",
+    allow_origin_regex=r"http://localhost:\d+|http://127\.0\.0\.1:\d+",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["Content-Type", "Authorization", "X-Session-Token", "x-admin-key", "Accept", "Origin", "X-Requested-With"],
@@ -193,7 +194,7 @@ app.mount("/graphify-out", StaticFiles(directory=graph_dir), name="graphify-out"
 # ----------------------------------------------------------------------
 # New Backtest API endpoint
 # ----------------------------------------------------------------------
-@app.post("/api/backtest/run", tags=["backtest"])
+@app.post("/api/backtest/run", tags=["backtest"], dependencies=[SessionDep])
 @limiter.limit(settings.rate_limit_backtest)
 async def run_backtest(request: Request, backtest: BacktestRequest):
     """
@@ -306,7 +307,7 @@ async def run_backtest(request: Request, backtest: BacktestRequest):
 # ----------------------------------------------------------------------
 # Default & Monitoring routes
 # ----------------------------------------------------------------------
-@app.get("/api/quote", tags=["quotes"])
+@app.get("/api/quote", tags=["quotes"], dependencies=[SessionDep])
 async def get_quote_endpoint(symbol: str):
     import app.services.quotes as quotes_svc
     quote = quotes_svc.get_symbol_quote(symbol)

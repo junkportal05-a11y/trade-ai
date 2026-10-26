@@ -17,10 +17,8 @@ from app.db.models import (
     PortfolioState,
     RiskSettings,
     RejectedSignal,
-    AngelOneSession,
     DataQuality,
 )
-from app.core.security import encrypt_value, decrypt_value
 
 logger = logging.getLogger(__name__)
 
@@ -401,54 +399,6 @@ class RejectedSignalRepository:
         return new_rej.id
 
 
-class BrokerSessionRepository:
-    @staticmethod
-    def save(db: Session, data: dict[str, Any]) -> None:
-        enc_api = encrypt_value(data["api_key"])
-        enc_pin = encrypt_value(data["pin"])
-        enc_totp = encrypt_value(data["totp_secret"])
-        if not enc_api or not enc_pin or not enc_totp:
-            raise ValueError("Failed to encrypt broker credentials")
-
-        row = db.query(AngelOneSession).first()
-        if row:
-            row.client_code = data["client_code"]
-            row.api_key_encrypted = enc_api
-            row.pin_encrypted = enc_pin
-            row.totp_secret_encrypted = enc_totp
-            row.session_token = data.get("session_token")
-            row.refresh_token = data.get("refresh_token")
-            row.feed_token = data.get("feed_token")
-            row.updated_at = _now_ist()
-        else:
-            db.add(AngelOneSession(
-                client_code=data["client_code"],
-                api_key_encrypted=enc_api,
-                pin_encrypted=enc_pin,
-                totp_secret_encrypted=enc_totp,
-                session_token=data.get("session_token"),
-                refresh_token=data.get("refresh_token"),
-                feed_token=data.get("feed_token"),
-                updated_at=_now_ist(),
-            ))
-        db.commit()
-
-    @staticmethod
-    def get(db: Session) -> dict | None:
-        row = db.query(AngelOneSession).first()
-        if not row:
-            return None
-        return {
-            "client_code": row.client_code,
-            "api_key": decrypt_value(row.api_key_encrypted),
-            "pin": decrypt_value(row.pin_encrypted),
-            "totp_secret": decrypt_value(row.totp_secret_encrypted),
-            "session_token": row.session_token,
-            "refresh_token": row.refresh_token,
-            "feed_token": row.feed_token,
-        }
-
-
 class DataQualityRepository:
     @staticmethod
     def add(db: Session, result: dict[str, Any]) -> int:
@@ -490,7 +440,6 @@ class Repository:
     risk = RiskRepository()
     portfolio = PortfolioRepository()
     rejected = RejectedSignalRepository()
-    broker = BrokerSessionRepository()
     data_quality = DataQualityRepository()
 
 

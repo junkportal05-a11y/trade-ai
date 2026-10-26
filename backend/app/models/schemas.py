@@ -273,15 +273,21 @@ class BacktestRequest(BaseModel):
     symbol: str = Field(default="RELIANCE.NS")
     start_date: str = Field(default="2024-01-01")
     end_date: str = Field(default="2024-12-31")
-    strategy: str | None = Field(default="intraday_momentum")
+    strategy: str | None = Field(
+        default="intraday_momentum",
+        description="Informational only. The engine runs one daily trend strategy.",
+    )
     capital: float | None = Field(default=100000.0)
-    risk_pct: float = Field(default=2.0)
+    risk_pct: float = Field(
+        default=0.02,
+        description="Fraction of capital risked per trade (0.02 = 2%). Percent-style values >1 are divided by 100.",
+    )
     stop_atr: float = Field(default=1.5)
-    target_atr: float = Field(default=2.0)
+    target_atr: float = Field(default=2.5)
     initial_capital: float = Field(default=100000.0)
-    entry_score: int = Field(default=60, ge=0)
-    adx_min: float = Field(default=20.0, ge=0)
-    early_exit: bool = Field(default=True)
+    entry_score: int = Field(default=5, ge=-10, le=10)
+    adx_min: float = Field(default=0.0, ge=0)
+    early_exit: int = Field(default=-4, description="Daily score at or below which an open trade exits.")
 
     @field_validator("symbol", mode="before")
     @classmethod
@@ -293,14 +299,53 @@ class BacktestRequest(BaseModel):
             s += ".NS"
         return s
 
-    @field_validator("capital", "initial_capital", "risk_pct", "stop_atr", mode="before")
+    @field_validator("capital", "initial_capital", mode="before")
     @classmethod
-    def sanitize_positive_floats(cls, v: Any) -> float:
+    def sanitize_capital(cls, v: Any) -> float:
         try:
             val = float(v)
             return abs(val) if val != 0 else 100000.0
         except Exception:
             return 100000.0
+
+    @field_validator("risk_pct", mode="before")
+    @classmethod
+    def sanitize_risk_pct(cls, v: Any) -> float:
+        try:
+            val = abs(float(v))
+        except Exception:
+            return 0.02
+        if val == 0:
+            return 0.02
+        return val / 100.0 if val > 1.0 else val
+
+    @field_validator("stop_atr", mode="before")
+    @classmethod
+    def sanitize_stop_atr(cls, v: Any) -> float:
+        try:
+            val = abs(float(v))
+            return val if val != 0 else 1.5
+        except Exception:
+            return 1.5
+
+    @field_validator("target_atr", mode="before")
+    @classmethod
+    def sanitize_target_atr(cls, v: Any) -> float:
+        try:
+            val = abs(float(v))
+            return val if val != 0 else 2.5
+        except Exception:
+            return 2.5
+
+    @field_validator("entry_score", "early_exit", mode="before")
+    @classmethod
+    def sanitize_score(cls, v: Any) -> int:
+        if isinstance(v, bool):
+            return -4 if v else -999
+        try:
+            return int(v)
+        except Exception:
+            return -4
 
 
 class SearchRequest(BaseModel):

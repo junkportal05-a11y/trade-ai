@@ -28,9 +28,18 @@ def _now_ist() -> datetime:
 
 @router.post("/start")
 async def bot_start(request: Request, csrf=CsrfDep, trader=TraderDep) -> Dict[str, Any]:
-    """Set bot state to RUNNING."""
+    """Set bot state to RUNNING. The bot is paper-only; live requests are rejected."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if isinstance(body, dict) and (body.get("paper") is False or body.get("order_mode") == "live"):
+        raise HTTPException(
+            status_code=400,
+            detail="Live trading is disabled. The bot runs in paper mode only.",
+        )
     db.set_bot_state("RUNNING")
-    return {"status": "ok", "state": db.get_bot_state()}
+    return {"status": "ok", "state": db.get_bot_state(), "mode": "paper"}
 
 
 @router.post("/pause")
@@ -46,7 +55,7 @@ async def bot_stop(request: Request, csrf=CsrfDep, admin=AdminClearanceDep) -> D
     db.set_bot_state("STOPPED")
     try:
         trading_agent._square_off_all(_now_ist())
-    except Exception:  # pragma: no cover - best effort square off
+    except Exception as exc:  # pragma: no cover - best effort square off
         raise HTTPException(status_code=500, detail=f"square off failed: {exc}")
     return {"status": "ok", "state": db.get_bot_state()}
 

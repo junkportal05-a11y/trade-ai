@@ -46,23 +46,33 @@ async def run_simulation(
     start_date = body.get("start_date", "2024-01-01")
     end_date = body.get("end_date", "2024-12-31")
     
+    error = None
     try:
         from backtest_engine import run_historical_backtest, BacktestConfig
         config = BacktestConfig(period_range="1y", initial_capital=100000.0)
         result = run_historical_backtest(symbol, config)
-    except Exception:
+        if isinstance(result, dict) and result.get("error"):
+            error = str(result["error"])
+    except Exception as exc:
         result = {}
-    
+        error = str(exc)
+
+    if error is None and (not isinstance(result, dict) or not result):
+        error = "backtest engine returned no data"
+    ok = error is None
     return {
-        "status": "completed",
+        "status": "completed" if ok else "failed",
+        "data_source": "backtest_engine" if ok else "unavailable",
+        "simulated": False,
+        "error": error,
         "symbol": symbol,
         "start_date": start_date,
         "end_date": end_date,
-        "win_rate": result.get("win_rate", 65.0) if isinstance(result, dict) else 65.0,
-        "total_pnl_pct": result.get("total_pnl_pct", 14.2) if isinstance(result, dict) else 14.2,
-        "profit_factor": result.get("profit_factor", 1.45) if isinstance(result, dict) else 1.45,
-        "total_trades": result.get("total_trades", 32) if isinstance(result, dict) else 32,
-        "max_drawdown": result.get("max_drawdown", -6.5) if isinstance(result, dict) else -6.5,
+        "win_rate": result.get("win_rate") if ok else None,
+        "total_pnl_pct": result.get("total_pnl_pct") if ok else None,
+        "profit_factor": result.get("profit_factor") if ok else None,
+        "total_trades": result.get("total_trades") if ok else None,
+        "max_drawdown": result.get("max_drawdown") if ok else None,
     }
 
 
@@ -84,10 +94,16 @@ def admin_worker_status(request: Request) -> dict:
     is_healthy = not any(w.get("status") == "degraded" for w in workers.values())
     degraded_workers = get_degraded_workers()
     degraded = bool(degraded_workers)
+    try:
+        from app.services.broker import get_broker_feed
+        angelone_authorized = bool(get_broker_feed().is_authorized())
+    except Exception:
+        angelone_authorized = False
     return {
         "agent_running": is_healthy and not degraded,
         "market_open": is_nse_market_open(),
-        "angelone_authorized": True,
+        "angelone_authorized": angelone_authorized,
+        "angelone_status": "authorized" if angelone_authorized else "not_authorized",
         "status": "healthy" if is_healthy and not degraded else "degraded",
         "degraded": degraded,
         "active_monitors": ["kill_switch"],

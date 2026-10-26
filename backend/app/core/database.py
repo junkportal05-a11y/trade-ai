@@ -32,7 +32,7 @@ def _normalize_postgres_url(url: str) -> str:
 
 def _create_sqlite_engine() -> Engine:
     db_path = getattr(settings, "db_path", "../trading_platform.db")
-    db_uri = f"sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', db_path))}"
+    db_uri = f"sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', db_path))}"
     if "/" in db_uri.replace("sqlite:///", "") or "\\" in db_uri.replace("sqlite:///", ""):
         os.makedirs(os.path.dirname(db_uri.replace("sqlite:///", "")) or ".", exist_ok=True)
     eng = create_engine(

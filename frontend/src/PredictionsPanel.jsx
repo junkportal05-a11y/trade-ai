@@ -1,8 +1,6 @@
-import { API_BASE_URL, apiFetch } from './api';
+import { apiFetch } from './api';
 import { formatError } from './utils/formatError';
 import React, { useState, useEffect, useCallback } from 'react';
-
-const BASE = API_BASE_URL;
 
 const T = {
   bg:         '#080a0f',
@@ -102,12 +100,13 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
 
   const fetchDataConfidence = useCallback(async (sym) => {
     try {
-      const url = sym ? `/api/data/confidence?symbol=${sym}` : `/api/data/confidence`;
+      const url = sym ? `/api/data/confidence?symbols=${encodeURIComponent(sym)}` : `/api/data/confidence`;
       const res = await apiFetch(url);
       if (res.ok) {
         const data = await res.json();
-        setDataConfidence(data.overall_confidence ?? data.confidence_score ?? 92);
-        setGlobalConfidence({ ...data, confidence_score: data.overall_confidence ?? data.confidence_score ?? 92 });
+        const score = data.overall_confidence ?? data.confidence_score ?? null;
+        setDataConfidence(score);
+        setGlobalConfidence({ ...data, confidence_score: score });
       }
     } catch (err) {
       console.error("Error fetching data confidence:", err);

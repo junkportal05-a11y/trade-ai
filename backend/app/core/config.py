@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     # ── App ──────────────────────────────────────────────────────────
     app_name: str = "ApexTrade API"
-    app_version: str = "3.0.0"
+    app_version: str = "6.1.0"
     debug: bool = Field(default=False, alias="DEBUG")
     environment: Literal["development", "staging", "production"] = "development"
 
@@ -137,7 +137,8 @@ class Settings(BaseSettings):
         "ALLOWED_ORIGINS",
         "http://localhost:5173,http://localhost:3000,"
         "http://127.0.0.1:5173,http://127.0.0.1:3000,"
-        "https://trade-ai-beta.vercel.app,https://frontend-two-tau-82.vercel.app"
+        "https://trade-ai-beta.vercel.app,https://frontend-two-tau-82.vercel.app,"
+        "https://apextrade-core-trade-ai-backend.hf.space"
     )
 
     # ── Trading Constants ────────────────────────────────────────────

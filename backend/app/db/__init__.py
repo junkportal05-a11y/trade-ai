@@ -11,7 +11,6 @@ from app.db.repositories import (
     RiskRepository,
     PortfolioRepository,
     RejectedSignalRepository,
-    BrokerSessionRepository,
     DataQualityRepository,
 )
 

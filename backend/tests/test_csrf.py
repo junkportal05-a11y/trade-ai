@@ -47,18 +47,18 @@ def test_csrf_header_present_passes_through(monkeypatch):
 
 def test_get_requests_always_allowed():
     """GET requests bypass CSRF check regardless of header."""
-    response = client.get("/api/")
+    response = client.get("/")
     assert response.status_code == 200
 
 
 def test_head_requests_always_allowed():
     """HEAD requests bypass CSRF check."""
-    response = client.head("/api/")
+    response = client.head("/")
     assert response.status_code in (200, 204, 405)
 
 
 def test_options_requests_always_allowed():
     """OPTIONS requests bypass CSRF check."""
-    response = client.options("/api/")
+    response = client.options("/")
     # OPTIONS may return 405 (method not allowed) but not 403 from CSRF
     assert response.status_code != 403 or "csrf" not in response.json().get("detail", "").lower()
