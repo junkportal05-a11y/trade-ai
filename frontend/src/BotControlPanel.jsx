@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Bot } from 'lucide-react';
-import { API_BASE_URL, apiFetch } from './api';
+import { apiFetch } from './api';
 import { useBotWebSocket } from './hooks/useBotWebSocket';
+import { buildBotStartPayload } from './utils/botMode';
 
 const T = {
   bg:         '#080a0f',
@@ -30,7 +31,7 @@ const T = {
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
-export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
+export default function BotControlPanel() {
   const [botStatus, setBotStatus] = useState('stopped');
   const [lastSignal, setLastSignal] = useState(null);
   const [currentPosition, setCurrentPosition] = useState(null);
@@ -40,7 +41,7 @@ export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
 
   // Personal workstation — always authenticated
 
-  const { botData, connected } = useBotWebSocket();
+  const { botData } = useBotWebSocket();
 
   useEffect(() => {
     setBotStatus(botData.status.state?.toLowerCase() || 'stopped');
@@ -56,7 +57,7 @@ export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch('/api/bot/start', { method: 'POST', body: JSON.stringify({ paper: isPaperMode }) });
+      const res = await apiFetch('/api/bot/start', { method: 'POST', body: JSON.stringify(buildBotStartPayload()) });
       if (!res.ok) {
         const detail = await res.json().catch(() => ({}));
         throw new Error(detail.detail || 'Failed to start bot');
@@ -125,16 +126,9 @@ export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
           </div>
         </div>
 
-        {/* Mode Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 9, color: T.textDim, ...mono }}>{isPaperMode ? 'PAPER' : 'LIVE'}</span>
-          <label style={{ position: 'relative', width: 48, height: 26, cursor: 'pointer' }}>
-            <input type="checkbox" checked={!isPaperMode} onChange={e => onModeChange?.(!e.target.checked)} style={{ opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }} />
-            <span style={{ position: 'absolute', inset: 0, background: isPaperMode ? T.border : T.red, borderRadius: 13, transition: 'background 0.2s', border: `1px solid ${isPaperMode ? T.border : T.red}` }} />
-            <span style={{ position: 'absolute', top: 2, left: isPaperMode ? 2 : 24, width: 22, height: 22, background: '#fff', borderRadius: '50%', transition: 'left 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }} />
-          </label>
-          <span style={{ fontSize: 9, color: T.textDim, ...mono }}>{!isPaperMode ? 'LIVE' : 'PAPER'}</span>
-          {!isPaperMode && <span style={{ fontSize: 8, color: T.red, background: T.redDim, padding: '1px 4px', borderRadius: 3, ...mono }}>LOCKED</span>}
+        {/* Paper-only: live trading is not exposed in this workstation build. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: T.green, background: T.greenDim, border: `1px solid ${T.greenGlow}`, padding: '2px 7px', borderRadius: 4, ...mono }}>PAPER ONLY</span>
         </div>
       </div>
 
@@ -144,7 +138,7 @@ export default function BotControlPanel({ isPaperMode = true, onModeChange }) {
           <span style={{ fontSize: 20, color: cfg.color, animation: 'pulse 1.5s infinite' }}>{cfg.icon}</span>
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: cfg.color, ...mono }}>{cfg.label}</div>
-            <div style={{ fontSize: 11, color: T.textMid, marginTop: 2 }}>Autonomous trading {'(' + (isPaperMode ? 'paper' : 'live') + ')'}</div>
+            <div style={{ fontSize: 11, color: T.textMid, marginTop: 2 }}>Autonomous trading (paper)</div>
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>

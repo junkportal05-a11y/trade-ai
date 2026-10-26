@@ -1,21 +1,35 @@
 import { useState, useEffect, useRef } from "react";
 import { WS_BASE_URL } from "../api";
+import { buildWsUrl } from "../utils/wsUrl";
 
 const WS_URL = WS_BASE_URL;
-const WS_PATH = '/ws/bot';
-const AUTH_CLOSE_CODES = new Set([4001, 1008]);
-const INITIAL_RECONNECT_MS = 3000;
-const MAX_RECONNECT_MS = 30000;
+export const BOT_WS_PATH = '/ws/bot';
+export const AUTH_CLOSE_CODES = [4001, 1008];
+const RECONNECT_BASE_MS = 3000;
+const RECONNECT_MAX_MS = 30000;
 
-const getToken = () => {
-  if (typeof window === "undefined") return "";
-  return sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
-};
+export function getBotToken() {
+  if (typeof sessionStorage !== 'undefined') {
+    const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token');
+    if (token) return token;
+  }
+  if (typeof localStorage !== 'undefined') {
+    return localStorage.getItem('apt_token') || '';
+  }
+  return '';
+}
 
-export const buildBotWsUrl = (token) => {
-  if (!token || !WS_URL) return null;
-  return `${WS_URL}${WS_PATH}?token=${encodeURIComponent(token)}`;
-};
+export function buildBotWsUrl(baseUrl, token) {
+  return buildWsUrl(baseUrl, BOT_WS_PATH, { token });
+}
+
+export function shouldReconnect(code) {
+  return !AUTH_CLOSE_CODES.includes(code);
+}
+
+export function getReconnectDelay(attempt) {
+  return Math.min(RECONNECT_BASE_MS * (2 ** attempt), RECONNECT_MAX_MS);
+}
 
 export function useBotWebSocket() {
   const [botData, setBotData] = useState({
@@ -27,31 +41,17 @@ export function useBotWebSocket() {
 
   useEffect(() => {
     let reconnectTimeout = null;
-    let reconnectDelay = INITIAL_RECONNECT_MS;
+    let reconnectAttempt = 0;
     let isMounted = true;
 
-    function scheduleReconnect() {
-      if (!isMounted) return;
-      reconnectTimeout = setTimeout(() => {
-        reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_MS);
-        connect();
-      }, reconnectDelay);
-    }
-
     function connect() {
-      const url = buildBotWsUrl(getToken());
-      if (!url) {
-        setConnected(false);
-        return;
-      }
-
       try {
-        const ws = new WebSocket(url);
+        const ws = new WebSocket(buildBotWsUrl(WS_URL, getBotToken()));
         wsRef.current = ws;
 
         ws.onopen = () => {
           if (!isMounted) return;
-          reconnectDelay = INITIAL_RECONNECT_MS;
+          reconnectAttempt = 0;
           setConnected(true);
         };
 
@@ -78,12 +78,22 @@ export function useBotWebSocket() {
         ws.onclose = (event) => {
           if (!isMounted) return;
           setConnected(false);
-          if (AUTH_CLOSE_CODES.has(event.code)) return;
-          scheduleReconnect();
+          if (!shouldReconnect(event.code)) return;
+
+          const delay = getReconnectDelay(reconnectAttempt);
+          reconnectAttempt += 1;
+          reconnectTimeout = setTimeout(() => {
+            if (isMounted) connect();
+          }, delay);
         };
       } catch {
+        if (!isMounted) return;
         setConnected(false);
-        scheduleReconnect();
+        const delay = getReconnectDelay(reconnectAttempt);
+        reconnectAttempt += 1;
+        reconnectTimeout = setTimeout(() => {
+          if (isMounted) connect();
+        }, delay);
       }
     }
 

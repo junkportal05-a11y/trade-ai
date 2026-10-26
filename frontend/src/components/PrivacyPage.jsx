@@ -57,7 +57,7 @@ export default function PrivacyPage() {
           <ul style={{ color: T.textMid, lineHeight: 1.8, marginBottom: 16, paddingLeft: 24 }}>
             <li><strong>Google Gemini API:</strong> Chart image analysis (image + prompt sent, response returned, not stored)</li>
             <li><strong>Angel One SmartAPI:</strong> Live market data & order routing (credentials encrypted, only used when you connect)</li>
-            <li><strong>Yahoo Finance / NSE:</strong> Historical & real-time market data (public endpoints)</li>
+            <li><strong>Yahoo Finance / NSE:</strong> Historical data & simulated real-time market data (public endpoints)</li>
           </ul>
         </section>
 

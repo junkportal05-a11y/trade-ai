@@ -1,6 +1,7 @@
-import { API_BASE_URL, apiFetch } from './api';
+import { apiFetch } from './api';
 import React, { useState, useEffect, useCallback } from 'react';
 import { T } from './theme';
+import { formatPercent, formatRatio, getConfidenceScore, normalizePerformanceStats } from './utils/performance';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
@@ -15,60 +16,16 @@ export default function PerformancePanel({ onViewChange }) {
     setLoading(true);
     setError(null);
     try {
-      // Try to get stats from predictions/stats endpoint
       const res = await apiFetch(`/api/predictions/stats`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.resolved_predictions > 0) {
-          setStats({
-            total_trades: data.total_trades ?? data.resolved_predictions ?? 0,
-            win_rate: data.win_rate,
-            profit_factor: data.profit_factor,
-            avg_winner: data.avg_win || 0,
-            avg_loser: data.avg_loss || 0,
-            expectancy: data.expected_value_pct || 0,
-          });
-          setSource('live');
-        } else {
-          // No resolved predictions yet - use bot stats if available
-          const botRes = await apiFetch('/api/bot/status');
-          if (botRes.ok) {
-            const botData = await botRes.json();
-            setStats({
-              total_trades: botData.trades?.length || 0,
-              win_rate: 0,
-              profit_factor: 0,
-              avg_winner: 0,
-              avg_loser: 0,
-              expectancy: 0,
-            });
-            setSource('simulated');
-          } else {
-            setStats({
-              total_trades: 0,
-              win_rate: 0,
-              profit_factor: 0,
-              avg_winner: 0,
-              avg_loser: 0,
-              expectancy: 0,
-            });
-            setSource('simulated');
-          }
-        }
-      } else {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const normalized = normalizePerformanceStats(data);
+      setStats(normalized.stats);
+      setSource(normalized.source);
     } catch (err) {
       console.error("Error fetching performance stats:", err);
       setError(err.message);
-      setStats({
-        total_trades: 0,
-        win_rate: 0,
-        profit_factor: 0,
-        avg_winner: 0,
-        avg_loser: 0,
-        expectancy: 0,
-      });
+      setStats(null);
       setSource('error');
     } finally {
       setLoading(false);
@@ -80,7 +37,7 @@ export default function PerformancePanel({ onViewChange }) {
       const res = await apiFetch(`/api/data/confidence`);
       if (res.ok) {
         const data = await res.json();
-        setGlobalConfidence({ ...data, confidence_score: data.overall_confidence ?? data.confidence_score ?? null });
+        setGlobalConfidence({ ...data, confidence_score: getConfidenceScore(data) });
       }
     } catch (err) {
       console.error("Error fetching data confidence:", err);
@@ -92,22 +49,22 @@ export default function PerformancePanel({ onViewChange }) {
     fetchStats();
   }, [fetchDataConfidence, fetchStats]);
 
-  const isLocked = typeof globalConfidence?.confidence_score === 'number' && globalConfidence.confidence_score < 90;
+  const isLocked = globalConfidence?.confidence_score != null && globalConfidence.confidence_score < 90;
 
   const metricCards = stats ? [
-    { label: "TOTAL TRADES", value: stats.total_trades },
-    { label: "WIN RATE", value: `${stats.win_rate}%`, color: stats.win_rate > 50 ? T.green : T.red },
-    { label: "PROFIT FACTOR", value: stats.profit_factor?.toFixed?.(2) ?? stats.profit_factor, color: stats.profit_factor > 1.0 ? T.green : T.red },
-    { label: "AVG WINNER", value: `${stats.avg_winner}%`, color: T.green },
-    { label: "AVG LOSER", value: `${stats.avg_loser}%`, color: T.red },
-    { label: "EXPECTANCY", value: `${stats.expectancy}%`, color: stats.expectancy > 0 ? T.green : T.red },
+    { label: "RESOLVED TRADES", value: stats.total_trades },
+    { label: "WIN RATE", value: formatPercent(stats.win_rate), color: stats.win_rate == null ? T.textMid : stats.win_rate > 50 ? T.green : T.red },
+    { label: "PROFIT FACTOR", value: formatRatio(stats.profit_factor), color: stats.profit_factor == null ? T.textMid : stats.profit_factor > 1.0 ? T.green : T.red },
+    { label: "AVG WINNER", value: formatPercent(stats.avg_winner), color: stats.avg_winner == null ? T.textMid : T.green },
+    { label: "AVG LOSER", value: formatPercent(stats.avg_loser), color: stats.avg_loser == null ? T.textMid : T.red },
+    { label: "EXPECTANCY", value: formatPercent(stats.expectancy, 2), color: stats.expectancy == null ? T.textMid : stats.expectancy > 0 ? T.green : T.red },
   ] : [
-    { label: "TOTAL TRADES", value: "—", action: () => onViewChange?.('PREDICTIONS'), label: "Log a prediction to start tracking" },
-    { label: "WIN RATE", value: "—", action: () => onViewChange?.('PREDICTIONS'), label: "Resolve predictions to see win rate" },
-    { label: "PROFIT FACTOR", value: "—", action: () => onViewChange?.('PREDICTIONS'), label: "Add predictions to calculate" },
-    { label: "AVG WINNER", value: "—", action: () => onViewChange?.('PREDICTIONS'), label: "Log trades to see avg winner" },
-    { label: "AVG LOSER", value: "—", action: () => onViewChange?.('PREDICTIONS'), label: "Log trades to see avg loser" },
-    { label: "EXPECTANCY", value: "—", action: () => onViewChange?.('PREDICTIONS'), label: "Add predictions to calculate" },
+    { label: "TOTAL TRADES", value: "—", action: () => onViewChange?.('PREDICTIONS'), hint: "Log a prediction to start tracking" },
+    { label: "WIN RATE", value: "—", action: () => onViewChange?.('PREDICTIONS'), hint: "Resolve predictions to see win rate" },
+    { label: "PROFIT FACTOR", value: "—", action: () => onViewChange?.('PREDICTIONS'), hint: "Add predictions to calculate" },
+    { label: "AVG WINNER", value: "—", action: () => onViewChange?.('PREDICTIONS'), hint: "Log trades to see avg winner" },
+    { label: "AVG LOSER", value: "—", action: () => onViewChange?.('PREDICTIONS'), hint: "Log trades to see avg loser" },
+    { label: "EXPECTANCY", value: "—", action: () => onViewChange?.('PREDICTIONS'), hint: "Add predictions to calculate" },
   ];
 
   return (
@@ -118,8 +75,8 @@ export default function PerformancePanel({ onViewChange }) {
         {source !== 'loading' && (
           <div style={{ marginTop: 8, fontSize: 10, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>
             Data source: <span style={{ color: source === 'live' ? T.green : source === 'error' ? T.red : '#f5c842' }}>{source === 'live' ? 'LIVE (predictions resolved)' : source === 'error' ? 'UNAVAILABLE' : 'SIMULATED (no resolved predictions)'}</span>
-            {stats && stats.total_trades !== undefined && (
-              <> · <span style={{ color: T.textMid }}>Total trades: {stats.total_trades}</span></>
+            {stats && (
+              <> · <span style={{ color: T.textMid }}>Resolved trades: {stats.total_trades} of {stats.total_predictions} predictions</span></>
             )}
           </div>
         )}

@@ -29,7 +29,7 @@ export default function LandingPage() {
           
           <p style={{ fontSize: 'clamp(16px, 2.5vw, 20px)', color: T.textMid, margin: '0 0 32px', maxWidth: 600, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
             An institutional-grade algorithmic trading workstation for the personal quant. 
-            NSE market data with clearly labeled simulated ticks, AI-powered chart analysis, autonomous paper trading, and 30-strategy backtesting — all in a clean, dark terminal.
+            Simulated NSE price data, AI-powered chart analysis, autonomous paper trading, and 30-strategy backtesting — all in a clean, dark terminal.
           </p>
 
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 48 }}>
@@ -37,7 +37,7 @@ export default function LandingPage() {
               <ArrowRight size={16} /> Explore Features
             </a>
             <a href="#demo" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', background: 'transparent', color: T.text, border: `1px solid ${T.border}`, borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: 'none', fontFamily: "'Inter', sans-serif", transition: 'all 0.2s' }}>
-              View Live Demo
+              View Demo
             </a>
           </div>
 
@@ -50,7 +50,7 @@ export default function LandingPage() {
               <BarChart3 size={14} color={T.blue} /> 30-strategy backtesting
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Zap size={14} color={'#f5c842'} /> Simulated NSE ticks
+              <Zap size={14} color={'#f5c842'} /> Simulated NSE feed
             </div>
           </div>
         </div>
@@ -67,7 +67,7 @@ export default function LandingPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
             <FeatureCard icon={BarChart3} title="30-Strategy Tournament" desc="Run 30 quantitative strategies across 26 local 10-year datasets. Automated leaderboard with score, win rate, Sharpe, and max drawdown." />
-            <FeatureCard icon={Zap} title="Simulated NSE Feed" desc="Labeled simulated tick data via WebSocket with HTTP fallback. Market hours awareness (IST), pre-market/closed states, and tick animations." />
+            <FeatureCard icon={Zap} title="Simulated NSE Feed" desc="Simulated tick data via WebSocket with HTTP fallback. Market hours awareness (IST), pre-market/closed states, and tick animations." />
             <FeatureCard icon={ShieldCheck} title="AI Chart Analysis" desc="Upload any candlestick screenshot — Gemini 2.0 Flash returns trend, patterns, support/resistance, breakout signals with confidence meter." />
             <FeatureCard icon={BarChart3} title="Autonomous Paper Bot" desc="Paper trading bot with strategy selection, risk controls, drawdown limits, and full trade log. One-click start/pause/stop." />
             <FeatureCard icon={AlertCircle} title="Risk-First Architecture" desc="Per-trade 2% risk cap, daily loss limits, max consecutive losses guard, ATR-based stops. Paper mode only by default." />

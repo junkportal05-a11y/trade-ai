@@ -70,7 +70,7 @@ function NavButton({ tab, active, onClick }) {
   );
 }
 
-export default function Header({ connected, view, onViewChange, isMobile, netWorth, cash, stockValue, totalPnl, totalPct, selectedSymbol, prices, onCommandPaletteOpen }) {
+export default function Header({ connected, view, onViewChange, isMobile, netWorth, cash, stockValue, totalPnl, totalPct, selectedSymbol, prices, dataSource = {}, onCommandPaletteOpen }) {
   const [clock, setClock] = useState(() => new Date().toLocaleTimeString('en-IN', { hour12: true }));
   const [showMore, setShowMore] = useState(false);
   const [showHealthModal, setShowHealthModal] = useState(false);
@@ -225,6 +225,24 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
             }}>
               {sign(pct)}{fmt(pct, 2)}%
             </span>
+            {dataSource?.[selectedSymbol] === 'simulated' && (
+              <span
+                title="Simulated price feed — not a live exchange quote"
+                style={{
+                  fontSize: 8,
+                  fontWeight: 700,
+                  color: '#f5c842',
+                  background: 'rgba(245,200,66,0.12)',
+                  border: '1px solid rgba(245,200,66,0.3)',
+                  padding: '1px 5px',
+                  borderRadius: 3,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  letterSpacing: '0.06em',
+                }}
+              >
+                SIM
+              </span>
+            )}
           </div>
         </>
       )}

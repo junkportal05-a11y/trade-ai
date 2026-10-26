@@ -30,7 +30,21 @@ export const API_BASE_URL = getApiBaseUrl();
 
 const isDev = typeof window !== "undefined" && window.location.port === "5173";
 export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 
-  (API_BASE_URL ? API_BASE_URL.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:') : (isDev ? 'ws://localhost:8000' : ''));
+  (API_BASE_URL ? API_BASE_URL.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:') : (isDev ? 'ws://localhost:8000/ws' : ''));
+
+// Build auth headers for apiFetch. Multipart bodies must not get a JSON
+// Content-Type or the browser boundary is lost.
+export const buildApiHeaders = (options = {}, token = '') => {
+  const bodyIsFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  const isMutating = ["POST", "PUT", "DELETE", "PATCH"].includes((options.method || "GET").toUpperCase());
+
+  return {
+    ...(bodyIsFormData ? {} : { "Content-Type": "application/json" }),
+    ...(isMutating ? { "X-Requested-With": "XMLHttpRequest" } : {}),
+    ...(token ? { "X-Session-Token": token, "Authorization": `Bearer ${token}` } : {}),
+    ...(options.headers || {}),
+  };
+};
 
 // Authenticated fetch — always sends session cookie and auth token header
 export const apiFetch = async (path, options = {}) => {
@@ -38,18 +52,10 @@ export const apiFetch = async (path, options = {}) => {
   const url = path.startsWith("http") ? path : `${currentBase}${path}`;
   const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
 
-  const isMutating = ["POST", "PUT", "DELETE", "PATCH"].includes((options.method || "GET").toUpperCase());
-  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
-
   const res = await fetch(url, {
     credentials: "include",
     ...options,
-    headers: {
-      ...(isFormData ? {} : { "Content-Type": "application/json" }),
-      ...(isMutating ? { "X-Requested-With": "XMLHttpRequest" } : {}),
-      ...(token ? { "X-Session-Token": token, "Authorization": `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
+    headers: buildApiHeaders(options, token),
   });
 
   if (res.status === 401) {
@@ -93,4 +99,9 @@ export const runHistoricalSimulation = (start_date, end_date, adminKey) => apiFe
 
 export const getSimulationStatus = (adminKey) => apiFetch('/api/admin/simulation-status', {
   headers: { 'x-admin-key': adminKey }
+});
+
+// Predictions
+export const deletePrediction = (predictionId) => apiFetch(`/api/predictions/${encodeURIComponent(predictionId)}`, {
+  method: 'DELETE'
 });

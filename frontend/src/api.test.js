@@ -1,38 +1,92 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { apiFetch, buildApiHeaders, deletePrediction } from './api';
+
+const makeStorage = (initial = {}) => {
+  const store = new Map(Object.entries(initial));
+  return {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => store.set(key, String(value)),
+    removeItem: (key) => store.delete(key),
+  };
+};
+
+describe('buildApiHeaders', () => {
+  it('omits JSON Content-Type for FormData uploads but keeps auth headers', () => {
+    const headers = buildApiHeaders({ method: 'POST', body: new FormData() }, 'jwt-token');
+
+    expect(headers['Content-Type']).toBeUndefined();
+    expect(headers.Authorization).toBe('Bearer jwt-token');
+    expect(headers['X-Session-Token']).toBe('jwt-token');
+    expect(headers['X-Requested-With']).toBe('XMLHttpRequest');
+  });
+
+  it('sets JSON Content-Type for regular bodies', () => {
+    const headers = buildApiHeaders({ method: 'POST', body: JSON.stringify({ a: 1 }) }, '');
+
+    expect(headers['Content-Type']).toBe('application/json');
+    expect(headers.Authorization).toBeUndefined();
+  });
+});
 
 describe('apiFetch', () => {
-  let apiFetch;
-
-  beforeEach(async () => {
-    vi.stubGlobal('sessionStorage', { getItem: () => 'test-token', removeItem: vi.fn() });
-    vi.stubGlobal('localStorage', { getItem: () => null, removeItem: vi.fn() });
-    vi.stubGlobal('window', { location: { port: '' }, dispatchEvent: vi.fn() });
-    vi.stubGlobal('fetch', vi.fn(async () => ({ status: 200 })));
-    ({ apiFetch } = await import('./api'));
+  beforeEach(() => {
+    vi.stubGlobal('sessionStorage', makeStorage({ apt_token: 'jwt-token' }));
+    vi.stubGlobal('localStorage', makeStorage());
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('omits JSON Content-Type for FormData uploads and still sends auth headers', async () => {
-    const formData = new FormData();
-    formData.append('file', new Blob(['x'], { type: 'image/png' }), 'chart.png');
+  it('keeps JSON Content-Type for JSON bodies and sends both token headers', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
 
-    await apiFetch('/api/chat/chart/upload', { method: 'POST', body: formData });
-
-    const [, options] = fetch.mock.calls[0];
-    expect(options.headers['Content-Type']).toBeUndefined();
-    expect(options.headers['X-Session-Token']).toBe('test-token');
-    expect(options.headers['Authorization']).toBe('Bearer test-token');
-    expect(options.headers['X-Requested-With']).toBe('XMLHttpRequest');
-    expect(options.credentials).toBe('include');
-  });
-
-  it('keeps JSON Content-Type for JSON bodies', async () => {
     await apiFetch('/api/chat', { method: 'POST', body: JSON.stringify({ message: 'hi' }) });
 
-    const [, options] = fetch.mock.calls[0];
+    const [, options] = fetchMock.mock.calls[0];
     expect(options.headers['Content-Type']).toBe('application/json');
+    expect(options.headers['X-Session-Token']).toBe('jwt-token');
+    expect(options.headers.Authorization).toBe('Bearer jwt-token');
+  });
+
+  it('sends chart uploads with credentials and token headers, letting the browser set multipart boundary', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+    const body = new FormData();
+
+    await apiFetch('/api/chat/chart/upload', { method: 'POST', body });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/chat/chart/upload');
+    expect(options.credentials).toBe('include');
+    expect(options.body).toBe(body);
+    expect(options.headers['Content-Type']).toBeUndefined();
+    expect(options.headers.Authorization).toBe('Bearer jwt-token');
+  });
+});
+
+describe('deletePrediction', () => {
+  beforeEach(() => {
+    vi.stubGlobal('sessionStorage', makeStorage({ apt_token: 'jwt-token' }));
+    vi.stubGlobal('localStorage', makeStorage());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('sends DELETE /api/predictions/{id} with auth headers', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await deletePrediction(42);
+
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/predictions/42');
+    expect(options.method).toBe('DELETE');
+    expect(options.credentials).toBe('include');
+    expect(options.headers.Authorization).toBe('Bearer jwt-token');
   });
 });

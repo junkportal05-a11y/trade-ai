@@ -1,5 +1,6 @@
-import { apiFetch } from './api';
+import { apiFetch, deletePrediction } from './api';
 import { formatError } from './utils/formatError';
+import { getConfidenceScore } from './utils/performance';
 import React, { useState, useEffect, useCallback } from 'react';
 
 const T = {
@@ -104,7 +105,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
       const res = await apiFetch(url);
       if (res.ok) {
         const data = await res.json();
-        const score = data.overall_confidence ?? data.confidence_score ?? null;
+        const score = getConfidenceScore(data);
         setDataConfidence(score);
         setGlobalConfidence({ ...data, confidence_score: score });
       }
@@ -266,12 +267,12 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
   const handleDelete = async (predId) => {
     if (!window.confirm("Are you sure you want to delete this prediction?")) return;
     try {
-      const res = await apiFetch(`/api/predictions/${predId}`, {
-        method: 'DELETE'
-      });
+      const res = await deletePrediction(predId);
       if (res.ok) {
         fetchPredictions();
         fetchStats();
+      } else {
+        console.error(`Failed to delete prediction ${predId}: HTTP ${res.status}`);
       }
     } catch (err) {
       console.error("Failed to delete prediction:", err);
@@ -861,18 +862,20 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                         
                         <button
                           onClick={() => handleDelete(pred.id)}
+                          title="Delete prediction"
+                          aria-label={`Delete prediction for ${pred.symbol}`}
                           style={{
                             background: 'none',
                             border: 'none',
                             color: T.textDim,
                             cursor: 'pointer',
-                            fontSize: 10,
+                            fontSize: 11,
                             padding: 2
                           }}
                           onMouseEnter={e => e.currentTarget.style.color = T.red}
                           onMouseLeave={e => e.currentTarget.style.color = T.textDim}
                         >
-                          
+                          ✕
                         </button>
                       </div>
                     </div>
