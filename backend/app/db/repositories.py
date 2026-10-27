@@ -274,6 +274,7 @@ class PredictionRepository:
             target_price=_sf(pred.get("target_price"), 0.0),
             stop_loss=_sf(pred.get("stop_loss"), 0.0),
             confidence_score=int(pred.get("confidence_score", 50)),
+            position_size=_sf(pred.get("position_size"), 1.0),
             rsi=_sf(pred.get("rsi")),
             macd=_sf(pred.get("macd")),
             adx=_sf(pred.get("adx")),

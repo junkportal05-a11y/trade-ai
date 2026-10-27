@@ -10,7 +10,7 @@ import sys
 import json
 import base64
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Optional, Union
 
 from app.core.logging import logger
 
@@ -571,14 +571,14 @@ def add_prediction(pred: dict) -> int:
     with _conn() as c:
         now = _now_ist()
         cur = c.execute(
-            """INSERT INTO predictions_history 
-               (symbol, prediction_date, prediction_type, entry_price, target_price, stop_loss, confidence_score, 
-                rsi, macd, adx, sector, market_cap, volume_ratio, vwap_distance, atr, news_score, 
-                market_breadth, sector_strength, nifty_trend, status, reason,
-                setup_type, market_regime_snapshot, risk_amount, confidence_probability,
-                regime_score, sector_score, volume_score, rs_score, trade_quality_score, correlation_score,
-                signal_time, order_time, order_mode)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             """INSERT INTO predictions_history 
+                (symbol, prediction_date, prediction_type, entry_price, target_price, stop_loss, confidence_score, 
+                 rsi, macd, adx, sector, market_cap, volume_ratio, vwap_distance, atr, news_score, 
+                 market_breadth, sector_strength, nifty_trend, status, reason,
+                 setup_type, market_regime_snapshot, risk_amount, confidence_probability,
+                 regime_score, sector_score, volume_score, rs_score, trade_quality_score, correlation_score,
+                 signal_time, order_time, order_mode, position_size)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 pred["symbol"].upper(),
                 pred.get("prediction_date", now),
@@ -614,6 +614,7 @@ def add_prediction(pred: dict) -> int:
                 pred.get("signal_time", now),
                 pred.get("order_time", now),
                 pred.get("order_mode", "paper") if pred.get("order_mode") in ("paper", "live") else "paper",
+                float(pred.get("position_size") or 1.0),
             ),
         )
         c.commit()
@@ -691,7 +692,7 @@ def get_predictions() -> list:
 
 def resolve_prediction(
     pred_id: int, 
-    actual_outcome: float, 
+    actual_outcome: Optional[Union[float, str]], 
     status: str, 
     exit_price: float = 0.0,
     holding_time_minutes: float = 0.0,

@@ -4,7 +4,7 @@ POST /api/bot/start  -> set state RUNNING
 POST /api/bot/pause  -> set state PAUSED
 POST /api/bot/stop   -> set state STOPPED and square off open positions
 GET  /api/bot/status -> current state, today P&L, last signal, open positions
-GET  /api/bot/trades -> recent live trade log (PENDING/WIN/LOSS/TIMEOUT)
+GET  /api/bot/trades -> recent live trade log (PENDING/WIN/LOSS/TIMEOUT/SQUARE_OFF)
 """
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ async def bot_status(request: Request, trader=TraderDep) -> Dict[str, Any]:
         with db._conn() as c:
             row = c.execute(
                 "SELECT COALESCE(SUM(pnl_pct),0) AS pnl FROM predictions_history "
-                "WHERE status IN ('WIN','LOSS','TIMEOUT') AND resolved_at LIKE ?",
+                "WHERE status IN ('WIN','LOSS','TIMEOUT','SQUARE_OFF') AND resolved_at LIKE ?",
                 (today + "%",),
             ).fetchone()
             todays_pnl = float(row["pnl"]) if row else 0.0
@@ -106,7 +106,7 @@ async def bot_trades(request: Request, session=SessionDep) -> Dict[str, Any]:
         with db._conn() as c:
             rows = c.execute(
                 "SELECT * FROM predictions_history "
-                "WHERE status IN ('PENDING','WIN','LOSS','TIMEOUT') "
+                "WHERE status IN ('PENDING','WIN','LOSS','TIMEOUT','SQUARE_OFF') "
                 "ORDER BY prediction_date DESC LIMIT 50"
             ).fetchall()
             trades = [dict(r) for r in rows]

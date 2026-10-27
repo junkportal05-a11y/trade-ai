@@ -724,3 +724,174 @@ patch("angelone_feed.get_angelone_feed") as mock_feed, \
             assert kwargs["status"] == "TARGET_HIT"
 
     asyncio.run(_run())
+
+
+# ── Auto Square-Off Tests (3:20 PM / bot stop) ──
+
+SQUARE_OFF_BUY = {
+    "id": 10,
+    "symbol": "SBIN.NS",
+    "status": "PENDING",
+    "entry_price": 100.0,
+    "stop_loss": 95.0,
+    "target_price": 110.0,
+    "prediction_type": "BUY",
+    "position_size": 10,
+    "prediction_date": datetime(2026, 10, 18, 10, 0, tzinfo=timezone.utc).isoformat(),
+}
+
+SQUARE_OFF_SELL = {
+    "id": 11,
+    "symbol": "TCS.NS",
+    "status": "PENDING",
+    "entry_price": 200.0,
+    "stop_loss": 210.0,
+    "target_price": 180.0,
+    "prediction_type": "SELL",
+    "position_size": 2,
+    "prediction_date": datetime(2026, 10, 18, 10, 0, tzinfo=timezone.utc).isoformat(),
+}
+
+
+async def _run_square_off(pending_positions: list, live_quotes: dict) -> MagicMock:
+    """Run the real _square_off_all once with mocked dependencies; return mock_resolve."""
+    async def mock_run_in_executor(executor, func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    with patch("trading_agent.db.get_predictions", return_value=pending_positions), \
+         patch("angelone_feed.get_angelone_feed") as mock_feed, \
+         patch("trading_agent.db.resolve_prediction") as mock_resolve, \
+         patch("asyncio.get_running_loop") as mock_get_loop:
+
+        mock_loop = MagicMock()
+        mock_loop.run_in_executor.side_effect = mock_run_in_executor
+        mock_get_loop.return_value = mock_loop
+
+        mock_feed_instance = MagicMock()
+        mock_feed_instance.is_authorized.return_value = True
+        mock_feed_instance.get_live_quotes.return_value = live_quotes
+        mock_feed.return_value = mock_feed_instance
+
+        from trading_agent import _square_off_all
+
+        await _square_off_all(datetime.now(timezone.utc))
+
+        return mock_resolve
+
+
+def test_square_off_buy_computes_fresh_outcome():
+    """3:20 PM square-off resolves BUY with computed r/holding/pnl and SQUARE_OFF status."""
+    async def _run():
+        mock_resolve = await _run_square_off(
+            pending_positions=[SQUARE_OFF_BUY],
+            live_quotes={"SBIN.NS": {"price": 104.0}},
+        )
+        assert mock_resolve.call_count == 1
+        kwargs = mock_resolve.call_args[1]
+        assert kwargs["status"] == "SQUARE_OFF"
+        assert kwargs["actual_outcome"] == "SQUARE_OFF"
+        assert kwargs["exit_price"] == 104.0
+        # r_multiple = (104 - 100) / |100 - 95| = 4 / 5 = 0.8
+        assert kwargs["r_multiple"] == 0.8
+        # pnl_inr = (104 - 100) * 10 = 40 (position size, not per-share 4)
+        assert kwargs["pnl_inr"] == 40.0
+        # pnl_pct = (4 / 100) * 100 = 4%
+        assert kwargs["pnl_pct"] == 4.0
+        assert kwargs["resolution_reason"] == "SQUARE_OFF_3_20"
+        assert kwargs["holding_time_minutes"] > 0
+
+    asyncio.run(_run())
+
+
+def test_square_off_sell_computes_fresh_outcome():
+    """SELL square-off uses inverse move and stored position size."""
+    async def _run():
+        mock_resolve = await _run_square_off(
+            pending_positions=[SQUARE_OFF_SELL],
+            live_quotes={"TCS.NS": {"price": 195.0}},
+        )
+        kwargs = mock_resolve.call_args[1]
+        assert kwargs["status"] == "SQUARE_OFF"
+        # r_multiple = (200 - 195) / |200 - 210| = 5 / 10 = 0.5
+        assert kwargs["r_multiple"] == 0.5
+        # pnl_inr = (200 - 195) * 2 = 10
+        assert kwargs["pnl_inr"] == 10.0
+        # pnl_pct = (5 / 200) * 100 = 2.5%
+        assert kwargs["pnl_pct"] == 2.5
+
+    asyncio.run(_run())
+
+
+def test_square_off_loss_side_pnl_negative():
+    """BUY squared off below entry is a realized loss with negative r."""
+    async def _run():
+        mock_resolve = await _run_square_off(
+            pending_positions=[SQUARE_OFF_BUY],
+            live_quotes={"SBIN.NS": {"price": 98.0}},
+        )
+        assert mock_resolve.call_count == 1
+        kwargs = mock_resolve.call_args[1]
+        assert kwargs["status"] == "SQUARE_OFF"
+        # r_multiple = (98 - 100) / 5 = -0.4
+        assert kwargs["r_multiple"] == -0.4
+        # pnl_inr = (98 - 100) * 10 = -20
+        assert kwargs["pnl_inr"] == -20.0
+        # pnl_pct = (-2 / 100) * 100 = -2%
+        assert kwargs["pnl_pct"] == -2.0
+
+    asyncio.run(_run())
+
+
+def test_square_off_no_live_quote_leaves_pending():
+    """Missing live quote -> prediction stays PENDING (no fabricated exit)."""
+    async def _run():
+        mock_resolve = await _run_square_off(
+            pending_positions=[SQUARE_OFF_BUY],
+            live_quotes={},
+        )
+        assert mock_resolve.call_count == 0
+
+    asyncio.run(_run())
+
+
+def test_square_off_bad_row_does_not_break_others():
+    """One resolution raising must not stop the other square-offs."""
+    async def _run():
+        bad = {**SQUARE_OFF_BUY, "id": 999}
+        resolve_calls = []
+
+        def resolve_side_effect(pred_id, **kwargs):
+            resolve_calls.append(pred_id)
+            if pred_id == 999:
+                raise ValueError("simulated db error")
+            return True
+
+        sleep_calls = 0
+
+        async def mock_run_in_executor(executor, func, *args, **kwargs):
+            return func(*args, **kwargs)
+
+        with patch("trading_agent.db.get_predictions", return_value=[bad, SQUARE_OFF_SELL]), \
+             patch("angelone_feed.get_angelone_feed") as mock_feed, \
+             patch("trading_agent.db.resolve_prediction", side_effect=resolve_side_effect), \
+             patch("asyncio.get_running_loop") as mock_get_loop:
+
+            mock_loop = MagicMock()
+            mock_loop.run_in_executor.side_effect = mock_run_in_executor
+            mock_get_loop.return_value = mock_loop
+
+            mock_feed_instance = MagicMock()
+            mock_feed_instance.is_authorized.return_value = True
+            mock_feed_instance.get_live_quotes.return_value = {
+                "SBIN.NS": {"price": 104.0},
+                "TCS.NS": {"price": 195.0},
+            }
+            mock_feed.return_value = mock_feed_instance
+
+            from trading_agent import _square_off_all
+
+            await _square_off_all(datetime.now(timezone.utc))
+
+        assert resolve_calls == [999, 11]
+
+    asyncio.run(_run())

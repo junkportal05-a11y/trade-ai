@@ -53,7 +53,7 @@ class ConnectionManager:
                 with db._conn() as c:
                     row = c.execute(
                         "SELECT COALESCE(SUM(pnl_pct),0) AS pnl FROM predictions_history "
-                        "WHERE status IN ('WIN','LOSS','TIMEOUT') AND resolved_at LIKE ?",
+                        "WHERE status IN ('WIN','LOSS','TIMEOUT','SQUARE_OFF') AND resolved_at LIKE ?",
                         (today + "%",),
                     ).fetchone()
                     todays_pnl = float(row["pnl"]) if row else 0.0
@@ -71,7 +71,7 @@ class ConnectionManager:
 
                     rows = c.execute(
                         "SELECT * FROM predictions_history "
-                        "WHERE status IN ('PENDING','WIN','LOSS','TIMEOUT') "
+                        "WHERE status IN ('PENDING','WIN','LOSS','TIMEOUT','SQUARE_OFF') "
                         "ORDER BY prediction_date DESC LIMIT 50"
                     ).fetchall()
                     trades = [dict(r) for r in rows]

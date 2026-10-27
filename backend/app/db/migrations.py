@@ -106,6 +106,7 @@ def run_migrations(engine: Engine) -> None:
         ("sector_strength", "REAL"),
         ("nifty_trend", "TEXT"),
         ("manual_override_reason", "TEXT"),
+        ("position_size", "REAL"),
         ("setup_type", "TEXT"),
         ("market_regime_snapshot", "TEXT"),
         ("risk_amount", "REAL"),

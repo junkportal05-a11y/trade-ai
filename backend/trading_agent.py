@@ -33,6 +33,41 @@ from app.core.logging import logger
 
 MAX_CONCURRENT_TRADES = 2
 MIN_AGENT_CONFIDENCE = 72
+IST_OFFSET = timedelta(hours=5, minutes=30)
+
+
+def prediction_start_utc(raw_prediction_date):
+    """Parse a stored prediction_date into an aware UTC datetime, or None.
+
+    db.add_prediction stores naive IST strings ("YYYY-MM-DD HH:MM:SS");
+    some legacy rows and test fixtures carry ISO strings with an offset.
+    """
+    if not raw_prediction_date:
+        return None
+    candidate = str(raw_prediction_date).strip()
+    parsed = None
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except ValueError:
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
+            try:
+                parsed = datetime.strptime(candidate, fmt)
+                break
+            except ValueError:
+                continue
+    if parsed is None:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone(IST_OFFSET))
+    return parsed.astimezone(timezone.utc)
+
+
+def holding_minutes_from_prediction_date(raw_prediction_date, fallback: float = 0.0) -> float:
+    start_utc = prediction_start_utc(raw_prediction_date)
+    if start_utc is None:
+        return fallback
+    minutes = (datetime.now(timezone.utc) - start_utc).total_seconds() / 60.0
+    return max(0.0, minutes)
 
 def refresh_angelone_session():
     """
@@ -224,56 +259,75 @@ async def trading_agent_loop():
 async def _square_off_all(now_ist):
     predictions = db.get_predictions()
     pending = [p for p in predictions if p.get("status") == "PENDING"]
+    if not pending:
+        return
 
+    from angelone_feed import get_angelone_feed
     feed = get_angelone_feed()
 
     async def fetch_and_resolve(pred):
         """Fetch live quote and resolve prediction using quote executor."""
         loop = asyncio.get_running_loop()
 
-        if feed.is_authorized():
-            quotes = await loop.run_in_executor(
-                quote_executor,
-                lambda: feed.get_live_quotes([pred["symbol"]])
-            )
-            live_quote = quotes.get(pred["symbol"])
-            if not live_quote:
-                print(f"[trading_agent] No live quote for {pred['symbol']} during square-off, skipping")
-                return
-            live_price = live_quote.get("price", pred["entry_price"])
-        else:
-            raise RuntimeError(f"[trading_agent] Cannot square off: AngelOne feed not authorized")
+        if not feed.is_authorized():
+            logger.error("[trading_agent] Cannot square off %s: AngelOne feed not authorized", pred.get("symbol"))
+            return
+        quotes = await loop.run_in_executor(
+            quote_executor,
+            lambda: feed.get_live_quotes([pred["symbol"]])
+        )
+        live_quote = quotes.get(pred["symbol"])
+        if not live_quote:
+            logger.error("[trading_agent] No live quote for %s during square-off, leaving open for next cycle", pred["symbol"])
+            return
+        live_price = live_quote.get("price", pred["entry_price"])
 
         entry_price = float(pred["entry_price"])
+        stop_loss = float(pred.get("stop_loss") or 0.0)
+        position_size = float(pred.get("position_size") or 1.0)
+        is_long = pred["prediction_type"] in ["BUY", "BULLISH"]
 
-        if pred["prediction_type"] in ["BUY", "BULLISH"]:
-            pnl_inr = (live_price - entry_price) * pred.get("position_size", 1)
+        if is_long:
+            price_move = live_price - entry_price
+            risk_per_share = entry_price - stop_loss
         else:
-            pnl_inr = (entry_price - live_price) * pred.get("position_size", 1)
+            price_move = entry_price - live_price
+            risk_per_share = stop_loss - entry_price
 
-        pnl_pct = (pnl_inr / (entry_price * pred.get("position_size", 1))) * 100 if entry_price > 0 else 0
+        r_multiple = round(price_move / abs(risk_per_share), 2) if risk_per_share != 0 else 0.0
+        pnl_inr = price_move * position_size
+        pnl_pct = (price_move / entry_price) * 100 if entry_price > 0 else 0
+        holding_time_minutes = holding_minutes_from_prediction_date(pred.get("prediction_date"), fallback=0.0)
 
         await loop.run_in_executor(
             resolver_executor,
             lambda: db.resolve_prediction(
                 pred_id=pred["id"],
-                actual_outcome=live_price,
-                status="TIMEOUT",
+                actual_outcome="SQUARE_OFF",
+                status="SQUARE_OFF",
                 exit_price=live_price,
-                holding_time_minutes=0,
+                holding_time_minutes=round(holding_time_minutes, 2),
                 pnl_pct=round(pnl_pct, 2),
                 pnl_inr=round(pnl_inr, 2),
-                r_multiple=0,
+                r_multiple=r_multiple,
                 resolution_reason="SQUARE_OFF_3_20",
-                discard_reason="SQUARE_OFF_3_20",
             )
         )
-        print(f"[trading_agent] Auto-closed {pred['symbol']} at {live_price}")
+        logger.info(
+            "[trading_agent] Auto-closed %s at %s (qty=%s, r=%s, hold=%.1fm, pnl=%s INR)",
+            pred["symbol"], live_price, position_size, r_multiple,
+            holding_time_minutes, round(pnl_inr, 2),
+        )
 
-    # Run all square-offs concurrently
+    # Run all square-offs concurrently; per-row errors are logged, not fatal
     tasks = [fetch_and_resolve(pred) for pred in pending]
-    if tasks:
-        await asyncio.gather(*tasks, return_exceptions=True)
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    for pred, result in zip(pending, results):
+        if isinstance(result, BaseException):
+            logger.error(
+                "[trading_agent] Square-off failed for %s (id=%s): %s",
+                pred.get("symbol"), pred.get("id"), result,
+            )
 
 def _build_prediction_payload(sig: dict) -> dict:
     """Build prediction payload for db.add_prediction."""
@@ -410,19 +464,9 @@ async def prediction_resolver_worker():
                         position_size = float(pred.get("position_size", 1.0))
 
                         # Calculate holding time from prediction_date (stored as naive IST: "YYYY-MM-DD HH:MM:SS")
-                        pred_date_str = pred.get("prediction_date")
-                        holding_minutes = 15.0  # fallback
-                        if pred_date_str:
-                            try:
-                                # prediction_date is stored as naive IST (e.g., "2026-10-18 10:00:00")
-                                # Parse as naive, then treat as IST, convert to UTC for comparison
-                                pred_dt_naive = datetime.strptime(pred_date_str, "%Y-%m-%d %H:%M:%S")
-                                ist_offset = timedelta(hours=5, minutes=30)
-                                pred_dt_utc = pred_dt_naive - ist_offset
-                                now_dt = datetime.now(timezone.utc)
-                                holding_minutes = (now_dt - pred_dt_utc).total_seconds() / 60.0
-                            except Exception:
-                                pass
+                        holding_minutes = holding_minutes_from_prediction_date(
+                            pred.get("prediction_date"), fallback=15.0
+                        )
 
                         # Pessimistic priority rule: STOP_LOSS wins if both hit
                         if direction in ("BUY", "BULLISH"):
@@ -468,7 +512,7 @@ async def prediction_resolver_worker():
                                     resolver_executor,
                                     lambda: db.resolve_prediction(
                                         pred_id=pred_id,
-                                        actual_outcome=current_price,
+                                        actual_outcome=status,
                                         status=status,
                                         exit_price=current_price,
                                         holding_time_minutes=round(holding_minutes, 2),
@@ -476,7 +520,6 @@ async def prediction_resolver_worker():
                                         pnl_inr=round(pnl_inr, 2),
                                         r_multiple=r_multiple,
                                         resolution_reason=reason,
-                                        discard_reason=reason,
                                     )
                                 )
                                 logger.info(f"[prediction_resolver] Resolved {sym}: {reason} at {current_price} (r={r_multiple}, hold={holding_minutes:.1f}m)")

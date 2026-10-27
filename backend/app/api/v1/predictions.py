@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import not_
 from sqlalchemy.orm import Session
@@ -17,6 +17,22 @@ from app.services.broker import get_broker_feed
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["predictions"])
+
+IST_TZ = timezone(timedelta(hours=5, minutes=30))
+
+
+def _holding_time_minutes_started(started: datetime | str | None) -> float | None:
+    try:
+        if isinstance(started, str):
+            started = datetime.fromisoformat(started.strip())
+        if not isinstance(started, datetime):
+            return None
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=IST_TZ)
+        minutes = (datetime.now(timezone.utc) - started.astimezone(timezone.utc)).total_seconds() / 60.0
+        return max(0.0, minutes)
+    except Exception:
+        return None
 
 
 @router.get("/predictions", response_model=list[dict])
@@ -293,11 +309,32 @@ def resolve_prediction(
     else:
         pnl_pct = 0.0
 
+    position_size = float(pred.position_size or 1.0)
+    if pred.prediction_type == "BULLISH":
+        price_move = exit_price - entry
+        risk_per_share = entry - stop
+    else:
+        price_move = entry - exit_price
+        risk_per_share = stop - entry
+
+    pnl_inr = round(price_move * position_size, 2)
+    r_multiple = round(price_move / abs(risk_per_share), 2) if risk_per_share != 0 else 0.0
+    holding_time_minutes = _holding_time_minutes_started(pred.prediction_date)
+
+    resolution_reason = req.manual_override_reason
+    if holding_time_minutes is None:
+        holding_time_minutes = 0.0
+        resolution_reason = f"{req.manual_override_reason} [NOT_MEASURED:holding_time]"
+
     pred.status = "RESOLVED"
     pred.actual_outcome = outcome
     pred.exit_price = exit_price
     pred.exit_price_verified = live_price
-    pred.resolution_reason = req.manual_override_reason
+    pred.pnl_pct = round(pnl_pct, 2)
+    pred.pnl_inr = pnl_inr
+    pred.r_multiple = r_multiple
+    pred.holding_time_minutes = round(holding_time_minutes, 2)
+    pred.resolution_reason = resolution_reason
     pred.resolved_at = datetime.now(timezone.utc)
 
     db.commit()
@@ -310,5 +347,8 @@ def resolve_prediction(
         "exit_price": pred.exit_price,
         "verified_live_price": live_price,
         "pnl_pct": round(pnl_pct, 2),
+        "pnl_inr": pnl_inr,
+        "r_multiple": r_multiple,
+        "holding_time_minutes": pred.holding_time_minutes,
         "resolved_at": pred.resolved_at,
     }
