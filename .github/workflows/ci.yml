@@ -30,14 +30,13 @@ jobs:
 
       - name: Run Backend Pytest Suite
         env:
-          DATABASE_URL: "sqlite:///:memory:"
           JWT_SECRET: "test_jwt_secret_for_ci_build"
           ADMIN_KEY: "test_admin_key_ci"
           TESTING: "true"
           PYTHONPATH: "backend"
         run: |
           cd backend
-          python -m pytest tests/test_validation_and_guards.py tests/test_backtest_engine.py tests/test_bot_auth.py tests/test_capital_manager.py tests/test_market_hours.py tests/test_nse_market.py tests/test_perf.py tests/test_session_cleanup.py tests/test_vwap_veto.py tests/test_main_import.py tests/test_admin.py tests/test_angelone_login.py tests/test_search.py tests/test_csrf.py tests/test_t15_security.py -v --disable-warnings -o asyncio_mode=auto
+          python -m pytest tests/test_validation_and_guards.py tests/test_backtest_engine.py tests/test_bot_auth.py tests/test_capital_manager.py tests/test_market_hours.py tests/test_nse_market.py tests/test_perf.py tests/test_session_cleanup.py tests/test_vwap_veto.py tests/test_main_import.py tests/test_admin.py tests/test_angelone_login.py tests/test_search.py tests/test_csrf.py tests/test_t15_security.py tests/test_feed_fallbacks.py tests/test_repair_batch.py tests/test_tar19_p1.py tests/test_chat_reply.py tests/test_credential_encryption.py tests/test_config_security.py tests/test_health_endpoint.py tests/test_security.py tests/test_journal_ownership.py -v --disable-warnings -o asyncio_mode=auto
 
   frontend-build:
     name: Frontend Build Check (React + Vite)
@@ -78,3 +77,45 @@ jobs:
       - name: Test Docker Build
         run: |
           docker build -t apextrade-backend:ci ./backend
+
+  docker-smoke:
+    name: Root Dockerfile Build + Smoke Run
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Root Dockerfile Image
+        run: |
+          docker build -t apextrade-backend:smoke .
+
+      - name: Run Container
+        run: |
+          docker run -d --name apextrade-smoke \
+            -p 7860:7860 \
+            -e PORT=7860 \
+            -e JWT_SECRET="ci_smoke_jwt_secret" \
+            -e ADMIN_KEY="ci_smoke_admin_key" \
+            -e SKIP_BACKGROUND_WORKERS="true" \
+            apextrade-backend:smoke
+
+      - name: Smoke GET /api/health/ping
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null -w "HTTP %{http_code}\n" --max-time 5 "http://127.0.0.1:7860/api/health/ping"; then
+              exit 0
+            fi
+            echo "attempt $i/30 failed, retrying in 2s..."
+            sleep 2
+          done
+          echo "::error::/api/health/ping never returned 200"
+          exit 1
+
+      - name: Container Logs On Failure
+        if: failure()
+        run: docker logs apextrade-smoke
+
+      - name: Stop Container
+        if: always()
+        run: docker stop apextrade-smoke
