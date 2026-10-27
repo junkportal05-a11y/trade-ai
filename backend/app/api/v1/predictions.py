@@ -63,18 +63,9 @@ def delete_prediction(
     csrf=CsrfDep,
     trader=TraderDep,
 ) -> dict:
-    pred = (
-        db.query(PredictionsHistory)
-        .filter(
-            PredictionsHistory.id == prediction_id,
-            PredictionsHistory.user_id == trader["username"],
-        )
-        .first()
-    )
-    if not pred:
+    deleted = repo.predictions.delete(db, prediction_id, user_id=trader["username"])
+    if not deleted:
         raise HTTPException(status_code=404, detail="Prediction not found")
-    db.delete(pred)
-    db.commit()
     return {"id": prediction_id, "status": "deleted"}
 
 

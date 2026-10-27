@@ -322,6 +322,20 @@ class PredictionRepository:
         )
         return [r.to_dict() for r in rows]
 
+    @staticmethod
+    def delete(db: Session, prediction_id: int, user_id: str | None = None) -> bool:
+        if not user_id:
+            raise ValueError("user_id is required for Predictions operations")
+        query = db.query(PredictionsHistory).filter(
+            PredictionsHistory.id == prediction_id, PredictionsHistory.user_id == user_id
+        )
+        row = query.first()
+        if row:
+            db.delete(row)
+            db.commit()
+            return True
+        return False
+
 
 class MetricsRepository:
     @staticmethod
