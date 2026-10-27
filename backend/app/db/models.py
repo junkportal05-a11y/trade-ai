@@ -101,6 +101,10 @@ class TradeJournal(Base):
     emotion = Column(String(50), default="Calm")
     status = Column(String(20), default="OPEN")
     pnl = Column(Float, nullable=True)
+    # TAR-20 persistence: journal provenance + target/stop keys the frontend sends
+    data_source = Column(Text, nullable=True)
+    target_price = Column(Float, nullable=True)
+    stop_loss = Column(Float, nullable=True)
 
     def to_dict(self) -> dict:
         return {
@@ -116,6 +120,9 @@ class TradeJournal(Base):
             "emotion": self.emotion,
             "status": self.status,
             "pnl": self.pnl,
+            "data_source": self.data_source,
+            "target_price": self.target_price,
+            "stop_loss": self.stop_loss,
         }
 
 
@@ -146,6 +153,8 @@ class PredictionsHistory(Base):
     actual_outcome = Column(String(50), nullable=True)
     position_size = Column(Float, nullable=True, default=1.0)
     order_mode = Column(String, default="paper", nullable=False, server_default="paper")
+    # TAR-20 Task 8: feed tier provenance (angelone|yfinance|last-good|synthetic|seed)
+    data_source = Column(Text, nullable=True)
     status = Column(String(20), default="PENDING")
     reason = Column(Text, nullable=True)
     resolved_at = Column(DateTime, nullable=True)

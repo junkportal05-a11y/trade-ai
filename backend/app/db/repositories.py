@@ -213,6 +213,9 @@ class JournalRepository:
             status=entry.get("status", "OPEN"),
             pnl=float(entry["pnl"]) if entry.get("pnl") is not None else None,
             user_id=user_id,
+            data_source=entry.get("data_source"),
+            target_price=_sf(entry.get("target_price")),
+            stop_loss=_sf(entry.get("stop_loss")),
         )
         db.add(new_entry)
         db.commit()
@@ -301,6 +304,7 @@ class PredictionRepository:
             correlation_score=_sf(pred.get("correlation_score"), 0.0),
             signal_time=_parse_datetime(pred.get("signal_time")),
             order_time=_parse_datetime(pred.get("order_time")),
+            data_source=pred.get("data_source"),
         )
         db.add(new_pred)
         db.commit()

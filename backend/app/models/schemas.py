@@ -149,6 +149,12 @@ class JournalEntry(BaseModel):
     emotion: str | None = Field(default="Calm", max_length=50)
     status: str = Field(default="OPEN", pattern=r"^(OPEN|CLOSED)$")
     pnl: float | None = None
+    # Kevin's journal POSTs already send these (83b872c); they now persist.
+    target_price: float | None = None
+    stop_loss: float | None = None
+    # TAR-20 Task 8: feed tier of the candles behind this entry
+    # (angelone|yfinance|last-good|synthetic|seed).
+    data_source: str | None = None
 
 
 class JournalEntryResponse(JournalEntry):
@@ -188,6 +194,8 @@ class PredictionCreate(BaseModel):
     market_regime_snapshot: str | None = Field(default="UNKNOWN")
     risk_amount: float | None = None
     confidence_probability: float | None = Field(default=0.5, ge=0.0, le=1.0)
+    # TAR-20 Task 8: feed tier provenance (angelone|yfinance|last-good|synthetic|seed)
+    data_source: str | None = None
     regime_score: float | None = None
     sector_score: float | None = None
     volume_score: float | None = None

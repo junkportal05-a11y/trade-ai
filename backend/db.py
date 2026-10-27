@@ -532,9 +532,10 @@ def add_journal_entry(entry: dict) -> int:
     with _conn() as c:
         now = _now_ist()
         cur = c.execute(
-            """INSERT INTO trade_journal 
-               (symbol, direction, entry_price, exit_price, qty, entry_date, reason, emotion, status, pnl)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO trade_journal
+               (symbol, direction, entry_price, exit_price, qty, entry_date, reason, emotion, status, pnl,
+                data_source, target_price, stop_loss)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 entry["symbol"].upper(),
                 entry["direction"].upper(),
@@ -546,6 +547,9 @@ def add_journal_entry(entry: dict) -> int:
                 entry.get("emotion", "Calm"),
                 entry.get("status", "OPEN"),
                 float(entry["pnl"]) if entry.get("pnl") is not None else None,
+                entry.get("data_source"),
+                float(entry["target_price"]) if entry.get("target_price") is not None else None,
+                float(entry["stop_loss"]) if entry.get("stop_loss") is not None else None,
             ),
         )
         c.commit()
@@ -577,8 +581,8 @@ def add_prediction(pred: dict) -> int:
                  market_breadth, sector_strength, nifty_trend, status, reason,
                  setup_type, market_regime_snapshot, risk_amount, confidence_probability,
                  regime_score, sector_score, volume_score, rs_score, trade_quality_score, correlation_score,
-                 signal_time, order_time, order_mode, position_size)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                 signal_time, order_time, order_mode, position_size, data_source)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 pred["symbol"].upper(),
                 pred.get("prediction_date", now),
@@ -615,6 +619,7 @@ def add_prediction(pred: dict) -> int:
                 pred.get("order_time", now),
                 pred.get("order_mode", "paper") if pred.get("order_mode") in ("paper", "live") else "paper",
                 float(pred.get("position_size") or 1.0),
+                pred.get("data_source"),
             ),
         )
         c.commit()

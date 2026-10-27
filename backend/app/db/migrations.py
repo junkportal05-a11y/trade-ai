@@ -130,9 +130,14 @@ def run_migrations(engine: Engine) -> None:
         ("slippage_pct", "REAL"),
         ("broker_failure_reason", "TEXT"),
         ("order_mode", "TEXT"),
+        ("data_source", "TEXT"),
     ]
     for col_name, col_type in pred_columns:
         _add_column_safe(engine, "predictions_history", col_name, col_type)
+
+    _add_column_safe(engine, "trade_journal", "data_source", "TEXT")
+    _add_column_safe(engine, "trade_journal", "target_price", "REAL")
+    _add_column_safe(engine, "trade_journal", "stop_loss", "REAL")
 
     _add_column_safe(engine, "strategy_health", "edge_score", "REAL")
     _add_column_safe(engine, "daily_governance_reports", "data_confidence_score", "REAL")
