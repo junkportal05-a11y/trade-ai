@@ -312,8 +312,28 @@ export default function HomePanel({
             )}
           </div>
         ) : (
-          <div style={{ fontSize: 11, color: T.textDim, padding: '10px 0', textAlign: 'center' }}>
-            Failed to fetch Daily Market Briefing. Check connection.
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', padding: '10px 0' }}>
+            <div style={{ fontSize: 11, color: T.textMid, textAlign: 'center' }}>
+              {briefError || 'Failed to fetch Daily Market Briefing. Check connection.'}
+            </div>
+            {onRefreshBrief && (
+              <button
+                onClick={onRefreshBrief}
+                style={{
+                  background: 'transparent',
+                  border: `1px solid ${T.accent}40`,
+                  borderRadius: 6,
+                  color: T.accent,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  letterSpacing: '0.04em',
+                  padding: '5px 16px'
+                }}
+              >
+                RETRY
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { API_BASE_URL, WS_BASE_URL, apiFetch } from '../api';
+import { WS_BASE_URL, apiFetch } from '../api';
 import { buildWsUrl } from '../utils/wsUrl';
 import { SEED_PRICES } from '../theme';
 
@@ -138,7 +138,7 @@ export function useLivePrices(symbols = []) {
 
       async function poll() {
         try {
-          const res = await fetch(`${API_BASE_URL}/api/prices?symbols=${encodeURIComponent(symbolKey)}`, { credentials: 'include' });
+          const res = await apiFetch(`/api/prices?symbols=${encodeURIComponent(symbolKey)}`);
           if (!res.ok) return;
           const json = await res.json();
           if (json.type === "tick" && Array.isArray(json.data)) {
