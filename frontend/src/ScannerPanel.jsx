@@ -1,4 +1,5 @@
 import { API_BASE_URL, apiFetch } from './api';
+import { describeHttpError } from './utils/apiErrors';
 /**
  * ScannerPanel.jsx
  * Unified NSE Smart Scanner — merges signal scanning with capital allocation
@@ -456,6 +457,8 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
   const [signals, setSignals]     = useState([]);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState(null);
+  const [errorKind, setErrorKind] = useState(null); // 'timeout' | 'server' | offline-family
+  const [scannedCount, setScannedCount] = useState(null); // symbols screened when backend reports it
   const [scanTime, setScanTime]   = useState(null);
   const [filter, setFilter]       = useState('ALL');
   const [nextScan, setNextScan]   = useState(null);
@@ -471,6 +474,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
   const allocTimerRef = useRef(null);
 
   const REFRESH_MS = 5 * 60 * 1000; // 5 minutes
+  const SCAN_TIMEOUT_MS = 90000; // hard 90s ceiling: a hung scan surfaces as a timeout, not an endless spinner
 
   const capitalNum = parseFloat(String(capital).replace(/,/g, '')) || 0;
 
@@ -514,46 +518,63 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
   /* ── Main scan function ───────────────────────────────────────────────────── */
   const runScan = useCallback(async () => {
     if (abortRef.current) abortRef.current.abort();
-    abortRef.current = new AbortController();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    // Hard 90s ceiling: a hung scan surfaces as a timeout, not an endless spin.
+    const timeout = setTimeout(() => controller.abort(), SCAN_TIMEOUT_MS);
 
     setLoading(true);
     setError(null);
+    setErrorKind(null);
+    setScannedCount(null);
 
     // Yield to the browser event loop to paint scanning status immediately (fixes INP)
     await new Promise(resolve => setTimeout(resolve, 0));
 
     try {
-      const res = await apiFetch('/api/signals', {
-        signal: abortRef.current.signal
-      });
+      const res = await apiFetch('/api/signals', { signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const data = await res.json();
-      if (data.signals && data.signals.length > 0) {
-        setSignals(data.signals);
-        setGateInfo(data.gates || null);
-      } else if (data.error || data.message) {
+      if (data.error || data.message) {
         // Backend signalled its own problem (e.g. cold-start timeout) — show that.
         setSignals([]);
         setGateInfo(null);
         setError(data.message || data.error);
+        setErrorKind('server');
       } else {
-        // Scan genuinely completed but every candidate was filtered out
-        // by the quality gates (volume surge, ADX, confidence, VWAP, R:R).
-        setSignals([]);
+        // A 200 with zero signals is a success, not an outage: genuinely empty or
+        // every candidate was filtered by the quality gates (volume surge, ADX,
+        // confidence, VWAP, R:R) — the gates block below explains that.
+        const list = data.signals || [];
+        setSignals(list);
         setGateInfo(data.gates || {});
+        if (!list.length) {
+          setError(null);
+          setErrorKind(null);
+        }
       }
       setScanTime(data.scan_time);
       setNextScan(Date.now() + REFRESH_MS);
-    } catch (e) {
-      if (e.name !== 'AbortError') {
-        setError(e.message || 'Backend not reachable.');
-        setSignals([]);
-        setGateInfo(null);
-        setScanTime(null);
-        setNextScan(Date.now() + REFRESH_MS);
+      if (data.scanned_count != null || data.scanned != null) {
+        setScannedCount(data.scanned_count ?? data.scanned);
       }
+    } catch (e) {
+      if (abortRef.current !== controller) return; // superseded by a newer scan
+      if (e.name === 'AbortError') {
+        setErrorKind('timeout');
+        setError(`Scan request timed out after ${SCAN_TIMEOUT_MS / 1000} seconds. Tap RESCAN to try again.`);
+      } else {
+        setErrorKind('server');
+        setError(describeHttpError(e, 'scanner'));
+      }
+      setSignals([]);
+      setGateInfo(null);
+      setScannedCount(null);
+      setScanTime(null);
+      setNextScan(Date.now() + REFRESH_MS);
     } finally {
-      setLoading(false);
+      clearTimeout(timeout);
+      if (abortRef.current === controller) setLoading(false);
     }
 
     // If capital is entered, also fetch allocation
@@ -631,7 +652,8 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
             </div>
             {scanTime && (
               <div style={{ fontSize: 9, color: T.textDim, marginTop: 4, ...mono }}>
-                Scanned {new Date(scanTime).toLocaleTimeString('en-IN', { hour12: true })} IST
+                {new Date(scanTime).toLocaleTimeString('en-IN', { hour12: true })} IST
+                {scannedCount != null ? ` · ${scannedCount} symbols screened` : ''}
                 &nbsp;·&nbsp;
                 {signals.length} stocks analysed
               </div>
@@ -805,20 +827,23 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
           <ScanProgress elapsed={allocElapsed} />
         )}
 
-        {/* Error / Offline banner */}
+        {/* Error banner — status-distinguished: timeout/gold, server error/red.
+            A 200 with zero signals never reaches this (the gates block below covers it). */}
         {error && !loading && (
           <div style={{
             padding: '10px 14px', borderRadius: 6,
-            background: 'rgba(245,200,66,0.06)',
-            border: '1px solid rgba(245,200,66,0.15)',
-            fontSize: 10, color: '#f5c842', ...mono, lineHeight: 1.4,
+            background: errorKind === 'server' ? 'rgba(255,61,90,0.08)' : 'rgba(245,200,66,0.06)',
+            border: `1px solid ${errorKind === 'server' ? 'rgba(255,61,90,0.25)' : 'rgba(245,200,66,0.15)'}`,
+            fontSize: 10,
+            color: errorKind === 'server' ? T.red : '#f5c842',
+            ...mono, lineHeight: 1.4,
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <span style={{
               display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-              background: '#f5c842', animation: 'sp_pulse 1.5s infinite',
+              background: errorKind === 'server' ? T.red : '#f5c842', animation: 'sp_pulse 1.5s infinite',
             }} />
-            <span>⚠ BACKEND OFFLINE — {error}</span>
+            <span>⚠ {error}</span>
           </div>
         )}
 

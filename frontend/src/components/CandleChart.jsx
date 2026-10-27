@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { T, escapeHTML } from '../theme.js';
 import { apiFetch } from '../api';
+import { describeHttpError } from '../utils/apiErrors';
 import { calcEMA, calcBollingerBands, calcRSI, calcMACD } from '../utils/indicators';
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
 import { PRICE_FEED_SOURCE } from '../hooks/useMarketData';
@@ -24,18 +25,29 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [scanError, setScanError] = useState(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const retryLoad = () => setReloadNonce(n => n + 1);
 
+  // Reset loading/error on every symbol/interval/range change and drop stale
+  // responses via the cancelled flag; retryLoad re-fires the same fetch.
   useEffect(() => {
+    let cancelled = false;
+    setError(null);
+    setLoading(true);
     (async () => {
       try {
         const res = await apiFetch(`/api/history?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&range=${encodeURIComponent(range)}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
-        setBars(json.bars || []);
-      } catch (e) { setError(e.message); }
-      finally { setLoading(false); }
+        if (!cancelled) setBars(json.bars || []);
+      } catch (e) {
+        if (!cancelled) setError(e.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
-  }, [symbol, interval, range]);
+    return () => { cancelled = true; };
+  }, [symbol, interval, range, reloadNonce]);
 
   useEffect(() => {
     if (loading || !bars.length) return;
@@ -215,10 +227,25 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
         <span style={{ display: 'inline-block', width: 14, height: 14, border: `2px solid ${T.border}`, borderTopColor: T.accent, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
         LOADING MARKET DATA
       </div>}
-      {!loading && error && <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,12,16,0.9)', zIndex: 2, gap: 12, color: T.red, fontSize: 13, letterSpacing: '0.05em', padding: 20, textAlign: 'center' }}>
+      {!loading && error && <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,12,16,0.9)', zIndex: 2, gap: 12, color: T.red, fontSize: 13, padding: 20, textAlign: 'center' }}>
         <AlertTriangle size={24} />
-        <div style={{ fontWeight: 600 }}>ERROR LOADING MARKET DATA: {error}</div>
-        <div style={{ fontSize: 11, color: T.textDim, marginTop: 4, maxWidth: 300, lineHeight: 1.4 }}>Chart data unavailable. The price stream is a simulated feed and market data can be transient — try again shortly.</div>
+        <div style={{ fontWeight: 600, letterSpacing: '0.03em' }}>{describeHttpError(error, 'chart data')}</div>
+        <button
+          onClick={retryLoad}
+          style={{
+            background: 'transparent',
+            border: `1px solid ${T.accent}40`,
+            borderRadius: 6,
+            color: T.accent,
+            fontSize: 10,
+            fontWeight: 700,
+            cursor: 'pointer',
+            letterSpacing: '0.04em',
+            padding: '5px 16px'
+          }}
+        >
+          RETRY
+        </button>
       </div>}
       {!loading && !error && !bars.length && <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,12,16,0.9)', zIndex: 2, gap: 12, color: T.textMid, fontSize: 13, letterSpacing: '0.05em' }}>
         <Inbox size={24} />

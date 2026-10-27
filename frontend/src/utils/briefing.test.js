@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { BRIEF_TIMEOUT_MS, briefErrorMessage } from './briefing';
 
 describe('BRIEF_TIMEOUT_MS', () => {
-  it('caps briefing waits at 20 seconds', () => {
-    expect(BRIEF_TIMEOUT_MS).toBe(20000);
+  it('caps briefing waits at 18 seconds', () => {
+    expect(BRIEF_TIMEOUT_MS).toBe(18000);
   });
 });
 

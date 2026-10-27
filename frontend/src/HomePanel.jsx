@@ -241,6 +241,29 @@ export default function HomePanel({
           <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: T.textDim }}>
             <span style={{ display: 'inline-block', width: 14, height: 14, border: `1.5px solid ${T.border}`, borderTopColor: T.accentAlt, borderRadius: '50%', animation: 'spin 0.7s linear infinite', marginRight: 8, verticalAlign: 'middle' }} />
             Analyzing watchlist indicators and macro calendar...
+            {briefError && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', marginTop: 10 }}>
+                <div style={{ color: T.textMid }}>{briefError}</div>
+                {onRefreshBrief && (
+                  <button
+                    onClick={onRefreshBrief}
+                    style={{
+                      background: 'transparent',
+                      border: `1px solid ${T.accent}40`,
+                      borderRadius: 6,
+                      color: T.accent,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      letterSpacing: '0.04em',
+                      padding: '5px 16px'
+                    }}
+                  >
+                    RETRY
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         ) : brief ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

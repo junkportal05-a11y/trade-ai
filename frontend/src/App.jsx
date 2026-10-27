@@ -147,7 +147,9 @@ export default function App() {
   
   // Server warming/cold start splash page state
   const [serverWarming, setServerWarming] = useState(() => localStorage.getItem('apex_splash_shown') === null);
-  const [backendReady, setBackendReady] = useState(false);
+  // Returning users skip the splash, so backendReady must start true for them or
+  // briefing/stats never fetch (they were gated on loggedIn && backendReady).
+  const [backendReady, setBackendReady] = useState(() => localStorage.getItem('apex_splash_shown') !== null);
 
   // Paper Trading State
   const [portfolio, setPortfolio] = useState(() => {

@@ -1,4 +1,4 @@
-export const BRIEF_TIMEOUT_MS = 20000;
+export const BRIEF_TIMEOUT_MS = 18000;
 
 export function briefErrorMessage(err) {
   if (err && err.name === 'AbortError') {
