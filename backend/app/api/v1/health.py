@@ -44,16 +44,18 @@ def check_database() -> dict[str, Any]:
             "pool": pool_info,
         }
     except OperationalError as e:
+        logger.error("Database health check failed (OperationalError): %s", e)
         return {
             "status": "unhealthy",
             "latency_ms": round((time.perf_counter() - start) * 1000, 2),
-            "error": str(e),
+            "error": "database connection failed",
         }
     except Exception as e:
+        logger.error("Database health check failed (unexpected): %s", e)
         return {
             "status": "unhealthy",
             "latency_ms": round((time.perf_counter() - start) * 1000, 2),
-            "error": f"Unexpected error: {e}",
+            "error": "database check error",
         }
 
 
@@ -67,47 +69,66 @@ def check_broker() -> dict[str, Any]:
     ])
     
     if not has_credentials:
+        if settings.trading_mode == "paper":
+            # Paper-only operation does not require a broker — informational, not a fault.
+            return {
+                "status": "paper_no_broker",
+                "mode": settings.trading_mode,
+                "live_armed": settings.live_trading_armed,
+                "message": "Paper-only mode — broker credentials not configured (informational)",
+            }
         return {
             "status": "not_configured",
             "mode": settings.trading_mode,
             "live_armed": settings.live_trading_armed,
             "message": "Angel One credentials not configured",
         }
-    
+
     return {
         "status": "configured",
         "mode": settings.trading_mode,
         "live_armed": settings.live_trading_armed,
-        "client_code": settings.angel_client_code[:4] + "****" if settings.angel_client_code else None,
     }
 
 
 def check_ai_services() -> dict[str, Any]:
     """Check AI service API key availability."""
+    gemini_ok = bool(settings.gemini_api_key)
+    news_ok = bool(settings.news_api_key)
     return {
+        "status": "configured" if gemini_ok or news_ok else "not_configured",
         "gemini": {
-            "configured": bool(settings.gemini_api_key),
-            "status": "configured" if settings.gemini_api_key else "not_configured",
+            "configured": gemini_ok,
+            "status": "configured" if gemini_ok else "not_configured",
         },
         "news_api": {
-            "configured": bool(settings.news_api_key),
-            "status": "configured" if settings.news_api_key else "not_configured",
+            "configured": news_ok,
+            "status": "configured" if news_ok else "not_configured",
         },
     }
 
 
 def check_workers() -> dict[str, Any]:
     """Check background worker health from worker_state."""
-    degraded = get_degraded_workers()
     worker_names = ["trading_agent_loop", "prediction_resolver_worker", "governance_loop"]
-    
+
+    # Workers that were never started must never report "healthy".
+    enable_workers = os.getenv("ENABLE_BACKGROUND_WORKERS", "false").lower() == "true"
+    if not enable_workers or settings.skip_background_workers:
+        return {
+            "status": "disabled",
+            "workers": {name: {"status": "disabled"} for name in worker_names},
+            "degraded_count": 0,
+        }
+
+    degraded = get_degraded_workers()
     workers = {}
     for name in worker_names:
         if name in degraded:
             workers[name] = {"status": "degraded", "reason": degraded[name]}
         else:
             workers[name] = {"status": "healthy"}
-    
+
     return {
         "status": "degraded" if any_degraded() else "healthy",
         "workers": workers,
@@ -131,39 +152,39 @@ def check_storage() -> dict[str, Any]:
             "usage_pct": round((used / total) * 100, 1),
         }
     except Exception as e:
-        checks["root_disk"] = {"status": "error", "error": str(e)}
-    
-    # Knowledge directory
+        logger.error("Disk usage check failed: %s", e)
+        checks["root_disk"] = {"status": "error", "error": "disk usage check failed"}
+
+    # Knowledge directory (a missing data dir is a warning, not a degraded driver)
     knowledge_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", settings.knowledge_dir))
     checks["knowledge_dir"] = {
-        "status": "healthy" if os.path.exists(knowledge_path) else "missing",
-        "path": knowledge_path,
+        "status": "healthy" if os.path.exists(knowledge_path) else "warning",
         "exists": os.path.exists(knowledge_path),
     }
-    
+
     # Historical data directory
     hist_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", settings.historical_data_dir))
     checks["historical_data_dir"] = {
-        "status": "healthy" if os.path.exists(hist_path) else "missing",
-        "path": hist_path,
+        "status": "healthy" if os.path.exists(hist_path) else "warning",
         "exists": os.path.exists(hist_path),
     }
-    
+
     # Database file (for SQLite)
     if not settings.is_postgres:
         db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", settings.db_path))
         checks["database_file"] = {
-            "status": "healthy" if os.path.exists(db_path) else "missing",
-            "path": db_path,
+            "status": "healthy" if os.path.exists(db_path) else "warning",
             "exists": os.path.exists(db_path),
         }
-    
+
     # Overall storage status
     statuses = [v.get("status", "unknown") for v in checks.values()]
-    overall = "healthy" if all(s in ("healthy", "missing") for s in statuses) else "warning"
+    overall = "healthy"
     if any(s == "error" for s in statuses):
         overall = "error"
-    
+    elif any(s == "warning" for s in statuses):
+        overall = "warning"
+
     return {"status": overall, "checks": checks}
 
 
@@ -204,6 +225,8 @@ async def health_check(request: Request) -> dict[str, Any]:
     }
     
     # Determine overall status
+    # "paper_no_broker" is informational (paper mode needs no broker) and
+    # "disabled" workers are a deliberate web-instance configuration — neither degrades health.
     statuses = [c.get("status", "unknown") for c in checks.values()]
     if any(s == "unhealthy" or s == "error" for s in statuses):
         overall = "unhealthy"

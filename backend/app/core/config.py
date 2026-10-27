@@ -5,6 +5,7 @@ import os
 import secrets
 from typing import List, Literal
 
+from cryptography.fernet import Fernet
 from pydantic import Field, PostgresDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -28,7 +29,7 @@ class Settings(BaseSettings):
 
     # ── App ──────────────────────────────────────────────────────────
     app_name: str = "ApexTrade API"
-    app_version: str = "6.1.0"
+    app_version: str = "6.1.1"
     debug: bool = Field(default=False, alias="DEBUG")
     environment: Literal["development", "staging", "production"] = "development"
 
@@ -73,30 +74,30 @@ class Settings(BaseSettings):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         import logging
-        is_prod = self.environment.lower() in ("production", "prod", "staging")
+        is_sensitive_env = self.environment in ("production", "staging")
         missing = []
 
         if not os.getenv("JWT_SECRET"):
-            if is_prod:
+            if is_sensitive_env:
                 missing.append("JWT_SECRET")
             else:
                 logging.warning("JWT_SECRET using generated fallback — set JWT_SECRET env var for production")
 
         if not (os.getenv("FERNET_KEYS") or os.getenv("FERNET_KEY")):
-            if is_prod:
+            if is_sensitive_env:
                 missing.append("FERNET_KEYS")
             else:
                 logging.warning("FERNET_KEYS using generated fallback — set FERNET_KEYS env var for production")
 
         if not os.getenv("ADMIN_KEY"):
-            if is_prod:
+            if is_sensitive_env:
                 missing.append("ADMIN_KEY")
             else:
                 logging.warning("ADMIN_KEY using generated fallback — set ADMIN_KEY env var for production")
 
         # PASS_ADMIN / APP_PASSWORD required in production (single-code login)
         if not (os.getenv("PASS_ADMIN") or os.getenv("APP_PASSWORD")):
-            if is_prod:
+            if is_sensitive_env:
                 missing.append("PASS_ADMIN")
             else:
                 logging.warning("PASS_ADMIN/APP_PASSWORD not set in env. Using generated ephemeral code for development.")
@@ -104,7 +105,46 @@ class Settings(BaseSettings):
         if missing:
             raise ValueError(
                 f"CRITICAL SECURITY FAILURE: Missing required environment variable(s) in {self.environment} mode: "
-                f"{', '.join(missing)}. Production deployments require explicit JWT_SECRET, FERNET_KEYS, and ADMIN_KEY."
+                f"{', '.join(missing)}. Generated fallbacks are development-only — set the listed variables explicitly."
+            )
+
+        # Every configured Fernet key must actually decrypt; in production/staging an
+        # invalid key is a hard failure — never silently regenerate broker encryption keys.
+        invalid_keys: list[str] = []
+        for key in self.fernet_keys:
+            try:
+                Fernet(key)
+            except Exception as key_exc:
+                invalid_keys.append(key)
+                if is_sensitive_env:
+                    raise ValueError(
+                        f"CRITICAL SECURITY FAILURE: invalid FERNET_KEYS entry in {self.environment} mode "
+                        "(never silently regenerate broker encryption keys) — configure valid keys and redeploy."
+                    ) from key_exc
+        if invalid_keys or not self.fernet_keys:
+            logging.warning("Invalid FERNET_KEYS entries filtered; regenerating a fallback key in development only")
+            self.fernet_keys = [secrets.token_urlsafe(32)]
+
+        # DEBUG is a development-only affordance; refuse it anywhere else.
+        if self.debug and self.environment != "development":
+            raise ValueError(
+                f"CRITICAL SECURITY FAILURE: DEBUG must be False in {self.environment} mode — debug mode exposes internals."
+            )
+
+        # A Postgres DATABASE_URL without an explicit ENVIRONMENT would silently skip
+        # the production guards above — refuse to boot in that ambiguous state.
+        if self.database_url and not os.getenv("ENVIRONMENT"):
+            raise ValueError(
+                "CRITICAL SECURITY FAILURE: DATABASE_URL is set but ENVIRONMENT is unset — "
+                "set ENVIRONMENT explicitly (development/staging/production) so its guards apply."
+            )
+
+        # Phase 3 hard gate: live trading stays refused until the SEBI algo-trading
+        # compliance review is complete; paper trading only.
+        if self.live_trading_armed:
+            raise ValueError(
+                "CRITICAL SECURITY FAILURE: live_trading_armed is refused until the SEBI "
+                "algo-trading compliance review is complete — paper trading only."
             )
     session_ttl: int = Field(default=8 * 3600, alias="SESSION_TTL")  # 8 hours
     algorithm: str = "HS256"
