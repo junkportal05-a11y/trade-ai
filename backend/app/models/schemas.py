@@ -87,6 +87,10 @@ class SignalResponse(BaseModel):
     signals: list[dict[str, Any]]
     gates: dict[str, int] = Field(default_factory=dict)
     disclaimer: str
+    status: str | None = None           # "ok" | "unavailable" — the scan's honest outcome
+    error: str | None = None            # real timeout/exception text; null when nominal
+    message: str | None = None          # human summary, esp. when nothing was scannable
+    symbols_scanned: int | None = None  # symbols that actually yielded scannable data (0 when none)
 
 
 class SingleSignalResponse(BaseModel):

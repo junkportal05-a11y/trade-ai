@@ -15,8 +15,57 @@ from app.api.deps import DbDep, OptionalSessionDep, SessionDep
 from app.models.schemas import ScanRequest, SignalResponse, SignalsQuery
 from app.core.config import settings
 from app.core.executors import scan_executor
+from app.core.logging import logger
 
 router = APIRouter(prefix="/api", tags=["signals"])
+
+SIGNAL_SCAN_TIMEOUT_SECONDS = 85
+
+
+def _unavailable_payload(
+    *,
+    gates: dict,
+    market: str,
+    typ: str,
+    error: str | None,
+    message: str,
+) -> dict:
+    """Honest empty scan response — status unavailable, nothing invented."""
+    return {
+        "market": market,
+        "type": typ,
+        "scan_time": datetime.now(timezone.utc).isoformat(),
+        "total": 0,
+        "signals": [],
+        "gates": gates,
+        "disclaimer": "Algorithmic signals only — not financial advice.",
+        "status": "unavailable",
+        "error": error,
+        "message": message,
+        "symbols_scanned": 0,
+    }
+
+
+def _success_payload(*, results: list, gates: dict, market: str, typ: str, limit: int | None = None) -> dict:
+    """Successful scan payload with honest status/symbols_scanned derivatives."""
+    scanned = len({r.get("symbol") for r in results if r.get("symbol")})
+    payload = {
+        "market": market,
+        "type": typ,
+        "scan_time": datetime.now(timezone.utc).isoformat(),
+        "total": len(results),
+        "signals": results if limit is None else results[:limit],
+        "gates": gates,
+        "disclaimer": "Algorithmic signals only — not financial advice.",
+        "status": "ok" if results else "unavailable",
+        "error": None,
+        "message": None if results else (
+            "Scan ran but produced no qualifying setups or scannable data — "
+            "nothing is being made up. Tap RETRY shortly."
+        ),
+        "symbols_scanned": scanned,
+    }
+    return payload
 
 
 @router.get("/signals", response_model=SignalResponse)
@@ -47,30 +96,24 @@ async def get_signals(
                 scan_executor,
                 functools.partial(run_scan, watchlist, gate_log=gates),
             ),
-            timeout=85,
+            timeout=SIGNAL_SCAN_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
-        return {
-            "error": "Scan took too long (backend cold start)",
-            "total": 0,
-            "signals": [],
-            "message": "First scan on free tier takes 2 min. Try again in 30s.",
-            "gates": gates,
-            "market": "NSE",
-            "type": "intraday",
-            "scan_time": datetime.now(timezone.utc).isoformat(),
-            "disclaimer": "Algorithmic signals only — not financial advice.",
-        }
+        logger.warning("[signals] scan timed out after %ss", SIGNAL_SCAN_TIMEOUT_SECONDS)
+        return _unavailable_payload(
+            gates=gates, market="NSE", typ="intraday",
+            error=f"Scan took longer than {SIGNAL_SCAN_TIMEOUT_SECONDS}s (backend cold start)",
+            message="First scan on free tier takes 2 min. Try again in 30s.",
+        )
+    except Exception as exc:
+        logger.warning("[signals] scan crashed: %s", exc)
+        return _unavailable_payload(
+            gates=gates, market="NSE", typ="intraday",
+            error=f"{type(exc).__name__}: {exc}",
+            message="The scan engine failed mid-run — selecting no results rather than partial data. Tap RETRY shortly.",
+        )
 
-    return {
-        "market": "NSE",
-        "type": "intraday",
-        "scan_time": datetime.now(timezone.utc).isoformat(),
-        "total": len(results),
-        "signals": results[: params.limit],
-        "gates": gates,
-        "disclaimer": "Algorithmic signals only — not financial advice.",
-    }
+    return _success_payload(results=results, gates=gates, market="NSE", typ="intraday", limit=params.limit)
 
 
 @router.post("/scan", response_model=SignalResponse)
@@ -106,30 +149,24 @@ async def post_scan(
                     gate_log=gates,
                 ),
             ),
-            timeout=85,
+            timeout=SIGNAL_SCAN_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
-        return {
-            "error": "Scan took too long",
-            "total": 0,
-            "signals": [],
-            "message": "Try again in 30s when backend is warm.",
-            "gates": gates,
-            "market": "NSE",
-            "type": "intraday",
-            "scan_time": datetime.now(timezone.utc).isoformat(),
-            "disclaimer": "Algorithmic signals only — not financial advice.",
-        }
+        logger.warning("[signals] POST scan timed out after %ss", SIGNAL_SCAN_TIMEOUT_SECONDS)
+        return _unavailable_payload(
+            gates=gates, market=req.market_segment, typ=req.interval,
+            error=f"Scan took longer than {SIGNAL_SCAN_TIMEOUT_SECONDS}s",
+            message="Try again in 30s when backend is warm.",
+        )
+    except Exception as exc:
+        logger.warning("[signals] POST scan crashed: %s", exc)
+        return _unavailable_payload(
+            gates=gates, market=req.market_segment, typ=req.interval,
+            error=f"{type(exc).__name__}: {exc}",
+            message="The scan engine failed mid-run — selecting no results rather than partial data. Tap RETRY shortly.",
+        )
 
-    return {
-        "market": "NSE",
-        "type": "intraday",
-        "scan_time": datetime.now(timezone.utc).isoformat(),
-        "total": len(results),
-        "signals": results,
-        "gates": gates,
-        "disclaimer": "Algorithmic signals only — not financial advice.",
-    }
+    return _success_payload(results=results, gates=gates, market=req.market_segment, typ=req.interval)
 
 
 @router.get("/signal/{symbol}", response_model=dict)
