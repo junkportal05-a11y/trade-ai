@@ -99,7 +99,7 @@ const [elapsed, setElapsed] = useState(0);
         addLog(`[OK] Quant Server connected (${data.total_latency_ms ?? measured}ms)`);
         addLog(`[OK] Storage: ${(data.checks?.database?.type || 'database').toUpperCase()} ${data.checks?.database?.status || 'online'}`);
         addLog(`[OK] AI brain: ${data.checks?.ai_services?.gemini?.status === 'configured' ? 'GEMINI 2.0 FLASH READY' : 'LOCAL FALLBACK ACTIVE'}`);
-        addLog('[OK] Market feed synchronized to NSE IST clock');
+        addLog('[OK] Simulated feed locked to NSE IST clock');
         timer = setTimeout(finish, 1200);
       } catch (error) {
         if (cancelled) return;
@@ -263,7 +263,7 @@ const [elapsed, setElapsed] = useState(0);
             {connected ? `AI Brain: ${geminiReady ? 'GEMINI 2.0 FLASH READY' : 'LOCAL FALLBACK ACTIVE'}` : failed ? 'AI Brain: UNREACHABLE' : 'AI Brain: WAITING'}
           </StatusRow>
           <StatusRow state={connected ? 'ok' : failed ? 'error' : 'pending'}>
-            {connected ? `Market Feed: NSE IST CLOCK SYNCED · ${marketStatus ? marketStatus.toUpperCase() : 'UNKNOWN'}` : failed ? 'Market Feed: UNREACHABLE' : 'Market Feed: WAITING'}
+            {connected ? `Market Feed: SIMULATED · locked to NSE IST clock · ${marketStatus ? marketStatus.toUpperCase() : 'UNKNOWN'}` : failed ? 'Market Feed: UNREACHABLE' : 'Market Feed: WAITING'}
           </StatusRow>
         </div>
 

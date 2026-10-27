@@ -25,6 +25,7 @@ import Header from './components/Header';
 import ChatPanel from './components/ChatPanel';
 import TickerBar from './components/TickerBar';
 import BottomConsole from './components/BottomConsole';
+import { describeHttpError } from './utils/apiErrors';
 import WatchlistPanel from './components/WatchlistPanel';
 import OrderPanel from './components/OrderPanel';
 import { T, SEED_PRICES, DEFAULT_WATCHLIST, INTERVALS, PRIMARY_TABS, SECONDARY_TABS, MOBILE_TABS, TAB_META, EMPTY_ARRAY, fmt, clr, sign, escapeHTML } from './theme';
@@ -177,6 +178,7 @@ export default function App() {
   const { prices, connected, dataSource } = useLivePrices(symbols);
   const iv = INTERVALS[ivIdx];
   const currentPrice     = prices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
+  const hasRealTick      = !!prices[selected];
   const currentChangePct = prices[selected]?.changePct ?? 0;
 
   const totalStockValue = portfolio.reduce((sum, pos) => {
@@ -344,6 +346,8 @@ export default function App() {
 
   // AI Analyst embedded card states
   const [aiRecommendation, setAiRecommendation] = useState('');
+  const [aiRecommendationSource, setAiRecommendationSource] = useState('');
+  const [aiRecommendationError, setAiRecommendationError] = useState(null);
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
   const aiRecommendationCache = useRef({});
   const lastRefreshRef = useRef(0);
@@ -467,8 +471,11 @@ export default function App() {
     const isManualRefresh = refreshAnalystToken !== lastRefreshRef.current;
     lastRefreshRef.current = refreshAnalystToken;
 
-    if (aiRecommendationCache.current[selected] && !isManualRefresh) {
-      setAiRecommendation(aiRecommendationCache.current[selected]);
+    const cached = aiRecommendationCache.current[selected];
+    if (cached && !isManualRefresh) {
+      setAiRecommendation(cached.reply);
+      setAiRecommendationSource(cached.source || '');
+      setAiRecommendationError(null);
       setAiRecommendationLoading(false);
       return;
     }
@@ -476,36 +483,47 @@ export default function App() {
     let active = true;
     setAiRecommendationLoading(true);
     setAiRecommendation('');
+    setAiRecommendationSource('');
+    setAiRecommendationError(null);
     
     const timer = setTimeout(async () => {
       try {
         const cleanedSymbol = selected.replace('.NS', '');
         const currentPrices = pricesRef.current || {};
-        const livePrice = currentPrices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
-        const pct = currentPrices[selected]?.changePct ?? 0;
+        const feedQuote = currentPrices[selected];
+        // Only quote real feed ticks in the AI prompt — seeded fallback prices
+        // would present synthetic numbers to the model as "current price".
+        const livePrice = feedQuote?.price;
+        const pct = feedQuote?.changePct ?? 0;
+        const priceClause = livePrice != null
+          ? ` at current price ₹${livePrice} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`
+          : '';
 
         const res = await apiFetch('/api/chat', {
           method: 'POST',
           body: JSON.stringify({
-            message: `Provide a quick 1-2 sentence technical analyst recommendation for ${cleanedSymbol} at current price ₹${livePrice} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%). Focus on technical metrics like RSI, key levels, or potential triggers. Keep it extremely concise.`,
-            context: { symbol: cleanedSymbol, price: livePrice, changePct: pct },
+            message: `Provide a quick 1-2 sentence technical analyst recommendation for ${cleanedSymbol}${priceClause}. Focus on technical metrics like RSI, key levels, or potential triggers. Keep it extremely concise.`,
+            context: { symbol: cleanedSymbol, price: livePrice ?? null, changePct: pct },
             history: []
           })
         });
         if (res.ok && active) {
           const data = await res.json();
+          // Cache only successful responses — errors are never cached, so the
+          // next selection or manual refresh hits the backend again.
+          aiRecommendationCache.current[selected] = { reply: data.reply, source: data.source || '' };
+          setAiRecommendationSource(data.source || '');
           setAiRecommendation(data.reply);
-          aiRecommendationCache.current[selected] = data.reply;
         } else if (active) {
-          const fallbackVal = `AI Recommendation unavailable (Backend Error).`;
-          setAiRecommendation(fallbackVal);
-          aiRecommendationCache.current[selected] = fallbackVal;
+          throw new Error(`HTTP ${res.status}`);
         }
       } catch (err) {
         if (active) {
-          const fallbackVal = `AI Recommendation unavailable (Network Error).`;
-          setAiRecommendation(fallbackVal);
-          aiRecommendationCache.current[selected] = fallbackVal;
+          // Recommendation lives in dedicated error state; never written to
+          // the response cache.
+          setAiRecommendation('');
+          setAiRecommendationSource('');
+          setAiRecommendationError(describeHttpError(err, 'AI recommendation'));
         }
       } finally {
         if (active) setAiRecommendationLoading(false);
@@ -628,6 +646,11 @@ export default function App() {
       return false;
     }
     
+    if (order.type === 'market' && !prices[order.symbol]) {
+      alert('Market orders unlock after the first feed tick arrives for this symbol — seeded prices are not orderable.');
+      return false;
+    }
+
     if (order.type === 'market') {
       const price = order.price;
       const cost = qty * price;
@@ -673,18 +696,26 @@ export default function App() {
         addTradeMarker(order.symbol, 'sell', qty, price);
       }
 
-      // Persist to backend Journal
+      // Persist to backend Journal. The backend JournalEntry model has no
+      // target/stop columns yet (pydantic ignores unknown keys), so those keys
+      // ride along null-safe for forward compatibility; exit_price and pnl for
+      // paper sells are real fields today.
       try {
+        const heldPosition = portfolio.find(p => p.symbol === order.symbol);
         await apiFetch('/api/journal', {
           method: 'POST',
           body: JSON.stringify({
             symbol: order.symbol,
             direction: order.side.toUpperCase(),
             entry_price: price,
+            exit_price: order.side === 'sell' ? price : null,
             qty: qty,
+            entry_date: new Date().toISOString(),
             reason: 'Manual Paper Trade',
             status: order.side === 'buy' ? 'OPEN' : 'CLOSED',
-            emotion: 'Calm'
+            pnl: order.side === 'sell' && heldPosition ? (price - heldPosition.avgCost) * qty : null,
+            target_price: null,
+            stop_loss: null
           })
         });
       } catch (e) {
@@ -741,6 +772,7 @@ export default function App() {
     let filledIds = [];
     let updatedCash = cash;
     let updatedPortfolio = [...portfolio];
+    let journalEntries = [];
     
     openOrders.forEach(order => {
       const livePrice = prices[order.symbol]?.price;
@@ -770,6 +802,19 @@ export default function App() {
             } else {
               updatedPortfolio.push({ symbol: order.symbol, shares: order.qty, avgCost: order.limitPrice });
             }
+            journalEntries.push({
+              symbol: order.symbol,
+              direction: 'BUY',
+              entry_price: order.limitPrice,
+              exit_price: null,
+              qty: order.qty,
+              entry_date: new Date().toISOString(),
+              reason: 'Limit Order Fill (paper)',
+              status: 'OPEN',
+              pnl: null,
+              target_price: null,
+              stop_loss: null
+            });
           }
         } else {
           // sell
@@ -784,6 +829,19 @@ export default function App() {
                 updatedPortfolio[existingIdx] = { ...existing, shares: newShares };
               }
               updatedCash += cost;
+              journalEntries.push({
+                symbol: order.symbol,
+                direction: 'SELL',
+                entry_price: order.limitPrice,
+                exit_price: order.limitPrice,
+                qty: order.qty,
+                entry_date: new Date().toISOString(),
+                reason: 'Limit Order Fill (paper)',
+                status: 'CLOSED',
+                pnl: (order.limitPrice - existing.avgCost) * order.qty,
+                target_price: null,
+                stop_loss: null
+              });
             }
           }
         }
@@ -794,6 +852,12 @@ export default function App() {
       setCash(updatedCash);
       setPortfolio(updatedPortfolio);
       setOpenOrders(prev => prev.filter(o => !filledIds.includes(o.id)));
+      // Best-effort paper journal entries for limit fills; a failed POST
+      // never blocks or reverts the fill itself.
+      journalEntries.forEach(entry => {
+        apiFetch('/api/journal', { method: 'POST', body: JSON.stringify(entry) })
+          .catch(e => console.error('Failed to log limit fill to journal', e));
+      });
     }
   }, [prices, openOrders, cash, portfolio, addTradeMarker]);
 
@@ -1147,6 +1211,11 @@ export default function App() {
                           <div style={{ fontSize: 11, color: T.text, lineHeight: 1.4 }}>
                             {aiRecommendationLoading ? (
                               <span style={{ color: T.textDim }}>Running technical scan...</span>
+                            ) : aiRecommendationError ? (
+                              <span style={{ color: '#ff5f6d' }}>
+                                {aiRecommendationError}{' '}
+                                <button onClick={() => setRefreshAnalystToken(prev => prev + 1)} style={{ padding: '2px 8px', background: 'rgba(255, 95, 109, 0.08)', border: '1px solid rgba(255, 95, 109, 0.3)', borderRadius: 4, color: '#ff5f6d', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em' }}>RETRY</button>
+                              </span>
                             ) : (
                               aiRecommendation || "Select a ticker from the watchlist to fetch a quick technical recommendation."
                             )}
@@ -1334,6 +1403,8 @@ export default function App() {
                       onDeleteAlert={handleDeleteAlert}
                       aiRecommendation={aiRecommendation}
                       aiRecommendationLoading={aiRecommendationLoading}
+                      aiRecommendationError={aiRecommendationError}
+                      aiRecommendationSource={aiRecommendationSource}
                       selected={selected}
                       onExecuteOrder={handleExecuteOrder}
                       onViewChange={setView}

@@ -4,7 +4,7 @@ import Label from './Label';
 import Input from './TextInput';
 import { T, fmt, clr, sign, SEED_PRICES } from '../theme';
 
-export default function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, priceAlerts, onDeleteAlert, aiRecommendation, aiRecommendationLoading, selected, onExecuteOrder, onViewChange, consoleTab, setConsoleTab, onRefreshAnalyst }) {
+export default function BottomConsole({ prices, portfolio, cash, openOrders, onCancelOrder, priceAlerts, onDeleteAlert, aiRecommendation, aiRecommendationLoading, aiRecommendationError, aiRecommendationSource, selected, onExecuteOrder, onViewChange, consoleTab, setConsoleTab, onRefreshAnalyst }) {
   const totalStockValue = portfolio.reduce((sum, pos) => {
     const price = prices[pos.symbol]?.price ?? SEED_PRICES[pos.symbol] ?? pos.avgCost;
     return sum + (price * pos.shares);
@@ -138,9 +138,21 @@ export default function BottomConsole({ prices, portfolio, cash, openOrders, onC
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 4 }}>
               <div style={{ fontSize: 9.5, fontWeight: 700, color: T.accentAlt, display: 'flex', alignItems: 'center', gap: 6 }}><Lightbulb size={11} /> AI QUANT ANALYST: {selected.replace('.NS', '')}</div>
               {aiRecommendationLoading && <span style={{ display: 'inline-block', width: 10, height: 10, border: `1.5px solid ${T.border}`, borderTopColor: T.accentAlt, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />}
+              {!aiRecommendationLoading && !aiRecommendationError && aiRecommendationSource && (
+                <span style={{ fontSize: 8.5, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em', border: `1px solid ${T.border}`, borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap' }}>
+                  {aiRecommendationSource === 'heuristic' ? 'source: local heuristic fallback' : /^[a-z0-9 _-]+$/i.test(aiRecommendationSource) ? `source: ${aiRecommendationSource}` : 'source: backend'}
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 11.5, color: T.text, lineHeight: 1.5, overflowY: 'auto', flex: 1, paddingRight: 4 }}>
-              {aiRecommendationLoading ? <span style={{ color: T.textDim }}>Running technical scan and generating insights...</span> : (aiRecommendation || "Select a ticker from the watchlist to fetch a quick technical recommendation.")}
+              {aiRecommendationLoading ? <span style={{ color: T.textDim }}>Running technical scan and generating insights...</span> : aiRecommendationError ? (
+                <span style={{ color: '#ff5f6d' }}>
+                  {aiRecommendationError}{' '}
+                  {onRefreshAnalyst && (
+                    <button onClick={onRefreshAnalyst} style={{ padding: '2px 8px', background: 'rgba(255, 95, 109, 0.08)', border: '1px solid rgba(255, 95, 109, 0.3)', borderRadius: 4, color: '#ff5f6d', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em', transition: 'all 0.2s' }}>RETRY</button>
+                  )}
+                </span>
+              ) : (aiRecommendation || "Select a ticker from the watchlist to fetch a quick technical recommendation.")}
             </div>
             {!aiRecommendationLoading && aiRecommendation && (
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>

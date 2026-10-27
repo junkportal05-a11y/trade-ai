@@ -60,7 +60,7 @@ export default function TradeLogPanel({ maxItems = 50 }) {
           <ClipboardList size={18} color={T.accentAlt} />
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: T.accentAlt, ...mono }}>TRADE LOG</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Live Bot Decisions</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Paper Bot Decisions (simulated prices)</div>
           </div>
         </div>
 
@@ -106,6 +106,9 @@ export default function TradeLogPanel({ maxItems = 50 }) {
                 <th style={{ padding: '8px 4px', textAlign: 'left', fontWeight: 700 }}>PRICE</th>
                 <th style={{ padding: '8px 4px', textAlign: 'left', fontWeight: 700 }}>STATUS</th>
                 <th style={{ padding: '8px 4px', textAlign: 'left', fontWeight: 700 }}>P&L</th>
+                <th style={{ padding: '8px 4px', textAlign: 'left', fontWeight: 700 }}>TARGET</th>
+                <th style={{ padding: '8px 4px', textAlign: 'left', fontWeight: 700 }}>STOP</th>
+                <th style={{ padding: '8px 4px', textAlign: 'left', fontWeight: 700 }}>OUTCOME</th>
                 <th style={{ padding: '8px 4px', textAlign: 'left', fontWeight: 700 }}>REASON</th>
               </tr>
             </thead>
@@ -142,6 +145,23 @@ export default function TradeLogPanel({ maxItems = 50 }) {
                     ) : (
                       <span style={{ color: T.textDim }}>—</span>
                     )}
+                  </td>
+                  <td style={{ padding: '8px 4px', ...mono }}>
+                    {trade.target_price != null || trade.target != null ? (
+                      <span style={{ color: T.green }}>₹{fmt(trade.target_price ?? trade.target)}</span>
+                    ) : (
+                      <span style={{ color: T.textDim }}>—</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '8px 4px', ...mono }}>
+                    {trade.stop_loss != null || trade.stop != null ? (
+                      <span style={{ color: T.red }}>₹{fmt(trade.stop_loss ?? trade.stop)}</span>
+                    ) : (
+                      <span style={{ color: T.textDim }}>—</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '8px 4px', color: T.textMid, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...mono }}>
+                    {trade.resolution_reason || trade.outcome || '—'}
                   </td>
                   <td style={{ padding: '8px 4px', color: T.textMid, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {trade.reason || '—'}

@@ -1020,9 +1020,9 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                       </div>
                     ) : (
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, ...mono, borderTop: `1px solid ${T.border}`, paddingTop: 6, color: T.textMid }}>
-                        <span>Resolved Price:</span>
-                        <span style={{ color: isCorrect ? T.green : pred.status === 'FLAT' ? T.blue : T.red, fontWeight: 700 }}>
-                          ₹{fmt(pred.actual_outcome, 1)}
+                        <span>Simulated Exit (manual):</span>
+                        <span style={{ color: pred.actual_outcome == null ? T.textMid : (isCorrect ? T.green : pred.status === 'FLAT' ? T.blue : T.red), fontWeight: 700 }}>
+                          {pred.actual_outcome != null ? `₹${fmt(pred.actual_outcome, 1)}` : '—'}
                         </span>
                       </div>
                     )}
