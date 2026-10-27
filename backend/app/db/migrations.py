@@ -87,6 +87,11 @@ def run_migrations(engine: Engine) -> None:
         conn.execute(text("UPDATE trade_journal SET user_id = 'legacy' WHERE user_id IS NULL"))
         logger.info("Assigned legacy trade_journal rows (NULL user_id) to 'legacy' sentinel user")
 
+    _add_column_safe(engine, "predictions_history", "user_id", "TEXT")
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE predictions_history SET user_id = 'legacy' WHERE user_id IS NULL"))
+        logger.info("Assigned legacy predictions_history rows (NULL user_id) to 'legacy' sentinel user")
+
     _add_column_safe(engine, "signals_history", "rr_ratio", "REAL")
     _add_column_safe(engine, "signals_history", "atr", "REAL")
 

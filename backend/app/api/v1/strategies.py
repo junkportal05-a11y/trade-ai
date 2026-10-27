@@ -22,10 +22,25 @@ STRATEGY_PRESETS = [
 @router.get("", response_model=dict)
 def get_strategies(
     active_only: bool = Query(True, description="Filter to only active strategies"),
+    db: Session = DbDep,
     _=SessionDep,
 ) -> dict:
-    """Get all strategies."""
-    return {"status": "success", "strategies": STRATEGY_PRESETS}
+    """DB-backed strategies, honouring active_only; falls back to labelled presets."""
+    query = db.query(Strategy)
+    if active_only:
+        query = query.filter(Strategy.is_active.is_(True))
+    rows = query.all()
+    if rows:
+        return {
+            "status": "success",
+            "data_source": "db",
+            "strategies": [r.to_dict() for r in rows],
+        }
+    return {
+        "status": "success",
+        "data_source": "presets",
+        "strategies": STRATEGY_PRESETS,
+    }
 
 
 @router.get("/{strategy_id}", response_model=dict)

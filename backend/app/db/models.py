@@ -123,6 +123,7 @@ class PredictionsHistory(Base):
     __tablename__ = "predictions_history"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(100), nullable=True, index=True)
     symbol = Column(String(50), nullable=False, index=True)
     prediction_date = Column(DateTime, nullable=False, default=datetime.utcnow)
     prediction_type = Column(String(20), nullable=False)

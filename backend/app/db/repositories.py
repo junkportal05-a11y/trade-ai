@@ -264,8 +264,9 @@ def _parse_datetime(v: Any) -> datetime | None:
 
 class PredictionRepository:
     @staticmethod
-    def add(db: Session, pred: dict[str, Any]) -> int:
+    def add(db: Session, pred: dict[str, Any], user_id: str | None = None) -> int:
         new_pred = PredictionsHistory(
+            user_id=user_id,
             symbol=pred["symbol"].upper(),
             prediction_date=_parse_datetime(pred.get("prediction_date")) or _now_ist(),
             prediction_type=pred["prediction_type"].upper(),

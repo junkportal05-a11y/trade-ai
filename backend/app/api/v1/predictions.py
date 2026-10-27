@@ -34,9 +34,9 @@ def create_prediction(
     pred: PredictionCreate,
     db: Session = DbDep,
     csrf=CsrfDep,
-    _=TraderDep,
+    trader=TraderDep,
 ) -> dict:
-    pred_id = repo.predictions.add(db, pred.model_dump())
+    pred_id = repo.predictions.add(db, pred.model_dump(), user_id=trader["username"])
     return {"id": pred_id, "status": "created"}
 
 
@@ -45,9 +45,16 @@ def delete_prediction(
     prediction_id: int,
     db: Session = DbDep,
     csrf=CsrfDep,
-    _=TraderDep,
+    trader=TraderDep,
 ) -> dict:
-    pred = db.query(PredictionsHistory).filter(PredictionsHistory.id == prediction_id).first()
+    pred = (
+        db.query(PredictionsHistory)
+        .filter(
+            PredictionsHistory.id == prediction_id,
+            PredictionsHistory.user_id == trader["username"],
+        )
+        .first()
+    )
     if not pred:
         raise HTTPException(status_code=404, detail="Prediction not found")
     db.delete(pred)
@@ -98,6 +105,13 @@ def get_prediction_stats(db: Session = DbDep, _=SessionDep) -> dict:
     
     win_prob = len(wins) / n
     ev_pct = round((win_prob * avg_win) - ((1.0 - win_prob) * avg_loss), 2)
+
+    error_rows = [r for r in resolved if r.target_price and r.exit_price is not None]
+    avg_error = (
+        round(sum(abs((r.exit_price or 0.0) - r.target_price) for r in error_rows) / len(error_rows), 2)
+        if error_rows
+        else 0.0
+    )
     
     conf_scores = [r.confidence_score for r in all_preds if r.confidence_score is not None]
     avg_conf = round(sum(conf_scores) / len(conf_scores), 1) if conf_scores else 80.0
@@ -177,7 +191,7 @@ def get_prediction_stats(db: Session = DbDep, _=SessionDep) -> dict:
         "win_rate": win_rate,
         "avg_win": round(avg_win, 2),
         "avg_loss": round(-avg_loss, 2),
-        "avg_error": 0.0,
+        "avg_error": avg_error,
         "profit_factor": profit_factor,
         "empirical_rr_ratio": empirical_rr,
         "expected_value_pct": ev_pct,
