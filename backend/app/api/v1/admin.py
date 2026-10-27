@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, AdminDep
+from app.core.security import CsrfDep
 from app.core.worker_health import get_all as get_worker_health
 from app.services.market_hours import is_nse_market_open
 
@@ -21,7 +22,7 @@ def admin_health(
     return {"status": "healthy", "signals_stats": stats, "workers": get_worker_health()}
 
 
-@router.delete("/signals/clear", response_model=dict, dependencies=[AdminDep])
+@router.delete("/signals/clear", response_model=dict, dependencies=[CsrfDep, AdminDep])
 def clear_signals(
     db: Session = DbDep,
 ) -> dict:
@@ -30,7 +31,7 @@ def clear_signals(
     return {"status": "cleared", "message": "All signal history cleared"}
 
 
-@router.post("/run-simulation", response_model=dict, dependencies=[AdminDep])
+@router.post("/run-simulation", response_model=dict, dependencies=[CsrfDep, AdminDep])
 async def run_simulation(
     request: Request,
 ) -> dict:

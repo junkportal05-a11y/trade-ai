@@ -62,7 +62,9 @@ schedule.every().day.at('08:30').do(refresh_angelone_session)
 
 async def trading_agent_loop():
     """
-    Autonomous Trading Agent Loop for Phase 3.
+    Autonomous Trading Agent Loop.
+    PHASE 1: PAPER ONLY — this loop places paper trades exclusively
+    (order_mode is paper on every prediction); no live orders originate here.
     - Runs every 30 min from 9:15 AM to 3:20 PM IST
     - Places max 2 paper trades
     - Auto-closes all at 3:20 PM
@@ -199,7 +201,14 @@ async def trading_agent_loop():
                         continue
 
                     # Place paper trade
-                    prediction_id = db.add_prediction(_build_prediction_payload(sig))
+                    try:
+                        prediction_id = db.add_prediction(_build_prediction_payload(sig))
+                    except Exception as insert_exc:
+                        logger.error(
+                            "[trading_agent] Failed to insert prediction for %s: %s",
+                            sig.get("symbol"), insert_exc, exc_info=True,
+                        )
+                        continue
 
                     db.add_journal_entry(_build_journal_payload(sig))
 
@@ -209,7 +218,7 @@ async def trading_agent_loop():
             await asyncio.sleep(60)  # check time again in 1 min
 
         except Exception as e:
-            print(f"[trading_agent] Error: {e}")
+            logger.error("[trading_agent] Trading loop error: %s", e, exc_info=True)
             await asyncio.sleep(60)
 
 async def _square_off_all(now_ist):
@@ -270,12 +279,15 @@ def _build_prediction_payload(sig: dict) -> dict:
     """Build prediction payload for db.add_prediction."""
     return {
         "symbol": sig["symbol"],
+        "prediction_type": "BULLISH" if sig.get("signal", "BUY") == "BUY" else "BEARISH",
         "entry_price": sig.get("price"),
         "target_price": sig.get("target"),
         "stop_loss": sig.get("stop_loss"),
         "confidence_score": sig.get("confidence", 0),
         "rsi": sig.get("rsi", 50),
         "macd": sig.get("macd", 0),
+        "macd_hist": sig.get("macd_hist", 0),
+        "position_size": sig.get("position_size", 1),
         "adx": sig.get("adx", 0),
         "sector": sig.get("sector", "NSE"),
         "market_cap": sig.get("market_cap", 0),
