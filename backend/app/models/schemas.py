@@ -58,6 +58,7 @@ class HistoryResponse(BaseModel):
     count: int
     bars: list[CandleBar]
     fallback: bool = False
+    data_source: str | None = None  # angelone | yfinance | last-good | synthetic | seed
 
 
 class SearchResponse(BaseModel):

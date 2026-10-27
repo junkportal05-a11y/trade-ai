@@ -62,6 +62,17 @@ QUOTE_TTL = 60          # seconds a cached quote stays fresh
 QUOTE_STALE_MAX = 3600  # max age (s) of a stale quote served when all feeds are down
 _YF_FAIL_TS: dict[str, float] = {}
 YF_BACKOFF = 60         # seconds to back off from yfinance after a failure
+_SOURCE_CACHE: dict[str, str] = {}  # cache_key -> feed tier that served the frame
+
+_DATA_SOURCES = ("angelone", "yfinance", "last-good", "synthetic", "seed")
+
+
+def _flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Flatten a MultiIndex column axis (e.g. yfinance ("close","SYM.NS"))
+    down to the price level so downstream column processing stays name-based."""
+    if df is not None and isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    return df
 
 
 def _yf_ready(key: str) -> bool:
@@ -242,6 +253,23 @@ def generate_synthetic_candles(
         return None
 
 
+def download_market_data_df_sourced(
+    symbol: str,
+    period: str = "5d",
+    interval: str = "5m",
+) -> tuple[Optional[pd.DataFrame], Optional[str]]:
+    """
+    Same tier chain as download_market_data_df, but also reports the feed tier
+    that served the frame: angelone | yfinance | last-good | synthetic | seed.
+    (df, source) — source is None only when data itself is unavailable.
+    """
+    cache_key = f"{symbol}_{interval}"
+    df = download_market_data_df(symbol, period, interval)
+    if df is None:
+        return None, None
+    return df, _SOURCE_CACHE.get(cache_key)
+
+
 def download_market_data_df(
     symbol: str,
     period: str = "5d",
@@ -257,6 +285,7 @@ def download_market_data_df(
     if cached is not None:
         age = time.time() - _CACHE_TIMESTAMP.get(cache_key, 0)
         if age < CACHE_TTL:
+            _flatten_columns(cached)
             return cached
 
     # AngelOne primary
@@ -268,6 +297,8 @@ def download_market_data_df(
         try:
             df = feed.get_historical_candles(symbol, period, interval)
             if df is not None and not df.empty:
+                _flatten_columns(df)
+                _SOURCE_CACHE[cache_key] = "angelone"
                 _BATCH_CANDLE_CACHE[cache_key] = df
                 _CACHE_TIMESTAMP[cache_key] = time.time()
                 _snapshot_candles(cache_key, df)
@@ -286,8 +317,7 @@ def download_market_data_df(
                 # Newer yfinance versions return MultiIndex columns
                 # (e.g. ("close", "RELIANCE.NS")); flatten to the price level
                 # so the lowercase rename below matches and the frame is usable.
-                if isinstance(df.columns, pd.MultiIndex):
-                    df.columns = df.columns.get_level_values(0)
+                _flatten_columns(df)
                 # yfinance returns lowercase column names; rename to match expected capitalization
                 df = df.rename(columns={
                     'open': 'Open',
@@ -297,6 +327,7 @@ def download_market_data_df(
                     'volume': 'Volume',
                     'adj close': 'Adj Close'
                 })
+                _SOURCE_CACHE[cache_key] = "yfinance"
                 _BATCH_CANDLE_CACHE[cache_key] = df
                 _CACHE_TIMESTAMP[cache_key] = time.time()
                 _snapshot_candles(cache_key, df)
@@ -311,6 +342,8 @@ def download_market_data_df(
     # Tier 3: last-known-good real candles from disk (outage/restart survival)
     snapshot = _load_snapshot(cache_key)
     if snapshot is not None:
+        _flatten_columns(snapshot)
+        _SOURCE_CACHE[cache_key] = "last-good"
         _BATCH_CANDLE_CACHE[cache_key] = snapshot
         _CACHE_TIMESTAMP[cache_key] = time.time()
         logger.info(f"[signals] serving last-known-good candles for {symbol}")
@@ -319,6 +352,7 @@ def download_market_data_df(
     # Tier 4: Synthetic Historical Candle Generator (guarantees data availability)
     synth_df = generate_synthetic_candles(symbol, period, interval)
     if synth_df is not None:
+        _SOURCE_CACHE[cache_key] = "synthetic"
         _BATCH_CANDLE_CACHE[cache_key] = synth_df
         _CACHE_TIMESTAMP[cache_key] = time.time()
         print(f"[signals] Synthetic fallback activated for {symbol}")
