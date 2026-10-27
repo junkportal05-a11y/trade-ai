@@ -116,6 +116,8 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     source: Literal["gemini", "heuristic"]
+    confidence: float | None = None
+    reasoning: str | None = None
 
 
 class AngelOneCredentials(BaseModel):
