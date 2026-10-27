@@ -439,6 +439,18 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
 /* ═══════════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════════════════════ */
+/* ── Quality-gate labels for diagnostics (keys match backend/signal gate_log) ── */
+const GATE_LABELS = {
+  data_confidence: 'Data-confidence below 72% (poor feed quality)',
+  volume_surge: 'Volume surge below 1.2× the 20-bar average',
+  adx: 'ADX below 20 (choppy, non-trending market)',
+  vwap_veto: 'VWAP veto (momentum against intraday VWAP)',
+  risk_reward: 'Risk:Reward below 2.0',
+  insufficient_data: 'Too few candles for indicators',
+  segment_filter: 'Outside chosen market segment',
+  error: 'Data fetch error',
+};
+
 export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, cash }) {
   /* ── Signal state ─────────────────────────────────────────────────────────── */
   const [signals, setSignals]     = useState([]);
@@ -447,6 +459,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
   const [scanTime, setScanTime]   = useState(null);
   const [filter, setFilter]       = useState('ALL');
   const [nextScan, setNextScan]   = useState(null);
+  const [gateInfo, setGateInfo]   = useState(null); // per-scan gate rejection counts
   const abortRef = useRef(null);
 
   /* ── Capital / allocation state ───────────────────────────────────────────── */
@@ -517,9 +530,17 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
       const data = await res.json();
       if (data.signals && data.signals.length > 0) {
         setSignals(data.signals);
-      } else {
+        setGateInfo(data.gates || null);
+      } else if (data.error || data.message) {
+        // Backend signalled its own problem (e.g. cold-start timeout) — show that.
         setSignals([]);
-        setError('Signal engine returned empty results. Backend may still be warming up.');
+        setGateInfo(null);
+        setError(data.message || data.error);
+      } else {
+        // Scan genuinely completed but every candidate was filtered out
+        // by the quality gates (volume surge, ADX, confidence, VWAP, R:R).
+        setSignals([]);
+        setGateInfo(data.gates || {});
       }
       setScanTime(data.scan_time);
       setNextScan(Date.now() + REFRESH_MS);
@@ -527,6 +548,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
       if (e.name !== 'AbortError') {
         setError(e.message || 'Backend not reachable.');
         setSignals([]);
+        setGateInfo(null);
         setScanTime(null);
         setNextScan(Date.now() + REFRESH_MS);
       }
@@ -807,10 +829,32 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
           </div>
         )}
 
-        {/* No signals at all (backend offline, no fallback) */}
+        {/* No signals — either not fetched yet, or every candidate hit a gate */}
         {!loading && signals.length === 0 && !error && (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: T.textDim, fontSize: 12, ...sans }}>
-            No signals loaded yet. Click RESCAN to fetch.
+          <div style={{ textAlign: 'center', padding: '36px 16px', color: T.textDim, fontSize: 12, ...sans }}>
+            {gateInfo ? (
+              <>
+                <div style={{ color: T.textMid, fontSize: 12, marginBottom: 8, fontWeight: 700 }}>
+                  Scan complete — 0 candidates passed the quality gates
+                </div>
+                {Object.keys(GATE_LABELS).filter(k => (gateInfo[k] || 0) > 0).length > 0 ? (
+                  <div style={{ display: 'inline-block', textAlign: 'left', fontSize: 10, ...mono, lineHeight: 1.9 }}>
+                    {Object.keys(GATE_LABELS).filter(k => (gateInfo[k] || 0) > 0).map(k => (
+                      <div key={k}>✕ {GATE_LABELS[k]} · {gateInfo[k]} symbol{gateInfo[k] === 1 ? '' : 's'} filtered</div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 10 }}>
+                    No rejections recorded — market data feeds may still be warming. RESCAN shortly.
+                  </div>
+                )}
+                <div style={{ fontSize: 9, color: T.textDim, ...mono, margin: '12px auto 0', maxWidth: 440, lineHeight: 1.6 }}>
+                  Standing gates: volume ≥1.2× 20-bar avg · ADX ≥20 · data confidence ≥72% · risk:reward ≥2.0 · VWAP trend veto. Symbols scoring &lt;72 confidence are kept on watch, not shown as signals. A quiet/choppy tape can legitimately filter the whole watchlist — nothing is wrong.
+                </div>
+              </>
+            ) : (
+              <div>No signals loaded yet. Click RESCAN to fetch.</div>
+            )}
           </div>
         )}
 

@@ -40,11 +40,12 @@ async def get_signals(
     else:
         watchlist = NSE_WATCHLIST
 
+    gates: dict = {}
     try:
         results = await asyncio.wait_for(
             loop.run_in_executor(
                 scan_executor,
-                functools.partial(run_scan, watchlist),
+                functools.partial(run_scan, watchlist, gate_log=gates),
             ),
             timeout=85,
         )
@@ -54,6 +55,7 @@ async def get_signals(
             "total": 0,
             "signals": [],
             "message": "First scan on free tier takes 2 min. Try again in 30s.",
+            "gates": gates,
             "market": "NSE",
             "type": "intraday",
             "scan_time": datetime.now(timezone.utc).isoformat(),
@@ -66,6 +68,7 @@ async def get_signals(
         "scan_time": datetime.now(timezone.utc).isoformat(),
         "total": len(results),
         "signals": results[: params.limit],
+        "gates": gates,
         "disclaimer": "Algorithmic signals only — not financial advice.",
     }
 
@@ -87,6 +90,7 @@ async def post_scan(
         for s in req.symbols
     ]
 
+    gates: dict = {}
     try:
         results = await asyncio.wait_for(
             loop.run_in_executor(
@@ -99,6 +103,7 @@ async def post_scan(
                     req.risk_level,
                     req.market_segment,
                     req.capital,
+                    gate_log=gates,
                 ),
             ),
             timeout=85,
@@ -109,6 +114,7 @@ async def post_scan(
             "total": 0,
             "signals": [],
             "message": "Try again in 30s when backend is warm.",
+            "gates": gates,
             "market": "NSE",
             "type": "intraday",
             "scan_time": datetime.now(timezone.utc).isoformat(),
@@ -121,6 +127,7 @@ async def post_scan(
         "scan_time": datetime.now(timezone.utc).isoformat(),
         "total": len(results),
         "signals": results,
+        "gates": gates,
         "disclaimer": "Algorithmic signals only — not financial advice.",
     }
 

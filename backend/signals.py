@@ -1263,12 +1263,20 @@ def analyse_symbol(
     capital: float = 1000.0,
     atr_multiplier: float = 1.8, # Stop loss width
     rr_target: float = 1.944,    # Equivalent to target 3.5 / stop 1.8
+    gate_log: Optional[dict] = None,  # optional per-scan rejection counters
 ) -> Optional[dict]:
     """
     Download market data for a symbol and calculate advanced signals using pandas-ta.
     If market is open, runs intraday 5m scan.
     If market is closed, runs daily 1d overnight scan.
+
+    When `gate_log` dict is supplied, every early-exit quality gate increments
+    its key so callers can explain a scanner that returns zero signals.
     """
+    def _note_gate(key: str) -> None:
+        if gate_log is not None:
+            gate_log[key] = gate_log.get(key, 0) + 1
+
     try:
         market_open = is_nse_market_open()
 
@@ -1323,6 +1331,7 @@ def analyse_symbol(
             _MACRO_CACHE[symbol] = {"date": current_date_str, "bullish": macro_bullish}
 
         if df is None or len(df) < 20:
+            _note_gate("insufficient_data")
             return None
 
         # Flatten multi-level columns if returned by provider
@@ -1331,6 +1340,7 @@ def analyse_symbol(
 
         df = df.dropna(subset=["Close", "High", "Low", "Open", "Volume"])
         if len(df) < 20:
+            _note_gate("insufficient_data")
             return None
             
         # ── DEEP DATA VALIDATION ────────────────────────────────────
@@ -1340,15 +1350,18 @@ def analyse_symbol(
             if data_conf < 72.0:
                 import logging
                 logging.getLogger("signals").info(f"Skipping {symbol}: Data Confidence ({data_conf}%) below 72% threshold.")
+                _note_gate("data_confidence")
                 return None
         except Exception as e:
             print(f"[signals] Data validation failed for {symbol}: {e}")
+            _note_gate("data_confidence")
             return None
 
         change_pct = ((df["Close"].iloc[-1] - df["Close"].iloc[0]) / df["Close"].iloc[0] * 100) if len(df) > 0 else 0.0
 
         df = _compute_indicators(df)
         if df is None:
+            _note_gate("insufficient_data")
             return None
 
         close = df["Close"]
@@ -1394,11 +1407,13 @@ def analyse_symbol(
         if not check_volume_surge(df):
             import logging
             logging.getLogger("signals").info(f"Skipping {symbol}: Insufficient volume surge")
+            _note_gate("volume_surge")
             return None
             
         if not check_trend_strength(df):
             import logging
             logging.getLogger("signals").info(f"Skipping {symbol}: ADX below 20 (choppy market)")
+            _note_gate("adx")
             return None
             
         # ── Scoring system (Bullish: positive, Bearish: negative) ─────────────
@@ -1501,6 +1516,7 @@ def analyse_symbol(
         if not passed:
             import logging
             logging.getLogger("signals").info(f"Skipping {symbol}: {veto_reason}")
+            _note_gate("vwap_veto")
             return None
         # ────────────────────────────────────────────────────────────────
 
@@ -1509,6 +1525,7 @@ def analyse_symbol(
             if not validate_risk_reward(entry, stop, target1, min_rr=2.0):
                 import logging
                 logging.getLogger("signals").info(f"Skipping {symbol}: Risk:Reward below 1:2")
+                _note_gate("risk_reward")
                 return None
                 
             # PHASE 1: Detailed Logging
@@ -1581,6 +1598,7 @@ def analyse_symbol(
 
         print(f"[signals] Exception in analyse_symbol for {symbol}: {e}")
         traceback.print_exc()
+        _note_gate("error")
         return None
 
 
@@ -1591,12 +1609,17 @@ def run_scan(
     risk: str = "Medium",
     segment: str = "NSE",
     capital: float = 1000.0,
+    gate_log: Optional[dict] = None,  # optional per-scan rejection counters
 ) -> list:
     """
     Scan watchlist and return signals sorted by conviction/confidence.
     Uses asyncio.gather for asynchronous scanning to minimize overhead.
     """
     watchlist = symbols or NSE_WATCHLIST
+
+    def _log_gate(key: str) -> None:
+        if gate_log is not None:
+            gate_log[key] = gate_log.get(key, 0) + 1
 
     # ── Worker: analyse single symbol (Pass 1) ─────────────────────────────
     def analyse_one(item) -> Optional[dict]:
@@ -1611,6 +1634,7 @@ def run_scan(
 
         # Apply segment filter
         if segment == "BSE" and not sym.endswith(".BO"):
+            _log_gate("segment_filter")
             return None
         elif segment == "F&O" and sym not in [
             "BEL.NS",
@@ -1620,13 +1644,16 @@ def run_scan(
             "TATAPOWER.NS",
             "BHEL.NS",
         ]:
+            _log_gate("segment_filter")
             return None
 
         df = download_market_data_df(sym, "5d", interval)
         if df is None or len(df) < 30:
+            _log_gate("insufficient_data")
             return None
         return analyse_symbol(
-            sym, name, sector, style=style, risk=risk, segment=segment, capital=capital
+            sym, name, sector, style=style, risk=risk, segment=segment, capital=capital,
+            gate_log=gate_log,
         )
 
     first_pass_results = []

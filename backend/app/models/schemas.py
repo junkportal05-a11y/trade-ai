@@ -84,6 +84,7 @@ class SignalResponse(BaseModel):
     scan_time: str
     total: int
     signals: list[dict[str, Any]]
+    gates: dict[str, int] = Field(default_factory=dict)
     disclaimer: str
 
 
