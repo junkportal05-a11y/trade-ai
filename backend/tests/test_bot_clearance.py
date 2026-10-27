@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 from app.main import app
 from app.core.security import require_session
@@ -39,7 +39,7 @@ def test_trader_can_start_but_cannot_stop_bot():
 def test_admin_can_stop_bot():
     app.dependency_overrides[require_session] = lambda: {"username": "admin_user", "role": "Admin", "clearance": "LEVEL_3_ADMIN"}
     try:
-        with patch("db.set_bot_state"), patch("db.get_bot_state", return_value="STOPPED"), patch("trading_agent._square_off_all"):
+        with patch("db.set_bot_state"), patch("db.get_bot_state", return_value="STOPPED"), patch("trading_agent._square_off_all", new=AsyncMock()):
             res_stop = client.post("/api/bot/stop")
             assert res_stop.status_code == 200
             assert res_stop.json()["state"] == "STOPPED"

@@ -54,7 +54,7 @@ async def bot_stop(request: Request, csrf=CsrfDep, admin=AdminClearanceDep) -> D
     """Set bot state to STOPPED and square off all open positions."""
     db.set_bot_state("STOPPED")
     try:
-        trading_agent._square_off_all(_now_ist())
+        await trading_agent._square_off_all(_now_ist())
     except Exception as exc:  # pragma: no cover - best effort square off
         raise HTTPException(status_code=500, detail=f"square off failed: {exc}")
     return {"status": "ok", "state": db.get_bot_state()}
