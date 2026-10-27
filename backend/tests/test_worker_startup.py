@@ -137,6 +137,7 @@ BUY_SIGNAL = {
     "signal": "BUY",
     "price": 100.0,
     "confidence": 80,
+    "data_source": "angelone",
     "target": 110.0,
     "stop_loss": 95.0,
     "atr": 2.0,

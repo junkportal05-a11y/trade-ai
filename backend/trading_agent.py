@@ -35,6 +35,12 @@ MAX_CONCURRENT_TRADES = 2
 MIN_AGENT_CONFIDENCE = 72
 IST_OFFSET = timedelta(hours=5, minutes=30)
 
+# TAR-20 Task 8: paper-trading data honesty. Only signals derived from real
+# market-data tiers may enter the paper loop. 'synthetic'/'seed' — and any
+# untagged/unknown source — are treated as simulated and NEVER traded: a
+# synthetic fallback candle series must not become a paper trade record.
+REAL_DATA_SOURCES = frozenset({"angelone", "yfinance", "last-good"})
+
 
 def prediction_start_utc(raw_prediction_date):
     """Parse a stored prediction_date into an aware UTC datetime, or None.
@@ -214,6 +220,17 @@ async def trading_agent_loop():
                     if sig.get("signal") not in ("BUY", "SELL"):
                         continue
 
+                    # TAR-20 Task 8: synthetic/simulated signals never become
+                    # paper trades (fail-closed: missing or unknown data_source
+                    # counts as simulated).
+                    if sig.get("data_source") not in REAL_DATA_SOURCES:
+                        logger.info(
+                            "[trading_agent] Skipping %s for %s — data_source=%r is not a real "
+                            "market-data tier; synthetic/simulated signals never trade",
+                            sig.get("signal"), sig.get("symbol"), sig.get("data_source"),
+                        )
+                        continue
+
                     if len(open_positions) >= MAX_CONCURRENT_TRADES:
                         break
 
@@ -365,6 +382,9 @@ def _build_prediction_payload(sig: dict) -> dict:
         "signal_time": sig.get("signal_time", datetime.now(timezone.utc).isoformat()),
         "order_time": sig.get("order_time", datetime.now(timezone.utc).isoformat()),
         "order_mode": "paper",
+        # TAR-20 Task 8: which feed tier produced the candles behind this
+        # signal (angelone|yfinance|last-good|synthetic|seed|None-unknown).
+        "data_source": sig.get("data_source"),
     }
 
 def _build_journal_payload(sig: dict) -> dict:
@@ -380,6 +400,8 @@ def _build_journal_payload(sig: dict) -> dict:
         "emotion": "Calm",
         "status": "OPEN",
         "pnl": None,
+        # TAR-20 Task 8: feed tier of the data the agent acted on (audit trail).
+        "data_source": sig.get("data_source"),
     }
 
 

@@ -1617,6 +1617,9 @@ def analyse_symbol(
             "reasoning": reasoning,
             "reasons": all_reasons,
             "scanned_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            # Feed tier the scan frame came from (TAR-20 Task 8): angelone |
+            # yfinance | last-good | synthetic | seed | None when unknown.
+            "data_source": _SOURCE_CACHE.get(f"{symbol}_{interval}"),
             # Sub-scores
             "_market_score": market_score,
             "_tech_score": tech_score,
