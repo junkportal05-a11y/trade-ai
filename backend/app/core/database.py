@@ -67,14 +67,16 @@ def _create_postgres_engine(url: str) -> Engine:
 
 def _create_engine() -> Engine:
     """Create database engine with automatic fallback to SQLite."""
-    if not db_url:
-        logging.info("[db] No DATABASE_URL configured — using SQLite fallback")
+    if not db_url or db_url.startswith("sqlite"):
+        logging.info("[db] SQLite DATABASE_URL configured or unconfigured — using SQLite engine")
         return _create_sqlite_engine()
 
     # Validate URL parseability
     try:
         from sqlalchemy.engine.url import make_url as _make_url
-        _ = _make_url(db_url)
+        url_obj = _make_url(db_url)
+        if url_obj.drivername.startswith("sqlite"):
+            return _create_sqlite_engine()
     except Exception:
         logging.info("[db] Invalid DATABASE_URL — using SQLite fallback")
         return _create_sqlite_engine()
