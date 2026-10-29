@@ -1,7 +1,7 @@
 # Workspace Directives: ARTEMIS & Google Agents CLI
 
 ## 1. ARTEMIS Mobile & App Testing (`google/artemis`)
-- **Always activate and use Artemis MCP (`artemis`)** whenever any application update, UI refactor, or feature change occurs.
+- **Activate Artemis MCP (`artemis`)** when application updates, UI refactors, or feature changes occur.
 - Available MCP Tools:
   - `mobile_run_task`: Run autonomous task verification
   - `mobile_get_device_state`: Capture real-time screenshots and hierarchy
@@ -10,7 +10,7 @@
 - Never mark an app update complete without running verification checks.
 
 ## 2. Google Agents CLI (`google/agents-cli`)
-- **Use `google-agents-cli` every time** when scaffolding, building, evaluating, or deploying AI agents.
+- **Use `google-agents-cli` when needed** for scaffolding, building, evaluating, or deploying AI agents.
 - CLI Tool: `agents-cli` (installed globally via `uv tool install google-agents-cli`)
 - Core Skills Installed:
   - `google-agents-cli-workflow`: Lifecycle, model routing, safety gates

@@ -249,13 +249,12 @@ def require_clearance(min_level: str):
 async def csrf_protect(request: Request):
     """CSRF check that enforces X-Requested-With header on mutating routes.
     
-    - When TESTING is "1" (default from conftest): passes through, no enforcement.
-    - When TESTING is cleared: returns 403 if X-Requested-With header is missing.
+    - When X-Requested-With header is missing on mutating routes: returns 403.
+    - GET routes are CSRF-free; exemptions: /api/login (session lifecycle).
     """
-    if os.getenv("TESTING") != "1":
-        x_requested_with = request.headers.get("X-Requested-With")
-        if not x_requested_with:
-            raise HTTPException(status_code=403, detail="CSRF token required")
+    x_requested_with = request.headers.get("X-Requested-With")
+    if not x_requested_with:
+        raise HTTPException(status_code=403, detail="CSRF token required")
     return True
 
 

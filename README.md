@@ -33,7 +33,7 @@ This repository powers the backend infrastructure hosted on **Hugging Face Space
 
 ## 🚀 Live Hugging Face Space & Interactive API Documentation
 
-- **Live Space Base URL**: `https://apextrade-core-trade-ai-backend.hf.space`
+- **Live Space Base URL**: `https://apextrade-core-trade-ai-backend.hf.space` *(Paper Phase 1)*
 - **Interactive Swagger UI**: [https://apextrade-core-trade-ai-backend.hf.space/docs](https://apextrade-core-trade-ai-backend.hf.space/docs)
 - **ReDoc Open API**: [https://apextrade-core-trade-ai-backend.hf.space/redoc](https://apextrade-core-trade-ai-backend.hf.space/redoc)
 - **Health Check Status**: `GET /health` | `GET /api/keepalive`
@@ -147,7 +147,7 @@ flowchart LR
     VWAPCheck -->|Yes| Quality[Trade Quality Score >= 70]
     Quality --> Alloc[Capital Allocator Position Sizing]
     Alloc --> Governance{Max Drawdown Safe?}
-    Governance -->|Safe| Execute[Execute via Broker API]
+    Governance -->|Safe| Execute[Execute (Paper)]
     Governance -->|Unsafe| Halt[Kill-Switch Triggered]
     Execute --> Resolver[Prediction Resolver Monitor]
 ```
@@ -165,7 +165,7 @@ curl -X GET "https://apextrade-core-trade-ai-backend.hf.space/api/keepalive"
 ```bash
 curl -X POST "https://apextrade-core-trade-ai-backend.hf.space/api/login" \
      -H "Content-Type: application/json" \
-     -d '{"username": "admin", "password": "YOUR_SECURE_PASSWORD"}'
+     -d '{"username": "code", "password": "YOUR_SECURE_PASSWORD"}'
 ```
 
 ### 3. Run Strategy Backtest Engine
