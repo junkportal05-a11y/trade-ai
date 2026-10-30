@@ -1,13 +1,8 @@
-"""Test suite configuration — enables CSRF bypass globally so existing tests
-don't break. Tests that verify CSRF enforcement (test_csrf.py) unset TESTING
-env var before their requests."""
+"""Test suite configuration — TESTING=1 bypass removed; each test unsets it via monkeypatch.delenv()."""
 import pytest
 import os
 
-# Set TESTING env var to disable CSRF for all tests.
-# Tests that need to verify CSRF enforcement unset this before making requests.
-os.environ["TESTING"] = "1"
-# Explicitly disable background workers for test suite
+# Background workers explicitly disabled for test suite
 os.environ["SKIP_BACKGROUND_WORKERS"] = "true"
 
 
@@ -20,11 +15,11 @@ def _init_test_db():
 
 @pytest.fixture(autouse=True)
 def _disable_csrf_bypass():
-    """Ensure TESTING=1 is set for CSRF bypass during tests."""
-    os.environ["TESTING"] = "1"
+    """Ensure TESTING=1 is NOT set globally; each test unsets it via monkeypatch.delenv()."""
+    os.environ.pop("TESTING", None)
     os.environ["SKIP_BACKGROUND_WORKERS"] = "true"
     yield
-    os.environ["TESTING"] = "1"  # Reset after each test
+    os.environ.pop("TESTING", None)
     os.environ["SKIP_BACKGROUND_WORKERS"] = "true"
 
 
@@ -39,12 +34,17 @@ def _clear_degraded_workers():
 
 @pytest.fixture
 def auth_client():
-    """TestClient with a valid apt_token cookie for authenticated requests."""
+    """TestClient with a valid apt_token cookie for authenticated requests.
+
+    CSRF is enforced unconditionally on mutating routes (TAR-21), so send the
+    same X-Requested-With header the real frontend's apiFetch always sends.
+    Tests asserting the missing-header 403 build their own bare clients.
+    """
     from fastapi.testclient import TestClient
     from app.main import app
     from app.core.security import create_access_token
-    
-    client = TestClient(app)
+
+    client = TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"})
     token = create_access_token({"sub": "apex_head_quant"})
     client.cookies.set("apt_token", token)
     return client

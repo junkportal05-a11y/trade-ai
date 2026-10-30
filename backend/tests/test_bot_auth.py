@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.core.security import create_access_token
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"})
 
 
 def test_bot_start_requires_auth():

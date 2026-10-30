@@ -15,4 +15,25 @@ def download_market_data_df(symbol: str, period: str = "5d", interval: str = "5m
     return _download(symbol, period, interval)
 
 
-__all__ = ["download_market_data_df"]
+def download_market_data_df_sourced(
+    symbol: str, period: str = "5d", interval: str = "5m"
+):
+    """Same chain as download_market_data_df but returns (df, data_source).
+
+    Calls the module-global download_market_data_df (patch seam preserved:
+    tests may monkeypatch either app.services.market_data.download_market_data_df
+    or signals.download_market_data_df and both are honored).
+    """
+    df = download_market_data_df(symbol, period, interval)  # noqa: PLC-Ripple
+    if df is None:
+        return None, None
+    try:
+        from signals import _SOURCE_CACHE
+
+        source = _SOURCE_CACHE.get(f"{symbol}_{interval}")
+    except Exception:
+        source = None
+    return df, source
+
+
+__all__ = ["download_market_data_df", "download_market_data_df_sourced"]

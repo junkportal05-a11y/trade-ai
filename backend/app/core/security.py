@@ -16,16 +16,29 @@ from app.core.config import settings
 from app.core.logging import logger
 
 # ── Fernet for encrypting sensitive broker credentials ────────────────────────
-_fernet_list = []
-if settings.fernet_keys:
-    for key in settings.fernet_keys:
-        try:
-            _fernet_list.append(Fernet(key))
-        except Exception as e:
-            logger.error(f"Failed to initialize Fernet with key: {e}")
+def _is_sensitive_env() -> bool:
+    return settings.environment in ("production", "staging")
 
-# Ensure at least one Fernet instance exists (generate a new key if none valid)
+
+_fernet_list = []
+for key in settings.fernet_keys:
+    try:
+        _fernet_list.append(Fernet(key))
+    except Exception as e:
+        if _is_sensitive_env():
+            raise RuntimeError(
+                f"CRITICAL SECURITY FAILURE: invalid FERNET_KEYS entry in {settings.environment} mode "
+                "— never silently regenerate broker encryption keys; configure valid keys and redeploy."
+            ) from e
+        logger.error(f"Failed to initialize Fernet with key: {e}")
+
+# Ensure at least one Fernet instance exists; production/staging must never fall
+# back to a freshly generated unknown key.
 if not _fernet_list:
+    if _is_sensitive_env():
+        raise RuntimeError(
+            f"CRITICAL SECURITY FAILURE: no valid FERNET_KEYS configured in {settings.environment} mode."
+        )
     try:
         _fernet_list = [Fernet(Fernet.generate_key())]
         logger.warning("Generated new Fernet key (no valid keys in settings.fernet_keys)")
@@ -99,8 +112,7 @@ class UserRegistry:
     def _load_from_env(self) -> None:
         raw_admin = os.getenv("PASS_ADMIN", os.getenv("APP_PASSWORD", "")).strip()
         if not raw_admin:
-            is_prod = os.getenv("ENVIRONMENT", "development").lower() in ("production", "prod", "staging")
-            if is_prod:
+            if _is_sensitive_env():
                 raise RuntimeError("CRITICAL SECURITY FAILURE: PASS_ADMIN/APP_PASSWORD must be set in production environment.")
             raw_admin = secrets.token_urlsafe(32)
             logger.warning("PASS_ADMIN not set in env. Generated random ephemeral master password for runtime safety.")
@@ -237,13 +249,12 @@ def require_clearance(min_level: str):
 async def csrf_protect(request: Request):
     """CSRF check that enforces X-Requested-With header on mutating routes.
     
-    - When TESTING is "1" (default from conftest): passes through, no enforcement.
-    - When TESTING is cleared: returns 403 if X-Requested-With header is missing.
+    - When X-Requested-With header is missing on mutating routes: returns 403.
+    - GET routes are CSRF-free; exemptions: /api/login (session lifecycle).
     """
-    if os.getenv("TESTING") != "1":
-        x_requested_with = request.headers.get("X-Requested-With")
-        if not x_requested_with:
-            raise HTTPException(status_code=403, detail="CSRF token required")
+    x_requested_with = request.headers.get("X-Requested-With")
+    if not x_requested_with:
+        raise HTTPException(status_code=403, detail="CSRF token required")
     return True
 
 

@@ -26,7 +26,7 @@
 | `POST` | `/api/journal` | Create new journal entry | `JournalPanel.jsx` |
 | `DELETE` | `/api/journal/{id}` | Delete entry | `JournalPanel.jsx` |
 | `POST` | `/api/chat` | AI chat interface | `App.jsx` (ChatPanel) |
-| `GET` | `/api/backtest/run` | Execute historical backtest | `SimulatorPanel.jsx` |
+| `POST` | `/api/backtest/run` | Execute historical backtest | `SimulatorPanel.jsx` |
 | `GET` | `/api/backtest/stats` | Aggregated performance stats | `SimulatorPanel.jsx` |
 | `GET` | `/api/backtest/history` | Raw backtest signal logs | `SimulatorPanel.jsx` |
 | `POST` | `/api/backtest/reset` | Clear backtest database | `SimulatorPanel.jsx` |

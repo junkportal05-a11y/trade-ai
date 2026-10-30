@@ -87,6 +87,11 @@ def run_migrations(engine: Engine) -> None:
         conn.execute(text("UPDATE trade_journal SET user_id = 'legacy' WHERE user_id IS NULL"))
         logger.info("Assigned legacy trade_journal rows (NULL user_id) to 'legacy' sentinel user")
 
+    _add_column_safe(engine, "predictions_history", "user_id", "TEXT")
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE predictions_history SET user_id = 'legacy' WHERE user_id IS NULL"))
+        logger.info("Assigned legacy predictions_history rows (NULL user_id) to 'legacy' sentinel user")
+
     _add_column_safe(engine, "signals_history", "rr_ratio", "REAL")
     _add_column_safe(engine, "signals_history", "atr", "REAL")
 
@@ -101,6 +106,7 @@ def run_migrations(engine: Engine) -> None:
         ("sector_strength", "REAL"),
         ("nifty_trend", "TEXT"),
         ("manual_override_reason", "TEXT"),
+        ("position_size", "REAL"),
         ("setup_type", "TEXT"),
         ("market_regime_snapshot", "TEXT"),
         ("risk_amount", "REAL"),
@@ -124,9 +130,14 @@ def run_migrations(engine: Engine) -> None:
         ("slippage_pct", "REAL"),
         ("broker_failure_reason", "TEXT"),
         ("order_mode", "TEXT"),
+        ("data_source", "TEXT"),
     ]
     for col_name, col_type in pred_columns:
         _add_column_safe(engine, "predictions_history", col_name, col_type)
+
+    _add_column_safe(engine, "trade_journal", "data_source", "TEXT")
+    _add_column_safe(engine, "trade_journal", "target_price", "REAL")
+    _add_column_safe(engine, "trade_journal", "stop_loss", "REAL")
 
     _add_column_safe(engine, "strategy_health", "edge_score", "REAL")
     _add_column_safe(engine, "daily_governance_reports", "data_confidence_score", "REAL")

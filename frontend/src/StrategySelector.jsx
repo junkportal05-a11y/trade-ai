@@ -39,6 +39,7 @@ const STRATEGY_PRESETS = [
 
 export default function StrategySelector({ selectedStrategy, onSelectStrategy, performanceData }) {
   const [strategies, setStrategies] = useState([]);
+  const [dataSource, setDataSource] = useState('presets');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('selector');
 
@@ -54,6 +55,7 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
         const data = await res.json();
         if (data.strategies && data.strategies.length > 0) {
           setStrategies(data.strategies);
+          setDataSource(data.data_source || 'presets');
           return;
         }
       }
@@ -61,6 +63,7 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
       // Use presets
     }
     setStrategies(STRATEGY_PRESETS);
+    setDataSource('presets');
   }, []);
 
   const perf = performanceData || {
@@ -105,8 +108,13 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
       {activeTab === 'selector' && (
         <div style={{ padding: 16, maxHeight: 400, overflowY: 'auto' }}>
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: T.textDim, letterSpacing: '0.1em', ...mono, marginBottom: 8 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.textDim, letterSpacing: '0.1em', ...mono, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
               ACTIVE: {strategies.find(s => s.id === selectedStrategy)?.name || 'Intraday Momentum'}
+              {dataSource === 'presets' && (
+                <span style={{ fontSize: 8, letterSpacing: '0.06em', color: '#f5c842', border: '1px solid rgba(245,200,66,0.35)', borderRadius: 3, padding: '1px 5px', background: T.goldDim }}>
+                  SIMULATED PRESETS
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 11, color: T.textMid, lineHeight: 1.5 }}>
               {strategies.find(s => s.id === selectedStrategy)?.description || STRATEGY_PRESETS.find(s => s.id === selectedStrategy)?.description}
@@ -133,10 +141,16 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? T.accentAlt : T.text, ...mono }}>{strat.name}</span>
-                      <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: strat.riskProfile === 'High' ? T.redDim : strat.riskProfile === 'Moderate' ? 'rgba(245,200,66,0.12)' : T.greenDim, color: strat.riskProfile === 'High' ? T.red : strat.riskProfile === 'Moderate' ? '#f5c842' : T.green, ...mono }}>
-                        {strat.riskProfile}
-                      </span>
-                      <span style={{ fontSize: 9, color: T.textDim, ...mono }}>{strat.typicalHold}</span>
+                      {strat.riskProfile ? (
+                        <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: strat.riskProfile === 'High' ? T.redDim : strat.riskProfile === 'Moderate' ? 'rgba(245,200,66,0.12)' : T.greenDim, color: strat.riskProfile === 'High' ? T.red : strat.riskProfile === 'Moderate' ? '#f5c842' : T.green, ...mono }}>
+                          {strat.riskProfile}
+                        </span>
+                      ) : (strat.is_active != null) && (
+                        <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: strat.is_active ? T.greenDim : T.redDim, color: strat.is_active ? T.green : T.red, ...mono }}>
+                          {strat.is_active ? 'ACTIVE' : 'INACTIVE'}
+                        </span>
+                      )}
+                      {strat.typicalHold && <span style={{ fontSize: 9, color: T.textDim, ...mono }}>{strat.typicalHold}</span>}
                     </div>
                     <div style={{ fontSize: 10, color: T.textMid, lineHeight: 1.4 }}>{strat.description}</div>
                   </div>

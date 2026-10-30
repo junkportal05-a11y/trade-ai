@@ -213,6 +213,9 @@ class JournalRepository:
             status=entry.get("status", "OPEN"),
             pnl=float(entry["pnl"]) if entry.get("pnl") is not None else None,
             user_id=user_id,
+            data_source=entry.get("data_source"),
+            target_price=_sf(entry.get("target_price")),
+            stop_loss=_sf(entry.get("stop_loss")),
         )
         db.add(new_entry)
         db.commit()
@@ -264,8 +267,9 @@ def _parse_datetime(v: Any) -> datetime | None:
 
 class PredictionRepository:
     @staticmethod
-    def add(db: Session, pred: dict[str, Any]) -> int:
+    def add(db: Session, pred: dict[str, Any], user_id: str | None = None) -> int:
         new_pred = PredictionsHistory(
+            user_id=user_id,
             symbol=pred["symbol"].upper(),
             prediction_date=_parse_datetime(pred.get("prediction_date")) or _now_ist(),
             prediction_type=pred["prediction_type"].upper(),
@@ -273,6 +277,7 @@ class PredictionRepository:
             target_price=_sf(pred.get("target_price"), 0.0),
             stop_loss=_sf(pred.get("stop_loss"), 0.0),
             confidence_score=int(pred.get("confidence_score", 50)),
+            position_size=_sf(pred.get("position_size"), 1.0),
             rsi=_sf(pred.get("rsi")),
             macd=_sf(pred.get("macd")),
             adx=_sf(pred.get("adx")),
@@ -299,6 +304,7 @@ class PredictionRepository:
             correlation_score=_sf(pred.get("correlation_score"), 0.0),
             signal_time=_parse_datetime(pred.get("signal_time")),
             order_time=_parse_datetime(pred.get("order_time")),
+            data_source=pred.get("data_source"),
         )
         db.add(new_pred)
         db.commit()
@@ -319,6 +325,20 @@ class PredictionRepository:
             .all()
         )
         return [r.to_dict() for r in rows]
+
+    @staticmethod
+    def delete(db: Session, prediction_id: int, user_id: str | None = None) -> bool:
+        if not user_id:
+            raise ValueError("user_id is required for Predictions operations")
+        query = db.query(PredictionsHistory).filter(
+            PredictionsHistory.id == prediction_id, PredictionsHistory.user_id == user_id
+        )
+        row = query.first()
+        if row:
+            db.delete(row)
+            db.commit()
+            return True
+        return False
 
 
 class MetricsRepository:

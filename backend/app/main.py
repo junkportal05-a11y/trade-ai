@@ -6,9 +6,10 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -16,12 +17,11 @@ from slowapi.errors import RateLimitExceeded
 from pydantic import ValidationError
 import logging
 
-from app.api.deps import SessionDep
 from app.core.config import settings
 from app.models.schemas import BacktestRequest
 from app.core.database import init_db
-from app.core.logging import configure_json_logging, logger, set_correlation_id
-from app.core.security import get_token_from_request, CsrfDep
+from app.core.logging import configure_json_logging, logger, set_correlation_id, get_correlation_id
+from app.core.security import get_token_from_request
 from app.core.worker_state import set_degraded_worker, clear_all_degraded_workers
 
 from datetime import datetime, timezone
@@ -130,10 +130,16 @@ async def lifespan(app: FastAPI):
             except asyncio.CancelledError:
                 pass
 
+# Debug is a development-only affordance; the standard OpenAPI docs are
+# disabled entirely in production so the public API surface can't be enumerated.
+_is_production = settings.environment == "production"
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    debug=settings.debug,
+    debug=settings.debug and settings.environment == "development",
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
+    openapi_url=None if _is_production else "/openapi.json",
     lifespan=lifespan,
 )
 trusted_hosts = [h.strip() for h in os.getenv("TRUSTED_HOSTS", "127.0.0.1").split(",") if h.strip()]
@@ -161,7 +167,6 @@ logger.info("CORS allowed origins configured", extra={"origins": allowed})
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed,
-    allow_origin_regex=r"http://localhost:\d+|http://127\.0\.0\.1:\d+",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["Content-Type", "Authorization", "X-Session-Token", "x-admin-key", "Accept", "Origin", "X-Requested-With"],
@@ -182,6 +187,25 @@ async def correlation_middleware(request: Request, call_next):
     logger.info("request_finished", extra={"status_code": response.status_code})
     return response
 
+
+# ── Generic fallback exception handler ───────────────────────────────────
+# Any unhandled exception returns a generic error shape (never a traceback,
+# never internal details) plus the correlation id for log-server joining.
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.error(
+        "unhandled_exception",
+        extra={"method": request.method, "path": request.url.path, "error": str(exc)},
+        exc_info=True,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "correlation_id": get_correlation_id() or str(uuid.uuid4()),
+        },
+    )
+
 # API routes
 from app.api.v1 import api_router
 app.include_router(api_router)
@@ -192,10 +216,11 @@ os.makedirs(graph_dir, exist_ok=True)
 app.mount("/graphify-out", StaticFiles(directory=graph_dir), name="graphify-out")
 
 # ----------------------------------------------------------------------
-# New Backtest API endpoint
+# Backtest engine handler (route registration lives in app/api/v1/backtest.py;
+# this module previously re-declared POST /api/backtest/run as a dead shadow
+# of the v1 router — removed to avoid duplicate routes). The rate limiting and
+# auth deps live on the v1 route.
 # ----------------------------------------------------------------------
-@app.post("/api/backtest/run", tags=["backtest"], dependencies=[SessionDep, CsrfDep])
-@limiter.limit(settings.rate_limit_backtest)
 async def run_backtest(request: Request, backtest: BacktestRequest):
     """
     Execute a historical backtest and return key performance metrics.
@@ -260,11 +285,14 @@ async def run_backtest(request: Request, backtest: BacktestRequest):
         config = BacktestConfig(period_range=period_range, **strategy_params)
         result = run_historical_backtest(sym, config)
     except Exception as exc:
+        # Full details are logged server-side; the public message stays generic
+        # so engine/exception internals never reach the client.
         logger.error(f"Backtest execution error for {sym}: {exc}", exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Backtest failed for {sym}: {exc}")
+        raise HTTPException(status_code=400, detail="Backtest failed: invalid parameters or insufficient data")
 
     if isinstance(result, dict) and "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+        logger.error(f"Backtest engine error for {sym}: {result['error']}")
+        raise HTTPException(status_code=400, detail="Backtest failed: invalid parameters or insufficient data")
 
     # ------------------------------------------------------------------
     # Calculate Sharpe ratio from equity curve (annualized)
@@ -307,15 +335,9 @@ async def run_backtest(request: Request, backtest: BacktestRequest):
 # ----------------------------------------------------------------------
 # Default & Monitoring routes
 # ----------------------------------------------------------------------
-@app.get("/api/quote", tags=["quotes"], dependencies=[SessionDep])
-async def get_quote_endpoint(symbol: str):
-    import app.services.quotes as quotes_svc
-    quote = quotes_svc.get_symbol_quote(symbol)
-    if quote is None:
-        raise HTTPException(status_code=404, detail=f"No data for {symbol}")
-    return quote
-
-
+# (GET /api/quote was removed — it duplicated app/api/v1/quotes.py's route,
+# which is the registered router-level definition; main.py's copy was a
+# dead shadow that never served traffic.)
 @app.get("/", tags=["root"])
 async def read_root():
     return {"status": "ok", "message": """ApexTrade AI Core Backend Engine.

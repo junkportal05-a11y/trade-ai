@@ -3,6 +3,9 @@ import { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldChec
 import SystemHealthModal from './SystemHealthModal';
 import { useHealthCheck } from '../hooks/useHealthCheck';
 import { T, fmt, clr, sign, PRIMARY_TABS, SECONDARY_TABS, TAB_META } from '../theme';
+import pkg from '../../package.json';
+
+const APP_VERSION = pkg.version;
 
 const ICON_MAP = { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck, Settings, HelpCircle };
 
@@ -336,6 +339,21 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
         {!isMobile && (
           <span style={{ fontSize: 9.5, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.05em' }}>
             {clock} IST
+          </span>
+        )}
+
+        {!isMobile && (
+          <span style={{
+            padding: '4px 7px',
+            borderRadius: 6,
+            border: `1px solid ${T.border}`,
+            background: 'rgba(255, 255, 255, 0.02)',
+            color: T.textDim,
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 9,
+            letterSpacing: '0.04em',
+          }}>
+            v{APP_VERSION}
           </span>
         )}
 

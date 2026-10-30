@@ -1,4 +1,5 @@
 import { API_BASE_URL, apiFetch } from './api';
+import { describeHttpError } from './utils/apiErrors';
 /**
  * ScannerPanel.jsx
  * Unified NSE Smart Scanner — merges signal scanning with capital allocation
@@ -439,14 +440,29 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
 /* ═══════════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════════════════════ */
+/* ── Quality-gate labels for diagnostics (keys match backend/signal gate_log) ── */
+const GATE_LABELS = {
+  data_confidence: 'Data-confidence below 72% (poor feed quality)',
+  volume_surge: 'Volume surge below 1.2× the 20-bar average',
+  adx: 'ADX below 20 (choppy, non-trending market)',
+  vwap_veto: 'VWAP veto (momentum against intraday VWAP)',
+  risk_reward: 'Risk:Reward below 2.0',
+  insufficient_data: 'Too few candles for indicators',
+  segment_filter: 'Outside chosen market segment',
+  error: 'Data fetch error',
+};
+
 export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, cash }) {
   /* ── Signal state ─────────────────────────────────────────────────────────── */
   const [signals, setSignals]     = useState([]);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState(null);
+  const [errorKind, setErrorKind] = useState(null); // 'timeout' | 'server' | offline-family
+  const [scannedCount, setScannedCount] = useState(null); // symbols screened when backend reports it
   const [scanTime, setScanTime]   = useState(null);
   const [filter, setFilter]       = useState('ALL');
   const [nextScan, setNextScan]   = useState(null);
+  const [gateInfo, setGateInfo]   = useState(null); // per-scan gate rejection counts
   const abortRef = useRef(null);
 
   /* ── Capital / allocation state ───────────────────────────────────────────── */
@@ -458,6 +474,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
   const allocTimerRef = useRef(null);
 
   const REFRESH_MS = 5 * 60 * 1000; // 5 minutes
+  const SCAN_TIMEOUT_MS = 90000; // hard 90s ceiling: a hung scan surfaces as a timeout, not an endless spinner
 
   const capitalNum = parseFloat(String(capital).replace(/,/g, '')) || 0;
 
@@ -501,37 +518,63 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
   /* ── Main scan function ───────────────────────────────────────────────────── */
   const runScan = useCallback(async () => {
     if (abortRef.current) abortRef.current.abort();
-    abortRef.current = new AbortController();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    // Hard 90s ceiling: a hung scan surfaces as a timeout, not an endless spin.
+    const timeout = setTimeout(() => controller.abort(), SCAN_TIMEOUT_MS);
 
     setLoading(true);
     setError(null);
+    setErrorKind(null);
+    setScannedCount(null);
 
     // Yield to the browser event loop to paint scanning status immediately (fixes INP)
     await new Promise(resolve => setTimeout(resolve, 0));
 
     try {
-      const res = await apiFetch('/api/signals', {
-        signal: abortRef.current.signal
-      });
+      const res = await apiFetch('/api/signals', { signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const data = await res.json();
-      if (data.signals && data.signals.length > 0) {
-        setSignals(data.signals);
-      } else {
+      if (data.error || data.message) {
+        // Backend signalled its own problem (e.g. cold-start timeout) — show that.
         setSignals([]);
-        setError('Signal engine returned empty results. Backend may still be warming up.');
+        setGateInfo(null);
+        setError(data.message || data.error);
+        setErrorKind('server');
+      } else {
+        // A 200 with zero signals is a success, not an outage: genuinely empty or
+        // every candidate was filtered by the quality gates (volume surge, ADX,
+        // confidence, VWAP, R:R) — the gates block below explains that.
+        const list = data.signals || [];
+        setSignals(list);
+        setGateInfo(data.gates || {});
+        if (!list.length) {
+          setError(null);
+          setErrorKind(null);
+        }
       }
       setScanTime(data.scan_time);
       setNextScan(Date.now() + REFRESH_MS);
-    } catch (e) {
-      if (e.name !== 'AbortError') {
-        setError(e.message || 'Backend not reachable.');
-        setSignals([]);
-        setScanTime(null);
-        setNextScan(Date.now() + REFRESH_MS);
+      if (data.scanned_count != null || data.scanned != null) {
+        setScannedCount(data.scanned_count ?? data.scanned);
       }
+    } catch (e) {
+      if (abortRef.current !== controller) return; // superseded by a newer scan
+      if (e.name === 'AbortError') {
+        setErrorKind('timeout');
+        setError(`Scan request timed out after ${SCAN_TIMEOUT_MS / 1000} seconds. Tap RESCAN to try again.`);
+      } else {
+        setErrorKind('server');
+        setError(describeHttpError(e, 'scanner'));
+      }
+      setSignals([]);
+      setGateInfo(null);
+      setScannedCount(null);
+      setScanTime(null);
+      setNextScan(Date.now() + REFRESH_MS);
     } finally {
-      setLoading(false);
+      clearTimeout(timeout);
+      if (abortRef.current === controller) setLoading(false);
     }
 
     // If capital is entered, also fetch allocation
@@ -609,7 +652,8 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
             </div>
             {scanTime && (
               <div style={{ fontSize: 9, color: T.textDim, marginTop: 4, ...mono }}>
-                Scanned {new Date(scanTime).toLocaleTimeString('en-IN', { hour12: true })} IST
+                {new Date(scanTime).toLocaleTimeString('en-IN', { hour12: true })} IST
+                {scannedCount != null ? ` · ${scannedCount} symbols screened` : ''}
                 &nbsp;·&nbsp;
                 {signals.length} stocks analysed
               </div>
@@ -783,20 +827,23 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
           <ScanProgress elapsed={allocElapsed} />
         )}
 
-        {/* Error / Offline banner */}
+        {/* Error banner — status-distinguished: timeout/gold, server error/red.
+            A 200 with zero signals never reaches this (the gates block below covers it). */}
         {error && !loading && (
           <div style={{
             padding: '10px 14px', borderRadius: 6,
-            background: 'rgba(245,200,66,0.06)',
-            border: '1px solid rgba(245,200,66,0.15)',
-            fontSize: 10, color: '#f5c842', ...mono, lineHeight: 1.4,
+            background: errorKind === 'server' ? 'rgba(255,61,90,0.08)' : 'rgba(245,200,66,0.06)',
+            border: `1px solid ${errorKind === 'server' ? 'rgba(255,61,90,0.25)' : 'rgba(245,200,66,0.15)'}`,
+            fontSize: 10,
+            color: errorKind === 'server' ? T.red : '#f5c842',
+            ...mono, lineHeight: 1.4,
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <span style={{
               display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-              background: '#f5c842', animation: 'sp_pulse 1.5s infinite',
+              background: errorKind === 'server' ? T.red : '#f5c842', animation: 'sp_pulse 1.5s infinite',
             }} />
-            <span>⚠ BACKEND OFFLINE — {error}</span>
+            <span>⚠ {error}</span>
           </div>
         )}
 
@@ -807,10 +854,32 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
           </div>
         )}
 
-        {/* No signals at all (backend offline, no fallback) */}
+        {/* No signals — either not fetched yet, or every candidate hit a gate */}
         {!loading && signals.length === 0 && !error && (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: T.textDim, fontSize: 12, ...sans }}>
-            No signals loaded yet. Click RESCAN to fetch.
+          <div style={{ textAlign: 'center', padding: '36px 16px', color: T.textDim, fontSize: 12, ...sans }}>
+            {gateInfo ? (
+              <>
+                <div style={{ color: T.textMid, fontSize: 12, marginBottom: 8, fontWeight: 700 }}>
+                  Scan complete — 0 candidates passed the quality gates
+                </div>
+                {Object.keys(GATE_LABELS).filter(k => (gateInfo[k] || 0) > 0).length > 0 ? (
+                  <div style={{ display: 'inline-block', textAlign: 'left', fontSize: 10, ...mono, lineHeight: 1.9 }}>
+                    {Object.keys(GATE_LABELS).filter(k => (gateInfo[k] || 0) > 0).map(k => (
+                      <div key={k}>✕ {GATE_LABELS[k]} · {gateInfo[k]} symbol{gateInfo[k] === 1 ? '' : 's'} filtered</div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 10 }}>
+                    No rejections recorded — market data feeds may still be warming. RESCAN shortly.
+                  </div>
+                )}
+                <div style={{ fontSize: 9, color: T.textDim, ...mono, margin: '12px auto 0', maxWidth: 440, lineHeight: 1.6 }}>
+                  Standing gates: volume ≥1.2× 20-bar avg · ADX ≥20 · data confidence ≥72% · risk:reward ≥2.0 · VWAP trend veto. Symbols scoring &lt;72 confidence are kept on watch, not shown as signals. A quiet/choppy tape can legitimately filter the whole watchlist — nothing is wrong.
+                </div>
+              </>
+            ) : (
+              <div>No signals loaded yet. Click RESCAN to fetch.</div>
+            )}
           </div>
         )}
 

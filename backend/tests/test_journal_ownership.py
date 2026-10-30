@@ -28,7 +28,7 @@ def override_get_db():
         db.close()
 
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"})
 
 
 def test_journal_user_isolation():

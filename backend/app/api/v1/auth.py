@@ -12,6 +12,7 @@ from app.core.security import (
     user_registry,
     create_access_token,
     get_token_from_request,
+    CsrfDep,
 )
 from app.models.schemas import LoginRequest, LoginResponse, StatusResponse
 
@@ -28,6 +29,13 @@ async def login(
     response: Response,
     db: Session = DbDep,
 ) -> dict:
+    """Authenticate and set the session cookie.
+
+    Deliberately CSRF-exempt (documented exemption): at login time no prior
+    authenticated session cookie is in play for this origin to ride, and the
+    response itself replaces any cookie value, so a cross-site login CSRF has
+    no session-mutation surface worth gating (login-CSRF risk accepted).
+    """
     from fastapi import HTTPException
 
     try:
@@ -69,7 +77,7 @@ async def login(
     }
 
 
-@router.post("/logout", response_model=StatusResponse)
+@router.post("/logout", response_model=StatusResponse, dependencies=[CsrfDep])
 @limiter.limit(os.getenv("RATE_LIMIT_AUTH", "5/minute"))
 async def logout(request: Request, response: Response) -> dict:
     token = get_token_from_request(request)

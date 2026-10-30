@@ -62,6 +62,17 @@ QUOTE_TTL = 60          # seconds a cached quote stays fresh
 QUOTE_STALE_MAX = 3600  # max age (s) of a stale quote served when all feeds are down
 _YF_FAIL_TS: dict[str, float] = {}
 YF_BACKOFF = 60         # seconds to back off from yfinance after a failure
+_SOURCE_CACHE: dict[str, str] = {}  # cache_key -> feed tier that served the frame
+
+_DATA_SOURCES = ("angelone", "yfinance", "last-good", "synthetic", "seed")
+
+
+def _flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Flatten a MultiIndex column axis (e.g. yfinance ("close","SYM.NS"))
+    down to the price level so downstream column processing stays name-based."""
+    if df is not None and isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    return df
 
 
 def _yf_ready(key: str) -> bool:
@@ -181,6 +192,84 @@ def validate_risk_reward(entry: float, stop: float, target: float, min_rr: float
     return rr_ratio >= min_rr
 
 
+def _synthetic_walk(symbol: str, idx: pd.DatetimeIndex) -> pd.DataFrame:
+    """Deterministic seeded OHLCV random walk over the given timestamps."""
+    rng = np.random.default_rng(abs(hash(symbol)) % (2**32 - 1))
+    base_price = 2500.0 if "RELIANCE" in symbol.upper() else 1000.0
+    n = len(idx)
+    close = base_price * np.cumprod(1 + rng.normal(0.0005, 0.015, size=n))
+    high = close * (1 + np.abs(rng.normal(0.005, 0.005, size=n)))
+    low = close * (1 - np.abs(rng.normal(0.005, 0.005, size=n)))
+    open_ = low + (high - low) * rng.random(size=n)
+    volume = rng.integers(100_000, 5_000_000, size=n)
+    return pd.DataFrame(
+        {"Open": open_, "High": high, "Low": low, "Close": close, "Volume": volume},
+        index=idx,
+    )
+
+
+def generate_synthetic_candles(
+    symbol: str,
+    period: str = "5d",
+    interval: str = "5m",
+) -> Optional[pd.DataFrame]:
+    """
+    Deterministic synthetic OHLCV generator — final fallback tier so charts and
+    scans never end up with an empty frame.
+
+    The timeline adapts to the interval: daily bars for daily/weekly/monthly
+    intervals, NSE session bars (09:15-15:30) for intraday intervals. This data
+    is not market data; it only keeps consumers responsive and rendered.
+    """
+    try:
+        if interval in ("1d", "5d", "1wk", "1mo", "3mo"):
+            num_bars = 250 if period in ("1y", "2y", "5y", "10y", "max") else 100
+            idx = pd.date_range(end=pd.Timestamp.now(), periods=num_bars, freq="D")
+            return _synthetic_walk(symbol, idx)
+
+        iv_min = {"1m": 1, "2m": 2, "5m": 5, "15m": 15, "30m": 30, "1h": 60, "60m": 60}.get(interval, 5)
+        days = {"1y": 60, "2y": 60, "5y": 60, "10y": 60, "max": 60, "ytd": 40, "6mo": 40, "3mo": 30, "1mo": 20}.get(period, 10)
+        end = pd.Timestamp.now()
+        session_days = []
+        cursor = end.normalize()
+        while len(session_days) < days:
+            if cursor.weekday() < 5:
+                session_days.append(cursor)
+            cursor -= pd.Timedelta(days=1)
+        session_days.reverse()
+
+        start_td = pd.Timedelta(hours=9, minutes=15)
+        end_td = pd.Timedelta(hours=15, minutes=30)
+        iv_td = pd.Timedelta(minutes=iv_min)
+        stamps = []
+        for i, day in enumerate(session_days):
+            cur = day + start_td
+            day_end = day + end_td if i < len(session_days) - 1 else min(day + end_td, end)
+            while cur <= day_end:
+                stamps.append(cur)
+                cur += iv_td
+        return _synthetic_walk(symbol, pd.DatetimeIndex(stamps))
+    except Exception:
+        return None
+
+
+def download_market_data_df_sourced(
+    symbol: str,
+    period: str = "5d",
+    interval: str = "5m",
+) -> tuple[Optional[pd.DataFrame], Optional[str]]:
+    """
+    Same tier chain as download_market_data_df, but also reports the feed tier
+    that served the frame: angelone | yfinance | last-good | synthetic | seed.
+    (df, source) — source is None only when data itself is unavailable.
+    """
+    cache_key = f"{symbol}_{interval}"
+    df = download_market_data_df(symbol, period, interval)
+    if df is None:
+        return None, None
+    return df, _SOURCE_CACHE.get(cache_key)
+
+
 def download_market_data_df(
     symbol: str,
     period: str = "5d",
@@ -196,6 +285,7 @@ def download_market_data_df(
     if cached is not None:
         age = time.time() - _CACHE_TIMESTAMP.get(cache_key, 0)
         if age < CACHE_TTL:
+            _flatten_columns(cached)
             return cached
 
     # AngelOne primary
@@ -207,6 +297,8 @@ def download_market_data_df(
         try:
             df = feed.get_historical_candles(symbol, period, interval)
             if df is not None and not df.empty:
+                _flatten_columns(df)
+                _SOURCE_CACHE[cache_key] = "angelone"
                 _BATCH_CANDLE_CACHE[cache_key] = df
                 _CACHE_TIMESTAMP[cache_key] = time.time()
                 _snapshot_candles(cache_key, df)
@@ -222,6 +314,10 @@ def download_market_data_df(
             yf_symbol = symbol + '.NS' if '.' not in symbol else symbol
             df = yf.download(yf_symbol, period=period, interval=interval, auto_adjust=True)
             if df is not None and not df.empty:
+                # Newer yfinance versions return MultiIndex columns
+                # (e.g. ("close", "RELIANCE.NS")); flatten to the price level
+                # so the lowercase rename below matches and the frame is usable.
+                _flatten_columns(df)
                 # yfinance returns lowercase column names; rename to match expected capitalization
                 df = df.rename(columns={
                     'open': 'Open',
@@ -231,6 +327,7 @@ def download_market_data_df(
                     'volume': 'Volume',
                     'adj close': 'Adj Close'
                 })
+                _SOURCE_CACHE[cache_key] = "yfinance"
                 _BATCH_CANDLE_CACHE[cache_key] = df
                 _CACHE_TIMESTAMP[cache_key] = time.time()
                 _snapshot_candles(cache_key, df)
@@ -245,39 +342,21 @@ def download_market_data_df(
     # Tier 3: last-known-good real candles from disk (outage/restart survival)
     snapshot = _load_snapshot(cache_key)
     if snapshot is not None:
+        _flatten_columns(snapshot)
+        _SOURCE_CACHE[cache_key] = "last-good"
         _BATCH_CANDLE_CACHE[cache_key] = snapshot
         _CACHE_TIMESTAMP[cache_key] = time.time()
         logger.info(f"[signals] serving last-known-good candles for {symbol}")
         return snapshot
 
     # Tier 4: Synthetic Historical Candle Generator (guarantees data availability)
-    try:
-        num_bars = 250 if period in ("1y", "2y") else 100
-        dates = pd.date_range(end=pd.Timestamp.now(), periods=num_bars, freq="D")
-        seed_val = abs(hash(symbol)) % (2**32 - 1)
-        rng = np.random.default_rng(seed_val)
-        base_price = 2500.0 if "RELIANCE" in symbol.upper() else 1000.0
-        returns = rng.normal(0.0005, 0.015, size=num_bars)
-        price_series = base_price * np.cumprod(1 + returns)
-        high_series = price_series * (1 + np.abs(rng.normal(0.005, 0.005, size=num_bars)))
-        low_series = price_series * (1 - np.abs(rng.normal(0.005, 0.005, size=num_bars)))
-        open_series = low_series + (high_series - low_series) * rng.random(size=num_bars)
-        volume_series = rng.integers(100000, 5000000, size=num_bars)
-
-        synth_df = pd.DataFrame({
-            "Open": open_series,
-            "High": high_series,
-            "Low": low_series,
-            "Close": price_series,
-            "Volume": volume_series
-        }, index=dates)
-
+    synth_df = generate_synthetic_candles(symbol, period, interval)
+    if synth_df is not None:
+        _SOURCE_CACHE[cache_key] = "synthetic"
         _BATCH_CANDLE_CACHE[cache_key] = synth_df
         _CACHE_TIMESTAMP[cache_key] = time.time()
-        print(f"[signals] Synthetic 3-tier fallback activated for {symbol}")
+        print(f"[signals] Synthetic fallback activated for {symbol}")
         return synth_df
-    except Exception as exc:
-        print(f"[signals] Synthetic fallback error: {exc}")
 
     return None
 
@@ -1218,12 +1297,20 @@ def analyse_symbol(
     capital: float = 1000.0,
     atr_multiplier: float = 1.8, # Stop loss width
     rr_target: float = 1.944,    # Equivalent to target 3.5 / stop 1.8
+    gate_log: Optional[dict] = None,  # optional per-scan rejection counters
 ) -> Optional[dict]:
     """
     Download market data for a symbol and calculate advanced signals using pandas-ta.
     If market is open, runs intraday 5m scan.
     If market is closed, runs daily 1d overnight scan.
+
+    When `gate_log` dict is supplied, every early-exit quality gate increments
+    its key so callers can explain a scanner that returns zero signals.
     """
+    def _note_gate(key: str) -> None:
+        if gate_log is not None:
+            gate_log[key] = gate_log.get(key, 0) + 1
+
     try:
         market_open = is_nse_market_open()
 
@@ -1278,6 +1365,7 @@ def analyse_symbol(
             _MACRO_CACHE[symbol] = {"date": current_date_str, "bullish": macro_bullish}
 
         if df is None or len(df) < 20:
+            _note_gate("insufficient_data")
             return None
 
         # Flatten multi-level columns if returned by provider
@@ -1286,6 +1374,7 @@ def analyse_symbol(
 
         df = df.dropna(subset=["Close", "High", "Low", "Open", "Volume"])
         if len(df) < 20:
+            _note_gate("insufficient_data")
             return None
             
         # ── DEEP DATA VALIDATION ────────────────────────────────────
@@ -1295,15 +1384,18 @@ def analyse_symbol(
             if data_conf < 72.0:
                 import logging
                 logging.getLogger("signals").info(f"Skipping {symbol}: Data Confidence ({data_conf}%) below 72% threshold.")
+                _note_gate("data_confidence")
                 return None
         except Exception as e:
             print(f"[signals] Data validation failed for {symbol}: {e}")
+            _note_gate("data_confidence")
             return None
 
         change_pct = ((df["Close"].iloc[-1] - df["Close"].iloc[0]) / df["Close"].iloc[0] * 100) if len(df) > 0 else 0.0
 
         df = _compute_indicators(df)
         if df is None:
+            _note_gate("insufficient_data")
             return None
 
         close = df["Close"]
@@ -1349,11 +1441,13 @@ def analyse_symbol(
         if not check_volume_surge(df):
             import logging
             logging.getLogger("signals").info(f"Skipping {symbol}: Insufficient volume surge")
+            _note_gate("volume_surge")
             return None
             
         if not check_trend_strength(df):
             import logging
             logging.getLogger("signals").info(f"Skipping {symbol}: ADX below 20 (choppy market)")
+            _note_gate("adx")
             return None
             
         # ── Scoring system (Bullish: positive, Bearish: negative) ─────────────
@@ -1456,6 +1550,7 @@ def analyse_symbol(
         if not passed:
             import logging
             logging.getLogger("signals").info(f"Skipping {symbol}: {veto_reason}")
+            _note_gate("vwap_veto")
             return None
         # ────────────────────────────────────────────────────────────────
 
@@ -1464,6 +1559,7 @@ def analyse_symbol(
             if not validate_risk_reward(entry, stop, target1, min_rr=2.0):
                 import logging
                 logging.getLogger("signals").info(f"Skipping {symbol}: Risk:Reward below 1:2")
+                _note_gate("risk_reward")
                 return None
                 
             # PHASE 1: Detailed Logging
@@ -1521,6 +1617,9 @@ def analyse_symbol(
             "reasoning": reasoning,
             "reasons": all_reasons,
             "scanned_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            # Feed tier the scan frame came from (TAR-20 Task 8): angelone |
+            # yfinance | last-good | synthetic | seed | None when unknown.
+            "data_source": _SOURCE_CACHE.get(f"{symbol}_{interval}"),
             # Sub-scores
             "_market_score": market_score,
             "_tech_score": tech_score,
@@ -1536,6 +1635,7 @@ def analyse_symbol(
 
         print(f"[signals] Exception in analyse_symbol for {symbol}: {e}")
         traceback.print_exc()
+        _note_gate("error")
         return None
 
 
@@ -1546,12 +1646,17 @@ def run_scan(
     risk: str = "Medium",
     segment: str = "NSE",
     capital: float = 1000.0,
+    gate_log: Optional[dict] = None,  # optional per-scan rejection counters
 ) -> list:
     """
     Scan watchlist and return signals sorted by conviction/confidence.
     Uses asyncio.gather for asynchronous scanning to minimize overhead.
     """
     watchlist = symbols or NSE_WATCHLIST
+
+    def _log_gate(key: str) -> None:
+        if gate_log is not None:
+            gate_log[key] = gate_log.get(key, 0) + 1
 
     # ── Worker: analyse single symbol (Pass 1) ─────────────────────────────
     def analyse_one(item) -> Optional[dict]:
@@ -1566,6 +1671,7 @@ def run_scan(
 
         # Apply segment filter
         if segment == "BSE" and not sym.endswith(".BO"):
+            _log_gate("segment_filter")
             return None
         elif segment == "F&O" and sym not in [
             "BEL.NS",
@@ -1575,13 +1681,16 @@ def run_scan(
             "TATAPOWER.NS",
             "BHEL.NS",
         ]:
+            _log_gate("segment_filter")
             return None
 
         df = download_market_data_df(sym, "5d", interval)
         if df is None or len(df) < 30:
+            _log_gate("insufficient_data")
             return None
         return analyse_symbol(
-            sym, name, sector, style=style, risk=risk, segment=segment, capital=capital
+            sym, name, sector, style=style, risk=risk, segment=segment, capital=capital,
+            gate_log=gate_log,
         )
 
     first_pass_results = []

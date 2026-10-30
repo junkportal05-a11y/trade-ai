@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL, runHistoricalSimulation, getSimulationStatus } from './api';
+import { runHistoricalSimulation, getSimulationStatus, apiFetch } from './api';
 import { formatError } from './utils/formatError';
 
 const T = {
@@ -37,13 +37,10 @@ export default function SimulatorPanel({ isMobile }) {
     setStatus(null);
     setIsPolling(true);
     try {
-      const token = localStorage.getItem('apt_token') || localStorage.getItem('apex_token') || 'apt_fake_if_none';
-      const res = await fetch(`${API_BASE_URL}/api/backtest/run`, {
+      // Authenticated POST via apiFetch — session cookie + token headers,
+      // no hand-rolled Bearer fallback with a fake default token.
+      const res = await apiFetch('/api/backtest/run', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({ symbol, start_date: startDate, end_date: endDate })
       });
       

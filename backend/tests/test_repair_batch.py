@@ -11,7 +11,7 @@ from app.core.config import settings
 from app.models.schemas import BacktestRequest
 from app.db.repositories import repo
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"})
 
 
 def test_ws_bot_requires_token():

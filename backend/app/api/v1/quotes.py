@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import pandas as pd
 from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 
@@ -18,6 +19,8 @@ from app.models.schemas import (
     QuoteRequest,
 )
 from app.services.quotes import get_symbol_quote
+from signals import generate_synthetic_candles
+from app.core.logging import logger
 from app.core.executors import quote_executor
 from app.core.limiter import limiter
 
@@ -112,7 +115,7 @@ def get_history(
     db: Session = DbDep,
     _=SessionDep,
 ) -> dict:
-    from app.services.market_data import download_market_data_df
+    from app.services.market_data import download_market_data_df_sourced
 
     # Validate interval and range against allowed constants
     if params.interval not in VALID_INTERVALS:
@@ -124,15 +127,40 @@ def get_history(
             status_code=400, detail=f"Invalid range. Choose from: {VALID_RANGES}"
         )
 
+    # CandleChart always needs renderable bars: any feeder failure falls through
+    # to the synthetic generator instead of an HTTP 404/500.
+    df = None
+    data_source: str | None = None
     try:
-        df = download_market_data_df(
+        df, data_source = download_market_data_df_sourced(
             params.symbol, period=params.range, interval=params.interval
         )
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception as exc:
+        logger.warning(f"[history] download failed for {params.symbol}: {exc}")
 
+    fallback = False
     if df is None or df.empty:
-        raise HTTPException(status_code=404, detail=f"No history for {params.symbol}")
+        df = generate_synthetic_candles(params.symbol, params.range, params.interval)
+        fallback = True
+        data_source = "synthetic"
+        logger.warning(
+            f"[history] synthetic fallback generated for {params.symbol} "
+            f"({params.interval}, {params.range})"
+        )
+
+    # No feeder and no synthetic tier produced a frame — transient feeder
+    # outage the client can retry, never a 404-style miss.
+    if df is None or getattr(df, "empty", False):
+        logger.warning(f"[history] no bars producible for {params.symbol} at all")
+        raise HTTPException(
+            status_code=503,
+            detail="Market data temporarily unavailable, please retry shortly",
+        )
+
+    # Guard against feeder-level MultiIndex columns surviving the cache
+    # into the response path.
+    if df is not None and isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
 
     # Ensure column names are capitalized (handle yfinance lowercase columns)
     try:
@@ -143,14 +171,17 @@ def get_history(
     required_cols = ["Open", "High", "Low", "Close"]
     missing = [c for c in required_cols if c not in df.columns]
     if missing:
-        raise HTTPException(status_code=404, detail=f"No history data for {params.symbol}")
+        logger.warning(f"[history] malformed columns for {params.symbol}: {missing}")
+        df = generate_synthetic_candles(params.symbol, params.range, params.interval)
+        fallback = True
+        data_source = "synthetic"
 
     df = df.dropna(subset=required_cols)
     if df.empty:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No history data after filtering. No history data found for {params.symbol} after filtering NaNs",
-        )
+        logger.warning(f"[history] all-NaN candles for {params.symbol}, using synthetic")
+        df = generate_synthetic_candles(params.symbol, params.range, params.interval)
+        fallback = True
+        data_source = "synthetic"
 
     use_unix = params.interval not in {"1d", "5d", "1wk", "1mo", "3mo"}
     bars = []
@@ -173,6 +204,8 @@ def get_history(
         "range": params.range,
         "count": len(bars),
         "bars": bars,
+        "fallback": fallback,
+        "data_source": data_source,
     }
 
 

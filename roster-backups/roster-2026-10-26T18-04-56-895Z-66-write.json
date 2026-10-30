@@ -1,0 +1,283 @@
+{
+  "version": 1,
+  "savedAt": "2026-10-26T18:03:15.898Z",
+  "agents": [
+    {
+      "id": "god",
+      "name": "Michael (Boss)",
+      "character": "michael",
+      "accent": "lemon",
+      "description": "god \u2014 runs the floor, triages requests, escalates only critical calls to you",
+      "project": "hive",
+      "tmuxTarget": "",
+      "cwd": "C:\\Users\\aryan\\OneDrive\\Desktop\\app\\projects\\trade ai",
+      "status": "working",
+      "action": "executing TAR-19 subtask",
+      "progress": 0,
+      "currentStation": "shelf",
+      "ptyId": "pty-god",
+      "command": "opencode --model local/llama3",
+      "provider": "opencode",
+      "model": "local/llama3",
+      "isGod": true,
+      "carrying": "Read"
+    },
+    {
+      "id": "dwight-lead",
+      "name": "Dwight",
+      "character": "dwight",
+      "accent": "gold",
+      "description": "Assistant to the Boss & Security Lead \u2014 enforces authentication, token authorization, API keys, and CORS safety",
+      "project": "trade ai",
+      "tmuxTarget": "",
+      "cwd": "C:\\Users\\aryan\\OneDrive\\Desktop\\app\\projects\\trade ai",
+      "status": "working",
+      "action": "executing TAR-19 subtask",
+      "progress": 0,
+      "currentStation": "desk",
+      "ptyId": "pty-dwight-lead",
+      "command": "opencode",
+      "provider": "opencode",
+      "goal": "Enforce ironclad security: audit JWT tokens, TOTP 2FA, session expiry, API secret masking, rate limits, and prevent unauthorized actions.",
+      "onHold": false,
+      "archived": false
+    },
+    {
+      "id": "jim-market",
+      "name": "Jim",
+      "character": "jim",
+      "accent": "sky",
+      "description": "Market Data & Broker Feeds Specialist \u2014 connects AngelOne/SmartAPI, Yahoo Finance, and live streaming quotes",
+      "project": "trade ai",
+      "tmuxTarget": "",
+      "cwd": "C:\\Users\\aryan\\OneDrive\\Desktop\\app\\projects\\trade ai",
+      "status": "working",
+      "action": "executing TAR-19 subtask",
+      "progress": 0,
+      "currentStation": "desk",
+      "ptyId": "pty-jim-market",
+      "command": "opencode",
+      "provider": "opencode",
+      "goal": "Maintain resilient real-time price feeds, websocket connections to brokers, quote caches, and simulated fallback feeds.",
+      "onHold": false,
+      "archived": false
+    },
+    {
+      "id": "kevin-mvp8envi",
+      "name": "Kevin",
+      "character": "kevin",
+      "accent": "sky",
+      "description": "Frontend UI Engineer \u2014 develops trading charts, order tickets, interactive components, and responsive views",
+      "project": "trade ai",
+      "tmuxTarget": "",
+      "cwd": "C:\\Users\\aryan\\OneDrive\\Desktop\\app\\projects\\trade ai",
+      "status": "working",
+      "action": "executing TAR-19 subtask",
+      "progress": 0,
+      "currentStation": "desk",
+      "ptyId": "pty-kevin-mvp8envi",
+      "command": "opencode",
+      "provider": "opencode",
+      "goal": "Develop, polish, and maintain all frontend components, trading views, real-time WebSocket ticker displays, and responsive dashboard layouts.",
+      "onHold": false,
+      "archived": false
+    },
+    {
+      "id": "kelly-mvp7ils3",
+      "name": "Kelly",
+      "character": "kelly",
+      "accent": "sky",
+      "description": "QA & Bug Investigator \u2014 diagnoses bugs, creates reproduction scripts, and writes regression test suites",
+      "project": "trade ai",
+      "tmuxTarget": "",
+      "cwd": "C:\\Users\\aryan\\OneDrive\\Desktop\\app\\projects\\trade ai",
+      "status": "working",
+      "action": "executing TAR-19 subtask",
+      "progress": 0,
+      "currentStation": "desk",
+      "ptyId": "pty-kelly-mvp7ils3",
+      "command": "opencode --model openai/gpt-5",
+      "provider": "opencode",
+      "goal": "Continuously test API endpoints, WebSocket feeds, and trading strategies. For every reported issue: reproduce it, diagnose the root cause, and verify fixes.",
+      "onHold": false,
+      "archived": false,
+      "model": "openai/gpt-5"
+    },
+    {
+      "id": "oscar-calc",
+      "name": "Oscar",
+      "character": "oscar",
+      "accent": "indigo",
+      "description": "Accounting & PnL Quant \u2014 calculates exact win/loss ratios, fees, slippage, and portfolio balances",
+      "project": "trade ai",
+      "tmuxTarget": "",
+      "cwd": "C:\\Users\\aryan\\OneDrive\\Desktop\\app\\projects\\trade ai",
+      "status": "idle",
+      "action": "idle",
+      "progress": 0,
+      "currentStation": "desk",
+      "ptyId": "pty-oscar-calc",
+      "command": "opencode",
+      "provider": "opencode",
+      "goal": "Implement and verify exact trade resolution arithmetic: realized PnL, unrealized PnL, trade fee deductions, and equity curves.",
+      "onHold": false,
+      "archived": false
+    },
+    {
+      "id": "stanley-daemon",
+      "name": "Stanley",
+      "character": "stanley",
+      "accent": "brown",
+      "description": "Reliability & Daemon Watchdog \u2014 monitors background loops, memory leaks, and process health",
+      "project": "trade ai",
+      "tmuxTarget": "",
+      "cwd": "C:\\Users\\aryan\\OneDrive\\Desktop\\app\\projects\\trade ai",
+      "status": "working",
+      "action": "executing TAR-19 subtask",
+      "progress": 0,
+      "currentStation": "desk",
+      "ptyId": "pty-stanley-daemon",
+      "command": "opencode",
+      "provider": "opencode",
+      "goal": "Ensure the paper trading engine, WebSocket listeners, and order check loops run steadily without hanging, deadlocking, or leaking memory.",
+      "onHold": false,
+      "archived": false
+    },
+    {
+      "id": "pam-mvp8a3dp",
+      "name": "Pam",
+      "character": "pam",
+      "accent": "sky",
+      "description": "Documentation & Release Coordinator \u2014 maintains technical specs, architecture guides, and change logs",
+      "project": "trade ai",
+      "tmuxTarget": "",
+      "cwd": "C:\\Users\\aryan\\OneDrive\\Desktop\\app\\projects\\trade ai",
+      "status": "working",
+      "action": "executing TAR-19 subtask",
+      "progress": 0,
+      "currentStation": "desk",
+      "ptyId": "pty-pam-mvp8a3dp",
+      "command": "qwen --yolo",
+      "provider": "qwen",
+      "goal": "Keep codebase.md, API contracts, README, notes, and release checklists completely synchronized with new features and fixes.",
+      "onHold": false,
+      "archived": false
+    },
+    {
+      "id": "angela-mvp7k8if",
+      "name": "Angela",
+      "character": "angela",
+      "accent": "sky",
+      "description": "Risk & Quant Analyst \u2014 audits algorithmic models, backtest accuracy, margin requirements, and drawdown limits",
+      "project": "trade ai",
+      "tmuxTarget": "",
+      "cwd": "C:\\Users\\aryan\\OneDrive\\Desktop\\app\\projects\\trade ai",
+      "status": "working",
+      "action": "executing TAR-19 subtask",
+      "progress": 0,
+      "currentStation": "desk",
+      "ptyId": "pty-angela-mvp7k8if",
+      "command": "opencode",
+      "provider": "opencode",
+      "goal": "Audit trading algorithms, backtest metrics, PnL calculations, drawdown controls, and ensure strict paper-trading safeguards are respected.",
+      "onHold": false,
+      "archived": false
+    }
+  ],
+  "archived": [
+    {
+      "id": "meredith-mvp9ur51",
+      "name": "Meredith",
+      "character": "meredith",
+      "accent": "sky",
+      "description": "Backend & Database Engineer \u2014 builds FastAPI endpoints, SQLAlchemy ORM models, migrations, and daemon workers",
+      "project": "trade ai",
+      "tmuxTarget": "",
+      "cwd": "C:\\Users\\aryan\\OneDrive\\Desktop\\app\\projects\\trade ai",
+      "status": "idle",
+      "action": "archived",
+      "progress": 0,
+      "command": "opencode",
+      "provider": "opencode",
+      "goal": "Develop and optimize FastAPI endpoints, database schemas (SQLAlchemy), SmartAPI / broker connections, and data streaming services.",
+      "onHold": false,
+      "archived": true
+    }
+  ],
+  "restorable": [],
+  "queues": {
+    "god": [
+      {
+        "id": "q-1793037648348-15",
+        "text": "You have new hive inbox message(s): 1, printed below.\n\n[1 of 1]\nid: 2026-10-26T18-00-44-512Z-c549f7\nfrom: scheduler\ntype: request (reply expected)\nwork: conv-52caf1\nsubject: Hourly ops standup\nbody:\n> Hourly ops standup. Review every agent: who is doing what, and confirm each is still running (not stalled or idle-stale). Check the task board \u00e2\u20ac\u201d are in-flight tasks on track, and is anything blocked or unowned? Flag stale agents and at-risk tasks, and keep the board accurate. (As part of this standup each working agent is asked to summarise its current task and the next step, then compact and resume from the same point \u00e2\u20ac\u201d so terminal contexts stay bounded without losing work. The compaction is queued and runs when an agent is idle, so it never interrupts work mid-step.)\n\nThese messages are filed for you when your turn ends: 2026-10-26T18-00-44-512Z-c549f7. Do not open or move the inbox files for them. Open a file only where a path is given. Do not send a reply that only acknowledges. Act autonomously; only message god if you genuinely need a decision.",
+        "ts": 1793037648348,
+        "precondition": "inbox-nonempty"
+      }
+    ],
+    "dwight-lead": [
+      {
+        "id": "q-1793037893572-dwig",
+        "text": "New work assigned from Michael (Boss): Execute P0-3 and P0-5 (CSRF alignment on GET and Mutating routes). Execute now!\nInstructions: Dwight: Your task under TAR-19 is P0-3 and P0-5.\n1. P0-3: Remove CsrfDep from GET /api/bot/status and GET /api/bot/trades in backend/app/api/v1/bot.py. Ensure GET routes do not 403 regular reads.\n2. P0-5: Verify CsrfDep on all mutating routes and update docs accordingly.\nRun pytest backend/tests/test_t15_security.py and ensure all pass.",
+        "ts": 1793037893572,
+        "precondition": "inbox-nonempty"
+      }
+    ],
+    "kevin-mvp8envi": [
+      {
+        "id": "q-1793037893573-kevi",
+        "text": "New work assigned from Michael (Boss): Execute P0-4 and P0-2 Frontend (useQuote/useHistory and Briefing spinner). Execute now!\nInstructions: Kevin: Your task under TAR-19 is P0-4 and P0-2 frontend.\n1. P0-4: In frontend/src/hooks/useMarketData.js, route useQuote and useHistory through apiFetch (or attach credentials/token) so they never fail on authenticated routes.\n2. P0-2: In frontend/src/HomePanel.jsx and App.jsx, add timeout and error state to Market Briefing so it stops loading on error and offers Retry.",
+        "ts": 1793037893573,
+        "precondition": "inbox-nonempty"
+      }
+    ],
+    "meredith-mvp9ur51": [
+      {
+        "id": "q-1793037893574-mere",
+        "text": "New work assigned from Michael (Boss): Execute P0-2 Backend and P1-4 (Market Brief route and Predictions DELETE user check). Execute now!\nInstructions: Meredith: Your task under TAR-19 is P0-2 backend and P1-4.\n1. P0-2: Implement GET /api/market_brief in backend/app/api/v1/market.py (or main.py) returning Nifty bias, sentiment, and opportunities.\n2. P1-4: In backend/app/api/v1/predictions.py, enforce user-ownership on DELETE /api/predictions/{id} using session username matching journal routes.",
+        "ts": 1793037893574,
+        "precondition": "inbox-nonempty"
+      }
+    ],
+    "jim-market": [
+      {
+        "id": "q-1793037893576-jim-",
+        "text": "New work assigned from Michael (Boss): Execute P1-1 (Chart 404 trace and fallback fix). Execute now!\nInstructions: Jim: Your task under TAR-19 is P1-1.\nTrace the chart data path CandleChart -> /api/history. Ensure backend/signals.py and /api/history returns valid candles or graceful synthetic fallback rather than HTTP 404.",
+        "ts": 1793037893576,
+        "precondition": "inbox-nonempty"
+      }
+    ],
+    "kelly-mvp7ils3": [
+      {
+        "id": "q-1793037893578-kell",
+        "text": "New work assigned from Michael (Boss): Execute P1-7 and Verification Gate (CI tests and full pytest run). Execute now!\nInstructions: Kelly: Your task under TAR-19 is P1-7 and test verification.\n1. Add test_t15_security.py, test_feed_fallbacks.py, and test_csrf.py to .github/workflows/ci.yml.\n2. Run full pytest backend/tests and verify all tests pass.",
+        "ts": 1793037893578,
+        "precondition": "inbox-nonempty"
+      }
+    ],
+    "angela-mvp7k8if": [
+      {
+        "id": "q-1793037893579-ange",
+        "text": "New work assigned from Michael (Boss): Execute P1-5 and P1-6 (Strategies real store and Analytics avg_error). Execute now!\nInstructions: Angela: Your task under TAR-19 is P1-5 and P1-6.\n1. P1-5: Check GET /api/strategies in backend/app/api/v1/strategies.py. Make it read real store or label preset win-rates honestly.\n2. P1-6: In backend analytics, compute real avg_error or label as N/A.",
+        "ts": 1793037893579,
+        "precondition": "inbox-nonempty"
+      }
+    ],
+    "stanley-daemon": [
+      {
+        "id": "q-1793037893581-stan",
+        "text": "New work assigned from Michael (Boss): Execute P1-3 (Scanner empty diagnostics and gate copy). Execute now!\nInstructions: Stanley: Your task under TAR-19 is P1-3.\nTrace scanner signal generation in backend/signals.py. If empty due to strict filters (ADX/volume/confidence), make the gates visible in the UI copy.",
+        "ts": 1793037893581,
+        "precondition": "inbox-nonempty"
+      }
+    ],
+    "pam-mvp8a3dp": [
+      {
+        "id": "q-1793037893583-pam-",
+        "text": "New work assigned from Michael (Boss): Execute P1-2 and Documentation sync. Execute now!\nInstructions: Pam: Your task under TAR-19 is P1-2 and docs.\n1. P1-2: Ensure AI recommendations fall back cleanly to heuristic if Gemini key is missing with honest label.\n2. Update codebase.md and Obsidian notes to match all code fixes.",
+        "ts": 1793037893583,
+        "precondition": "inbox-nonempty"
+      }
+    ]
+  },
+  "selectedId": "pam-mvp8a3dp"
+}

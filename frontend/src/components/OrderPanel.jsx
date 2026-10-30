@@ -3,7 +3,7 @@ import Label from './Label';
 import Input from './TextInput';
 import { T, fmt } from '../theme';
 
-export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelOrder, priceAlerts = [], onAddAlert, onDeleteAlert }) {
+export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteOrder, onCancelOrder, priceAlerts = [], onAddAlert, onDeleteAlert, hasLiveTick = false }) {
   const [side, setSide] = useState('buy');
   const [qty, setQty] = useState('');
   const [type, setType] = useState('market');
@@ -12,6 +12,7 @@ export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteO
   const [alertCondition, setAlertCondition] = useState('above');
   const [alertPrice, setAlertPrice] = useState('');
   const [limitError, setLimitError] = useState(false);
+  const marketBlocked = type === 'market' && !hasLiveTick;
 
   const executionPrice = type === 'limit' ? (limit ? parseFloat(limit) : NaN) : price;
   const total = qty && !isNaN(executionPrice) ? (parseFloat(qty) * executionPrice).toFixed(2) : '—';
@@ -60,8 +61,13 @@ export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteO
       </div>
       {status === 'filled' && <div style={{ padding: '8px 10px', background: T.greenDim, border: `1px solid ${T.green}`, borderRadius: 6, fontSize: 10, color: T.green, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>✓ ORDER FILLED (PAPER)</div>}
       {status === 'placed' && <div style={{ padding: '8px 10px', background: 'rgba(56,189,248,0.12)', border: `1px solid ${T.blue}`, borderRadius: 6, fontSize: 10, color: T.blue, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>✓ LIMIT ORDER PLACED (PAPER)</div>}
-      <button onClick={submit} disabled={!qty || status === 'placing'} style={{ padding: '11px', border: 'none', borderRadius: 6, cursor: qty ? 'pointer' : 'not-allowed',
-        background: side === 'buy' ? T.green : T.red, color: '#000', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', fontFamily: "'Inter', sans-serif", opacity: qty ? 1 : 0.4 }}>{status === 'placing' ? 'PLACING...' : `${side.toUpperCase()} ${symbol.replace('.NS', '')}`}</button>
+      {marketBlocked && (
+        <div style={{ padding: '6px 10px', background: 'rgba(245,200,66,0.12)', border: '1px solid rgba(245,200,66,0.3)', borderRadius: 6, fontSize: 10, color: '#f5c842', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>
+          MARKET ORDERS LOCKED — waiting for the first feed tick for this symbol (seeded prices are not orderable)
+        </div>
+      )}
+      <button onClick={submit} disabled={!qty || status === 'placing' || marketBlocked} style={{ padding: '11px', border: 'none', borderRadius: 6, cursor: (qty && !marketBlocked) ? 'pointer' : 'not-allowed',
+        background: side === 'buy' ? T.green : T.red, color: '#000', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', fontFamily: "'Inter', sans-serif", opacity: (qty && !marketBlocked) ? 1 : 0.4 }}>{status === 'placing' ? 'PLACING...' : `${side.toUpperCase()} ${symbol.replace('.NS', '')}`}</button>
 
       {openOrders?.length > 0 && (
         <div style={{ marginTop: 10, borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>

@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { API_BASE_URL, WS_BASE_URL } from '../api';
+import { WS_BASE_URL, apiFetch } from '../api';
 import { buildWsUrl } from '../utils/wsUrl';
 import { SEED_PRICES } from '../theme';
 
@@ -33,6 +33,16 @@ export function tickToQuote(tick, prev) {
   };
 }
 
+// Quotes and history go through apiFetch so they carry the session cookie
+// and auth token headers and never fail on authenticated routes.
+export function buildQuotePath(symbol) {
+  return `/api/quote?symbol=${encodeURIComponent(symbol)}`;
+}
+
+export function buildHistoryPath(symbol, { interval = "1d", range = "3mo" } = {}) {
+  return `/api/history?symbol=${encodeURIComponent(symbol)}&interval=${interval}&range=${range}`;
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 //  useQuote — single symbol quote
 // ══════════════════════════════════════════════════════════════════════════════
@@ -46,7 +56,7 @@ export function useQuote(symbol) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/quote?symbol=${symbol}`);
+      const res = await apiFetch(buildQuotePath(symbol));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData(await res.json());
     } catch (e) {
@@ -78,8 +88,7 @@ export function useHistory(symbol, { interval = "1d", range = "3mo", seedPrice =
       setLoading(true);
       setError(null);
       try {
-        const url = `${API_BASE_URL}/api/history?symbol=${symbol}&interval=${interval}&range=${range}`;
-        const res = await fetch(url);
+        const res = await apiFetch(buildHistoryPath(symbol, { interval, range }));
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         if (!cancelled) {
@@ -129,7 +138,7 @@ export function useLivePrices(symbols = []) {
 
       async function poll() {
         try {
-          const res = await fetch(`${API_BASE_URL}/api/prices?symbols=${encodeURIComponent(symbolKey)}`, { credentials: 'include' });
+          const res = await apiFetch(`/api/prices?symbols=${encodeURIComponent(symbolKey)}`);
           if (!res.ok) return;
           const json = await res.json();
           if (json.type === "tick" && Array.isArray(json.data)) {

@@ -33,7 +33,7 @@ This repository powers the backend infrastructure hosted on **Hugging Face Space
 
 ## 🚀 Live Hugging Face Space & Interactive API Documentation
 
-- **Live Space Base URL**: `https://apextrade-core-trade-ai-backend.hf.space`
+- **Live Space Base URL**: `https://apextrade-core-trade-ai-backend.hf.space` *(Paper Phase 1)*
 - **Interactive Swagger UI**: [https://apextrade-core-trade-ai-backend.hf.space/docs](https://apextrade-core-trade-ai-backend.hf.space/docs)
 - **ReDoc Open API**: [https://apextrade-core-trade-ai-backend.hf.space/redoc](https://apextrade-core-trade-ai-backend.hf.space/redoc)
 - **Health Check Status**: `GET /health` | `GET /api/keepalive`
@@ -53,7 +53,7 @@ trade ai/
 ├── backend/                    # Core FastAPI & Quantitative Trading Engine
 │   ├── app/                    # REST APIs, routers, models, security & DB session
 │   ├── quant/                  # Market regimes, correlation matrix & technical engines
-│   ├── tests/                  # Unified automated test suite (233 passing tests)
+│   ├── tests/                  # Unified automated test suite (285 passing tests)
 │   ├── requirements.txt        # Synced Docker layer cache dependency file
 │   └── trading_agent.py        # Autonomous trading agent daemon
 │
@@ -147,7 +147,7 @@ flowchart LR
     VWAPCheck -->|Yes| Quality[Trade Quality Score >= 70]
     Quality --> Alloc[Capital Allocator Position Sizing]
     Alloc --> Governance{Max Drawdown Safe?}
-    Governance -->|Safe| Execute[Execute via Broker API]
+    Governance -->|Safe| Execute[Execute (Paper)]
     Governance -->|Unsafe| Halt[Kill-Switch Triggered]
     Execute --> Resolver[Prediction Resolver Monitor]
 ```
@@ -165,7 +165,7 @@ curl -X GET "https://apextrade-core-trade-ai-backend.hf.space/api/keepalive"
 ```bash
 curl -X POST "https://apextrade-core-trade-ai-backend.hf.space/api/login" \
      -H "Content-Type: application/json" \
-     -d '{"username": "admin", "password": "YOUR_SECURE_PASSWORD"}'
+     -d '{"username": "code", "password": "YOUR_SECURE_PASSWORD"}'
 ```
 
 ### 3. Run Strategy Backtest Engine
@@ -265,15 +265,17 @@ npm run dev
 
 ### Tests & Verification
 ```bash
-# Full backend suite (233 tests)
+# Full backend suite (285 tests)
 cd backend && python -m pytest -q
 
 # Frontend unit tests + production build
 cd frontend && npm test && npm run build
 ```
 
-> **CI note:** `.github/workflows/ci.yml` currently executes only 13 of the 41 backend test files.
-> Run the full suite locally before releasing; the CI job is not a complete regression gate.
+> **CI note:** `.github/workflows/ci.yml` executes 24 of the 48 backend test files
+> plus a root-Dockerfile build + `GET /api/health/ping` smoke run and a
+> frontend build check. Run the full suite locally before releasing; the CI
+> job is not a complete regression gate.
 
 ---
 

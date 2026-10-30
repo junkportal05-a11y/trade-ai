@@ -42,8 +42,6 @@ try:
         load_dotenv(ROOT_DIR / ".env")
     elif (BACKEND_DIR / ".env").exists():
         load_dotenv(BACKEND_DIR / ".env")
-    elif (ROOT_DIR / ".env.example").exists():
-        load_dotenv(ROOT_DIR / ".env.example")
 except ImportError:
     pass
 

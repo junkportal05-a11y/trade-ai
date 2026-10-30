@@ -13,7 +13,7 @@ def override_require_session():
 
 @pytest.fixture
 def client(override_require_session):
-    return TestClient(app)
+    return TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"})
 
 def test_angelone_login_success(client):
     with patch('app.services.broker.get_broker_feed') as mock_get_feed:

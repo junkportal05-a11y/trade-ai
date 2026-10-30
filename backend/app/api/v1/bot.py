@@ -4,7 +4,7 @@ POST /api/bot/start  -> set state RUNNING
 POST /api/bot/pause  -> set state PAUSED
 POST /api/bot/stop   -> set state STOPPED and square off open positions
 GET  /api/bot/status -> current state, today P&L, last signal, open positions
-GET  /api/bot/trades -> recent live trade log (PENDING/WIN/LOSS/TIMEOUT)
+GET  /api/bot/trades -> recent live trade log (PENDING/WIN/LOSS/TIMEOUT/SQUARE_OFF)
 """
 from __future__ import annotations
 
@@ -54,14 +54,14 @@ async def bot_stop(request: Request, csrf=CsrfDep, admin=AdminClearanceDep) -> D
     """Set bot state to STOPPED and square off all open positions."""
     db.set_bot_state("STOPPED")
     try:
-        trading_agent._square_off_all(_now_ist())
+        await trading_agent._square_off_all(_now_ist())
     except Exception as exc:  # pragma: no cover - best effort square off
         raise HTTPException(status_code=500, detail=f"square off failed: {exc}")
     return {"status": "ok", "state": db.get_bot_state()}
 
 
 @router.get("/status")
-async def bot_status(request: Request, csrf=CsrfDep, trader=TraderDep) -> Dict[str, Any]:
+async def bot_status(request: Request, trader=TraderDep) -> Dict[str, Any]:
     """Return current state, today's P&L, last signal, and open positions."""
     state = db.get_bot_state()
     today = _now_ist().strftime("%Y-%m-%d")
@@ -72,7 +72,7 @@ async def bot_status(request: Request, csrf=CsrfDep, trader=TraderDep) -> Dict[s
         with db._conn() as c:
             row = c.execute(
                 "SELECT COALESCE(SUM(pnl_pct),0) AS pnl FROM predictions_history "
-                "WHERE status IN ('WIN','LOSS','TIMEOUT') AND resolved_at LIKE ?",
+                "WHERE status IN ('WIN','LOSS','TIMEOUT','SQUARE_OFF') AND resolved_at LIKE ?",
                 (today + "%",),
             ).fetchone()
             todays_pnl = float(row["pnl"]) if row else 0.0
@@ -99,14 +99,14 @@ async def bot_status(request: Request, csrf=CsrfDep, trader=TraderDep) -> Dict[s
 
 
 @router.get("/trades")
-async def bot_trades(request: Request, csrf=CsrfDep, session=SessionDep) -> Dict[str, Any]:
+async def bot_trades(request: Request, session=SessionDep) -> Dict[str, Any]:
     """Return recent live trade log."""
     trades = []
     try:
         with db._conn() as c:
             rows = c.execute(
                 "SELECT * FROM predictions_history "
-                "WHERE status IN ('PENDING','WIN','LOSS','TIMEOUT') "
+                "WHERE status IN ('PENDING','WIN','LOSS','TIMEOUT','SQUARE_OFF') "
                 "ORDER BY prediction_date DESC LIMIT 50"
             ).fetchall()
             trades = [dict(r) for r in rows]

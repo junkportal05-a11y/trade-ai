@@ -57,6 +57,8 @@ class HistoryResponse(BaseModel):
     range: str
     count: int
     bars: list[CandleBar]
+    fallback: bool = False
+    data_source: str | None = None  # angelone | yfinance | last-good | synthetic | seed
 
 
 class SearchResponse(BaseModel):
@@ -83,7 +85,12 @@ class SignalResponse(BaseModel):
     scan_time: str
     total: int
     signals: list[dict[str, Any]]
+    gates: dict[str, int] = Field(default_factory=dict)
     disclaimer: str
+    status: str | None = None           # "ok" | "unavailable" — the scan's honest outcome
+    error: str | None = None            # real timeout/exception text; null when nominal
+    message: str | None = None          # human summary, esp. when nothing was scannable
+    symbols_scanned: int | None = None  # symbols that actually yielded scannable data (0 when none)
 
 
 class SingleSignalResponse(BaseModel):
@@ -114,6 +121,8 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     source: Literal["gemini", "heuristic"]
+    confidence: float | None = None
+    reasoning: str | None = None
 
 
 class AngelOneCredentials(BaseModel):
@@ -140,6 +149,12 @@ class JournalEntry(BaseModel):
     emotion: str | None = Field(default="Calm", max_length=50)
     status: str = Field(default="OPEN", pattern=r"^(OPEN|CLOSED)$")
     pnl: float | None = None
+    # Kevin's journal POSTs already send these (83b872c); they now persist.
+    target_price: float | None = None
+    stop_loss: float | None = None
+    # TAR-20 Task 8: feed tier of the candles behind this entry
+    # (angelone|yfinance|last-good|synthetic|seed).
+    data_source: str | None = None
 
 
 class JournalEntryResponse(JournalEntry):
@@ -179,6 +194,8 @@ class PredictionCreate(BaseModel):
     market_regime_snapshot: str | None = Field(default="UNKNOWN")
     risk_amount: float | None = None
     confidence_probability: float | None = Field(default=0.5, ge=0.0, le=1.0)
+    # TAR-20 Task 8: feed tier provenance (angelone|yfinance|last-good|synthetic|seed)
+    data_source: str | None = None
     regime_score: float | None = None
     sector_score: float | None = None
     volume_score: float | None = None
