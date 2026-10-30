@@ -5,7 +5,7 @@ from unittest.mock import patch, AsyncMock
 from app.main import app
 from app.core.security import require_session
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"})
 
 
 def test_guest_cannot_start_or_pause_bot():

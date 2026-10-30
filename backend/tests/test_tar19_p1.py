@@ -23,7 +23,7 @@ def _client_as(username: str) -> TestClient:
         "role": "Trader",
         "clearance": "LEVEL_2_TRADER",
     }
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"})
     client.cookies.set("apt_token", create_access_token({"sub": username}))
     return client
 

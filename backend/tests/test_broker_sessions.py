@@ -207,7 +207,7 @@ class TestBrokerAPIEndpoints:
             "clearance": "LEVEL_2_TRADER",
         }
 
-        client = TestClient(app)
+        client = TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"})
 
         response = client.post(
             "/api/angelone/login",

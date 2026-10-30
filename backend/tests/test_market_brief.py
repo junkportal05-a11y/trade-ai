@@ -17,7 +17,7 @@ def test_market_brief_requires_session():
     from fastapi.testclient import TestClient
     from app.main import app
 
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"})
     response = client.get("/api/market_brief")
     assert response.status_code == 401
 

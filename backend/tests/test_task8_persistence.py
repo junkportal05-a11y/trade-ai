@@ -200,7 +200,7 @@ def test_journal_api_persists_frontend_keys():
         "clearance": "LEVEL_2_TRADER",
     }
     try:
-        client = TestClient(app)
+        client = TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"})
         res = client.post(
             "/api/journal",
             json={

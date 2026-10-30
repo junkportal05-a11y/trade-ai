@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 from app.core.security import require_session
 from backend.app.main import app
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"})
 
 
 def _mock_feed(exit_price: float, symbol: str):
