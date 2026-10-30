@@ -1,40 +1,4 @@
-import { API_BASE_URL, apiFetch } from './api';
-/**
- * SignalsPanel.jsx
- * Unified Quantitative Scan & Capital Allocation Terminal
- *
- * Integrates real-time technical stock signals with risk-managed capital sizing.
- * Incorporates candlestick rules (Candlestick Bible) and stop-loss guidelines (SL Guide).
- */
-
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-
-const BASE = API_BASE_URL;
-
-const T = {
-  bg:         '#080a0f',
-  surface:    '#0d1018',
-  panel:      '#111520',
-  panelAlt:   '#0f1219',
-  border:     '#1a1f2e',
-  borderHi:   '#252c40',
-  text:       '#d0d8ed',
-  textMid:    '#6e7a96',
-  textDim:    '#363d55',
-  green:      '#00e5a8',
-  greenDim:   'rgba(0,229,168,0.1)',
-  greenGlow:  'rgba(0,229,168,0.3)',
-  red:        '#ff3d5a',
-  redDim:     'rgba(255,61,90,0.1)',
-  redGlow:    'rgba(255,61,90,0.3)',
-  gold:       '#f5c842',
-  goldDim:    'rgba(245,200,66,0.1)',
-  blue:       '#4da6ff',
-  blueDim:    'rgba(77,166,255,0.1)',
-  accent:     '#7b6cff',
-  accentAlt:  '#9b5de5',
-  accentDim:  'rgba(123,108,255,0.12)',
-};
+import { T, mono, fmt, fmtINR, fmtPct } from './theme';
 
 const SIGNAL_CFG = {
   'BUY':       { color: T.green, bg: T.greenDim, glow: T.greenGlow,  icon: '▲', label: 'BUY'       },
@@ -67,16 +31,7 @@ const SCAN_STEPS = [
   "Wiring PDF mentor suggestions..."
 ];
 
-const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtINR = (n) => {
-  if (n == null || isNaN(n)) return '—';
-  if (n >= 1e7) return `₹${(n/1e7).toFixed(2)}Cr`;
-  if (n >= 1e5) return `₹${(n/1e5).toFixed(2)}L`;
-  if (n >= 1e3) return `₹${(n/1e3).toFixed(1)}K`;
-  return `₹${Number(n).toFixed(0)}`;
-};
-const fmtPct = (n) => n == null ? '—' : `${n > 0 ? '+' : ''}${Number(n).toFixed(2)}%`;
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+
 
 
 

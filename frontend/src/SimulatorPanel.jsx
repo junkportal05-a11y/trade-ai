@@ -1,23 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { runHistoricalSimulation, getSimulationStatus, apiFetch } from './api';
 import { formatError } from './utils/formatError';
-
-const T = {
-  bg: '#0a0d14',
-  panel: '#111520',
-  panelAlt: '#0f1219',
-  border: '#1f2937',
-  text: '#d1d5db',
-  textMuted: '#9ca3af',
-  blue: '#3b82f6',
-  blueDim: 'rgba(59, 130, 246, 0.1)',
-  green: '#10b981',
-  greenDim: 'rgba(16, 185, 129, 0.1)',
-  red: '#ef4444',
-  redDim: 'rgba(239, 68, 68, 0.1)',
-  orange: '#f59e0b',
-  orangeDim: 'rgba(245, 158, 11, 0.1)',
-};
+import { T, mono } from './theme';
 
 export default function SimulatorPanel({ isMobile }) {
   const [adminKey, setAdminKey] = useState(localStorage.getItem('apex_admin_key') || '');

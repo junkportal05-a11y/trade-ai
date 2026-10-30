@@ -1,30 +1,7 @@
 import { API_BASE_URL, apiFetch } from './api';
 import React, { useState, useEffect } from 'react';
+import { T, mono } from './theme';
 
-const BASE = API_BASE_URL;
-
-const T = {
-  bg:       '#080a0f',
-  surface:  '#0d1018',
-  panel:    '#111520',
-  border:   '#1a1f2e',
-  borderHi: '#252c40',
-  text:     '#d0d8ed',
-  textMid:  '#6e7a96',
-  textDim:  '#363d55',
-  green:    '#00e5a8',
-  greenDim: 'rgba(0,229,168,0.1)',
-  red:      '#ff3d5a',
-  redDim:   'rgba(255,61,90,0.1)',
-  blue:     '#4da6ff',
-  blueDim:  'rgba(77,166,255,0.1)',
-  gold:     '#f5c842',
-  goldDim:  'rgba(245,200,66,0.1)',
-  accent:   '#7b6cff',
-  accentDim:'rgba(123,108,255,0.12)',
-};
-
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
 const clr = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
 
@@ -143,16 +120,9 @@ export default function JournalPanel() {
       ) : error ? (
         <div style={{ color: T.red, ...mono, fontSize: 12 }}>ERROR: {error}</div>
       ) : entries.length === 0 ? (
-        <div style={{ color: T.textMid, ...mono, fontSize: 13, textAlign: 'center', padding: 60, border: `1px dashed ${T.borderHi}`, borderRadius: 12, background: 'rgba(26,31,46,0.2)' }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}></div>
-          <div style={{ fontWeight: 'bold', color: T.text, marginBottom: 8 }}>NO TRADE LOGS YET</div>
+        <div style={{ color: T.textMid, ...mono, fontSize: 13, textAlign: 'center', padding: 24, border: `1px dashed ${T.borderHi}`, borderRadius: 12, background: 'rgba(26,31,46,0.2)' }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>NO TRADE LOGS YET</div>
           <div>Start journaling your trades to analyze your edge over time.</div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            style={{ marginTop: 24, background: T.accent, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 4, cursor: 'pointer', ...mono, fontSize: 12, fontWeight: 'bold' }}
-          >
-            + ADD FIRST TRADE
-          </button>
         </div>
       ) : (
         <div style={{ background: T.surface, borderRadius: 8, border: `1px solid ${T.borderHi}`, overflow: 'hidden' }}>

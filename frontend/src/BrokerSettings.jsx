@@ -1,22 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatError } from './utils/formatError';
-
-const T = {
-  bg: '#0B0E14',
-  panel: '#151A22',
-  panelAlt: '#1A202C',
-  border: '#2D3748',
-  text: '#E2E8F0',
-  textMid: '#A0AEC0',
-  accent: '#5E43F3', // Deep purple/blue
-  accentHover: '#6c5ce7',
-  blue: '#4DA6FF',
-  green: '#00E676',
-  red: '#FF3B69',
-  orange: '#FF9800'
-};
-
-const mono = { fontFamily: '"JetBrains Mono", "Roboto Mono", monospace' };
+import { T, mono } from './theme';
 
 export default function BrokerSettings({ apiFetch }) {
   const [credentials, setCredentials] = useState({
@@ -103,7 +87,7 @@ export default function BrokerSettings({ apiFetch }) {
 
   return (
     <div style={{
-      background: T.panel,
+      background: T.bg,
       border: `1px solid ${T.border}`,
       borderRadius: 12,
       padding: 24,
@@ -262,7 +246,7 @@ export default function BrokerSettings({ apiFetch }) {
         </form>
       )}
 
-      <div style={{ marginTop: 24, padding: 12, background: 'rgba(255, 152, 0, 0.1)', border: `1px solid ${T.orange}40`, borderRadius: 8 }}>
+      <div style={{ marginTop: 24, padding: 12, background: T.orangeDim, border: `1px solid ${T.orange}`, borderRadius: 8 }}>
         <h3 style={{ fontSize: 11, fontWeight: 700, color: T.orange, marginBottom: 8, ...mono }}> HOW TO GET CREDENTIALS:</h3>
         <ol style={{ fontSize: 11, color: T.textMid, paddingLeft: 16, margin: 0, lineHeight: 1.5 }}>
           <li>Login to SmartAPI Portal</li>

@@ -1,5 +1,5 @@
 import React from 'react';
-const T = { textMid: '#6e7a96', textDim: '#363d55', bg: '#080a0f', borderHi: '#252c40', accent: '#7b6cff' };
+import { T, mono } from '../theme';
 export default function Label({ text, children }) {
   return (
     <div>

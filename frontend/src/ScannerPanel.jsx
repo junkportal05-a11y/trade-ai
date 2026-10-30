@@ -1,26 +1,12 @@
 import { API_BASE_URL, apiFetch } from './api';
 import { describeHttpError } from './utils/apiErrors';
-/**
- * ScannerPanel.jsx
- * Unified NSE Smart Scanner — merges signal scanning with capital allocation
- * into one seamless, responsive view.
- *
- * Layout (top → bottom):
- *  1. Header row — title, scan-type badge, market-bias badge, RESCAN button
- *  2. Capital input bar — preset buttons + custom input (inline, compact)
- *  3. Profit summary banner — shown only when capital is entered AND allocations exist
- *  4. Filter bar — ALL / BUY / WEAK BUY / HOLD / WEAK SELL / SELL
- *  5. Signal cards — each card includes optional allocation section when capital is set
- *  6. Disclaimer
- */
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { T, mono } from './theme';
 
 /* ─── Base URL ──────────────────────────────────────────────────────────────── */
 const BASE = API_BASE_URL;
 
 /* ─── Design Tokens ─────────────────────────────────────────────────────────── */
-const T = {
   bg:         '#080a0f',
   surface:    '#0d1018',
   panel:      '#111520',

@@ -1065,13 +1065,13 @@ export default function App() {
             <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16, flex: 1, overflow: 'auto' }}>
                 {/* Top Row: Bot Control + Trade Log */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, minHeight: 0 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, minHeight: 0 }}>
                   <BotControlPanel />
                   <TradeLogPanel />
                 </div>
 
                 {/* Bottom Row: Strategy Selector + Backtest Runner */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, minHeight: 0 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, minHeight: 0 }}>
                   <StrategySelector
                     selectedStrategy={selectedStrategy}
                     onSelectStrategy={setSelectedStrategy}
