@@ -25,6 +25,7 @@ def _client_as(username: str) -> TestClient:
     }
     client = TestClient(app)
     client.cookies.set("apt_token", create_access_token({"sub": username}))
+    client.headers["X-Requested-With"] = "XMLHttpRequest"
     return client
 
 
