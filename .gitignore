@@ -48,6 +48,7 @@ pip-delete-this-directory.txt
 # ── IDE / Editor ────────────────────────────────────────────────
 .vscode/
 .idea/
+# .obsidian/ backs up via OneDrive — not tracked in git
 .obsidian/
 .obsidian_backup*/
 .claude/
@@ -66,11 +67,11 @@ Thumbs.db
 changes.txt
 apex_codebase.txt
 codebase.txt
-codebase.md
 .vercel
 *.patch
 *.diff
 *.backup
+*.bak
 CLAUDE_*_PROMPT.md
 scratchpad/
 scratch/
@@ -101,3 +102,6 @@ merge_extract.py
 
 # Ralph
 scripts/ralph-loop/
+
+# ── ChromaDB 'palace' memory vault — local-only, HF xet rejects binaries
+palace/
