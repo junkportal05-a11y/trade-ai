@@ -1,0 +1,3 @@
+## 2026-10-31 - NumPy array conversion for recursive/iterative indicator calculation
+**Learning:** In Pandas time series indicators requiring iterative state updates across bars (like Supertrend, recursive smoothers, or trailing stops), accessing values via `pd.Series.iloc[i]` inside a Python loop creates massive overhead (~135-150 microseconds per access). Converting the series to contiguous 1D NumPy arrays via `.to_numpy()` before the loop speeds up the loop by >40x and cuts total indicator calculation time by ~86%.
+**Action:** When implementing or optimizing sequential/iterative indicator loops that cannot be easily vectorized with pure numpy roll/cumsum, always convert the underlying series to numpy arrays beforehand.
