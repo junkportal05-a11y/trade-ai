@@ -259,8 +259,21 @@ class HistoricalSimulator:
                                     
                                     if self.validate_trade_record(trade_record):
                                         try:
-                                            # Assuming predictions_history allows insertion like this
-                                            db.insert_prediction(trade_record)
+                                            # Persist the entry, then resolve it so exit/pnl
+                                            # fields actually land (add_prediction's INSERT
+                                            # does not include them).
+                                            pred_id = db.add_prediction(trade_record)
+                                            db.resolve_prediction(
+                                                pred_id,
+                                                actual_outcome=trade_record["actual_outcome"],
+                                                status=trade_record["status"],
+                                                exit_price=trade_record["exit_price"],
+                                                holding_time_minutes=trade_record["holding_time_minutes"],
+                                                pnl_pct=trade_record["pnl_pct"],
+                                                pnl_inr=trade_record["pnl_inr"],
+                                                r_multiple=trade_record["r_multiple"],
+                                                resolution_reason=trade_record["resolution_reason"],
+                                            )
                                         except Exception as e:
                                             self.logger.error(f"DB Insert failed: {e}")
                                         

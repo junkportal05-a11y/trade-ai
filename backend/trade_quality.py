@@ -7,15 +7,20 @@ class TradeQualityEngine:
         """
         tqs = confidence_score
         
-        # Regime Alignment Bonus/Penalty
-        if regime == "TRENDING":
+        # Regime Alignment Bonus/Penalty — the scan vocabulary is
+        # TRENDING_BULLISH/TRENDING_BEARISH/PANIC/RANGING/UNCLEAR. UNCLEAR
+        # (classifier has no data yet) is neutral, not a 25-point penalty:
+        # with the old rule every signal was downgraded a full classification.
+        if regime in ("TRENDING", "TRENDING_BULLISH", "TRENDING_BEARISH"):
             tqs += 10
         elif regime == "RANGING":
             tqs += 0
         elif regime == "VOLATILE":
             tqs -= 10
-        elif regime == "UNCLEAR":
+        elif regime == "PANIC":
             tqs -= 25
+        elif regime == "UNCLEAR":
+            tqs += 0
             
         # Volume Expansion Bonus
         if volume_expansion > 1.5:

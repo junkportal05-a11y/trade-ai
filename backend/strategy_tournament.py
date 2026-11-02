@@ -76,10 +76,14 @@ def _compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     volatility = close.diff().abs().rolling(10).sum()
     er = change / (volatility + 1e-9)
     sc = (er * (2 / 3 - 2 / 31) + 2 / 31) ** 2
-    kama = np.zeros(len(df))
+    kama = np.full(len(df), np.nan)
     kama[0] = close.iloc[0]
     for i in range(1, len(df)):
-        kama[i] = kama[i-1] + sc.iloc[i] * (close.iloc[i] - kama[i-1])
+        s = sc.iloc[i]
+        # Hold the prior value through the warm-up: a NaN smoothing constant
+        # would otherwise poison the recursion (NaN + x = NaN) and leave the
+        # whole series invalid, silently turning strategy 6 permanently short.
+        kama[i] = kama[i - 1] + (s * (close.iloc[i] - kama[i - 1]) if not np.isnan(s) else 0.0)
     df["close_kama"] = kama
 
     # RSI 14
@@ -230,7 +234,10 @@ def simulate_strategy(df: pd.DataFrame, strat_id: int, initial_capital: float = 
     elif strat_id == 17: # High Volume Surge Breakout
         signals = np.where((close > close.shift(1)) & (df["vol_ratio"] > 2.0), 1, 0)
     elif strat_id == 18: # 52-Week High Breakout
-        signals = np.where(close >= df["high_252"], 1, 0)
+        # Breakout is measured against the PRIOR 252-bar high; the rolling
+        # window includes the current bar, so comparing against it unshifted
+        # can only fire when close exactly equals the 252-bar high (never).
+        signals = np.where(close > df["high_252"].shift(1), 1, 0)
 
     elif strat_id == 19: # VWAP Dynamic Reversion
         signals = np.where(close < (df["vwap_20"] - 1.5 * df["atr_14"]), 1, np.where(close > (df["vwap_20"] + 1.5 * df["atr_14"]), -1, 0))
@@ -258,15 +265,29 @@ def simulate_strategy(df: pd.DataFrame, strat_id: int, initial_capital: float = 
     elif strat_id == 30: # Apex Regime-Adaptive Quant Strategy
         signals = np.where((df["vol_ratio"] > 1.5) & (df["rsi_14"] > 50) & (df["macd"] > df["macd_signal"]), 1, np.where(df["rsi_14"] < 40, -1, 0))
 
+    # Warm-up guard: rows whose indicator inputs are still NaN must stay flat.
+    # NaN comparisons evaluate False, so `a > b` styles silently go SHORT
+    # through the warm-up window and pollute every always-in-market strategy.
+    indicator_cols = [c for c in df.columns if c not in ("Open", "High", "Low", "Close", "Volume")]
+    valid_rows = ~df[indicator_cols].isna().any(axis=1)
+    signals = np.where(valid_rows.to_numpy(), signals, 0.0)
+
     # Performance Simulation
     returns = close.pct_change().fillna(0.0)
-    strat_returns = returns * pd.Series(signals, index=df.index).shift(1).fillna(0.0)
+    position = pd.Series(signals, index=df.index).shift(1).fillna(0.0)
+    strat_returns = returns * position
 
     total_return_pct = float(np.round(((1 + strat_returns).prod() - 1) * 100, 2))
-    trades = int(np.count_nonzero(np.diff(signals)))
-    winning_days = int(np.count_nonzero(strat_returns > 0))
-    total_days = max(int(np.count_nonzero(strat_returns != 0)), 1)
-    win_rate = round((winning_days / total_days) * 100, 1) if total_days > 0 else 0.0
+
+    # Trade-level stats: a trade is each run of a constant non-zero position.
+    # The old bar-level win rate (share of positive bars) just tracked the
+    # market's drift and made the leaderboard's 30% win-rate weight meaningless.
+    in_market = position != 0
+    run_id = (position != position.shift(1)).cumsum()
+    trade_returns = strat_returns[in_market].groupby(run_id[in_market]).sum()
+    total_trades = int(len(trade_returns))
+    winning_trades = int((trade_returns > 0).sum())
+    win_rate = round((winning_trades / total_trades) * 100, 1) if total_trades else 0.0
 
     cum_returns = (1 + strat_returns).cumprod()
     peak = cum_returns.cummax()
@@ -287,9 +308,23 @@ def simulate_strategy(df: pd.DataFrame, strat_id: int, initial_capital: float = 
         "win_rate": win_rate,
         "sharpe_ratio": sharpe,
         "max_drawdown_pct": max_dd,
-        "total_trades": trades,
+        "total_trades": total_trades,
         "final_capital": round(initial_capital * (1 + total_return_pct / 100), 2)
     }
+
+
+def _tournament_score(avg_sharpe: float, avg_win_rate: float, avg_return: float, avg_dd: float) -> float:
+    """
+    Composite ranking score with unit-coherent components (each mapped to a
+    bounded scale, weighted, summed). The old raw mix let a +800% return term
+    (160 pts) drown Sharpe (±2 pts), so the ranking was effectively
+    "highest return wins" regardless of risk or consistency.
+    """
+    sharpe_term = 40.0 * max(-1.0, min(2.0, avg_sharpe) / 2.0)        # -20..+40
+    win_term = 30.0 * (max(0.0, min(100.0, avg_win_rate)) / 100.0)    # 0..+30
+    ret_term = 20.0 * max(-1.0, math.tanh(avg_return / 100.0))        # -20..+20
+    dd_term = 10.0 * min(1.0, max(0.0, avg_dd) / 50.0)                # 0..-10 penalty
+    return float(np.round(sharpe_term + win_term + ret_term - dd_term, 2))
 
 
 def run_full_tournament() -> List[Dict[str, Any]]:
@@ -316,7 +351,8 @@ def run_full_tournament() -> List[Dict[str, Any]]:
                 all_win_rates.append(res["win_rate"])
                 all_drawdowns.append(res["max_drawdown_pct"])
                 all_sharpes.append(res["sharpe_ratio"])
-            except Exception:
+            except Exception as e:
+                print(f"[tournament] Skipping {csv_file} for strategy {strat_id}: {e}")
                 continue
 
         if all_returns:
@@ -324,7 +360,7 @@ def run_full_tournament() -> List[Dict[str, Any]]:
             avg_win_rate = float(np.round(np.mean(all_win_rates), 1))
             avg_dd = float(np.round(np.mean(all_drawdowns), 2))
             avg_sharpe = float(np.round(np.mean(all_sharpes), 2))
-            score = float(np.round((avg_sharpe * 0.4) + (avg_win_rate * 0.3) + (avg_return * 0.2) - (avg_dd * 0.1), 2))
+            score = _tournament_score(avg_sharpe, avg_win_rate, avg_return, avg_dd)
 
             tournament_results.append({
                 "strat_id": strat_id,

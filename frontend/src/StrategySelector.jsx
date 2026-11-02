@@ -1,33 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Settings2, BarChart3 } from 'lucide-react';
 import { API_BASE_URL, apiFetch } from './api';
-
-const T = {
-  bg:         '#080a0f',
-  surface:    '#0d1018',
-  panel:      '#111520',
-  panelAlt:   '#0f1219',
-  border:     '#1a1f2e',
-  borderHi:   '#252c40',
-  text:       '#d0d8ed',
-  textMid:    '#6e7a96',
-  textDim:    '#363d55',
-  green:      '#00e5a8',
-  greenDim:   'rgba(0,229,168,0.1)',
-  greenGlow:  'rgba(0,229,168,0.3)',
-  red:        '#ff3d5a',
-  redDim:     'rgba(255,61,90,0.1)',
-  redGlow:    'rgba(255,61,90,0.3)',
-  gold:       '#f5c842',
-  goldDim:    'rgba(245,200,66,0.1)',
-  blue:       '#4da6ff',
-  blueDim:    'rgba(77,166,255,0.1)',
-  accent:     '#7b6cff',
-  accentAlt:  '#9b5de5',
-  accentDim:  'rgba(123,108,255,0.12)',
-};
-
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+import { T, mono } from './theme';
 
 const STRATEGY_PRESETS = [
   { id: 'intraday_momentum', name: 'Intraday Momentum', description: 'EMA crossover + RSI + volume filter. 15m timeframe.', riskProfile: 'Moderate', typicalHold: '15m-2h' },

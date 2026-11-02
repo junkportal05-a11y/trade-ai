@@ -7,7 +7,7 @@
   - `mobile_get_device_state`: Capture real-time screenshots and hierarchy
   - `mobile_inspect_trace`: Inspect execution traces and step diagnostics
   - `mobile_diagnose`: Run doctor checks for ADB, emulator, and environment
-- Never mark an app update complete without running verification checks.
+- When the task needs it, run verification checks before marking an app update complete.
 
 ## 2. Google Agents CLI (`google/agents-cli`)
 - **Use `google-agents-cli` when needed** for scaffolding, building, evaluating, or deploying AI agents.

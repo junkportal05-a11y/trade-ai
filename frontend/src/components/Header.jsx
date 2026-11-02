@@ -97,6 +97,7 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
   const isUp = pct >= 0;
   const latency = health.latencyMs;
   const latencyLabel = latency == null ? '--' : latency <= 15 ? '<15ms' : `${latency}ms`;
+  const isSimulated = dataSource?.[selectedSymbol] === 'simulated';
 
   return (
     <div style={{
@@ -207,7 +208,7 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
         </div>
       )}
 
-      {!isMobile && view === 'CHART' && selectedSymbol && (
+      {!isMobile && selectedSymbol && (
         <>
           <div style={{ width: 1, height: 24, background: T.border, flexShrink: 0 }} />
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0, flexShrink: 0 }}>
@@ -228,7 +229,7 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
             }}>
               {sign(pct)}{fmt(pct, 2)}%
             </span>
-            {dataSource?.[selectedSymbol] === 'simulated' && (
+            {isSimulated && (
               <span
                 title="Simulated price feed — not a live exchange quote"
                 style={{

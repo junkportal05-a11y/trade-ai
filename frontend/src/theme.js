@@ -9,6 +9,7 @@ export const T = {
   text: '#e2e8f0',
   textMid: '#8290ad',
   textDim: '#475470',
+  textMuted: '#6b7280',
   green: '#00f5a0',
   greenDim: 'rgba(0, 245, 160, 0.12)',
   greenGlow: 'rgba(0, 245, 160, 0.3)',
@@ -16,48 +17,15 @@ export const T = {
   redDim: 'rgba(255, 51, 102, 0.12)',
   redGlow: 'rgba(255, 51, 102, 0.3)',
   blue: '#38bdf8',
+  orange: '#f59e0b',
+  orangeDim: 'rgba(245, 158, 11, 0.1)',
   accent: '#6366f1',
   accentAlt: '#a855f7',
   accentDim: 'rgba(99, 102, 241, 0.15)',
   accentGlow: 'rgba(99, 102, 241, 0.35)',
 };
 
-export const SEED_PRICES = {
-  'YESBANK.NS': 25,
-  'TATASTEEL.NS': 170,
-  'BANKBARODA.NS': 280,
-  'TATAPOWER.NS': 445,
-  'SBIN.NS': 830,
-  'HAL.NS': 4400,
-  'BEL.NS': 280,
-  'RVNL.NS': 350,
-};
-
-export const DEFAULT_WATCHLIST = [
-  { symbol: 'YESBANK.NS', name: 'Yes Bank', sector: 'Banking' },
-  { symbol: 'TATASTEEL.NS', name: 'Tata Steel', sector: 'Metals' },
-  { symbol: 'BANKBARODA.NS', name: 'Bank of Baroda', sector: 'Banking' },
-  { symbol: 'TATAPOWER.NS', name: 'Tata Power', sector: 'Power' },
-  { symbol: 'SBIN.NS', name: 'SBI', sector: 'Banking' },
-];
-
-export const INTERVALS = [
-  { label: '1D', interval: '30m', range: '1d' },
-  { label: '1W', interval: '30m', range: '5d' },
-  { label: '1M', interval: '1d', range: '1mo' },
-  { label: '3M', interval: '1d', range: '3mo' },
-  { label: '1Y', interval: '1wk', range: '1y' },
-  { label: 'ALL', interval: '1mo', range: 'max' },
-];
-
-export const PORTFOLIO_SEED = [
-  { symbol: 'HAL.NS', shares: 5, avgCost: 4400 },
-  { symbol: 'BEL.NS', shares: 50, avgCost: 280 },
-  { symbol: 'RVNL.NS', shares: 40, avgCost: 350 },
-];
-
 export const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
-export const fmtK = (n) => n >= 1e9 ? `₹${(n/1e9).toFixed(2)}B` : n >= 1e6 ? `₹${(n/1e6).toFixed(1)}M` : `₹${fmt(n, 0)}`;
 export const fmtINR = (n, d = 2) => n == null ? '—' : `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })}`;
 export const fmtPct = (n, d = 2) => n == null ? '—' : `${n >= 0 ? '+' : ''}${Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })}%`;
 export const clr = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
@@ -85,5 +53,43 @@ export const TAB_META = {
   SETTINGS: { label: 'Settings', icon: 'Settings' },
   HELP: { label: 'Help', icon: 'HelpCircle' },
 };
+
+export const SEED_PRICES = {
+  'RELIANCE.NS': 2445.35,
+  'TCS.NS': 3128.80,
+  'INFY.NS': 1456.70,
+  'HDFCBANK.NS': 1485.60,
+  'ICICIBANK.NS': 958.20,
+  'SBIN.NS': 723.40,
+  'BHARTIARTL.NS': 826.50,
+  'ITC.NS': 412.15,
+  'KOTAKBANK.NS': 1748.75,
+  'LT.NS': 3892.60,
+};
+
+export const DEFAULT_WATCHLIST = [
+  { symbol: 'RELIANCE.NS' },
+  { symbol: 'TCS.NS' },
+  { symbol: 'INFY.NS' },
+  { symbol: 'HDFCBANK.NS' },
+  { symbol: 'ICICIBANK.NS' },
+  { symbol: 'SBIN.NS' },
+  { symbol: 'BHARTIARTL.NS' },
+  { symbol: 'ITC.NS' },
+  { symbol: 'KOTAKBANK.NS' },
+  { symbol: 'LT.NS' },
+];
+
+export const INTERVALS = [
+  { interval: '15m', range: '1D' },
+  { interval: '30m', range: '1D' },
+  { interval: '1h', range: '1D' },
+  { interval: '4h', range: '1W' },
+  { interval: '1d', range: '1M' },
+];
+
+export const fmtTime = (date = new Date()) => date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+export const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
 export const EMPTY_ARRAY = [];

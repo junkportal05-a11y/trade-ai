@@ -320,7 +320,10 @@ def resolve_prediction(
     pred.status = "RESOLVED"
     pred.actual_outcome = outcome
     pred.exit_price = exit_price
-    pred.exit_price_verified = live_price
+    # NOTE: `exit_price_verified` is not a column on PredictionsHistory — the
+    # assignment below used to silently no-op (SQLAlchemy ignores unknown
+    # attributes), so the cross-checked price was never persisted. The
+    # verified value is still returned in the response for the UI.
     pred.pnl_pct = round(pnl_pct, 2)
     pred.pnl_inr = pnl_inr
     pred.r_multiple = r_multiple

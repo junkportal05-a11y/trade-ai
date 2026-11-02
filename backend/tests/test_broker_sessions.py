@@ -34,9 +34,15 @@ def mock_db():
             user_id = SYSTEM_USER_ID
         sessions[user_id] = data
 
-    with patch("angelone_feed.db", autospec=True) as mock_db_mod:
+    with patch("angelone_feed.db", autospec=True) as mock_db_mod, \
+         patch("app.api.v1.broker.save_angelone_session") as fake_broker_save, \
+         patch("app.api.v1.broker.get_angelone_session", return_value=None):
         mock_db_mod.get_angelone_session = fake_get
         mock_db_mod.save_angelone_session = fake_save
+        # The login endpoint saves via app.api.v1.broker's own import of
+        # app.db, not angelone_feed.db — without this patch the fixture creds
+        # (test_key/jwt456/...) leak into the real database.
+        fake_broker_save.side_effect = lambda data: fake_save(data)
         yield sessions  # test can inspect/modify via this
 
 

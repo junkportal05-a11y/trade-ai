@@ -35,15 +35,27 @@ if str(BACKEND_DIR) not in sys.path:
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-# Load environment configuration (.env from root or backend)
+# Load environment configuration — fail loudly if production secrets are missing
 try:
     from dotenv import load_dotenv
+    found = False
     if (ROOT_DIR / ".env").exists():
         load_dotenv(ROOT_DIR / ".env")
+        found = True
     elif (BACKEND_DIR / ".env").exists():
         load_dotenv(BACKEND_DIR / ".env")
+        found = True
+    if not found:
+        raise RuntimeError(
+            "\n[Error] No .env file found in root or backend directory. "
+            "Required secrets (JWT_SECRET, ADMIN_KEY, PASS_ADMIN, etc.) must be set as environment variables. "
+            "Do NOT copy .env.example into place — it contains placeholder secrets.\n"
+        )
 except ImportError:
-    pass
+    raise RuntimeError(
+        "\n[Error] python-dotenv is not installed. "
+        "Required secrets (JWT_SECRET, ADMIN_KEY, PASS_ADMIN, etc.) must be set as environment variables.\n"
+    )
 
 
 # Configure stdout/stderr for UTF-8 on Windows consoles
@@ -119,7 +131,7 @@ def run_preflight_checks() -> dict:
     if fe_dev_5173:
         results["frontend"] = (True, "Vite Dev Server Active (http://localhost:5173)")
     elif fe_dev_3000:
-        results["frontend"] = (True, "React Dev Server Active (http://localhost:3000)")
+        results["frontend"] = (True, "OpenRouter Proxy Active (http://localhost:3000)")
     elif fe_dist:
         results["frontend"] = (True, "Production Build Available (frontend/dist)")
     else:
@@ -145,14 +157,14 @@ def run():
     parser.add_argument(
         "--port",
         type=int,
-        default=int(os.getenv("PORT", "7860")),
-        help="Port to bind (default: 7860)"
+        default=int(os.getenv("PORT", "8000")),
+        help="Port to bind (default: 8000 — matches the frontend dev proxy; HF Space deployment uses the Dockerfile, not this script)"
     )
     parser.add_argument(
         "--reload",
         action=argparse.BooleanOptionalAction,
-        default=os.getenv("RELOAD", "true").lower() in ("true", "1"),
-        help="Enable/disable auto-reload on code change"
+        default=os.getenv("RELOAD", "false").lower() in ("true", "1"),
+        help="Enable/disable auto-reload on code change. Enabled only with --reload flag or RELOAD=true env var for local dev."
     )
     parser.add_argument(
         "--check-only",

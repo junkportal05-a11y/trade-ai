@@ -2,40 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ClipboardList } from 'lucide-react';
 import { API_BASE_URL, apiFetch } from './api';
 import { useBotWebSocket } from './hooks/useBotWebSocket';
-
-const T = {
-  bg:         '#080a0f',
-  surface:    '#0d1018',
-  panel:      '#111520',
-  panelAlt:   '#0f1219',
-  border:     '#1a1f2e',
-  borderHi:   '#252c40',
-  text:       '#d0d8ed',
-  textMid:    '#6e7a96',
-  textDim:    '#363d55',
-  green:      '#00e5a8',
-  greenDim:   'rgba(0,229,168,0.1)',
-  greenGlow:  'rgba(0,229,168,0.3)',
-  red:        '#ff3d5a',
-  redDim:     'rgba(255,61,90,0.1)',
-  redGlow:    'rgba(255,61,90,0.3)',
-  gold:       '#f5c842',
-  goldDim:    'rgba(245,200,66,0.1)',
-  blue:       '#4da6ff',
-  blueDim:    'rgba(77,166,255,0.1)',
-  accent:     '#7b6cff',
-  accentAlt:  '#9b5de5',
-  accentDim:  'rgba(123,108,255,0.12)',
-};
-
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
-const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtTime = (ts) => new Date(ts).toLocaleTimeString('en-IN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+import { T, mono, fmt, fmtTime } from './theme';
 
 export default function TradeLogPanel({ maxItems = 50 }) {
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('ALL'); // ALL | BUY | SELL | OPEN | CLOSED
+  const [filter, setFilter] = useState('ALL'); // ALL | BUY | SELL | OPEN | ENDED
 
   const { botData, connected } = useBotWebSocket();
 
@@ -48,7 +20,7 @@ export default function TradeLogPanel({ maxItems = 50 }) {
     if (filter === 'ALL') return true;
     if (filter === 'BUY' || filter === 'SELL') return t.side?.toUpperCase() === filter;
     if (filter === 'OPEN') return t.status === 'OPEN';
-    if (filter === 'CLOSED') return t.status === 'CLOSED';
+    if (filter === 'ENDED') return t.status === 'CLOSED';
     return true;
   });
 
@@ -66,7 +38,7 @@ export default function TradeLogPanel({ maxItems = 50 }) {
 
         {/* Filter Tabs */}
         <div style={{ display: 'flex', gap: 4, background: T.panel, border: `1px solid ${T.border}`, borderRadius: 6, padding: 2 }}>
-          {['ALL', 'BUY', 'SELL', 'OPEN', 'CLOSED'].map(f => (
+          {['ALL', 'BUY', 'SELL', 'OPEN', 'ENDED'].map(f => (
             <button key={f} onClick={() => setFilter(f)} style={{
               padding: '4px 10px', borderRadius: 4, border: 'none', cursor: 'pointer',
               background: filter === f ? T.accent : 'transparent',
@@ -81,14 +53,36 @@ export default function TradeLogPanel({ maxItems = 50 }) {
       {/* Trade List */}
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 200 }}>
         {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 100, color: T.textDim, ...mono }}>
-            <span style={{ width: 16, height: 16, border: `2px solid ${T.border}`, borderTopColor: T.accent, borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginRight: 8 }} />
-            Loading trade log...
+          <div style={{
+            background: T.panel,
+            border: `1px solid ${T.border}`,
+            borderRadius: 12,
+            padding: 24,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+            color: T.textDim,
+          }}>
+            <span style={{ width: 24, height: 24, border: `3px solid ${T.border}`, borderRadius: '50%', borderTopColor: T.accent, animation: 'spin 0.8s linear infinite', marginBottom: 8 }} />
+            <span style={{ fontSize: 11, color: T.textDim }}>Loading trade log...</span>
           </div>
         )}
 
         {!loading && filteredTrades.length === 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 120, gap: 8, color: T.textDim, ...mono }}>
+          <div style={{
+            background: T.panel,
+            border: `1px solid ${T.border}`,
+            borderRadius: 12,
+            padding: 24,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+            color: T.textDim,
+          }}>
             <ClipboardList size={24} color={T.textDim} />
             <span style={{ fontSize: 10 }}>No trades {filter !== 'ALL' ? `(${filter})` : ''} yet</span>
             <span style={{ fontSize: 9, color: T.textDim }}>Bot will log decisions here when running</span>

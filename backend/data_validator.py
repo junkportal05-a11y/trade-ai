@@ -38,9 +38,11 @@ def calculate_confidence(df: pd.DataFrame, interval: str = "5m") -> float:
         diffs = df.index.to_series().diff().dropna()
         # Count gaps that are strictly greater than expected_td (allow some tolerance for weekends if daily)
         if interval in ["1m", "5m", "15m"]:
-            # Intraday: Any gap > expected is a hole (ignoring overnight gaps which are typical, 
+            # Intraday: Any gap > expected is a hole (ignoring overnight gaps which are typical,
             # so we only penalize gaps within the same trading day)
-            same_day_diffs = diffs[diffs.index.date == diffs.index.to_series().shift(1).dt.date.dropna()]
+            ts = diffs.index.to_series()
+            same_day = ts.dt.date == ts.shift(1).dt.date  # aligned mask; the shifted first row is NaT → False
+            same_day_diffs = diffs[same_day]
             gaps = same_day_diffs[same_day_diffs > expected_td]
             
             # Penalize 2 points for every missing intraday bar equivalent
@@ -97,8 +99,9 @@ def validate_trade(trade: dict) -> dict:
             failures.append("resolved_at <= created_at")
             
     status = trade.get('status')
-    if status not in ['WIN', 'LOSS', 'TIMEOUT', 'OPEN', 'PENDING']:
-        failures.append("result is not one of WIN/LOSS/TIMEOUT/OPEN/PENDING")
+    if status not in ['WIN', 'LOSS', 'TIMEOUT', 'OPEN', 'PENDING',
+                      'TARGET_HIT', 'STOP_HIT', 'SQUARE_OFF', 'RESOLVED']:
+        failures.append("result is not one of WIN/LOSS/TIMEOUT/OPEN/PENDING/TARGET_HIT/STOP_HIT/SQUARE_OFF/RESOLVED")
         
     if status in ['WIN', 'LOSS']:
         exit_price = trade.get('exit_price')
@@ -113,8 +116,12 @@ def validate_trade(trade: dict) -> dict:
             failures.append("LOSS status but PnL >= 0")
         
     regime = trade.get('market_regime_snapshot')
-    if not regime or regime == 'UNKNOWN' or regime == 'UNCLEAR':
-        failures.append("regime is null or UNCLEAR")
+    if not regime or regime == 'UNKNOWN':
+        failures.append("regime is null or UNKNOWN")
+    elif regime == 'UNCLEAR':
+        # The regime classifier returns UNCLEAR while it has no data — that is
+        # a modelling gap, not a data defect, so warn instead of failing.
+        warnings.append("regime is UNCLEAR (classifier unavailable)")
         
     score = 100 if len(failures) == 0 else max(0, 100 - (len(failures) * 20))
     
@@ -139,7 +146,10 @@ def calculate_data_confidence(limit: int = 100, persist: bool = True) -> dict:
     cur = conn.cursor()
     
     try:
-        cur.execute("SELECT * FROM predictions_history WHERE status IN ('WIN', 'LOSS', 'TIMEOUT') ORDER BY id DESC LIMIT %s;", (limit,))
+        cur.execute(
+            "SELECT * FROM predictions_history WHERE status IN "
+            "('WIN', 'LOSS', 'TIMEOUT', 'TARGET_HIT', 'STOP_HIT', 'SQUARE_OFF', 'RESOLVED') "
+            "ORDER BY id DESC LIMIT %s;", (limit,))
         columns = [desc[0] for desc in cur.description]
         rows = cur.fetchall()
         

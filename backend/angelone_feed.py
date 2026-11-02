@@ -7,6 +7,8 @@ Handles authentication, websocket streams, and historical data fetching.
 import os
 import json
 import time
+import shutil
+import tempfile
 import threading
 import pyotp
 import pandas as pd
@@ -18,13 +20,81 @@ from cryptography.fernet import Fernet
 
 from app.core.config import settings
 from app.core.logging import configure_json_logging, logger
-from app.core.circuit_breaker import CircuitBreaker
-from app.core.security import encrypt_value, decrypt_value
 import db
 
 
 # Sentinel user ID for background / system tasks (not tied to any real user)
 SYSTEM_USER_ID = "__system__"
+
+# Credentials planted by backend/tests (test_broker_sessions.py leaks them into
+# the real DB because the login endpoint saves via app.db, which is not mocked).
+# A stored session holding any of these must never be restored.
+_PLACEHOLDER_SESSION_VALUES = {
+    "test_key", "test_code", "test_client", "test_pin", "test_totp",
+    "jwt456", "refresh456", "feed456",
+    "mock_session", "mock_refresh", "mock_feed",
+}
+
+
+def _session_is_placeholder(session: dict) -> bool:
+    return any(
+        str(session.get(field) or "") in _PLACEHOLDER_SESSION_VALUES
+        for field in ("api_key", "client_code", "pin", "totp_secret",
+                      "session_token", "refresh_token", "feed_token")
+    )
+
+
+# Sessions are written in two legacy formats: aware UTC ISO (newer code paths)
+# and naive IST wall-clock strings (db._now_ist). Normalize to aware UTC.
+_IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def _parse_session_timestamp(value) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        try:
+            parsed = datetime.strptime(str(value), "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=_IST)  # legacy _now_ist() values are IST
+    return parsed.astimezone(timezone.utc)
+
+
+def _stabilize_ca_bundle():
+    """
+    certifi's CA bundle lives inside the virtualenv. When the project (and its
+    venv) sit in a OneDrive-synced folder, OneDrive sync can transiently hide
+    the file and requests fails with "Could not find a suitable TLS CA
+    certificate bundle, invalid path: ...". Copy the bundle once to a stable
+    per-user location and point requests at the copy.
+    """
+    try:
+        import certifi
+        src = certifi.where()
+        if "onedrive" not in src.lower():
+            return
+        if os.environ.get("REQUESTS_CA_BUNDLE"):
+            return
+        base = os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()
+        dst = Path(base) / "apextrade" / "cacert.pem"
+        if dst.exists():
+            os.environ["REQUESTS_CA_BUNDLE"] = str(dst)
+            return
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, dst)
+        os.environ["REQUESTS_CA_BUNDLE"] = str(dst)
+        logger.info(f"CA bundle copied out of OneDrive-synced venv to {dst}")
+    except Exception:
+        # If the bundle is momentarily locked by OneDrive, fall back to
+        # certifi's default resolution rather than failing the import.
+        pass
+
+
+_stabilize_ca_bundle()
 
 
 class AngelOneFeed:
@@ -46,8 +116,8 @@ class AngelOneFeed:
 
         self._instruments_lock = threading.Lock()
         self._login_lock = threading.Lock()
+        self._refresh_lock = threading.Lock()  # guards session-refresh retries in get_live_quotes
         self._last_login_attempt = 0.0
-        self.cb = CircuitBreaker(max_failures=5, base_delay=1.0)
         self._paper_order_cache: dict[int, dict] = {}  # prediction_id -> order result
         self._restore_session()
 
@@ -55,17 +125,21 @@ class AngelOneFeed:
         """Restore session from DB on startup, auto-refresh if stale."""
         try:
             saved = db.get_angelone_session() or {}
+            if _session_is_placeholder(saved):
+                logger.warning(
+                    "Stored AngelOne session contains test/placeholder credentials — "
+                    "purging it. Log in with real credentials to restore data feeds."
+                )
+                db.delete_angelone_session()
+                return
             if saved.get('session_token'):
                 if self.is_session_valid(saved):
                     self.session_token = saved['session_token']
                     self.refresh_token = saved.get('refresh_token')
                     self.feed_token = saved.get('feed_token')
                     self.client_code = saved.get('client_code')
-                    # Re-initialize SmartConnect with saved token
-                    raw_api_key = saved.get('api_key')
-                    api_key = decrypt_value(raw_api_key) if raw_api_key else None
-                    if not api_key and raw_api_key:
-                        api_key = raw_api_key
+                    # db.get_angelone_session() already decrypts api_key
+                    api_key = saved.get('api_key')
                     if api_key:
                         self.smart_api = SmartConnect(api_key=api_key)
                         self.smart_api.setAccessToken(self.session_token)
@@ -105,16 +179,24 @@ class AngelOneFeed:
                 clientCode=client_code, password=pin, totp=code_to_send
             )
 
-            if not session_data or session_data["status"] == False:
-                error_msg = session_data.get("message", "Unknown error")
+            if not session_data or not isinstance(session_data, dict) or session_data.get("status") == False:
+                error_msg = (
+                    session_data.get("message", "Unknown error")
+                    if isinstance(session_data, dict)
+                    else "Empty response"
+                )
                 logger.error(f"AngelOne login failed: {error_msg}")
                 return {"status": "error", "message": error_msg}
 
             # Extract tokens
-            data = session_data["data"]
-            self.session_token = data["jwtToken"]
-            self.refresh_token = data["refreshToken"]
-            self.feed_token = data["feedToken"]
+            data = session_data.get("data") or {}
+            self.session_token = data.get("jwtToken")
+            self.refresh_token = data.get("refreshToken")
+            self.feed_token = data.get("feedToken")
+
+            if not self.session_token:
+                logger.error("AngelOne login succeeded but no JWT token was returned")
+                return {"status": "error", "message": "Login succeeded but no session token was returned"}
 
             # Set access token for subsequent calls
             self.smart_api.setAccessToken(self.session_token)
@@ -144,6 +226,13 @@ class AngelOneFeed:
             return True
         try:
             session = db.get_angelone_session()
+            if session and _session_is_placeholder(session):
+                logger.warning(
+                    "Stored AngelOne session contains test/placeholder credentials — "
+                    "purging instead of restoring."
+                )
+                db.delete_angelone_session()
+                return False
             if session and session.get("api_key"):
                 api_key = session["api_key"]
                 self.smart_api = SmartConnect(api_key=api_key)
@@ -172,7 +261,11 @@ class AngelOneFeed:
 
             if response and response.get("status") == True:
                 data = response.get("data") or {}
-                self.session_token = data.get("jwtToken")
+                new_jwt = data.get("jwtToken")
+                if not new_jwt:
+                    logger.error("Session refresh returned success but no new JWT token")
+                    return False
+                self.session_token = new_jwt
                 if data.get("refreshToken"):
                     self.refresh_token = data.get("refreshToken")
                 if data.get("feedToken"):
@@ -200,9 +293,12 @@ class AngelOneFeed:
                 logger.info("✅ AngelOne session refreshed and updated in DB")
                 return True
             else:
-                logger.error(
-                    f"Session refresh failed: {response.get('message', 'Unknown error')}"
+                error_msg = (
+                    response.get("message", "Unknown error")
+                    if isinstance(response, dict)
+                    else "No response"
                 )
+                logger.error(f"Session refresh failed: {error_msg}")
                 return False
 
         except Exception as e:
@@ -333,7 +429,13 @@ class AngelOneFeed:
             return False
 
     def is_session_valid(self, session_data=None) -> bool:
-        """Check if session is valid (less than 23 hours old).
+        """Check if the stored session can still authenticate.
+
+        Angel One SmartAPI JWTs expire at 05:00 IST every day, regardless of
+        when they were issued, so a token is only usable until the next 05:00
+        IST strictly after it was created. A 24h hard backstop covers clock
+        oddities. Legacy rows may carry a naive IST timestamp (db._now_ist)
+        or an aware UTC ISO string (newer writes) — both are handled.
 
         Args:
             session_data: Optional session dict from DB. If provided, uses that data
@@ -348,12 +450,20 @@ class AngelOneFeed:
 
         if not updated_at or not session_token:
             return False
-        from datetime import datetime, timezone
 
-        age_hours = (
-            datetime.now(timezone.utc) - datetime.fromisoformat(updated_at)
-        ).total_seconds() / 3600
-        return age_hours < 23
+        issued = _parse_session_timestamp(updated_at)
+        if issued is None:
+            return False
+
+        ist = timezone(timedelta(hours=5, minutes=30))
+        issued_ist = issued.astimezone(ist)
+        expiry_ist = issued_ist.replace(hour=5, minute=0, second=0, microsecond=0)
+        if expiry_ist <= issued_ist:
+            expiry_ist += timedelta(days=1)
+
+        now = datetime.now(timezone.utc)
+        hard_backstop = issued + timedelta(hours=24)
+        return now < min(expiry_ist, hard_backstop)
 
     def is_authorized(self, force_check: bool = False) -> bool:
         """
@@ -691,9 +801,38 @@ class AngelOneFeed:
     # LIVE QUOTES
     # ==========================================
 
+    def _refresh_if_needed(self) -> bool:
+        """Try to refresh session if token is invalid. Returns True if refreshed."""
+        if not self.refresh_token:
+            return False
+        success = self.refresh_session(self.refresh_token)
+        return success
+
+    def _try_get_market_data(self, batch_tokens: List[str]) -> Optional[dict]:
+        """Attempt a single getMarketData call, refresh session on auth error."""
+        try:
+            response = self.smart_api.getMarketData("FULL", {"NSE": batch_tokens})
+            if not response or response.get("status") == False:
+                error_code = (
+                    response.get("errorCode") or response.get("errorcode")
+                    if response
+                    else ""
+                )
+                is_auth_error = error_code in (
+                    "AB2000", "AB1010", "AG001", "AG8001"
+                ) or (
+                    response and "token" in str(response.get("message", "")).lower()
+                )
+                if is_auth_error and self._refresh_if_needed():
+                    response = self.smart_api.getMarketData("FULL", {"NSE": batch_tokens})
+            return response
+        except Exception:
+            return None
+
     def get_live_quotes(self, symbols: List[str]) -> Dict:
         """
-        Get real-time quotes for multiple symbols using AngelOne's batch getMarketData
+        Get real-time quotes for multiple symbols using AngelOne's batch getMarketData.
+        Returns empty dict on any failure — never raises.
         """
         try:
             quotes = {}
@@ -708,9 +847,7 @@ class AngelOneFeed:
                 token = self.get_instrument_token(clean_sym)
                 if token:
                     tokens.append(token)
-                    token_to_symbol[token] = (
-                        symbol  # map token back to requested symbol format
-                    )
+                    token_to_symbol[token] = symbol  # map token back to requested symbol format
 
             if not tokens:
                 return {}
@@ -723,70 +860,8 @@ class AngelOneFeed:
 
             from concurrent.futures import ThreadPoolExecutor, as_completed
 
-            # Initialize a lock for token refresh if it doesn't exist
-            if not hasattr(self, "_refresh_lock"):
-                self._refresh_lock = threading.Lock()
-
             def fetch_batch_sync(batch_tokens):
-                response = self.smart_api.getMarketData("FULL", {"NSE": batch_tokens})
-
-                if not response or response.get("status") == False:
-                    error_code = (
-                        response.get("errorCode") or response.get("errorcode")
-                        if response
-                        else ""
-                    )
-                    if error_code in ("AB2000", "AB1010", "AG001", "AG8001") or (
-                        response and "token" in str(response.get("message", "")).lower()
-                    ):
-                        with self._refresh_lock:
-                            # Re-check status by trying again; maybe another thread refreshed it
-                            logger.info(
-                                "Session token expired/invalid. Trying auto-refresh within lock..."
-                            )
-                            response = self.smart_api.getMarketData(
-                                "FULL", {"NSE": batch_tokens}
-                            )
-
-                            if not response or response.get("status") == False:
-                                error_code_retry = (
-                                    response.get("errorCode")
-                                    or response.get("errorcode")
-                                    if response
-                                    else ""
-                                )
-                                if error_code_retry in (
-                                    "AB2000",
-                                    "AB1010",
-                                    "AG001",
-                                    "AG8001",
-                                ) or (
-                                    response
-                                    and "token"
-                                    in str(response.get("message", "")).lower()
-                                ):
-                                    if self.refresh_token and self.refresh_session(
-                                        self.refresh_token
-                                    ):
-                                        logger.info(
-                                            "Token refreshed successfully. Retrying getMarketData..."
-                                        )
-                                        response = self.smart_api.getMarketData(
-                                            "FULL", {"NSE": batch_tokens}
-                                        )
-                                    else:
-                                        logger.info(
-                                            "Auto-refresh failed or no refresh token. Trying full auto-login..."
-                                        )
-                                        if self.auto_login():
-                                            logger.info(
-                                                "Auto-login successful. Retrying getMarketData..."
-                                            )
-                                            response = self.smart_api.getMarketData(
-                                                "FULL", {"NSE": batch_tokens}
-                                            )
-                                        else:
-                                            self.session_token = None
+                response = self._try_get_market_data(batch_tokens)
                 return response
 
             responses = []
@@ -799,56 +874,45 @@ class AngelOneFeed:
                         responses.append(future.result())
                     except Exception as exc:
                         logger.error(f"Error fetching batch: {exc}")
-                        responses.append(exc)
+                        responses.append(None)
 
             for response in responses:
-                if isinstance(response, Exception):
-                    logger.error(f"Error fetching batch: {response}")
+                if not response or response.get("status") != True or not response.get("data"):
                     continue
 
-                if response and response.get("status") and response.get("data"):
-                    fetched = response["data"].get("fetched") or []
-                    for item in fetched:
-                        token = item.get("symbolToken")
-                        orig_symbol = token_to_symbol.get(token)
-                        if orig_symbol:
-                            price = float(
-                                item.get("ltp") or item.get("lastPrice") or 0.0
-                            )
-                            open_p = float(item.get("open") or price)
-                            high = float(item.get("high") or price)
-                            low = float(item.get("low") or price)
-                            prev_close = float(item.get("close") or price)
-                            volume = int(
-                                item.get("tradeVolume") or item.get("volume") or 0
-                            )
+                fetched = response["data"].get("fetched") or []
+                for item in fetched:
+                    token = item.get("symbolToken")
+                    orig_symbol = token_to_symbol.get(token)
+                    if not orig_symbol:
+                        continue
+                    price = float(item.get("ltp") or item.get("lastPrice") or 0.0)
+                    open_p = float(item.get("open") or price)
+                    high = float(item.get("high") or price)
+                    low = float(item.get("low") or price)
+                    prev_close = float(item.get("close") or price)
+                    volume = int(item.get("tradeVolume") or item.get("volume") or 0)
 
-                            net_change = float(
-                                item.get("netChange") or (price - prev_close)
-                            )
-                            percent_change = float(
-                                item.get("percentChange")
-                                or (
-                                    (net_change / prev_close * 100)
-                                    if prev_close
-                                    else 0.0
-                                )
-                            )
+                    net_change = float(item.get("netChange") or (price - prev_close))
+                    percent_change = float(
+                        item.get("percentChange")
+                        or ((net_change / prev_close * 100) if prev_close else 0.0)
+                    )
 
-                            quotes[orig_symbol] = {
-                                "symbol": orig_symbol,
-                                "name": orig_symbol,
-                                "price": round(price, 2),
-                                "change": round(net_change, 2),
-                                "change_pct": round(percent_change, 2),
-                                "volume": volume,
-                                "open": round(open_p, 2),
-                                "high": round(high, 2),
-                                "low": round(low, 2),
-                                "prev_close": round(prev_close, 2),
-                                "source": "angelone",
-                                "sector": "NSE Stock",
-                            }
+                    quotes[orig_symbol] = {
+                        "symbol": orig_symbol,
+                        "name": orig_symbol,
+                        "price": round(price, 2),
+                        "change": round(net_change, 2),
+                        "change_pct": round(percent_change, 2),
+                        "volume": volume,
+                        "open": round(open_p, 2),
+                        "high": round(high, 2),
+                        "low": round(low, 2),
+                        "prev_close": round(prev_close, 2),
+                        "source": "angelone",
+                        "sector": "NSE Stock",
+                    }
             return quotes
 
         except Exception as e:
@@ -886,10 +950,10 @@ class AngelOneFeed:
         Idempotency: Cache orders by prediction_id in an in-memory dictionary.
         """
         prediction_id = params.get("prediction_id")
-        action = params.get("action", "BUY")
-        symbol = params.get("symbol", "UNKNOWN").replace(".NS", "").replace("-EQ", "")
-        entry_price = params.get("entry_price", 0.0)
-        stop_loss = params.get("stop_loss", 0.0)
+        action = params.get("action", "BUY") or "BUY"
+        symbol = str(params.get("symbol") or "UNKNOWN").replace(".NS", "").replace("-EQ", "")
+        entry_price = float(params.get("entry_price") or 0.0)
+        stop_loss = float(params.get("stop_loss") or 0.0)
         
         # Idempotency: check cache
         if prediction_id is not None and prediction_id in self._paper_order_cache:
@@ -939,13 +1003,14 @@ if __name__ == "__main__":
     feed = AngelOneFeed()
 
     API_KEY = os.getenv("ANGEL_API_KEY")
-    CLIENT_CODE = os.getenv("ANGEL_CLIENT_CODE")
+    # backend/.env names it ANGEL_CLIENT_ID; accept both spellings
+    CLIENT_CODE = os.getenv("ANGEL_CLIENT_CODE") or os.getenv("ANGEL_CLIENT_ID")
     PIN = os.getenv("ANGEL_PIN")
     TOTP_SECRET = os.getenv("ANGEL_TOTP_SECRET")
 
     if not all([API_KEY, CLIENT_CODE, PIN, TOTP_SECRET]):
         logger.error(
-            "❌ Set environment variables: ANGEL_API_KEY, ANGEL_CLIENT_CODE, ANGEL_PIN, ANGEL_TOTP_SECRET"
+            "❌ Set environment variables: ANGEL_API_KEY, ANGEL_CLIENT_CODE (or ANGEL_CLIENT_ID), ANGEL_PIN, ANGEL_TOTP_SECRET"
         )
         exit(1)
 

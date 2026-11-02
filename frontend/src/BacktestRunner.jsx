@@ -1,36 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Timer, Trophy } from 'lucide-react';
-import { API_BASE_URL, apiFetch } from './api';
-import { formatError } from './utils/formatError';
-
-const T = {
-  bg:         '#080a0f',
-  surface:    '#0d1018',
-  panel:      '#111520',
-  panelAlt:   '#0f1219',
-  border:     '#1a1f2e',
-  borderHi:   '#252c40',
-  text:       '#d0d8ed',
-  textMid:    '#6e7a96',
-  textDim:    '#363d55',
-  green:      '#00e5a8',
-  greenDim:   'rgba(0,229,168,0.1)',
-  greenGlow:  'rgba(0,229,168,0.3)',
-  red:        '#ff3d5a',
-  redDim:     'rgba(255,61,90,0.1)',
-  redGlow:    'rgba(255,61,90,0.3)',
-  gold:       '#f5c842',
-  goldDim:    'rgba(245,200,66,0.1)',
-  blue:       '#4da6ff',
-  blueDim:    'rgba(77,166,255,0.1)',
-  accent:     '#7b6cff',
-  accentAlt:  '#9b5de5',
-  accentDim:  'rgba(123,108,255,0.12)',
-};
-
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
-const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtPct = (n) => n == null ? '—' : `${n >= 0 ? '+' : ''}${Number(n).toFixed(2)}%`;
+import { useState, useEffect } from 'react';
+import { T, mono, fmt, fmtPct } from './theme';
 
 const DEFAULT_SYMBOLS = [
   'RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'ICICIBANK.NS',
@@ -124,7 +93,7 @@ export default function BacktestRunner({ onResults }) {
   const profitFactorVal = results?.profit_factor ?? 0;
 
   const metricCards = results ? [
-    { label: 'TOTAL RETURN', value: fmtPct(retPct), color: retPct >= 0 ? T.green : T.red },
+    { label: 'TOTAL RETURN', value: fmt(retPct), color: retPct >= 0 ? T.green : T.red },
     { label: 'WIN RATE', value: `${winRateVal.toFixed(1)}%`, color: winRateVal >= 50 ? T.green : winRateVal >= 40 ? '#f5c842' : T.red },
     { label: 'MAX DRAWDOWN', value: `${maxDd.toFixed(2)}%`, color: T.red },
     { label: 'SHARPE RATIO', value: sharpeVal.toFixed(2), color: sharpeVal >= 1.5 ? T.green : sharpeVal >= 1 ? '#f5c842' : T.red },
@@ -214,7 +183,7 @@ export default function BacktestRunner({ onResults }) {
               30-STRATEGY LEADERBOARD — BEST: {tournamentResults.best_strategy} (SCORE: {tournamentResults.best_strategy_score})
             </div>
             <div style={{ fontSize: 9, color: T.textDim, ...mono }}>
-              {tournamentResults.total_strategies_evaluated} STRATEGIES | {tournamentResults.total_datasets_evaluated} 10Y DATASETS
+              30 strategies evaluated · 26 ten-year datasets available
             </div>
           </div>
           <div style={{ overflowX: 'auto', maxHeight: 250, overflowY: 'auto' }}>
@@ -240,7 +209,7 @@ export default function BacktestRunner({ onResults }) {
                     <td style={{ padding: '6px 8px', textAlign: 'right', color: T.green, ...mono }}>{r.win_rate}%</td>
                     <td style={{ padding: '6px 8px', textAlign: 'right', color: T.blue, ...mono }}>{r.sharpe_ratio}</td>
                     <td style={{ padding: '6px 8px', textAlign: 'right', color: r.total_return_pct >= 0 ? T.green : T.red, ...mono }}>
-                      {fmtPct(r.total_return_pct)}
+                      {fmt(r.total_return_pct)}
                     </td>
                   </tr>
                 ))}
@@ -303,7 +272,7 @@ export default function BacktestRunner({ onResults }) {
                           {t.pnl >= 0 ? '+' : ''}₹{fmt(Math.abs(t.pnl))}
                         </td>
                         <td style={{ padding: '8px 10px', textAlign: 'right', color: t.pnl_pct >= 0 ? T.green : T.red, ...mono }}>
-                          {fmtPct(t.pnl_pct)}
+                          {fmt(t.pnl_pct)}
                         </td>
                         <td style={{ padding: '8px 10px' }}>
                           <span style={{

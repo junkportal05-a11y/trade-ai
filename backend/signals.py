@@ -127,15 +127,19 @@ def check_volume_surge(df: pd.DataFrame, lookback: int = 20) -> bool:
     """
     Verify volume is 1.2x above recent average
     Confirms institutional participation
+
+    The newest bar of a live intraday frame is still forming, so its volume
+    systematically under-reports early in the bar and the gate would spuriously
+    fail. Compare the stronger of the last two bars against the average.
     """
     if len(df) < lookback:
         return False
-    
-    current_volume = df['Volume'].iloc[-1]
+
+    recent_volume = max(df['Volume'].iloc[-1], df['Volume'].iloc[-2]) if len(df) >= 2 else df['Volume'].iloc[-1]
     avg_volume = df['Volume'].iloc[-lookback:-1].mean()
-    
-    volume_ratio = current_volume / avg_volume if avg_volume > 0 else 0
-    
+
+    volume_ratio = recent_volume / avg_volume if avg_volume > 0 else 0
+
     return volume_ratio >= 1.2  # PHASE 1: Minimum volume surge threshold
 
 def check_trend_strength(df: pd.DataFrame, adx_threshold: int = 20) -> bool:
@@ -648,9 +652,19 @@ def _compute_indicators(df: pd.DataFrame) -> Optional[pd.DataFrame]:
     df["BBU_20_2.0"] = bb_mid + 2 * bb_std
     df["BBL_20_2.0"] = bb_mid - 2 * bb_std
 
-    # VWAP (cumulative intraday)
+    # VWAP — anchored per trading session. A frame-cumulative VWAP on a 5-day
+    # 5m frame is just a 5-day volume-weighted mean and makes the intraday
+    # VWAP veto meaningless; real intraday VWAP resets each session. On daily
+    # bars each session is a single row, so VWAP degenerates to the typical
+    # price (close vs position within the day's range) — still directional.
     tp = (high + low + close) / 3
-    df["VWAP_D"] = (tp * volume).cumsum() / volume.cumsum().replace(0, np.nan)
+    if isinstance(df.index, pd.DatetimeIndex) and len(df) > 1:
+        sessions = pd.Series(df.index.date, index=df.index)
+        df["VWAP_D"] = (tp * volume).groupby(sessions).cumsum() / (
+            volume.groupby(sessions).cumsum().replace(0, np.nan)
+        )
+    else:
+        df["VWAP_D"] = (tp * volume).cumsum() / volume.cumsum().replace(0, np.nan)
 
     # ATR(14)
     tr = pd.concat(
@@ -792,10 +806,15 @@ def _score_default_indicator(
         print(f"[signals] Pattern scoring failed: {e}")
 
     # 1. VWAP position (Veto handled below, removed points generation)
-    # 2. RSI Overbought/Oversold
+    # 2. RSI Overbought/Oversold (mid-band points are regime-aware: neutral
+    # RSI only supports the direction the trend structure already implies)
     if 45 <= rsi_val <= 65:
-        bull_pts += 5
-        reasons_bull.append(f"RSI {rsi_val:.0f} stable momentum")
+        if supert_dir == 1:
+            bull_pts += 5
+            reasons_bull.append(f"RSI {rsi_val:.0f} stable bullish momentum")
+        elif supert_dir == -1:
+            bear_pts += 5
+            reasons_bear.append(f"RSI {rsi_val:.0f} stable bearish momentum")
     elif rsi_val > 70:
         bear_pts += 10
         reasons_bear.append(f"RSI {rsi_val:.0f} overbought")
@@ -913,7 +932,8 @@ def _score_default_indicator(
 
         articles = news_feed.fetch_ticker_news(symbol)
         if articles:
-            news_sentiment = news_feed.analyze_news_sentiment(articles)
+            # analyze_news_sentiment returns a SentimentResult — use its score
+            news_sentiment = float(getattr(news_feed.analyze_news_sentiment(articles), "score", 0.0) or 0.0)
             if news_sentiment > 0.3:
                 bull_pts += 15
                 reasons_bull.append(
@@ -953,13 +973,16 @@ def _score_default_indicator(
 
     try:
         sh, sl = candlestick_patterns.detect_swings(df, window=5)
-        support, resistance = candlestick_patterns.find_support_resistance(
+        swing_support, swing_resistance = candlestick_patterns.find_support_resistance(
             df, sh, sl
         )
     except Exception:
-        support, resistance = None, None
+        swing_support, swing_resistance = None, None
 
-    support, resistance = cached_support, cached_resistance
+    # Scan-level S/R (shared with the pattern detectors) wins when present;
+    # otherwise fall back to the values computed here.
+    support = cached_support if cached_support is not None else swing_support
+    resistance = cached_resistance if cached_resistance is not None else swing_resistance
 
     is_buy = bull_pts > bear_pts
     signal_type = "BULLISH" if is_buy else "BEARISH"
@@ -1037,15 +1060,20 @@ def _score_my_strategy(
     try:
         import candlestick_patterns
 
-        # 1. Swings & Support/Resistance
+        # 1. Swings & Support/Resistance — scan-level values win when present,
+        # otherwise fall back to a fresh computation.
         swing_highs, swing_lows = candlestick_patterns.detect_swings(
             df, window=5
         )
-        support_val, resist_val = candlestick_patterns.find_support_resistance(
-            df, swing_highs, swing_lows
+        swing_support, swing_resistance = (
+            candlestick_patterns.find_support_resistance(
+                df, swing_highs, swing_lows
+            )
         )
-        swing_highs, swing_lows = cached_sh, cached_sl
-        support_val, resist_val = cached_support, cached_resistance
+        swing_highs = cached_sh if cached_sh else swing_highs
+        swing_lows = cached_sl if cached_sl else swing_lows
+        support_val = cached_support if cached_support is not None else swing_support
+        resist_val = cached_resistance if cached_resistance is not None else swing_resistance
 
         # 2. SMC Structure Breaks (BOS / CHoCH)
         struct_break, struct_reason = (
@@ -1202,7 +1230,8 @@ def _score_my_strategy(
 
         articles = news_feed.fetch_ticker_news(symbol)
         if articles:
-            news_sentiment = news_feed.analyze_news_sentiment(articles)
+            # analyze_news_sentiment returns a SentimentResult — use its score
+            news_sentiment = float(getattr(news_feed.analyze_news_sentiment(articles), "score", 0.0) or 0.0)
             if news_sentiment > 0.3:
                 score += 2
                 reasons_bull.append(f"Bullish News Sentiment ({news_sentiment:+.2f})")
@@ -1253,7 +1282,7 @@ def _score_my_strategy(
         stop = round(price - atr_stop if is_buy else price + atr_stop, 2)
         risk_amount = round(abs(price - stop), 2)
         target1 = round(
-            price + 1.944 * risk_amount if is_buy else price - 1.944 * risk_amount,
+            price + rr_target * risk_amount if is_buy else price - rr_target * risk_amount,
             2,
         )
         target2 = round(
@@ -1261,7 +1290,7 @@ def _score_my_strategy(
             2,
         )
         reward = round(abs(target1 - price), 2)
-        rr_ratio = 2.0
+        rr_ratio = rr_target
         position_size = (
             int((capital * 0.01) // risk_amount) if risk_amount > 0 else 1
         )
@@ -1295,8 +1324,8 @@ def analyse_symbol(
     risk: str = "Medium",
     segment: str = "NSE",
     capital: float = 1000.0,
-    atr_multiplier: float = 1.8, # Stop loss width
-    rr_target: float = 1.944,    # Equivalent to target 3.5 / stop 1.8
+    atr_multiplier: float = 1.8,  # Stop loss width (× ATR)
+    rr_target: float = 2.2,       # Reward multiple over actual risk (must clear the R:R gate)
     gate_log: Optional[dict] = None,  # optional per-scan rejection counters
 ) -> Optional[dict]:
     """
@@ -1327,7 +1356,9 @@ def analyse_symbol(
         df = _download_market_data(symbol, period, interval)
 
         # ── Compute Daily Macro Trend (With Caching) ─────────────────────────
-        current_date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        # Keyed on the IST date: a UTC-day boundary at 19:30 IST would flip the
+        # cache key mid-session and double the fetches.
+        current_date_str = (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d")
         cached_macro = _MACRO_CACHE.get(symbol)
 
         macro_bullish = None
@@ -1361,8 +1392,10 @@ def analyse_symbol(
                     # Simple macro trend definition: Price above EMA21 and RSI > 50
                     macro_bullish = bool((macro_close > macro_ema) and (macro_rsi > 50))
 
-            # Save result to cache
-            _MACRO_CACHE[symbol] = {"date": current_date_str, "bullish": macro_bullish}
+            # Cache successful computations only: caching macro_bullish=None on
+            # a transient fetch failure would poison the whole day for the symbol.
+            if macro_bullish is not None:
+                _MACRO_CACHE[symbol] = {"date": current_date_str, "bullish": macro_bullish}
 
         if df is None or len(df) < 20:
             _note_gate("insufficient_data")
@@ -1486,6 +1519,11 @@ def analyse_symbol(
             position_size = res["position_size"]
             news_sentiment = res["news_sentiment"]
             entry = round(price, 2)
+            if score == 0:
+                # No pattern evidence in either direction — do not fabricate
+                # a trade. EMA structure alone is not an edge.
+                _note_gate("no_evidence")
+                return None
             calc_confidence = 50  # Unused explicitly in original block but required for common payload
             _ = calc_confidence  # satisfy linter
         else:
@@ -1554,9 +1592,13 @@ def analyse_symbol(
             return None
         # ────────────────────────────────────────────────────────────────
 
-        # PHASE 1: Risk:Reward Validation
+        # PHASE 1: Risk:Reward Validation — the floor follows the configured
+        # reward target (bounded 1.5–3.0) so explicit caller configs stay
+        # self-consistent; the default 2.2 clears the historical 2.0 bar.
+        # The 1% tolerance absorbs 2-decimal stop/target rounding on cheap
+        # stocks, where ±0.005 on a small per-share risk otherwise flips RR.
         if signal_type in ["BULLISH", "BEARISH"]:
-            if not validate_risk_reward(entry, stop, target1, min_rr=2.0):
+            if not validate_risk_reward(entry, stop, target1, min_rr=min(3.0, max(1.5, rr_target)) * 0.99):
                 import logging
                 logging.getLogger("signals").info(f"Skipping {symbol}: Risk:Reward below 1:2")
                 _note_gate("risk_reward")
@@ -1846,10 +1888,20 @@ def run_scan(
             "news_score": r.get("news_sentiment", 0.0)
         }
         p_hash = db.get_pattern_hash(pred_dict)
-        hist_win_rate = success_rates.get(p_hash, {}).get("win_rate", fallback_win_rate)
+        # get_pattern_success_rates returns {pattern: win_rate_float}
+        sr = success_rates.get(p_hash)
+        if isinstance(sr, dict):
+            hist_win_rate = sr.get("win_rate", fallback_win_rate)
+        elif isinstance(sr, (int, float)):
+            hist_win_rate = float(sr)
+        else:
+            hist_win_rate = fallback_win_rate
 
-        # Refactored Confidence Formula: Strictly Historical
-        confidence = round(hist_win_rate)
+        # Confidence = 60% current setup quality (component-weighted, computed
+        # above) + 40% historical win rate for this pattern bucket. The old
+        # "strictly historical" overwrite froze cold-start signals at HOLD
+        # forever (fallback 50 < the 72 gate) and ignored the live setup.
+        confidence = round(0.6 * confidence + 0.4 * hist_win_rate)
         confidence = min(100, max(0, confidence))
 
         # Pricing and PnL expectations
@@ -1914,7 +1966,8 @@ def run_scan(
         sector_score_normalized = min(100.0, (sector_score / 20.0) * 100.0)
         vol_score_normalized = min(100.0, (r["_volume_score"] / 20.0) * 100.0)
         rs_score_normalized = min(100.0, max(0.0, 50.0 + (relative_strength * 10.0)))
-        news_score_normalized = min(100.0, max(0.0, (r.get("news_sentiment", 0.0) + 100.0) / 2.0))
+        # news_sentiment is ±1 (SentimentResult.score) → map to 0-100
+        news_score_normalized = min(100.0, max(0.0, (r.get("news_sentiment", 0.0) + 1.0) / 2.0 * 100.0))
         correlation_score = 100.0 if active_sector_exposures.get(sec, 0) < 1 else 30.0 # simple correlation proxy
         
         # Weighted Trade Quality Score
@@ -1944,8 +1997,8 @@ def run_scan(
             confidence_score=r.get("confidence", 50),
             is_long=is_long,
             regime=market_regime,
-            volatility=r.get("_volume_score", 0),
-            volume_expansion=r.get("volume_score", 1.0)
+            volatility=r.get("atr", 0.0),
+            volume_expansion=r.get("vol_ratio", 1.0)  # raw ratio; TQS bonuses trigger > 1.5
         )
         
         tqs_final = tqe_result["score"]

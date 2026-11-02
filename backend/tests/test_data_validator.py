@@ -86,7 +86,12 @@ def test_validate_trade_invalid_status():
         "market_regime_snapshot": "BULL_TREND"
     }
     result = validate_trade(trade)
-    assert "result is not one of WIN/LOSS/TIMEOUT/OPEN/PENDING" in result["failures"]
+    assert "result is not one of" in result["failures"][0]
+
+    # Real resolution statuses written by the bot/manual endpoints are valid
+    trade["status"] = "TARGET_HIT"
+    result = validate_trade(trade)
+    assert not any(f.startswith("result is not one of") for f in result["failures"])
 
 def test_validate_trade_invalid_resolved_trade():
     # WIN without exit price
@@ -114,15 +119,17 @@ def test_validate_trade_invalid_resolved_trade():
 def test_validate_trade_invalid_regime():
     trade = {"entry_price": 100.0, "status": "OPEN"}
     result = validate_trade(trade)
-    assert "regime is null or UNCLEAR" in result["failures"]
+    assert "regime is null or UNKNOWN" in result["failures"]
 
+    # UNCLEAR means the classifier has no data — a warning, not a data defect
     trade["market_regime_snapshot"] = "UNCLEAR"
     result = validate_trade(trade)
-    assert "regime is null or UNCLEAR" in result["failures"]
+    assert not result["failures"]
+    assert "regime is UNCLEAR (classifier unavailable)" in result["warnings"]
 
     trade["market_regime_snapshot"] = "UNKNOWN"
     result = validate_trade(trade)
-    assert "regime is null or UNCLEAR" in result["failures"]
+    assert "regime is null or UNKNOWN" in result["failures"]
 
 def test_validate_trade_score_calculation():
     trade = {
