@@ -202,7 +202,7 @@ async def require_session(
     return {
         "username": username,
         "role": user.get("role", "Master Quant / Administrator"),
-        "clearance": user.get("clearance", "LEVEL_4_ROOT"),
+        "clearance": user.get("clearance", "LEVEL_1_GUEST"),
     }
 
 
@@ -229,7 +229,7 @@ async def optional_session(
     return {
         "username": username,
         "role": user.get("role", "Master Quant / Administrator"),
-        "clearance": user.get("clearance", "LEVEL_4_ROOT"),
+        "clearance": user.get("clearance", "LEVEL_1_GUEST"),
     }
 
 

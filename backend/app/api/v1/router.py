@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.v1 import auth, quotes, signals, broker, chat, journal, predictions, backtest, briefing, admin, bot, ws, strategies, allocate, tournament, health
+from app.api.v1 import auth, quotes, signals, broker, chat, journal, predictions, backtest, briefing, admin, bot, ws, strategies, allocate, tournament, health, disclaimer, terms, privacy
 
 api_router = APIRouter()
 api_router.include_router(health.router)
@@ -22,3 +22,6 @@ api_router.include_router(ws.router)
 api_router.include_router(strategies.router)
 api_router.include_router(allocate.router)
 api_router.include_router(tournament.router)
+api_router.include_router(disclaimer.router)
+api_router.include_router(terms.router)
+api_router.include_router(privacy.router)

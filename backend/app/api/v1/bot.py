@@ -72,7 +72,8 @@ async def bot_status(request: Request, trader=TraderDep) -> Dict[str, Any]:
         with db._conn() as c:
             row = c.execute(
                 "SELECT COALESCE(SUM(pnl_pct),0) AS pnl FROM predictions_history "
-                "WHERE status IN ('WIN','LOSS','TIMEOUT','SQUARE_OFF') AND resolved_at LIKE ?",
+                "WHERE status IN ('TARGET_HIT','STOP_HIT','SQUARE_OFF','RESOLVED','WIN','LOSS','TIMEOUT') "
+                "AND resolved_at LIKE ?",
                 (today + "%",),
             ).fetchone()
             todays_pnl = float(row["pnl"]) if row else 0.0
@@ -106,7 +107,7 @@ async def bot_trades(request: Request, session=SessionDep) -> Dict[str, Any]:
         with db._conn() as c:
             rows = c.execute(
                 "SELECT * FROM predictions_history "
-                "WHERE status IN ('PENDING','WIN','LOSS','TIMEOUT','SQUARE_OFF') "
+                "WHERE status IN ('PENDING','TARGET_HIT','STOP_HIT','SQUARE_OFF','RESOLVED','WIN','LOSS','TIMEOUT') "
                 "ORDER BY prediction_date DESC LIMIT 50"
             ).fetchall()
             trades = [dict(r) for r in rows]

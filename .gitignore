@@ -105,3 +105,14 @@ scripts/ralph-loop/
 
 # ── ChromaDB 'palace' memory vault — local-only, HF xet rejects binaries
 palace/
+
+# ── Local Vault & Working Docs (OneDrive synced, not git tracked) ───────────
+.opencode/
+ApexTrade/
+codebase-5.md
+TAR-21-exploration-report.txt
+apextrade-file-feedback-fix-list.md
+
+# ── Roster & Orchestration Scripts ──────────────────────────────────────────
+scripts/*.cjs
+roster-backups/

@@ -87,6 +87,10 @@ def _create_engine() -> Engine:
         logging.info("[db] PostgreSQL connection verified")
         return engine
     except OperationalError as e:
+        env = getattr(settings, "environment", os.getenv("ENVIRONMENT", "development")).lower()
+        if env == "production":
+            logging.error(f"[db] PostgreSQL connection failed in production ({e}) — refusing fallback")
+            raise
         logging.info(f"[db] PostgreSQL connection failed ({e}), falling back to SQLite")
         return _create_sqlite_engine()
 

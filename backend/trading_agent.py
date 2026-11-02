@@ -81,6 +81,8 @@ def refresh_angelone_session():
     This function handles session validity check and auto-refresh logic.
     """
     try:
+        from angelone_feed import AngelOneFeed
+
         feed = AngelOneFeed()
         if feed.is_session_valid():
             print("[trading_agent] AngelOne session valid, skipping refresh.")
@@ -114,6 +116,8 @@ async def trading_agent_loop():
 
     correlation_engine = CorrelationEngine()
     last_scan_bucket = None
+    last_scan_date = None       # IST date of the last scan — reset bucket per day
+    squared_off_today = False   # EOD square-off guard (one per day)
 
     # Track degraded workers logging state
     _last_logged_degraded: frozenset[str] | None = None
@@ -175,11 +179,21 @@ async def trading_agent_loop():
             start_minutes = 9 * 60 + 15
             end_minutes = 15 * 60 + 20  # 3:20 PM
 
-            # Auto-square off at 3:20 PM
-            if minutes_since_midnight == end_minutes:
-                print("[trading_agent] 3:20 PM reached. Executing auto-square off.")
-                await _square_off_all(now_ist)
-                await asyncio.sleep(60)  # prevent multiple triggers
+            # New trading day: reset the scan bucket so the 9:15 bucket
+            # (18) isn't swallowed by yesterday's last bucket (32).
+            if last_scan_date != now_ist.date():
+                last_scan_date = now_ist.date()
+                last_scan_bucket = None
+                squared_off_today = False
+
+            # Auto-square off at/after 3:20 PM (exact-minute equality can be
+            # straddled by a long scan iteration and skip the day entirely)
+            if minutes_since_midnight >= end_minutes:
+                if not squared_off_today:
+                    print("[trading_agent] 3:20 PM reached. Executing auto-square off.")
+                    await _square_off_all(now_ist)
+                    squared_off_today = True
+                await asyncio.sleep(60)
                 continue
 
             if minutes_since_midnight > end_minutes or minutes_since_midnight < start_minutes:
@@ -554,6 +568,10 @@ async def prediction_resolver_worker():
                         continue
 
                 # Use dynamic poll interval
+                await asyncio.sleep(poll_seconds)
+            else:
+                # No pending predictions: still yield, or the loop busy-spins
+                # hammering get_predictions() on every tick.
                 await asyncio.sleep(poll_seconds)
         except Exception as e:
             logger.error(f"[prediction_resolver] Error in resolver loop: {e}")

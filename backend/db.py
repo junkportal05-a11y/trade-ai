@@ -887,6 +887,10 @@ def save_angelone_session(session_data: dict):
         if field in encrypted and encrypted[field]:
             encrypted[field] = _encrypt_field(str(encrypted[field]))
 
+    # Single canonical freshness stamp (aware UTC ISO) — consumers like
+    # AngelOneFeed.is_session_valid rely on this being present and parseable.
+    encrypted["updated_at"] = datetime.now(timezone.utc).isoformat()
+
     with _conn() as c:
         c.execute("""
             CREATE TABLE IF NOT EXISTS app_settings (
@@ -916,7 +920,7 @@ def get_angelone_session() -> Optional[dict]:
                 "CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT)"
             )
             row = c.execute(
-                "SELECT value FROM app_settings WHERE key='angelone_session'"
+                "SELECT value, updated_at FROM app_settings WHERE key='angelone_session'"
             ).fetchone()
             if row:
                 data = json.loads(row["value"])
@@ -924,10 +928,34 @@ def get_angelone_session() -> Optional[dict]:
                 for field in ("api_key", "pin", "totp_secret", "session_token", "refresh_token", "feed_token"):
                     if field in data and data[field]:
                         data[field] = _decrypt_field(data[field])
+                # Older writes omitted updated_at from the JSON while the row
+                # column (naive IST from _now_ist) still carries the real time.
+                if not data.get("updated_at"):
+                    column_ts = row["updated_at"]
+                    if column_ts:
+                        try:
+                            ist = timezone(timedelta(hours=5, minutes=30))
+                            data["updated_at"] = datetime.strptime(
+                                str(column_ts), "%Y-%m-%d %H:%M:%S"
+                            ).replace(tzinfo=ist).astimezone(timezone.utc).isoformat()
+                        except ValueError:
+                            data["updated_at"] = str(column_ts)
                 return data
     except Exception as e:
         logger.error(f"Error in get_angelone_session: {e}", exc_info=True)
     return None
+
+
+def delete_angelone_session() -> bool:
+    """Remove the stored AngelOne session row (purge invalid or placeholder data)."""
+    try:
+        with _conn() as c:
+            c.execute("DELETE FROM app_settings WHERE key='angelone_session'")
+            c.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error in delete_angelone_session: {e}", exc_info=True)
+    return False
 
 
 def add_signals_batch(signals: list[dict]) -> None:
@@ -1051,7 +1079,9 @@ def get_pattern_success_rates() -> dict:
                          ELSE 'RSI_MID' END as rsi_bucket,
                     CASE WHEN macd > 0 THEN 'MACD_POS' ELSE 'MACD_NEG' END as macd_bucket,
                     COUNT(*) as total,
-                    SUM(CASE WHEN status IN ('WIN', 'CORRECT') THEN 1 ELSE 0 END) as wins
+                    SUM(CASE WHEN status IN ('WIN', 'CORRECT', 'TARGET_HIT')
+                              OR (status IN ('SQUARE_OFF', 'RESOLVED', 'STOP_HIT', 'TIMEOUT') AND COALESCE(pnl_pct, 0) > 0)
+                         THEN 1 ELSE 0 END) as wins
                 FROM predictions_history
                 WHERE status NOT IN ('PENDING', 'ACTIVE')
                 GROUP BY prediction_type, rsi_bucket, macd_bucket
@@ -1074,7 +1104,11 @@ def get_general_win_rate() -> float:
             total = total_row[0] if total_row else 0
             if total == 0: return 50.0
             
-            wins_row = c.execute("SELECT COUNT(*) FROM predictions_history WHERE status IN ('WIN', 'CORRECT')").fetchone()
+            wins_row = c.execute(
+                "SELECT COUNT(*) FROM predictions_history "
+                "WHERE status IN ('WIN', 'CORRECT', 'TARGET_HIT') "
+                "OR (status IN ('SQUARE_OFF', 'RESOLVED', 'STOP_HIT', 'TIMEOUT') AND COALESCE(pnl_pct, 0) > 0)"
+            ).fetchone()
             wins = wins_row[0] if wins_row else 0
             return round((wins / total) * 100, 1)
     except Exception:

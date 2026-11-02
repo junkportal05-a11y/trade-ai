@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { T, mono, fmt, fmtINR, fmtPct } from './theme';
 
 const SIGNAL_CFG = {

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { T, mono, fmt, fmtPct } from './theme';
 
 const DEFAULT_SYMBOLS = [

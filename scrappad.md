@@ -1,6 +1,6 @@
 # ==============================================================================
 # APEXTRADE AI — INSTITUTIONAL UI/UX WORKSTATION OVERHAUL SPECIFICATION
-# (Autonomous Frontend Enhancement Directive for OpenCode)
+# [ARCHIVED / HISTORICAL] — This specification is archived; see codebase.md for current state.
 # ==============================================================================
 
 ## 🎯 OBJECTIVE
@@ -10,7 +10,7 @@ Transform ApexTrade into an ultra-modern, high-frequency quant workstation (comb
 
 ## 🧭 OPERATING RULES FOR OPENCODE
 1. **Never Break the Build**: Every component edit must pass `npm run build` in `frontend/` without errors or missing imports.
-2. **Use Installed Packages**: `lucide-react` is already installed (`^1.25.0`) in `package.json`. Use it for all icons. Do not add heavy external CSS frameworks.
+2. **Use Installed Packages**: `lucide-react` is already installed (`^0.398.0`) in `package.json`. Use it for all icons. Do not add heavy external CSS frameworks. — version rectified for archived spec.
 3. **Keep Real Data Flow Intact**: Preserve all existing state, props, WebSocket ticker feeds, and order placement logic in `App.jsx` and components.
 4. **Backend Test Integrity**: Ensure backend tests continue to pass (`.venv\Scripts\python.exe -m pytest backend/tests`).
 
@@ -23,6 +23,7 @@ Transform ApexTrade into an ultra-modern, high-frequency quant workstation (comb
 - **Actions**:
   1. In `theme.js`:
      - Upgrade color tokens to deep institutional dark palette:
+     - `lucide-react`: bump from `^1.25.0` to `^0.398.0` (current stable)
        ```javascript
        export const T = {
          bg: '#07090e',

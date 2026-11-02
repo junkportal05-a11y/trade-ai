@@ -438,23 +438,54 @@ def calculate_risk_parameters(
 ) -> Tuple[float, float, int, float]:
     """
     Calculates Stop Loss, Target, Position Size, and Risk/Reward Ratio.
+
+    Stop placement prefers market structure: for longs the nearest support
+    (buffered 0.25 ATR below) when it sits inside the ATR-stop envelope,
+    otherwise the pure ATR stop at ``atr_multiplier`` × ATR. The target is
+    always ``rr_target`` × the ACTUAL per-share risk, so the configured
+    reward ratio is delivered exactly regardless of which stop won.
     Returns (stop_loss, target, position_size, risk_reward_ratio).
     """
     # 1. Stop Loss Placement
     atr = float(df["ATRr_14"].iloc[-1]) if "ATRr_14" in df.columns else (price * 0.01)
+    if atr <= 0:
+        atr = price * 0.01
 
-    if signal_type == "BULLISH":
-        # PHASE 1: Exact multipliers as requested
-        stop_loss = price - (atr * 1.8)
-        target = price + (atr * 3.5)
+    max_stop_dist = atr * max(0.5, float(atr_multiplier))
+    structure_buffer = 0.25 * atr
+
+    is_buy = signal_type == "BULLISH"
+    if is_buy:
+        stop_loss = price - max_stop_dist
+        if support is not None:
+            structure_stop = float(support) - structure_buffer
+            stop_dist = price - structure_stop
+            # Structure stop must sit outside the noise band (0.25 ATR) but
+            # no wider than the ATR envelope, else fall back to the ATR stop.
+            if structure_buffer <= stop_dist <= max_stop_dist:
+                stop_loss = structure_stop
         risk_per_share = price - stop_loss
     else:  # BEARISH
-        # PHASE 1: Exact multipliers as requested
-        stop_loss = price + (atr * 1.8)
-        target = price - (atr * 3.5)
+        stop_loss = price + max_stop_dist
+        if resistance is not None:
+            structure_stop = float(resistance) + structure_buffer
+            stop_dist = structure_stop - price
+            if structure_buffer <= stop_dist <= max_stop_dist:
+                stop_loss = structure_stop
         risk_per_share = stop_loss - price
 
-    rr_target = abs(target - price) / risk_per_share if risk_per_share > 0 else 0
+    stop_loss = _avoid_round_numbers(stop_loss, atr, is_buy)
+
+    if risk_per_share <= 0:
+        # Degenerate structure (e.g. support above price): fall back to the
+        # pure ATR envelope so sizing never divides by zero or inverts.
+        risk_per_share = max_stop_dist
+        stop_loss = price - risk_per_share if is_buy else price + risk_per_share
+
+    # Target delivers rr_target over the actual risk
+    reward_dist = max(0.1, float(rr_target)) * risk_per_share
+    target = price + reward_dist if is_buy else price - reward_dist
+    rr = abs(target - price) / risk_per_share
 
     # 2. Position Sizing
     max_loss = capital * risk_pct
@@ -463,7 +494,7 @@ def calculate_risk_parameters(
     max_buy_power = int(capital // price) if price else 1
     position_size = max(1, min(position_size, max_buy_power))
 
-    return round(stop_loss, 2), round(target, 2), position_size, rr_target
+    return round(stop_loss, 2), round(target, 2), position_size, round(rr, 2)
 
 
 def get_pattern_score(df: pd.DataFrame) -> dict:

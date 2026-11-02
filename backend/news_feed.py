@@ -21,12 +21,19 @@ except ImportError:
     _genai_client = None
 
 
+_NEWS_KEY_WARNED = False
+
+
 def fetch_ticker_news(symbol: str) -> list[dict]:
     """
     Fetch news articles from NewsAPI for a given stock symbol.
     Returns a list of dicts: [{"title": str, "description": str, "url": str, "publishedAt": str}]
     """
+    global _NEWS_KEY_WARNED
     if not NEWS_API_KEY:
+        if not _NEWS_KEY_WARNED:
+            logger.warning("[NewsAPI] NEWS_API_KEY not set — news sentiment feature disabled.")
+            _NEWS_KEY_WARNED = True
         return []
 
     # Strip suffix like .NS or .BO
@@ -97,7 +104,9 @@ def analyze_news_sentiment(articles: list[dict]) -> SentimentResult:
     Returns a SentimentResult with score, label, confidence, and source.
     """
     if not articles:
-        return SentimentResult(0.0, "NEUTRAL", 1.0, "heuristic", "No articles provided")
+        # No articles is the absence of a signal, not a maximally-trustworthy
+        # neutral one — confidence 0 so consumers weight it accordingly.
+        return SentimentResult(0.0, "NEUTRAL", 0.0, "heuristic", "No articles provided")
 
     # 1. Try Gemini structured analysis if client is available
     if _genai_client:

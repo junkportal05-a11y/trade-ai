@@ -18,7 +18,7 @@ tags:
 
 # 📈 ApexTrade AI Quant Engine & Real-Time Trading Server
 
-[![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Space-yellow.svg)](https://huggingface.co/spaces/apextrade-core/trade-ai-backend)
+[![Hugging Face Space](https://img.shields.io/badge/hugging%20face-Space-yellow.svg)](https://apextrade-core-trade-ai-backend.hf.space)
 [![Build Status](https://github.com/junkportal05-a11y/trade-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/junkportal05-a11y/trade-ai/actions/workflows/ci.yml)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111.0-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com/)
@@ -253,7 +253,7 @@ source .venv/bin/activate
 
 pip install -r requirements.txt
 cp .env.example .env
-uvicorn main:app --reload --port 7860
+uvicorn main:app --reload --port 8000
 ```
 
 ### Frontend Setup (`/frontend`)
