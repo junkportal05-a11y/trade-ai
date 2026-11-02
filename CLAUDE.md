@@ -20,3 +20,26 @@
   - `google-agents-cli-deploy`: Cloud Run and Google Cloud deployments
   - `google-agents-cli-publish`: Gemini registration
   - `google-agents-cli-observability`: Traces and logging
+
+
+## 3. Hugging Face Deployment ("hg" / "hf")
+- **CRITICAL TERMINOLOGY**: When the user mentions **"hg"**, **"hf"**, or **"huggingface"**, it **ALWAYS refers to Hugging Face Spaces** (`https://huggingface.co/spaces/apextrade-core/trade-ai-backend`), **NEVER Mercurial**.
+- **WHY DIRECT `git push huggingface main` FAILS**:
+  - The local repository's historical commits contain binary artifacts (`palace/chroma.sqlite3`), which triggers Hugging Face's server-side pre-receive hook error: `"Your push was rejected because it contains binary files"`.
+- **CANONICAL DEPLOYMENT COMMAND**:
+  - Always deploy using the automated script:
+    ```bash
+    python scripts/deploy_hf.py
+    ```
+    (Or dry run: `python scripts/deploy_hf.py --dry-run`)
+- **MANUAL EQUIVALENT (commit-tree pattern)**:
+  ```bash
+  git fetch huggingface
+  TREE=$(git rev-parse HEAD^{tree})
+  HF_TIP=$(git rev-parse huggingface/main)
+  DEPLOY_COMMIT=$(git commit-tree $TREE -p $HF_TIP -m "deploy: sync Space tree to main @$(git rev-parse --short HEAD)")
+  git push huggingface ${DEPLOY_COMMIT}:refs/heads/main
+  ```
+- **TARGET REMOTES**:
+  - Code changes: `origin` (`https://github.com/junkportal05-a11y/trade-ai.git`)
+  - Live backend deployment: `huggingface` (`https://huggingface.co/spaces/apextrade-core/trade-ai-backend`)

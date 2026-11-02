@@ -284,3 +284,20 @@ cd frontend && npm test && npm run build
 - **License**: Released under the [MIT License](LICENSE).
 - **Contributing**: Development guidelines in [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Security Policy**: Secret management and security reporting in [SECURITY.md](SECURITY.md).
+
+
+---
+
+## 🚀 Hugging Face Deployment ("hg" / "hf")
+
+To deploy the latest code to the live Hugging Face Space:
+
+```bash
+# Automated deployment (handles commit-tree snapshot and skips legacy binary history):
+python scripts/deploy_hf.py
+
+# Dry-run check:
+python scripts/deploy_hf.py --dry-run
+```
+
+> **Agent Note:** Direct `git push huggingface main` is blocked by Hugging Face's server hook due to binary files in past commits. `scripts/deploy_hf.py` creates a clean single commit on top of `huggingface/main` with the exact current `HEAD` tree.
