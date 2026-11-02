@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Timer, Trophy } from 'lucide-react';
+import { apiFetch } from './api';
+import { formatError } from './utils/formatError';
 import { T, mono, fmt, fmtPct } from './theme';
 
 const DEFAULT_SYMBOLS = [
