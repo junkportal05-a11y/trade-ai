@@ -1,0 +1,3 @@
+## 2026-04-18 - Avoid pandas Series `.iloc` in sequential indicator loops
+**Learning:** Sequential path-dependent financial indicators (like Supertrend, recursive EMAs, or trailing stops) cannot be purely vectorized with simple NumPy vector primitives. However, running a Python loop over `pd.Series.iloc[i]` incurs extreme Python/pandas overhead (~100-300x slower per element than indexing into C-contiguous NumPy arrays) due to index checking, Series creation, and scalar coercion on every iteration.
+**Action:** Always extract underlying NumPy buffers with `.to_numpy()` before entering sequential loops over bar series, perform the iterative calculations on 1D NumPy arrays, and wrap back to `pd.Series(arr, index=df.index)` at return time.
