@@ -739,6 +739,36 @@ def resolve_prediction(
         return cur.rowcount > 0
 
 
+def update_prediction_stops(updates: list[tuple]) -> int:
+    """Tighten risk stops on open predictions.
+
+    `updates` is a list of (pred_id, new_stop_loss) tuples. Only moves are
+    accepted by callers (trailing logic never loosens a stop), but an equality
+    check here avoids pointless writes.
+    """
+    if not updates:
+        return 0
+    changed = 0
+    with _conn() as c:
+        now = _now_ist()
+        for pred_id, new_stop in updates:
+            row = c.execute(
+                "SELECT stop_loss, status FROM predictions_history WHERE id=?", (pred_id,)
+            ).fetchone()
+            if row is None or row["status"] != "PENDING":
+                continue
+            if abs(float(row["stop_loss"]) - float(new_stop)) < 1e-9:
+                continue
+            c.execute(
+                "UPDATE predictions_history SET stop_loss=? WHERE id=?",
+                (float(new_stop), pred_id),
+            )
+            changed += 1
+        if changed:
+            c.commit()
+    return changed
+
+
 def add_equity_curve(trade_id: int, equity_before: float, equity_after: float, peak_equity: float, drawdown_pct: float) -> int:
     with _conn() as c:
         now = _now_ist()

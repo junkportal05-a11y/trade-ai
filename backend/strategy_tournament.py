@@ -1,16 +1,34 @@
 """
 backend/strategy_tournament.py — 30-Strategy Quant Tournament Engine for ApexTrade AI
-Runs 30 distinct quantitative trading strategies across all 10-year local historical CSV datasets.
+Runs 30 distinct quantitative trading strategies across all local historical datasets
+(legacy 10-year CSVs merged with the new 7-year daily_7y set), with a walk-forward
+calibration: strategies select params on the 2019-2023 in-sample slice and are
+re-scored unmodified on the 2024-2026 out-of-sample slice.
 """
 import os
 import sys
 import math
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Any
+from collections import Counter
+from typing import Dict, List, Any, Tuple
 
 backend_dir = os.path.dirname(os.path.abspath(__file__))
 HISTORICAL_DATA_DIR = os.path.join(backend_dir, "historical_data")
+DAILY_7Y_DIRNAME = "daily_7y"
+
+# Walk-forward mandate: In-Sample = 2019-2023, Out-of-Sample = 2024-2026
+IS_END_YEAR = 2023
+IS_WEIGHT = 0.40
+OOS_WEIGHT = 0.60
+
+try:
+    from quant.cost_engine import CostEngine
+except ImportError:  # pragma: no cover - direct script execution
+    sys.path.insert(0, backend_dir)
+    from quant.cost_engine import CostEngine
+
+SIDE_COST_BPS = CostEngine.DEFAULT_SIDE_COST_BPS
 
 STRATEGY_REGISTRY = {
     # Bucket 1: Trend Following / Momentum (1-6)
@@ -45,14 +63,155 @@ STRATEGY_REGISTRY = {
     23: {"name": "Volume Price Trend (VPT) Divergence", "bucket": "Volume Dynamics"},
     24: {"name": "Accumulation / Distribution Spike", "bucket": "Volume Dynamics"},
 
-    # Bucket 5: Multi-Factor & Regime-Adaptive (25-30)
+    # Bucket 5: Multi-Factor & Regime-Adaptive (25-32)
     25: {"name": "MACD + RSI Confluence", "bucket": "Multi-Factor"},
     26: {"name": "ADX Trend Strength Filter (ADX > 25)", "bucket": "Multi-Factor"},
     27: {"name": "Sharpe Rank Volatility Sizing", "bucket": "Multi-Factor"},
     28: {"name": "Multi-Timeframe Trend Confirmation", "bucket": "Multi-Factor"},
     29: {"name": "Ichimoku Cloud Kumo Breakout", "bucket": "Multi-Factor"},
     30: {"name": "Apex Regime-Adaptive Quant Strategy", "bucket": "Multi-Factor"},
+    31: {"name": "Volatility-Targeted Momentum (12% Vol Target)", "bucket": "Multi-Factor"},
+    32: {"name": "Gap & Go Breakaway Momentum", "bucket": "Breakout"},
 }
+
+# ── Calibration grids (walk-forward parameter variants) ──────────────────────
+# Chosen by best in-sample Sharpe, then validated on out-of-sample data.
+# All grids come from the user's calibration directive:
+#   - SuperTrend: ATR length 10 vs 14, multiplier 2.5 vs 3.0
+#   - Bollinger bounce: band std 2.0 vs 2.5, both with RSI 30/70 extremity gates
+#   - Volume-surge breakout: 1.5x / 2.0x / 2.5x of 20-bar average volume
+PARAM_GRID: Dict[int, List[Dict[str, Any]]] = {
+    4: [
+        {"atr_len": 10, "mult": 3.0},
+        {"atr_len": 10, "mult": 2.5},
+        {"atr_len": 14, "mult": 3.0},
+        {"atr_len": 14, "mult": 2.5},
+    ],
+    10: [
+        {"bb_std": 2.0},
+        {"bb_std": 2.5},
+    ],
+    17: [
+        {"vol_mult": 1.5},
+        {"vol_mult": 2.0},
+        {"vol_mult": 2.5},
+    ],
+}
+
+
+def get_param_grid(strat_id: int) -> List[Dict[str, Any]]:
+    """Parameter candidates for a strategy; [{}] = non-parametric."""
+    return PARAM_GRID.get(strat_id, [{}])
+
+
+# ── Dataset loading (legacy 10y + new 7y daily exports) ──────────────────────
+
+_INDEX_ALIASES = {
+    "INDEX_NSEI": "NIFTY_50_INDEX",
+    "INDEX_NSEBANK": "BANK_NIFTY_INDEX",
+}
+
+
+def _instrument_key(path: str) -> str:
+    """Normalize a dataset filename to a stable instrument key."""
+    stem = os.path.splitext(os.path.basename(path))[0]
+    for suffix in ("_10y_daily", "_7y_daily"):
+        if stem.endswith(suffix):
+            stem = stem[: -len(suffix)]
+            break
+    return _INDEX_ALIASES.get(stem, stem.upper())
+
+
+def _load_dataset_frame(path: str) -> pd.DataFrame:
+    """Load a CSV (DatetimeIndex first col) or parquet (Date column) dataset.
+
+    Normalizes headers to OHLCV expectations and drops dividend/split metadata
+    columns produced by the yfinance-parquet export.
+    """
+    ext = os.path.splitext(path)[1].lower()
+    if ext == ".parquet":
+        df = pd.read_parquet(path)
+        date_col = next((c for c in df.columns if str(c).lower() == "date"), None)
+        if date_col is not None:
+            df = df.set_index(date_col)
+    else:
+        df = pd.read_csv(path, index_col=0, parse_dates=True)
+
+    drop_cols = [c for c in df.columns if str(c) in ("Dividends", "Stock Splits")]
+    if drop_cols:
+        df = df.drop(columns=drop_cols)
+    df.columns = [str(c).strip().title() for c in df.columns]
+
+    required = {"Open", "High", "Low", "Close", "Volume"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"missing OHLCV columns: {sorted(missing)}")
+
+    df.index = pd.to_datetime(df.index)
+    df = df[~df.index.isna()].sort_index()
+    for c in required:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    df = df.dropna(subset=["Close", "High", "Low", "Open", "Volume"])
+    return df
+
+
+def _merged_dataset_frames() -> List[Tuple[str, pd.DataFrame]]:
+    """Collect and merge all local datasets, newest-duplicate-wins.
+
+    Scans the legacy root (`*_10y_daily.csv`) and `daily_7y/` (`*_7y_daily.csv`
+    / `.parquet`, manifest `_` files excluded). Where the two eras overlap,
+    daily rows from the 7y export win over the 10y file's rows.
+    """
+    daily_7y_dir = os.path.join(HISTORICAL_DATA_DIR, DAILY_7Y_DIRNAME)
+    groups: Dict[str, List[Tuple[int, str]]] = {}
+
+    if os.path.isdir(HISTORICAL_DATA_DIR):
+        for fname in sorted(os.listdir(HISTORICAL_DATA_DIR)):
+            path = os.path.join(HISTORICAL_DATA_DIR, fname)
+            if os.path.isdir(path) or fname.startswith("_"):
+                continue
+            if not fname.lower().endswith(".csv"):
+                continue
+            groups.setdefault(_instrument_key(path), []).append((0, path))
+
+    if os.path.isdir(daily_7y_dir):
+        for fname in sorted(os.listdir(daily_7y_dir)):
+            path = os.path.join(daily_7y_dir, fname)
+            if not os.path.isfile(path) or fname.startswith("_"):
+                continue
+            if not fname.lower().endswith((".csv", ".parquet")):
+                continue
+            groups.setdefault(_instrument_key(path), []).append((1, path))
+
+    merged_sets: List[Tuple[str, pd.DataFrame]] = []
+    for instrument, entries in sorted(groups.items()):
+        frames = []
+        try:
+            for _, path in sorted(entries, key=lambda e: e[0]):
+                frames.append(_load_dataset_frame(path))
+        except Exception as e:
+            print(f"[tournament] Skipping dataset for {instrument}: {e}")
+            continue
+        combined = frames[0] if len(frames) == 1 else pd.concat(frames).sort_index()
+        if len(frames) > 1:
+            combined = combined[~combined.index.duplicated(keep="last")]
+        if len(combined) < 60:
+            continue
+        merged_sets.append((instrument, combined))
+    return merged_sets
+
+
+def _split_walk_forward(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Split into in-sample (<= IS_END_YEAR) and out-of-sample (> IS_END_YEAR).
+
+    Returns (None, None) when either slice is too short to test meaningfully.
+    """
+    years = df.index.year
+    is_df = df[years <= IS_END_YEAR]
+    oos_df = df[years > IS_END_YEAR]
+    if len(is_df) < 120 or len(oos_df) < 60:
+        return None, None
+    return is_df, oos_df
 
 
 def _compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
@@ -190,9 +349,126 @@ def _compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def simulate_strategy(df: pd.DataFrame, strat_id: int, initial_capital: float = 100_000.0) -> Dict[str, Any]:
-    """Execute strategy simulation and compute performance metrics."""
-    df = _compute_indicators(df.copy())
+def _supertrend(df: pd.DataFrame, period: int = 10, mult: float = 3.0) -> pd.Series:
+    """
+    Real SuperTrend indicator: HL2 +/- mult*ATR(period) bands that trail the
+    prior band and only tighten in the direction of the trend. Returns the
+    position state series (+1 long / -1 short / 0 during warm-up).
+    """
+    high, low, close = df["High"], df["Low"], df["Close"]
+    prev_close = close.shift(1)
+    tr = pd.concat(
+        [high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1
+    ).max(axis=1)
+    atr = tr.rolling(period).mean()
+
+    hl2 = (high + low) / 2
+    ub = (hl2 + mult * atr).to_numpy()
+    lb = (hl2 - mult * atr).to_numpy()
+    close_np = close.to_numpy()
+
+    n = len(df)
+    final_ub = ub.copy()
+    final_lb = lb.copy()
+    direction = np.zeros(n)
+    trend_active = False
+    prev_dir = 1
+
+    for i in range(1, n):
+        if np.isnan(ub[i]) or np.isnan(lb[i]):
+            direction[i] = 0
+            continue
+        final_ub[i] = ub[i] if (ub[i] < final_ub[i - 1] or close_np[i - 1] > final_ub[i - 1]) else final_ub[i - 1]
+        final_lb[i] = lb[i] if (lb[i] > final_lb[i - 1] or close_np[i - 1] < final_lb[i - 1]) else final_lb[i - 1]
+        if not trend_active:
+            # Seed on the first valid bar versus the PRIOR pivot — a rising
+            # market has today's close above yesterday's HL2, and vice versa.
+            hl2_np = hl2.to_numpy()
+            seed_ref = hl2_np[i - 1]
+            direction[i] = 1 if close_np[i] >= seed_ref else -1
+            trend_active = True
+            prev_dir = direction[i]
+            continue
+        if prev_dir > 0:
+            direction[i] = -1 if close_np[i] < final_lb[i] else 1
+        else:
+            direction[i] = 1 if close_np[i] > final_ub[i] else -1
+        prev_dir = direction[i]
+
+    return pd.Series(direction, index=df.index)
+
+
+def _parabolic_sar(df: pd.DataFrame, af_step: float = 0.02, af_max: float = 0.2) -> pd.Series:
+    """
+    Wilder's Parabolic SAR. Returns the trend state series
+    (+1 while SAR trails below price, -1 while it trails above).
+    """
+    high = df["High"].to_numpy()
+    low = df["Low"].to_numpy()
+    n = len(df)
+    trend = np.zeros(n)
+    if n < 2:
+        return pd.Series(trend, index=df.index)
+
+    direction = 1
+    ep = high[0]
+    sar = low[0]
+    af = af_step
+    trend[0] = 1
+
+    for i in range(1, n):
+        sar = sar + af * (ep - sar)
+
+        if direction > 0:
+            # SAR must not overshoot the last two lows
+            sar = min(sar, low[i - 1], low[i - 2] if i > 1 else low[i - 1])
+            if low[i] < sar:
+                # flip to short
+                direction = -1
+                sar = ep
+                ep = low[i]
+                af = af_step
+            elif high[i] > ep:
+                ep = high[i]
+                af = min(af_max, af + af_step)
+        else:
+            sar = max(sar, high[i - 1], high[i - 2] if i > 1 else high[i - 1])
+            if high[i] > sar:
+                # flip to long
+                direction = 1
+                sar = ep
+                ep = high[i]
+                af = af_step
+            elif low[i] < ep:
+                ep = low[i]
+                af = min(af_max, af + af_step)
+        trend[i] = direction
+
+    return pd.Series(trend, index=df.index)
+
+
+def simulate_strategy(
+    df: pd.DataFrame,
+    strat_id: int,
+    initial_capital: float = 100_000.0,
+    side_cost_bps: float = None,
+    params: Dict[str, Any] = None,
+    precomputed_indicators: pd.DataFrame = None,
+) -> Dict[str, Any]:
+    """Execute strategy simulation and compute performance metrics.
+
+    `params` carries calibrated parameter overrides (see PARAM_GRID), e.g.
+    SuperTrend {"atr_len": 14, "mult": 2.5}, Bollinger {"bb_std": 2.5},
+    volume surge {"vol_mult": 1.5}. `precomputed_indicators` lets the
+    tournament engine evaluate many variants against one indicator snapshot
+    instead of recomputing `with rolling.apply` per variant.
+    """
+    params = params or {}
+    df = (
+        precomputed_indicators
+        if precomputed_indicators is not None
+        else _compute_indicators(df.copy())
+    )
     close = df["Close"]
     signals = np.zeros(len(df))
 
@@ -203,10 +479,13 @@ def simulate_strategy(df: pd.DataFrame, strat_id: int, initial_capital: float = 
         signals = np.where(df["ema_9"] > df["ema_21"], 1, -1)
     elif strat_id == 3:  # Triple MA System (10/20/50)
         signals = np.where((df["ema_9"] > df["sma_20"]) & (df["sma_20"] > df["sma_50"]), 1, -1)
-    elif strat_id == 4:  # SuperTrend Quant
-        signals = np.where(close > (df["sma_20"] - 3.0 * df["atr_14"]), 1, -1)
-    elif strat_id == 5:  # Parabolic SAR Acceleration
-        signals = np.where(close > close.shift(1), 1, -1)
+    elif strat_id == 4:  # SuperTrend Quant (calibrated ATR len + multiplier)
+        # Real SuperTrend: HL2 +/- mult*ATR(atr_len) trailing bands with state flips.
+        signals = _supertrend(
+            df, period=int(params.get("atr_len", 10)), mult=float(params.get("mult", 3.0))
+        ).to_numpy()
+    elif strat_id == 5:  # Parabolic SAR Acceleration (AF 0.02/0.2)
+        signals = _parabolic_sar(df, af_step=0.02, af_max=0.2).to_numpy()
     elif strat_id == 6:  # KAMA Adaptive Moving Average
         signals = np.where(close > df["close_kama"], 1, -1)
 
@@ -216,8 +495,19 @@ def simulate_strategy(df: pd.DataFrame, strat_id: int, initial_capital: float = 
         signals = np.where((close < close.shift(5)) & (df["rsi_14"] > df["rsi_14"].shift(5)), 1, np.where((close > close.shift(5)) & (df["rsi_14"] < df["rsi_14"].shift(5)), -1, 0))
     elif strat_id == 9:  # Stochastic Oscillator
         signals = np.where((df["stoch_k"] < 20) & (df["stoch_k"] > df["stoch_d"]), 1, np.where((df["stoch_k"] > 80) & (df["stoch_k"] < df["stoch_d"]), -1, 0))
-    elif strat_id == 10: # Bollinger Bands Bounce
-        signals = np.where(close < df["bb_lower"], 1, np.where(close > df["bb_upper"], -1, 0))
+    elif strat_id == 10: # Bollinger Bands Bounce (calibrated std + RSI extremity)
+        # Confluence reversion: a lower/upper band touch must be confirmed by
+        # an RSI extreme (<30 / >70). Band std is a calibrated param (2.0/2.5).
+        bb_std = float(params.get("bb_std", 2.0))
+        std20 = close.rolling(20).std()
+        lo_band = df["bb_mid"] - bb_std * std20
+        hi_band = df["bb_mid"] + bb_std * std20
+        rsi = df["rsi_14"]
+        signals = np.where(
+            (close < lo_band) & (rsi < 30),
+            1,
+            np.where((close > hi_band) & (rsi > 70), -1, 0),
+        )
     elif strat_id == 11: # Williams %R Reversal
         signals = np.where(df["williams_r"] < -80, 1, np.where(df["williams_r"] > -20, -1, 0))
     elif strat_id == 12: # Commodity Channel Index (CCI 20)
@@ -231,8 +521,9 @@ def simulate_strategy(df: pd.DataFrame, strat_id: int, initial_capital: float = 
         signals = np.where(close > (close.shift(1) + 2.5 * df["atr_14"].shift(1)), 1, -1)
     elif strat_id == 16: # Bollinger Squeeze Expansion
         signals = np.where((df["bb_width"] < df["bb_width_ma"]) & (close > df["bb_mid"]), 1, -1)
-    elif strat_id == 17: # High Volume Surge Breakout
-        signals = np.where((close > close.shift(1)) & (df["vol_ratio"] > 2.0), 1, 0)
+    elif strat_id == 17: # High Volume Surge Breakout (calibrated vol multiplier)
+        vol_mult = float(params.get("vol_mult", 2.0))
+        signals = np.where((close > close.shift(1)) & (df["vol_ratio"] > vol_mult), 1, 0)
     elif strat_id == 18: # 52-Week High Breakout
         # Breakout is measured against the PRIOR 252-bar high; the rolling
         # window includes the current bar, so comparing against it unshifted
@@ -257,13 +548,59 @@ def simulate_strategy(df: pd.DataFrame, strat_id: int, initial_capital: float = 
     elif strat_id == 26: # ADX Trend Strength Filter
         signals = np.where((df["adx_14"] > 25) & (df["plus_di"] > df["minus_di"]), 1, -1)
     elif strat_id == 27: # Sharpe Rank Volatility Sizing
-        signals = np.where(df["volatility_20"] < df["volatility_60"], 1, -1)
+        # Inverse-volatility sizing: hold the 20/50 EMA trend, but scale
+        # exposure down when short-term volatility expands (Sharpe-optimal
+        # coarse sizing). Never shorts just because vol is elevated.
+        vol_ratio = df["volatility_20"] / (df["volatility_60"] + 1e-9)
+        size = np.clip(1.0 / (vol_ratio + 1e-9), 0.3, 1.0)
+        direction = np.where(df["ema_20"] > df["ema_50"], 1, -1)
+        signals = size * direction
     elif strat_id == 28: # Multi-Timeframe Trend Confirmation
         signals = np.where((df["ema_9"] > df["ema_21"]) & (df["sma_50"] > df["sma_50"].shift(5)), 1, -1)
     elif strat_id == 29: # Ichimoku Cloud Kumo Breakout
-        signals = np.where((close > df["tenkan_sen"]) & (df["tenkan_sen"] > df["kijun_sen"]), 1, -1)
+        # Full Kumo breakout with proper 26-bar displacement of the cloud.
+        kumo_a = ((df["tenkan_sen"] + df["kijun_sen"]) / 2).shift(26)
+        kumo_src = (df["High"].rolling(52).max() + df["Low"].rolling(52).min()) / 2
+        kumo_b = kumo_src.shift(26)
+        kumo_hi = np.maximum(kumo_a, kumo_b)
+        kumo_lo = np.minimum(kumo_a, kumo_b)
+        signals = np.where(close > kumo_hi, 1, np.where(close < kumo_lo, -1, 0))
     elif strat_id == 30: # Apex Regime-Adaptive Quant Strategy
-        signals = np.where((df["vol_ratio"] > 1.5) & (df["rsi_14"] > 50) & (df["macd"] > df["macd_signal"]), 1, np.where(df["rsi_14"] < 40, -1, 0))
+        # Regime gate: only act when ADX confirms a directional regime and
+        # volume participation is elevated; flat in choppy tape.
+        trending = df["adx_14"] > 20
+        expanding = df["vol_ratio"] > 1.2
+        long_regime = trending & expanding & (df["plus_di"] > df["minus_di"]) & (df["rsi_14"] > 50)
+        short_regime = trending & expanding & (df["minus_di"] > df["plus_di"]) & (df["rsi_14"] < 50)
+        signals = np.where(long_regime, 1, np.where(short_regime, -1, 0))
+    elif strat_id == 31: # Volatility-Targeted Momentum (12% annualized vol target)
+        # Trend-follows with explicit vol targeting: exposure is scaled so the
+        # strategy risks a constant ~12% annualized volatility, shrinking in
+        # volatile tape and capping at full size in calm trends.
+        target_daily_vol = 0.12 / math.sqrt(252)
+        vol20 = df["volatility_20"] + 1e-9
+        size = np.clip(target_daily_vol / vol20, 0.25, 1.0)
+        direction = np.where(df["ema_20"] > df["ema_50"], 1, -1)
+        signals = size * direction
+    elif strat_id == 32: # Gap & Go Breakaway Momentum
+        # Breakaway-gap momentum with state persistence: a bullish gap that
+        # holds above the prior day's high on 1.5x volume starts (and keeps) a
+        # long until a mirror-image bearish gap flips it; events persist via
+        # forward-fill rather than decaying back to flat each bar.
+        gap_long = (
+            (df["Open"] > close.shift(1) + 0.5 * df["atr_14"].shift(1))
+            & (close > df["Open"])
+            & (df["vol_ratio"] > 1.5)
+            & (close > df["High"].shift(1))
+        )
+        gap_short = (
+            (df["Open"] < close.shift(1) - 0.5 * df["atr_14"].shift(1))
+            & (close < df["Open"])
+            & (df["vol_ratio"] > 1.5)
+            & (close < df["Low"].shift(1))
+        )
+        event = np.where(gap_long, 1.0, np.where(gap_short, -1.0, np.nan))
+        signals = pd.Series(event, index=df.index).ffill().fillna(0.0).to_numpy()
 
     # Warm-up guard: rows whose indicator inputs are still NaN must stay flat.
     # NaN comparisons evaluate False, so `a > b` styles silently go SHORT
@@ -273,9 +610,14 @@ def simulate_strategy(df: pd.DataFrame, strat_id: int, initial_capital: float = 
     signals = np.where(valid_rows.to_numpy(), signals, 0.0)
 
     # Performance Simulation
+    # Cost-aware: every execution (open/close/flip/size change) pays the
+    # modeled NSE per-side cost. Flip-churn strategies can no longer look free.
     returns = close.pct_change().fillna(0.0)
     position = pd.Series(signals, index=df.index).shift(1).fillna(0.0)
-    strat_returns = returns * position
+    turns = position.diff().abs()
+    turns.iloc[0] = abs(position.iloc[0])
+    cost_rate = (side_cost_bps if side_cost_bps is not None else CostEngine().side_cost_bps) / CostEngine.BPS
+    strat_returns = returns * position - cost_rate * turns
 
     total_return_pct = float(np.round(((1 + strat_returns).prod() - 1) * 100, 2))
 
@@ -288,6 +630,15 @@ def simulate_strategy(df: pd.DataFrame, strat_id: int, initial_capital: float = 
     total_trades = int(len(trade_returns))
     winning_trades = int((trade_returns > 0).sum())
     win_rate = round((winning_trades / total_trades) * 100, 1) if total_trades else 0.0
+
+    # Profit factor: gross wins / gross losses (mandate target: > 1.5).
+    # Capped at 99.99 so JSON serialization never sees infinity.
+    gross_wins = float(trade_returns[trade_returns > 0].sum())
+    gross_losses = float(-trade_returns[trade_returns < 0].sum())
+    if gross_losses > 1e-12:
+        profit_factor = min(round(gross_wins / gross_losses, 2), 99.99)
+    else:
+        profit_factor = 99.99 if gross_wins > 1e-12 else 0.0
 
     cum_returns = (1 + strat_returns).cumprod()
     peak = cum_returns.cummax()
@@ -309,7 +660,11 @@ def simulate_strategy(df: pd.DataFrame, strat_id: int, initial_capital: float = 
         "sharpe_ratio": sharpe,
         "max_drawdown_pct": max_dd,
         "total_trades": total_trades,
-        "final_capital": round(initial_capital * (1 + total_return_pct / 100), 2)
+        "final_capital": round(initial_capital * (1 + total_return_pct / 100), 2),
+        "cost_paid_pct": float(np.round(cost_rate * turns.sum() * 100, 2)),
+        "avg_turnover": float(np.round(turns.mean(), 3)),
+        "profit_factor": profit_factor,
+        "selected_params": dict(params) if params else {},
     }
 
 
@@ -328,62 +683,167 @@ def _tournament_score(avg_sharpe: float, avg_win_rate: float, avg_return: float,
 
 
 def run_full_tournament() -> List[Dict[str, Any]]:
-    """Run all 30 strategies across all local 10-year historical CSV files."""
-    csv_files = [f for f in os.listdir(HISTORICAL_DATA_DIR) if f.endswith(".csv")] if os.path.exists(HISTORICAL_DATA_DIR) else []
-    if not csv_files:
+    """
+    30-Strategy Quant Tournament — walk-forward calibration edition.
+
+    Per dataset (all merged local history):
+      1. Split into In-Sample (2019-2023) and Out-of-Sample (2024-2026).
+      2. Compute indicators exactly once per phase/dataset, then evaluate every
+         parameter-grid variant for each strategy on the IS slice.
+      3. Select the best variant by IS Sharpe, then replay it unmodified on the
+         OOS slice — no peeking, no re-tuning.
+      4. Final score = 0.40 * IS composite + 0.60 * OOS composite, with the
+         overfit gap (IS score - OOS score) reported so inflated variants are
+         visible rather than hidden.
+
+    Indicator precomputation replaces the legacy design where indicators were
+    recomputed 30x per dataset (which made full runs time out): rolling
+    windows — including a lambda-based CCI — are computed once per phase and
+    shared across all strategy variants of that dataset.
+    """
+    if not os.path.isdir(HISTORICAL_DATA_DIR):
         return []
 
-    tournament_results = []
-    for strat_id, info in STRATEGY_REGISTRY.items():
-        all_returns = []
-        all_win_rates = []
-        all_drawdowns = []
-        all_sharpes = []
+    datasets = _merged_dataset_frames()
 
-        for csv_file in csv_files:
-            file_path = os.path.join(HISTORICAL_DATA_DIR, csv_file)
-            try:
-                df = pd.read_csv(file_path, index_col=0, parse_dates=True)
-                if len(df) < 30:
-                    continue
-                res = simulate_strategy(df, strat_id)
-                all_returns.append(res["total_return_pct"])
-                all_win_rates.append(res["win_rate"])
-                all_drawdowns.append(res["max_drawdown_pct"])
-                all_sharpes.append(res["sharpe_ratio"])
-            except Exception as e:
-                print(f"[tournament] Skipping {csv_file} for strategy {strat_id}: {e}")
+    acc: Dict[int, Dict[str, Any]] = {
+        sid: {
+            "is_sharpe": [], "is_win": [], "is_ret": [], "is_dd": [], "is_score": [],
+            "selected": [],
+            "oos_sharpe": [], "oos_win": [], "oos_ret": [], "oos_dd": [], "oos_score": [],
+            "oos_trades": [], "oos_cost": [], "oos_pf": [],
+        }
+        for sid in STRATEGY_REGISTRY
+    }
+
+    for instrument, df_all in datasets:
+        is_df, oos_df = _split_walk_forward(df_all)
+        if is_df is None:
+            print(
+                f"[tournament] Skipping {instrument}: walk-forward slices too short "
+                f"(IS {len(is_df) if is_df is not None else 0} rows, OOS {len(oos_df) if oos_df is not None else 0} rows)"
+            )
+            continue
+        try:
+            is_ind = _compute_indicators(is_df.copy())
+            oos_ind = _compute_indicators(oos_df.copy())
+        except Exception as e:
+            print(f"[tournament] Skipping {instrument}: indicator computation failed: {e}")
+            continue
+
+        for strat_id in STRATEGY_REGISTRY:
+            best_params: Dict[str, Any] = {}
+            best_is: Dict[str, Any] = None
+            for params in get_param_grid(strat_id):
+                try:
+                    res = simulate_strategy(
+                        is_df, strat_id, params=params, precomputed_indicators=is_ind
+                    )
+                except Exception as e:
+                    print(f"[tournament] {instrument} IS strat {strat_id} failed: {e}")
+                    best_is = None
+                    break
+                if best_is is None or res["sharpe_ratio"] > best_is["sharpe_ratio"]:
+                    best_params, best_is = params, res
+            if best_is is None:
                 continue
 
-        if all_returns:
-            avg_return = float(np.round(np.mean(all_returns), 2))
-            avg_win_rate = float(np.round(np.mean(all_win_rates), 1))
-            avg_dd = float(np.round(np.mean(all_drawdowns), 2))
-            avg_sharpe = float(np.round(np.mean(all_sharpes), 2))
-            score = _tournament_score(avg_sharpe, avg_win_rate, avg_return, avg_dd)
+            try:
+                oos_res = simulate_strategy(
+                    oos_df, strat_id, params=best_params, precomputed_indicators=oos_ind
+                )
+            except Exception as e:
+                print(f"[tournament] {instrument} OOS strat {strat_id} failed: {e}")
+                continue
 
-            tournament_results.append({
-                "strat_id": strat_id,
-                "strategy": info["name"],
-                "bucket": info["bucket"],
-                "score": score,
-                "total_return_pct": avg_return,
-                "win_rate": avg_win_rate,
-                "sharpe_ratio": avg_sharpe,
-                "max_drawdown_pct": avg_dd,
-                "datasets_tested": len(all_returns)
-            })
+            a = acc[strat_id]
+            a["selected"].append(dict(best_params))
+            a["is_sharpe"].append(best_is["sharpe_ratio"])
+            a["is_win"].append(best_is["win_rate"])
+            a["is_ret"].append(best_is["total_return_pct"])
+            a["is_dd"].append(best_is["max_drawdown_pct"])
+            a["is_score"].append(_tournament_score(
+                best_is["sharpe_ratio"], best_is["win_rate"],
+                best_is["total_return_pct"], best_is["max_drawdown_pct"]))
+            a["oos_sharpe"].append(oos_res["sharpe_ratio"])
+            a["oos_win"].append(oos_res["win_rate"])
+            a["oos_ret"].append(oos_res["total_return_pct"])
+            a["oos_dd"].append(oos_res["max_drawdown_pct"])
+            a["oos_trades"].append(oos_res["total_trades"])
+            a["oos_cost"].append(oos_res["cost_paid_pct"])
+            a["oos_pf"].append(oos_res["profit_factor"])
+            a["oos_score"].append(_tournament_score(
+                oos_res["sharpe_ratio"], oos_res["win_rate"],
+                oos_res["total_return_pct"], oos_res["max_drawdown_pct"]))
 
-    tournament_results.sort(key=lambda x: x["score"], reverse=True)
-    for rank, item in enumerate(tournament_results, start=1):
+    results = []
+    for strat_id, a in acc.items():
+        if not a["is_score"]:
+            continue
+        info = STRATEGY_REGISTRY[strat_id]
+
+        def _avg(key: str, decimals: int) -> float:
+            return float(np.round(np.mean(a[key]), decimals)) if a[key] else 0.0
+
+        is_score = _avg("is_score", 2)
+        oos_score = _avg("oos_score", 2)
+        final_score = float(np.round(IS_WEIGHT * is_score + OOS_WEIGHT * oos_score, 2))
+
+        # Prune/retire: negative-expectancy strategies out of sample (OOS
+        # composite <= 0 across datasets) are marked RETIRED so the live
+        # trainer and execution layer exclude them entirely.
+        status = "RETIRED" if oos_score <= 0.0 else "ACTIVE"
+
+        # Most-selected parameter variant across datasets ({} for param-free)
+        variant_counts = Counter(
+            tuple(sorted(v.items())) for v in a["selected"]
+        )
+        selected_params = dict(variant_counts.most_common(1)[0][0]) if variant_counts else {}
+
+        results.append({
+            "strat_id": strat_id,
+            "strategy": info["name"],
+            "bucket": info["bucket"],
+            "score": final_score,
+            "status": status,
+            "total_return_pct": _avg("oos_ret", 2),
+            "win_rate": _avg("oos_win", 1),
+            "sharpe_ratio": _avg("oos_sharpe", 2),
+            "max_drawdown_pct": _avg("oos_dd", 2),
+            "profit_factor": _avg("oos_pf", 2),
+            "datasets_tested": len(a["is_score"]),
+            # walk-forward diagnostics
+            "in_sample_score": is_score,
+            "out_of_sample_score": oos_score,
+            "is_sharpe": _avg("is_sharpe", 2),
+            "is_win_rate": _avg("is_win", 1),
+            "is_total_return_pct": _avg("is_ret", 2),
+            "is_max_drawdown_pct": _avg("is_dd", 2),
+            "oos_trades_avg": _avg("oos_trades", 1),
+            "oos_cost_paid_avg_pct": _avg("oos_cost", 2),
+            "overfit_degradation_pct": float(np.round(is_score - oos_score, 2)),
+            "walk_forward_weights": {"in_sample": IS_WEIGHT, "out_of_sample": OOS_WEIGHT},
+            "selected_params": selected_params,
+        })
+
+    results.sort(key=lambda x: x["score"], reverse=True)
+    for rank, item in enumerate(results, start=1):
         item["rank"] = rank
 
-    return tournament_results
+    return results
 
 
 if __name__ == "__main__":
-    print("Running 30-Strategy Quant Tournament across 26 local 10y datasets...")
+    print("Running 30-Strategy Quant Tournament (walk-forward IS 2019-23 / OOS 2024-26)...")
+    print("Datasets: legacy 10y CSVs merged with daily_7y (csv+parquet)")
     results = run_full_tournament()
     print(f"Tournament Complete! Evaluated {len(results)} strategies.")
     for r in results[:10]:
-        print(f"Rank #{r['rank']}: {r['strategy']} (Bucket: {r['bucket']}, Score: {r['score']}, WinRate: {r['win_rate']}%, Sharpe: {r['sharpe_ratio']}, Return: {r['total_return_pct']}%)")
+        params = r["selected_params"] or "-"
+        print(
+            f"Rank #{r['rank']}: {r['strategy']} (Bucket: {r['bucket']}, "
+            f"Score: {r['score']} = IS {r['in_sample_score']} + OOS {r['out_of_sample_score']}, "
+            f"WinRate: {r['win_rate']}%, Sharpe(OOS): {r['sharpe_ratio']}, "
+            f"Return(OOS): {r['total_return_pct']}%, Degradation: {r['overfit_degradation_pct']}%, "
+            f"Params: {params})"
+        )

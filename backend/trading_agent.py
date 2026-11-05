@@ -185,6 +185,12 @@ async def trading_agent_loop():
                 last_scan_date = now_ist.date()
                 last_scan_bucket = None
                 squared_off_today = False
+                # Refresh the Nifty-50 macro regime once per trading day.
+                try:
+                    market_regime_cls.load_data(force_refresh=True)
+                    print("[trading_agent] Macro regime data refreshed for the new session.")
+                except Exception as regime_exc:
+                    print(f"[trading_agent] Macro regime refresh failed: {regime_exc}")
 
             # Auto-square off at/after 3:20 PM (exact-minute equality can be
             # straddled by a long scan iteration and skip the day entirely)
@@ -209,6 +215,19 @@ async def trading_agent_loop():
             predictions = db.get_predictions()
             open_positions = [p for p in predictions if p.get("status") == "PENDING"]
 
+            # Institutional risk engine: tighten stops on in-the-money trades
+            # with a 1.5x ATR trail before any new risk is added.
+            if open_positions:
+                await _update_trailing_stops(open_positions)
+                predictions = db.get_predictions()
+                open_positions = [p for p in predictions if p.get("status") == "PENDING"]
+
+            # NIFTY 50 macro-regime gate: long momentum breakouts only when the
+            # index trades above its 50-day EMA; otherwise mean-reversion
+            # dip-buys (oversold setups) or cash preservation.
+            macro_regime = market_regime_cls.classify_regime()
+            nifty_above_ema50 = macro_regime.get("nifty_above_ema50")
+
             if len(open_positions) >= MAX_CONCURRENT_TRADES:
                 print(f"[trading_agent] Max positions ({MAX_CONCURRENT_TRADES}) reached. Skipping scan.")
                 await asyncio.sleep(30)
@@ -227,11 +246,31 @@ async def trading_agent_loop():
                 else:
                     print("[WARNING] Correlation matrix has no built date.")
 
-                print(f"[trading_agent] Running 30-min scan. Current time: {now_ist.strftime('%H:%M')}")
+                print(
+                    f"[trading_agent] Running 30-min scan. Current time: {now_ist.strftime('%H:%M')} | "
+                    f"Macro regime: {macro_regime.get('regime')} | "
+                    f"NIFTY>EMA50: {nifty_above_ema50}"
+                )
                 results = signals.run_scan(symbols=signals.NSE_WATCHLIST)
 
                 for sig in results:
                     if sig.get("signal") not in ("BUY", "SELL"):
+                        continue
+
+                    # Macro trend gate: unconditionally block non-oversold longs
+                    # when NIFTY 50 trades below its 50-day EMA (trend vs mean
+                    # reversion switching). Oversold dip-buys (RSI < 35) remain
+                    # the mean-reversion lane; shorts (anti-momentum) unaffected.
+                    if (
+                        sig.get("signal") == "BUY"
+                        and nifty_above_ema50 is not None
+                        and not nifty_above_ema50
+                        and sig.get("rsi", 50) >= 35
+                    ):
+                        print(
+                            f"[trading_agent] Macro gate: NIFTY 50 below 50-day EMA — "
+                            f"blocked long momentum {sig['symbol']} (RSI {sig.get('rsi', 50):.0f})"
+                        )
                         continue
 
                     # TAR-20 Task 8: synthetic/simulated signals never become
@@ -286,6 +325,102 @@ async def trading_agent_loop():
         except Exception as e:
             logger.error("[trading_agent] Trading loop error: %s", e, exc_info=True)
             await asyncio.sleep(60)
+
+# ── Institutional risk engine: dynamic ATR trailing stops ────────────────────
+
+TRAIL_ACTIVATION_ATR = 1.0   # activate the trail once the trade is ~1 ATR in favor
+TRAIL_ATR_MULT = 1.5         # mandated: 1.5x ATR trailing stop
+
+
+def _propose_trailing_stop(pred: dict, current_price: float):
+    """Compute a tightened stop for an in-the-money paper trade.
+
+    The trail only ever tightens (ratchet): it activates when price has moved
+    >= TRAIL_ACTIVATION_ATR in the trade's favor and follows price at
+    TRAIL_ATR_MULT * ATR. Returns the new stop or None when unchanged.
+
+    `pred` — db predictions_history row; entry/stop/atr are floats, activity
+    direction from prediction_type ("BUY"/"BULLISH" = long).
+    """
+    try:
+        atr = abs(float(pred.get("atr") or 0.0))
+        entry = float(pred.get("entry_price") or 0.0)
+        stop = float(pred.get("stop_loss") or 0.0)
+        price = float(current_price)
+    except (TypeError, ValueError):
+        return None
+    if atr <= 0 or entry <= 0 or price <= 0:
+        return None
+
+    is_long = pred.get("prediction_type", "BUY").upper() in ("BUY", "BULLISH")
+    if is_long:
+        if price < entry + TRAIL_ACTIVATION_ATR * atr:
+            return None
+        trail = price - TRAIL_ATR_MULT * atr
+        if trail > stop:
+            return round(trail, 2)
+        return None
+    else:
+        # Short: trail activates below the entry, stop trails above price and
+        # can only ratchet down. Valid even when the legacy stop is 0.
+        if price > entry - TRAIL_ACTIVATION_ATR * atr:
+            return None
+        trail = price + TRAIL_ATR_MULT * atr
+        if stop <= 0 or trail < stop - 1e-9:
+            return round(trail, 2)
+        return None
+
+
+async def _update_trailing_stops(open_predictions: list) -> int:
+    """Fetch live quotes in bulk and tighten stops for winning open trades."""
+    if not open_predictions:
+        return 0
+
+    from angelone_feed import get_angelone_feed
+    feed = get_angelone_feed()
+    # No authorized feed: prediction_resolver_worker still polls the static
+    # SL/TP; trailing simply has no current price to trail against.
+    if not feed.is_authorized():
+        return 0
+
+    symbols = sorted({p.get("symbol") for p in open_predictions if p.get("symbol")})
+    if not symbols:
+        return 0
+
+    loop = asyncio.get_running_loop()
+    try:
+        quotes = await loop.run_in_executor(
+            quote_executor, lambda: feed.get_live_quotes(symbols)
+        )
+    except Exception as e:
+        logger.warning("[trading_agent] Trailing-stop quote fetch failed: %s", e)
+        return 0
+
+    updates: list[tuple] = []
+    for pred in open_predictions:
+        quote = (quotes or {}).get(pred.get("symbol"))
+        if quote is None:
+            continue
+        if isinstance(quote, dict):
+            live_price = float(quote.get("price") or 0.0)
+        else:
+            live_price = float(getattr(quote, "price", 0.0) or 0.0)
+        if live_price <= 0:
+            continue
+        new_stop = _propose_trailing_stop(pred, live_price)
+        if new_stop is not None:
+            updates.append((pred["id"], new_stop))
+            logger.info(
+                "[trading_agent] Trailing stop tightened for %s (id=%s): %s -> %.2f",
+                pred.get("symbol"), pred.get("id"), pred.get("stop_loss"), new_stop,
+            )
+
+    if updates:
+        await loop.run_in_executor(
+            resolver_executor, lambda: db.update_prediction_stops(updates)
+        )
+    return len(updates)
+
 
 async def _square_off_all(now_ist):
     predictions = db.get_predictions()

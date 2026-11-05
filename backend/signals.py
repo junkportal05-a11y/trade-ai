@@ -2072,6 +2072,13 @@ def run_scan(
             sig = "HOLD"
             rejection_category = "REGIME_FILTER"
             rejection_reason = "PANIC_REGIME_NO_LONGS"
+        elif market_regime == "VOLATILE" and is_buy_signal and r.get("rsi", 50) >= 35:
+            # regime switching: in vol blowouts only dip-buy (oversold) entries
+            # are allowed; chasing momentum through expanding volatility is
+            # the classic negative-expectancy trap.
+            sig = "HOLD"
+            rejection_category = "REGIME_FILTER"
+            rejection_reason = "VOLATILE_REGIME_NO_CHASE"
         elif market_regime == "RANGING" and (40 < r.get("rsi", 50) < 60):
             sig = "HOLD"
             rejection_category = "REGIME_FILTER"
