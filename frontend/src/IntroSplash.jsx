@@ -31,7 +31,7 @@ export default function IntroSplash({ onWokenUp }) {
   });
   const [customInput, setCustomInput] = useState('');
   const [showConfig, setShowConfig] = useState(false);
-const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
   const [status, setStatus] = useState('connecting');
   const [healthData, setHealthData] = useState(null);
   const [latency, setLatency] = useState(null);
