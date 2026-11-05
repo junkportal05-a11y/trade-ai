@@ -465,11 +465,25 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       
-      if (data.all_signals && data.all_signals.length > 0) {
-        setPlan(data);
+      const sigList = data.all_signals || data.signals || (data.positions && data.positions.map(p => ({
+        ...p,
+        entry: p.entry_price || p.entry,
+        price: p.entry_price || p.price,
+        target: p.target_price || p.target,
+        signal: p.signal || 'BUY',
+        confidence: p.confidence || 78,
+      }))) || [];
+
+      if (sigList.length > 0 || (data.positions && data.positions.length > 0)) {
+        setPlan({
+          ...data,
+          all_signals: sigList,
+          capital: data.capital || amt,
+        });
+        setError(null);
       } else {
         setPlan({ all_signals: [], allocations: [] });
-        setError("Backend signal engine returning empty. No active market signals.");
+        setError("Market is closed. No active intraday setups detected on live feed.");
       }
       setNextScan(Date.now() + REFRESH_MS);
     } catch (e) {
@@ -498,9 +512,12 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
     if (sectorFilter !== 'ALL' && (s.sector || 'Unknown') !== sectorFilter) return false;
     if (s.confidence < minConf) return false;
     
-    const rr = (s.target && s.stop_loss && s.current_price && Math.abs(s.current_price - s.stop_loss) > 0) 
-      ? Math.abs((s.target - s.current_price) / (s.current_price - s.stop_loss)) 
-      : 0;
+    const price = s.current_price || s.price || s.entry || 0;
+    const target = s.target || s.target1 || 0;
+    const stop = s.stop_loss || 0;
+    const rr = (target && stop && price && Math.abs(price - stop) > 0) 
+      ? Math.abs((target - price) / (price - stop)) 
+      : (s.rr_ratio || 0);
       
     if (rr < minRR) return false;
     return true;

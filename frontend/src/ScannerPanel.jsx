@@ -803,42 +803,61 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
               display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
               background: errorKind === 'server' ? T.red : '#fbbf24', animation: 'sp_pulse 1.5s infinite',
             }} />
-            <span>⚠ {error}</span>
+            <span>{error}</span>
           </div>
         )}
 
         {/* Empty filter result */}
         {!loading && !error && filtered.length === 0 && signals.length > 0 && (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: T.textDim, fontSize: 12 }}>
-            No {filter} signals at this time
+          <div className="empty-state">
+            <div className="empty-state-icon">⦿</div>
+            <div className="empty-state-title">No {filter} signals at this time</div>
+            <div className="empty-state-desc">Try selecting a different signal filter above, or run a fresh scan to check for new setups.</div>
           </div>
         )}
 
         {/* No signals — either not fetched yet, or every candidate hit a gate */}
         {!loading && signals.length === 0 && !error && (
-          <div style={{ textAlign: 'center', padding: '36px 16px', color: T.textDim, fontSize: 12, ...sans }}>
+          <div style={{ padding: '36px 16px', ...sans }}>
             {gateInfo ? (
-              <>
-                <div style={{ color: T.textMid, fontSize: 12, marginBottom: 8, fontWeight: 700 }}>
-                  Scan complete — 0 candidates passed the quality gates
+              <div className="empty-state">
+                <div className="empty-state-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                  </svg>
+                </div>
+                <div className="empty-state-title" style={{ color: T.textMid }}>
+                  No signals scanned on current watchlist
                 </div>
                 {Object.keys(GATE_LABELS).filter(k => (gateInfo[k] || 0) > 0).length > 0 ? (
-                  <div style={{ display: 'inline-block', textAlign: 'left', fontSize: 10, ...mono, lineHeight: 1.9 }}>
+                  <div style={{ display: 'inline-block', textAlign: 'left', fontSize: 10, ...mono, lineHeight: 1.9, color: T.textDim }}>
                     {Object.keys(GATE_LABELS).filter(k => (gateInfo[k] || 0) > 0).map(k => (
-                      <div key={k}>✕ {GATE_LABELS[k]} · {gateInfo[k]} symbol{gateInfo[k] === 1 ? '' : 's'} filtered</div>
+                      <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ color: T.red, fontSize: 8 }}>×</span>
+                        <span>{GATE_LABELS[k]} — {gateInfo[k]} symbol{gateInfo[k] === 1 ? '' : 's'} filtered</span>
+                      </div>
                     ))}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 10 }}>
+                  <div className="empty-state-desc">
                     No rejections recorded — market data feeds may still be warming. RESCAN shortly.
                   </div>
                 )}
-                <div style={{ fontSize: 9, color: T.textDim, ...mono, margin: '12px auto 0', maxWidth: 440, lineHeight: 1.6 }}>
-                  Standing gates: volume ≥1.2× 20-bar avg · ADX ≥20 · data confidence ≥72% · risk:reward ≥2.0 · VWAP trend veto. Symbols scoring &lt;72 confidence are kept on watch, not shown as signals. A quiet/choppy tape can legitimately filter the whole watchlist — nothing is wrong.
+                <div style={{ fontSize: 9, color: T.textDim, ...mono, margin: '8px auto 0', maxWidth: 480, lineHeight: 1.6, textAlign: 'center' }}>
+                  Standing gates: volume ≥1.2× avg · ADX ≥20 · confidence ≥72% · R:R ≥2.0 · VWAP veto.
+                  A quiet or choppy tape can legitimately filter the entire watchlist.
                 </div>
-              </>
+              </div>
             ) : (
-              <div>No signals loaded yet. Click RESCAN to fetch.</div>
+              <div className="empty-state">
+                <div className="empty-state-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+                  </svg>
+                </div>
+                <div className="empty-state-title">No signals loaded yet</div>
+                <div className="empty-state-desc">Click <strong style={{ color: T.accent }}>SCAN & SIZE</strong> to fetch live NSE intraday signals.</div>
+              </div>
             )}
           </div>
         )}
@@ -862,7 +881,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
             border: `1px solid ${T.border}`, marginTop: 4,
           }}>
             <div style={{ fontSize: 9, color: T.textDim, lineHeight: 1.6 }}>
-              ⚖ <strong style={{ color: T.textMid }}>DISCLAIMER:</strong> These are algorithmic signals based
+              <strong style={{ color: T.textMid }}>DISCLAIMER:</strong> These are algorithmic signals based
               on technical analysis of real market data. They are NOT financial advice. Past technical patterns
               do not guarantee future results. Always use proper position sizing, stop-losses, and your own
               judgement. Trade at your own risk. Square off all intraday positions before <strong style={{ color: T.textMid }}>3:20 PM IST</strong>.

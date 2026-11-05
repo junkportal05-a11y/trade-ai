@@ -205,7 +205,7 @@ export default function HomePanel({
                   padding: 0
                 }}
               >
-                {loadingBrief ? '⏳ REFRESHING...' : ' REFRESH'}
+                {loadingBrief ? 'REFRESHING...' : 'REFRESH'}
               </button>
             )}
             <span style={{ fontSize: 9, color: T.textDim, ...mono }}>GENERATED DAILY AT MARKET OPEN</span>
@@ -297,7 +297,7 @@ export default function HomePanel({
             {/* Risk Events list */}
             {brief.risk_events && brief.risk_events.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: T.textMid, letterSpacing: '0.04em' }}>⚠ DAILY MACRO / RISK CALENDAR EVENTS</div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: T.textMid, letterSpacing: '0.04em' }}>DAILY MACRO / RISK CALENDAR EVENTS</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {brief.risk_events.map((evt, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: T.textMid }}>
@@ -361,7 +361,7 @@ export default function HomePanel({
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)'}
               >
-                ✏ ADJUST BALANCE
+                ADJUST BALANCE
               </button>
             </div>
             <div 
@@ -742,7 +742,7 @@ export default function HomePanel({
 
               {/* Add Holding Form */}
               <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, color: T.accentAlt }}>➕ ADD NEW STOCK POSITION</span>
+                <span style={{ fontSize: 9, fontWeight: 700, color: T.accentAlt }}>ADD NEW STOCK POSITION</span>
                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 8 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <label style={{ fontSize: 8, color: T.textMid }}>SYMBOL</label>
