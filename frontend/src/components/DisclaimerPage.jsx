@@ -130,7 +130,7 @@ export default function DisclaimerPage() {
 
         <section style={{ marginBottom: 32, padding: '24px', background: 'rgba(0,245,160,0.05)', border: '1px solid rgba(0,245,160,0.2)', borderRadius: 12 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <ShieldCheck size={24} color="#00f5a0" style={{ flexShrink: 0, marginTop: 2 }} />
+            <ShieldCheck size={24} color="#f59e0b" style={{ flexShrink: 0, marginTop: 2 }} />
             <div style={{ color: T.textMid, lineHeight: 1.8 }}>
               <p style={{ fontWeight: 700, marginBottom: 8, fontSize: 16 }}>✅ REMEMBER</p>
               <p style={{ color: T.textMid, lineHeight: 1.7 }}>

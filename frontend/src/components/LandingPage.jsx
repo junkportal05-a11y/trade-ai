@@ -8,7 +8,7 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section style={{ minHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, rgba(99,102,241,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', top: '20%', left: '10%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(0,245,160,0.04) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none', animation: 'float 20s ease-in-out infinite' }} />
+        <div style={{ position: 'absolute', top: '20%', left: '10%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(245,158,11,0.04) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none', animation: 'float 20s ease-in-out infinite' }} />
         <div style={{ position: 'absolute', bottom: '10%', right: '10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(245,200,66,0.04) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none', animation: 'float 25s ease-in-out infinite reverse' }} />
         
         <style jsx>{`
@@ -23,7 +23,7 @@ export default function LandingPage() {
             <span style={{ fontSize: 14, fontWeight: 700, color: T.accent, letterSpacing: '0.12em' }}>APEX TRADE AI</span>
           </div>
           
-          <h1 style={{ fontSize: 'clamp(36px, 6vw, 56px)', fontWeight: 800, letterSpacing: '-0.03em', margin: '0 0 16px', lineHeight: 1.1, background: 'linear-gradient(135deg, #ffffff 30%, #a855f7 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <h1 style={{ fontSize: 'clamp(36px, 6vw, 56px)', fontWeight: 800, letterSpacing: '-0.03em', margin: '0 0 16px', lineHeight: 1.1, background: 'linear-gradient(135deg, #ffffff 30%, #d97706 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             Your Personal Quant Workstation
           </h1>
           
@@ -80,7 +80,7 @@ export default function LandingPage() {
       <section id="demo" style={{ padding: '100px 24px', background: T.bg, borderTop: `1px solid ${T.border}` }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
           <header style={{ textAlign: 'center', marginBottom: 48 }}>
-            <span style={{ display: 'inline-block', padding: '6px 14px', background: 'rgba(0,245,160,0.1)', border: '1px solid rgba(0,245,160,0.25)', borderRadius: 999, fontSize: 12, fontWeight: 700, color: '#00f5a0', letterSpacing: '0.1em', marginBottom: 16 }}>SAMPLE SIGNAL</span>
+            <span style={{ display: 'inline-block', padding: '6px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 999, fontSize: 12, fontWeight: 700, color: '#f59e0b', letterSpacing: '0.1em', marginBottom: 16 }}>SAMPLE SIGNAL</span>
             <h2 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 800, margin: '0 0 12px' }}>What a Signal Looks Like</h2>
             <p style={{ color: T.textMid, fontSize: 16, maxWidth: 600, margin: '0 auto' }}>Paper trading only. This is a representative sample, not live market data.</p>
           </header>
@@ -90,18 +90,18 @@ export default function LandingPage() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: T.accent, fontFamily: "'IBM Plex Mono', monospace" }}>NIFTY</span>
-                  <span style={{ background: 'rgba(0,245,160,0.1)', color: '#00f5a0', padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace" }}>BUY</span>
+                  <span style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace" }}>BUY</span>
                 </div>
                 <div style={{ fontSize: 12, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>Nifty 50 Index</div>
               </div>
               <div style={{ textAlign: 'right', minWidth: 140 }}>
                 <div style={{ fontSize: 24, fontWeight: 700, color: T.text, fontFamily: "'IBM Plex Mono', monospace" }}>₹24,532.15</div>
-                <div style={{ color: '#00f5a0', fontSize: 12, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace" }}>+0.84% (+204.30)</div>
+                <div style={{ color: '#f59e0b', fontSize: 12, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace" }}>+0.84% (+204.30)</div>
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
-              <StatBox label="ENTRY" value="₹24,450" color="#38bdf8" />
+              <StatBox label="ENTRY" value="₹24,450" color="#fbbf24" />
               <StatBox label="TARGET" value="₹25,200" color="#f5c842" />
               <StatBox label="STOP" value="₹24,100" color="#ff3d5a" />
             </div>
@@ -112,13 +112,13 @@ export default function LandingPage() {
             </div>
 
             <div style={{ marginTop: 20, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(0,245,160,0.1)', border: '1px solid rgba(0,245,160,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600, color: '#00f5a0' }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#00f5a0' }} /> Confidence: 87%
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b' }} /> Confidence: 87%
               </span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(245,200,66,0.1)', border: '1px solid rgba(245,200,66,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600, color: '#f5c842' }}>
                 R:R 1:2.5
               </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600, color: '#38bdf8' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600, color: '#fbbf24' }}>
                 Intraday (5m-15m)
               </span>
             </div>

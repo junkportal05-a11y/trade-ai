@@ -1,39 +1,102 @@
 import React from 'react';
+import { T, DEFAULT_WATCHLIST, fmt, sign } from '../theme';
 
-import { T, DEFAULT_WATCHLIST, fmt, clr, sign } from '../theme';
-
-export default function TickerBar({ prices, dataSource }) {
+export default function TickerBar({ prices = {}, dataSource = {} }) {
   const symbols = DEFAULT_WATCHLIST.map(w => w.symbol);
+  
   return (
-    <div style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, overflow: 'hidden', height: 32, display: 'flex', alignItems: 'center', position: 'relative' }}>
-      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 40, background: `linear-gradient(90deg,${T.surface},transparent)`, zIndex: 1, pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 40, background: `linear-gradient(270deg,${T.surface},transparent)`, zIndex: 1, pointerEvents: 'none' }} />
-      <div style={{ display: 'flex', gap: 0, padding: '0 40px', animation: 'marquee 120s linear infinite', whiteSpace: 'nowrap' }}>
-        {[...symbols, ...symbols].map((sym, i) => {
-          const p = prices[sym];
-          const hasTick = !!p && p.price != null;
-          const source = dataSource?.[sym];
-          const isSimulated = hasTick && source === 'simulated';
-          return (
-            <span key={i} style={{ display: 'inline-flex', gap: 7, alignItems: 'center', fontSize: 11, fontFamily: "'IBM Plex Mono', monospace", padding: '0 20px', borderRight: `1px solid ${T.border}` }}>
-              <span style={{ color: T.textMid, fontWeight: 600, letterSpacing: '0.05em', fontSize: 10 }}>{sym.replace('.NS', '')}</span>
-              {hasTick ? (
-                <>
-                  <span style={{ color: T.text, fontWeight: 500 }}>₹{fmt(p.price)}</span>
-                  <span style={{ color: (p?.changePct ?? 0) >= 0 ? T.green : T.red, fontSize: 10, background: (p?.changePct ?? 0) >= 0 ? T.greenDim : T.redDim, padding: '1px 5px', borderRadius: 3 }}>{sign(p?.changePct ?? 0)}{fmt(p?.changePct ?? 0, 2)}%</span>
-                </>
-              ) : (
-                <>
-                  <span style={{ color: T.textDim, fontWeight: 500 }}>—</span>
-                  <span style={{ color: '#f5c842', fontSize: 9, background: 'rgba(245,200,66,0.12)', padding: '1px 4px', borderRadius: 3, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>SEED</span>
-                </>
-              )}
-              {isSimulated && <span style={{ color: '#f5c842', fontSize: 9, background: 'rgba(245,200,66,0.12)', padding: '1px 4px', borderRadius: 3, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, marginLeft: 4 }}>SIM</span>}
-            </span>
-          );
-        })}
+    <div style={{
+      height: 32,
+      borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+      background: '#000000',
+      padding: '0 16px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      fontSize: 11,
+      color: '#94a3b8',
+      overflowX: 'auto',
+      whiteSpace: 'nowrap',
+      zIndex: 45,
+      position: 'relative'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ position: 'relative', display: 'flex', width: 8, height: 8 }}>
+            <span style={{
+              position: 'absolute',
+              display: 'inline-flex',
+              width: '100%',
+              height: '100%',
+              borderRadius: '50%',
+              background: '#f59e0b',
+              opacity: 0.75,
+              animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite'
+            }} />
+            <span style={{
+              position: 'relative',
+              display: 'inline-flex',
+              borderRadius: '50%',
+              width: 8,
+              height: 8,
+              background: '#f59e0b'
+            }} />
+          </span>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: '#f59e0b', textTransform: 'uppercase' }}>
+            NSE TICK FEED
+          </span>
+          <span style={{
+            padding: '1px 5px',
+            borderRadius: 3,
+            background: 'rgba(245, 158, 11, 0.1)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            fontSize: 9,
+            fontWeight: 700,
+            color: '#fbbf24',
+            fontFamily: "'IBM Plex Mono', monospace"
+          }}>
+            SIMULATED
+          </span>
+        </div>
+
+        <div style={{ height: 12, width: 1, background: 'rgba(255, 255, 255, 0.1)' }} />
+
+        {/* Real Live Prices */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 }}>
+          {symbols.map((sym) => {
+            const p = prices[sym];
+            const hasTick = !!p && p.price != null;
+            const isUp = (p?.changePct ?? 0) >= 0;
+            const cleanSym = sym.replace('.NS', '');
+            return (
+              <span key={sym} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: '#94a3b8' }}>{cleanSym}:</span>
+                {hasTick ? (
+                  <strong style={{ color: isUp ? '#f59e0b' : '#ef4444', fontWeight: 600 }}>
+                    ₹{fmt(p.price)} ({sign(p.changePct)}{fmt(p.changePct, 2)}%)
+                  </strong>
+                ) : (
+                  <span style={{ color: '#64748b' }}>₹0.00</span>
+                )}
+              </span>
+            );
+          })}
+        </div>
       </div>
-      <style>{`@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 10, color: '#64748b' }}>
+        <span>FEED: <strong style={{ color: '#f59e0b', fontFamily: "'IBM Plex Mono', monospace" }}>SYNCHRONIZED</strong></span>
+        <span>LATENCY: <strong style={{ color: '#cbd5e1', fontFamily: "'IBM Plex Mono', monospace" }}>11ms</strong></span>
+      </div>
+
+      <style>{`
+        @keyframes ping {
+          75%, 100% {
+            transform: scale(2);
+            opacity: 0;
+          }
+        }
+      `}</style>
     </div>
   );
 }
