@@ -97,11 +97,11 @@ export default function BacktestRunner({ onResults }) {
 
   const metricCards = results ? [
     { label: 'TOTAL RETURN', value: fmt(retPct), color: retPct >= 0 ? T.green : T.red },
-    { label: 'WIN RATE', value: `${winRateVal.toFixed(1)}%`, color: winRateVal >= 50 ? T.green : winRateVal >= 40 ? '#f5c842' : T.red },
+    { label: 'WIN RATE', value: `${winRateVal.toFixed(1)}%`, color: winRateVal >= 50 ? T.green : winRateVal >= 40 ? '#fbbf24' : T.red },
     { label: 'MAX DRAWDOWN', value: `${maxDd.toFixed(2)}%`, color: T.red },
-    { label: 'SHARPE RATIO', value: sharpeVal.toFixed(2), color: sharpeVal >= 1.5 ? T.green : sharpeVal >= 1 ? '#f5c842' : T.red },
+    { label: 'SHARPE RATIO', value: sharpeVal.toFixed(2), color: sharpeVal >= 1.5 ? T.green : sharpeVal >= 1 ? '#fbbf24' : T.red },
     { label: 'TOTAL TRADES', value: (results.total_trades ?? 0).toString(), color: T.accent },
-    { label: 'PROFIT FACTOR', value: profitFactorVal.toFixed(2), color: profitFactorVal >= 1.5 ? T.green : profitFactorVal >= 1 ? '#f5c842' : T.red },
+    { label: 'PROFIT FACTOR', value: profitFactorVal.toFixed(2), color: profitFactorVal >= 1.5 ? T.green : profitFactorVal >= 1 ? '#fbbf24' : T.red },
   ] : [];
 
   return (
@@ -183,9 +183,9 @@ export default function BacktestRunner({ onResults }) {
 
       {/* Tournament Leaderboard */}
       {tournamentResults && tournamentResults.leaderboard?.length && (
-        <div style={{ background: T.panel, border: `1px solid ${'#f5c842'}40`, borderRadius: 8, padding: 14, marginBottom: 12 }}>
+        <div style={{ background: T.panel, border: `1px solid ${'#fbbf24'}40`, borderRadius: 8, padding: 14, marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#f5c842', ...mono }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', ...mono }}>
               30-STRATEGY LEADERBOARD — BEST: {tournamentResults.best_strategy} (SCORE: {tournamentResults.best_strategy_score})
             </div>
             <div style={{ fontSize: 9, color: T.textDim, ...mono }}>
@@ -207,11 +207,11 @@ export default function BacktestRunner({ onResults }) {
               </thead>
               <tbody>
                 {(tournamentResults.leaderboard || []).map((r, i) => (
-                  <tr key={i} style={{ borderBottom: `1px solid ${T.border}30`, background: i === 0 ? 'rgba(245,200,66,0.12)' : 'transparent' }}>
-                    <td style={{ padding: '6px 8px', fontWeight: 700, color: i === 0 ? '#f5c842' : T.textMid, ...mono }}>#{r.rank}</td>
+                  <tr key={i} style={{ borderBottom: `1px solid ${T.border}30`, background: i === 0 ? 'rgba(245, 158, 11, 0.12)' : 'transparent' }}>
+                    <td style={{ padding: '6px 8px', fontWeight: 700, color: i === 0 ? '#fbbf24' : T.textMid, ...mono }}>#{r.rank}</td>
                     <td style={{ padding: '6px 8px', fontWeight: 600, color: '#fff' }}>{r.strategy}</td>
                     <td style={{ padding: '6px 8px', color: T.accentAlt, ...mono }}>{r.bucket}</td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: '#f5c842', ...mono }}>{r.score}</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: '#fbbf24', ...mono }}>{r.score}</td>
                     <td style={{ padding: '6px 8px', textAlign: 'right', color: T.green, ...mono }}>{r.win_rate}%</td>
                     <td style={{ padding: '6px 8px', textAlign: 'right', color: T.blue, ...mono }}>{r.sharpe_ratio}</td>
                     <td style={{ padding: '6px 8px', textAlign: 'right', color: r.total_return_pct >= 0 ? T.green : T.red, ...mono }}>
@@ -283,8 +283,8 @@ export default function BacktestRunner({ onResults }) {
                         <td style={{ padding: '8px 10px' }}>
                           <span style={{
                             padding: '2px 6px', borderRadius: 3, fontSize: 8, fontWeight: 700, ...mono,
-                            background: t.status === 'WIN' ? T.greenDim : t.status === 'LOSS' ? T.redDim : 'rgba(245,200,66,0.12)',
-                            color: t.status === 'WIN' ? T.green : t.status === 'LOSS' ? T.red : '#f5c842',
+                            background: t.status === 'WIN' ? T.greenDim : t.status === 'LOSS' ? T.redDim : 'rgba(245, 158, 11, 0.12)',
+                            color: t.status === 'WIN' ? T.green : t.status === 'LOSS' ? T.red : '#fbbf24',
                           }}>{t.status}</span>
                         </td>
                       </tr>

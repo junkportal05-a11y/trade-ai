@@ -23,6 +23,8 @@ export const T = {
   accentAlt: '#d97706',
   accentDim: 'rgba(245, 158, 11, 0.15)',
   accentGlow: 'rgba(245, 158, 11, 0.35)',
+  gold: '#fbbf24',
+  goldDim: 'rgba(245, 158, 11, 0.12)',
 };
 
 export const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });

@@ -1,33 +1,8 @@
 import { API_BASE_URL } from './api';
 import React, { useMemo, useState, useEffect } from 'react';
+import { T, mono, fmt, sign } from './theme';
 
 const BASE = API_BASE_URL;
-
-const T = {
-  bg:         '#080a0f',
-  surface:    '#0d1018',
-  panel:      '#111520',
-  panelAlt:   '#0f1219',
-  border:     '#1a1f2e',
-  borderHi:   '#252c40',
-  text:       '#d0d8ed',
-  textMid:    '#6e7a96',
-  textDim:    '#363d55',
-  green:      '#00e5a8',
-  greenDim:   'rgba(0,229,168,0.1)',
-  red:        '#ff3d5a',
-  redDim:     'rgba(255,61,90,0.1)',
-  blue:       '#4da6ff',
-  blueDim:    'rgba(77,166,255,0.1)',
-  gold:       '#f5c842',
-  goldDim:    'rgba(245,200,66,0.1)',
-  accent:     '#7b6cff',
-  accentAlt:  '#9b5de5',
-};
-
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
-const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
-const sign = (v) => v > 0 ? '+' : '';
 
 const DEFAULT_WATCHLIST = [
   { symbol: 'YESBANK.NS',    name: 'Yes Bank',       sector: 'Banking' },
@@ -134,7 +109,7 @@ export default function HomePanel({
       accWeight += cashWeight;
     }
     
-    const COLORS = ['#7b6cff', '#00e5a8', '#ff9f43', '#9b5de5', '#f5c842', '#ff3d5a', '#ff4da6'];
+    const COLORS = ['#f59e0b', '#fbbf24', '#d97706', '#ef4444', '#b45309', '#dc2626', '#92400e'];
     portfolio.forEach((pos, idx) => {
       const price = prices[pos.symbol]?.price ?? pos.avgCost;
       const val = price * pos.shares;
@@ -185,17 +160,17 @@ export default function HomePanel({
         </div>
         <div style={{
           padding: '6px 14px',
-          background: isMarketOpen ? T.greenDim : 'rgba(245,200,66,0.12)',
-          border: `1px solid ${isMarketOpen ? T.green : '#f5c842'}30`,
+          background: isMarketOpen ? T.greenDim : 'rgba(245, 158, 11, 0.12)',
+          border: `1px solid ${isMarketOpen ? T.green : '#fbbf24'}30`,
           borderRadius: 6,
-          color: isMarketOpen ? T.green : '#f5c842',
+          color: isMarketOpen ? T.green : '#fbbf24',
           fontSize: 10,
           fontWeight: 700,
           display: 'flex',
           alignItems: 'center',
           gap: 6
         }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: isMarketOpen ? T.green : '#f5c842', animation: isMarketOpen ? 'pulse 1.8s infinite' : 'none' }} />
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: isMarketOpen ? T.green : '#fbbf24', animation: isMarketOpen ? 'pulse 1.8s infinite' : 'none' }} />
           NSE MARKET: {isMarketOpen ? 'OPEN (IST)' : 'CLOSED'}
         </div>
       </div>
@@ -275,7 +250,7 @@ export default function HomePanel({
                 <span style={{
                   fontSize: 14,
                   fontWeight: 800,
-                  color: brief.nifty_trend === 'BULLISH' ? T.green : brief.nifty_trend === 'BEARISH' ? T.red : '#f5c842'
+                  color: brief.nifty_trend === 'BULLISH' ? T.green : brief.nifty_trend === 'BEARISH' ? T.red : '#fbbf24'
                 }}>
                   {brief.nifty_trend === 'BULLISH' ? '▲ BULLISH' : brief.nifty_trend === 'BEARISH' ? '▼ BEARISH' : '◆ CONSOLIDATION'}
                 </span>
@@ -372,7 +347,7 @@ export default function HomePanel({
               <button 
                 onClick={handleOpenEditModal}
                 style={{
-                  background: 'rgba(123, 108, 255, 0.08)',
+                  background: 'rgba(245, 158, 11, 0.08)',
                   border: `1px solid ${T.accent}40`,
                   borderRadius: 4,
                   padding: '2px 8px',
@@ -383,8 +358,8 @@ export default function HomePanel({
                   transition: 'all 0.2s',
                   letterSpacing: '0.04em'
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(123, 108, 255, 0.15)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(123, 108, 255, 0.08)'}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)'}
               >
                 ✏ ADJUST BALANCE
               </button>
@@ -463,7 +438,7 @@ export default function HomePanel({
                     fontSize: 9,
                     fontWeight: 700,
                     color: bestSignal.signal.includes('BUY') ? T.green : T.red,
-                    background: bestSignal.signal.includes('BUY') ? 'rgba(0,229,168,0.1)' : 'rgba(255,61,90,0.1)',
+                    background: bestSignal.signal.includes('BUY') ? T.greenDim : T.redDim,
                     padding: '2px 8px',
                     borderRadius: 4
                   }}>
@@ -486,7 +461,7 @@ export default function HomePanel({
               marginTop: 16,
               width: '100%',
               padding: '8px 0',
-              background: 'rgba(123, 108, 255, 0.08)',
+              background: 'rgba(245, 158, 11, 0.08)',
               border: `1px solid ${T.accent}30`,
               borderRadius: 6,
               color: T.accent,
@@ -496,8 +471,8 @@ export default function HomePanel({
               transition: 'all 0.2s',
               letterSpacing: '0.04em'
             }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(123, 108, 255, 0.15)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(123, 108, 255, 0.08)'}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)'}
           >
              OPEN SIGNAL SCANNER
           </button>
@@ -535,18 +510,18 @@ export default function HomePanel({
               marginTop: 16,
               width: '100%',
               padding: '8px 0',
-              background: 'rgba(245, 200, 66, 0.08)',
-              border: `1px solid ${'#f5c842'}30`,
+              background: 'rgba(245, 158, 11, 0.08)',
+              border: `1px solid ${T.accent}30`,
               borderRadius: 6,
-              color: '#f5c842',
+              color: T.accent,
               fontSize: 10,
               fontWeight: 700,
               cursor: 'pointer',
               transition: 'all 0.2s',
               letterSpacing: '0.04em'
             }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.15)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.08)'}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)'}
           >
              PREDICTIONS CENTRE
           </button>
@@ -580,14 +555,14 @@ export default function HomePanel({
               background: T.accent,
               border: 'none',
               borderRadius: 6,
-              color: '#fff',
+              color: '#050506',
               fontSize: 10,
               fontWeight: 700,
               cursor: 'pointer',
               transition: 'all 0.2s',
               letterSpacing: '0.04em'
             }}
-            onMouseEnter={e => e.currentTarget.style.background = '#6c5ce7'}
+            onMouseEnter={e => e.currentTarget.style.background = '#d97706'}
             onMouseLeave={e => e.currentTarget.style.background = T.accent}
           >
              OPEN INTERACTIVE CHARTS
@@ -635,7 +610,7 @@ export default function HomePanel({
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(8, 10, 15, 0.8)',
+          background: 'rgba(5, 5, 6, 0.85)',
           backdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
@@ -831,7 +806,7 @@ export default function HomePanel({
                 <button 
                   onClick={handleAddHolding}
                   style={{
-                    background: 'rgba(0, 229, 168, 0.08)',
+                    background: 'rgba(245, 158, 11, 0.08)',
                     border: `1px solid ${T.green}40`,
                     borderRadius: 6,
                     padding: '6px 0',
@@ -842,8 +817,8 @@ export default function HomePanel({
                     transition: 'all 0.2s',
                     marginTop: 4
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(0, 229, 168, 0.15)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(0, 229, 168, 0.08)'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)'}
                 >
                   ADD TO PORTFOLIO
                 </button>
@@ -877,13 +852,13 @@ export default function HomePanel({
                   border: 'none',
                   borderRadius: 6,
                   padding: '6px 14px',
-                  color: '#fff',
+                  color: '#050506',
                   fontSize: 10,
                   fontWeight: 700,
                   cursor: 'pointer',
                   transition: 'all 0.2s'
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = '#6c5ce7'}
+                onMouseEnter={e => e.currentTarget.style.background = '#d97706'}
                 onMouseLeave={e => e.currentTarget.style.background = T.accent}
               >
                 SAVE CHANGES

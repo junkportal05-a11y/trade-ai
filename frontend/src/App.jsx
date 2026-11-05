@@ -938,9 +938,9 @@ export default function App() {
         {/* Reconnecting banner if backend offline */}
         {!connected && (
           <div style={{
-            background: 'rgba(245,200,66,0.08)',
-            borderBottom: `1px solid rgba(245,200,66,0.2)`,
-            color: '#f5c842',
+            background: 'rgba(245, 158, 11, 0.08)',
+            borderBottom: `1px solid rgba(245, 158, 11, 0.2)`,
+            color: '#fbbf24',
             padding: '6px 16px',
             fontSize: 10,
             display: 'flex',
@@ -952,7 +952,7 @@ export default function App() {
             letterSpacing: '0.04em',
             flexShrink: 0
           }}>
-            <span style={{ display: 'inline-block', width: 12, height: 12, border: `2px solid rgba(245,200,66,0.3)`, borderTopColor: '#f5c842', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <span style={{ display: 'inline-block', width: 12, height: 12, border: `2px solid rgba(245, 158, 11, 0.3)`, borderTopColor: '#fbbf24', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
             CONNECTING TO QUANT SERVER...
           </div>
         )}
@@ -1125,8 +1125,8 @@ export default function App() {
                             {INTERVALS.map((intv, i) => (
                               <button key={intv.label} onClick={() => setIvIdx(i)} style={{
                                 padding: '4px 9px', borderRadius: 6, cursor: 'pointer', fontSize: 10.5, fontWeight: 600,
-                                border: `1px solid ${ivIdx === i ? 'rgba(99, 102, 241, 0.35)' : 'transparent'}`,
-                                background: ivIdx === i ? `linear-gradient(135deg, ${T.accentDim}, rgba(168, 85, 247, 0.08))` : 'transparent',
+                                border: `1px solid ${ivIdx === i ? 'rgba(245, 158, 11, 0.35)' : 'transparent'}`,
+                                background: ivIdx === i ? `linear-gradient(135deg, ${T.accentDim}, rgba(217, 119, 6, 0.08))` : 'transparent',
                                 boxShadow: ivIdx === i ? `0 0 12px ${T.accentGlow}` : 'none',
                                 color: ivIdx === i ? '#fff' : T.textMid,
                                 fontFamily: "'Inter', sans-serif",
@@ -1225,10 +1225,10 @@ export default function App() {
                               onClick={() => setView('PREDICTIONS')}
                               style={{
                                 padding: '3px 8px',
-                                background: 'rgba(245, 200, 66, 0.08)',
-                                border: `1px solid ${'#f5c842'}30`,
+                                background: 'rgba(245, 158, 11, 0.08)',
+                                border: `1px solid ${T.accent}30`,
                                 borderRadius: 5,
-                                color: '#f5c842',
+                                color: T.accent,
                                 fontSize: 9,
                                 fontWeight: 700,
                                 cursor: 'pointer',
@@ -1236,8 +1236,8 @@ export default function App() {
                                 letterSpacing: '0.04em',
                                 transition: 'all 0.2s'
                               }}
-                              onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.15)'}
-                              onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 200, 66, 0.08)'}
+                              onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)'}
                             >
                               LOG PREDICTION
                             </button>
@@ -1338,8 +1338,8 @@ export default function App() {
                         {INTERVALS.map((intv, i) => (
                           <button key={intv.label} onClick={() => setIvIdx(i)} style={{
                             padding: '4px 11px', borderRadius: 6, cursor: 'pointer', fontSize: 10.5, fontWeight: 600,
-                            border: `1px solid ${ivIdx === i ? 'rgba(99, 102, 241, 0.35)' : 'transparent'}`,
-                            background: ivIdx === i ? `linear-gradient(135deg, ${T.accentDim}, rgba(168, 85, 247, 0.08))` : 'transparent',
+                            border: `1px solid ${ivIdx === i ? 'rgba(245, 158, 11, 0.35)' : 'transparent'}`,
+                            background: ivIdx === i ? `linear-gradient(135deg, ${T.accentDim}, rgba(217, 119, 6, 0.08))` : 'transparent',
                             boxShadow: ivIdx === i ? `0 0 12px ${T.accentGlow}` : 'none',
                             color: ivIdx === i ? '#fff' : T.textMid,
                             fontFamily: "'Inter', sans-serif", letterSpacing: '0.02em',

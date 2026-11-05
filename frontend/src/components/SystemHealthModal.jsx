@@ -10,7 +10,7 @@ export default function SystemHealthModal({ isOpen, onClose, health, onRefresh }
     if (!status) return T.textDim;
     const s = status.toLowerCase();
     if (s === 'healthy' || s === 'open' || s === 'configured') return T.green;
-    if (s === 'degraded' || s === 'warning' || s === 'not_configured') return '#f5c842';
+    if (s === 'degraded' || s === 'warning' || s === 'not_configured') return '#fbbf24';
     if (s === 'unhealthy' || s === 'error' || s === 'closed') return T.red;
     return T.textMid;
   };

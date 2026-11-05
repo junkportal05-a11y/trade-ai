@@ -93,26 +93,26 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
       const price = candleSeries.coordinateToPrice(param.point.y);
       if (price !== null && onDrawComplete) onDrawComplete({ price, type: drawMode, id: Date.now() });
     });
-    const volSeries = mainChart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'vol', color: 'rgba(77,159,255,0.25)' });
-    const volData = bars.map(b => ({ time: b.time, value: b.volume || 0, color: b.close >= b.open ? 'rgba(0,216,160,0.22)' : 'rgba(255,78,106,0.22)' }));
+    const volSeries = mainChart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'vol', color: 'rgba(245,158,11,0.25)' });
+    const volData = bars.map(b => ({ time: b.time, value: b.volume || 0, color: b.close >= b.open ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)' }));
     volSeries.setData(volData);
     volSeriesRef.current = volSeries;
     mainChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     if (indicators.ema9) {
       const ema9Data = calcEMA(bars, 9);
-      const ema9Series = mainChart.addSeries(LineSeries, { color: '#00e5a8', lineWidth: 1.5, title: 'EMA 9' });
+      const ema9Series = mainChart.addSeries(LineSeries, { color: '#fbbf24', lineWidth: 1.5, title: 'EMA 9' });
       ema9Series.setData(ema9Data);
     }
     if (indicators.ema21) {
       const ema21Data = calcEMA(bars, 21);
-      const ema21Series = mainChart.addSeries(LineSeries, { color: '#ff9f43', lineWidth: 1.5, title: 'EMA 21' });
+      const ema21Series = mainChart.addSeries(LineSeries, { color: '#d97706', lineWidth: 1.5, title: 'EMA 21' });
       ema21Series.setData(ema21Data);
     }
     if (indicators.bb) {
       const bbData = calcBollingerBands(bars, 20, 2);
-      mainChart.addSeries(LineSeries, { color: 'rgba(123,108,255,0.6)', lineWidth: 1 }).setData(bbData.upper);
-      mainChart.addSeries(LineSeries, { color: 'rgba(123,108,255,0.3)', lineWidth: 1, lineStyle: 2 }).setData(bbData.middle);
-      mainChart.addSeries(LineSeries, { color: 'rgba(123,108,255,0.6)', lineWidth: 1 }).setData(bbData.lower);
+      mainChart.addSeries(LineSeries, { color: 'rgba(245,158,11,0.4)', lineWidth: 1 }).setData(bbData.upper);
+      mainChart.addSeries(LineSeries, { color: 'rgba(245,158,11,0.2)', lineWidth: 1, lineStyle: 2 }).setData(bbData.middle);
+      mainChart.addSeries(LineSeries, { color: 'rgba(245,158,11,0.4)', lineWidth: 1 }).setData(bbData.lower);
     }
     customLines.forEach(line => {
       candleSeries.createPriceLine({ price: line.price, color: line.type === 'SUPPORT' ? T.green : T.red, lineWidth: 2, lineStyle: 1, axisLabelVisible: true, title: line.type === 'SUPPORT' ? 'SUP' : 'RES' });
@@ -129,10 +129,10 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
       });
       rsiChartRef.current = rsiChart;
       targets.push(rsiChart);
-      const rsiSeries = rsiChart.addSeries(LineSeries, { color: '#7b6cff', lineWidth: 1.5 });
+      const rsiSeries = rsiChart.addSeries(LineSeries, { color: '#f59e0b', lineWidth: 1.5 });
       rsiSeries.setData(calcRSI(bars, 14));
-      rsiSeries.createPriceLine({ price: 70, color: 'rgba(255,61,90,0.4)', lineWidth: 1, lineStyle: 3, axisLabelVisible: true });
-      rsiSeries.createPriceLine({ price: 30, color: 'rgba(0,229,168,0.4)', lineWidth: 1, lineStyle: 3, axisLabelVisible: true });
+      rsiSeries.createPriceLine({ price: 70, color: 'rgba(239,68,68,0.4)', lineWidth: 1, lineStyle: 3, axisLabelVisible: true });
+      rsiSeries.createPriceLine({ price: 30, color: 'rgba(245,158,11,0.4)', lineWidth: 1, lineStyle: 3, axisLabelVisible: true });
       rsiChart.priceScale('right').applyOptions({ autoScale: false, min: 0, max: 100 });
     }
     if (indicators.macd && macdContainerRef.current) {
@@ -148,9 +148,9 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
       targets.push(macdChart);
       const macdData = calcMACD(bars);
       const macdHistSeries = macdChart.addSeries(HistogramSeries, { priceScaleId: 'right' });
-      macdHistSeries.setData(macdData.histogram.map(h => ({ time: h.time, value: h.value, color: h.value >= 0 ? 'rgba(0,229,168,0.3)' : 'rgba(255,61,90,0.3)' })));
-      macdChart.addSeries(LineSeries, { color: '#4da6ff', lineWidth: 1.2 }).setData(macdData.macdLine.map(m => ({ time: m.time, value: m.value })));
-      macdChart.addSeries(LineSeries, { color: '#f5c842', lineWidth: 1.2 }).setData(macdData.signalLine.map(s => ({ time: s.time, value: s.value })));
+      macdHistSeries.setData(macdData.histogram.map(h => ({ time: h.time, value: h.value, color: h.value >= 0 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)' })));
+      macdChart.addSeries(LineSeries, { color: '#fbbf24', lineWidth: 1.2 }).setData(macdData.macdLine.map(m => ({ time: m.time, value: m.value })));
+      macdChart.addSeries(LineSeries, { color: '#ef4444', lineWidth: 1.2 }).setData(macdData.signalLine.map(s => ({ time: s.time, value: s.value })));
     }
     if (targets.length > 0) {
       mainChart.timeScale().subscribeVisibleTimeRangeChange(() => {
@@ -254,7 +254,7 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
       <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
         <div ref={legendRef} style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, fontFamily: "'IBM Plex Mono', monospace", pointerEvents: 'none', background: 'rgba(13,16,24,0.65)', backdropFilter: 'blur(4px)', padding: '8px 12px', borderRadius: 6, display: 'none', border: `1px solid ${T.borderHi}` }} />
         {botPaperMode === true && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, pointerEvents: 'none', color: 'rgba(255,255,255,0.05)', fontSize: '8vw', fontWeight: 900, whiteSpace: 'nowrap', userSelect: 'none' }}>SIMULATION MODE</div>}
-        {dataSource === PRICE_FEED_SOURCE && <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 9, color: '#f5c842', fontSize: 9, background: 'rgba(245,200,66,0.12)', padding: '2px 6px', borderRadius: 3, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, letterSpacing: '0.05em' }}>SIMULATED FEED</div>}
+        {dataSource === PRICE_FEED_SOURCE && <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 9, color: '#fbbf24', fontSize: 9, background: 'rgba(245,158,11,0.12)', padding: '2px 6px', borderRadius: 3, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, letterSpacing: '0.05em' }}>SIMULATED FEED</div>}
 
         <div style={{
           position: 'absolute', top: 12, right: 12, zIndex: 11,
@@ -308,8 +308,8 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
                   <span style={{
                     fontWeight: 700, padding: '2px 7px', borderRadius: 999,
                     color: scanResult.trend === 'bullish' ? T.green : scanResult.trend === 'bearish' ? T.red : T.blue,
-                    background: scanResult.trend === 'bullish' ? T.greenDim : scanResult.trend === 'bearish' ? T.redDim : 'rgba(56,189,248,0.12)',
-                    border: `1px solid ${scanResult.trend === 'bullish' ? T.greenGlow : scanResult.trend === 'bearish' ? T.redGlow : 'rgba(56,189,248,0.3)'}`,
+                    background: scanResult.trend === 'bullish' ? T.greenDim : scanResult.trend === 'bearish' ? T.redDim : 'rgba(245,158,11,0.12)',
+                    border: `1px solid ${scanResult.trend === 'bullish' ? T.greenGlow : scanResult.trend === 'bearish' ? T.redGlow : 'rgba(245,158,11,0.3)'}`,
                   }}>
                     {(scanResult.trend || 'neutral').toUpperCase()}
                   </span>

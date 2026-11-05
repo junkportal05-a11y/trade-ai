@@ -47,7 +47,7 @@ export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteO
       <div style={{ display: 'flex', gap: 6 }}>
         {['market', 'limit'].map(t => (
           <button key={t} onClick={() => setType(t)} style={{ flex: 1, padding: '6px 0', border: `1px solid ${type === t ? T.accent : T.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10,
-            background: type === t ? 'rgba(56,189,248,0.12)' : 'transparent', color: type === t ? T.accent : T.textDim, fontFamily: "'Inter', sans-serif" }}>{t.toUpperCase()}</button>
+            background: type === t ? 'rgba(245, 158, 11, 0.12)' : 'transparent', color: type === t ? T.accent : T.textDim, fontFamily: "'Inter', sans-serif" }}>{t.toUpperCase()}</button>
         ))}
       </div>
       <Label text="QUANTITY"><Input value={qty} onChange={e => setQty(e.target.value)} placeholder="0.00" suffix="SHARES" /></Label>
@@ -60,9 +60,9 @@ export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteO
         <span style={{ color: T.textDim }}>EST. TOTAL</span><span style={{ color: total === '—' ? T.textDim : T.text }}>₹{total === '—' ? '—' : fmt(total)}</span>
       </div>
       {status === 'filled' && <div style={{ padding: '8px 10px', background: T.greenDim, border: `1px solid ${T.green}`, borderRadius: 6, fontSize: 10, color: T.green, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>✓ ORDER FILLED (PAPER)</div>}
-      {status === 'placed' && <div style={{ padding: '8px 10px', background: 'rgba(56,189,248,0.12)', border: `1px solid ${T.blue}`, borderRadius: 6, fontSize: 10, color: T.blue, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>✓ LIMIT ORDER PLACED (PAPER)</div>}
+      {status === 'placed' && <div style={{ padding: '8px 10px', background: 'rgba(245,158,11,0.12)', border: `1px solid ${T.blue}`, borderRadius: 6, fontSize: 10, color: T.blue, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>✓ LIMIT ORDER PLACED (PAPER)</div>}
       {marketBlocked && (
-        <div style={{ padding: '6px 10px', background: 'rgba(245,200,66,0.12)', border: '1px solid rgba(245,200,66,0.3)', borderRadius: 6, fontSize: 10, color: '#f5c842', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>
+        <div style={{ padding: '6px 10px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6, fontSize: 10, color: '#fbbf24', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>
           MARKET ORDERS LOCKED — waiting for the first feed tick for this symbol (seeded prices are not orderable)
         </div>
       )}
@@ -82,7 +82,7 @@ export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteO
                   </div>
                   <div style={{ fontSize: 8, color: T.textDim, marginTop: 1, fontFamily: "'IBM Plex Mono', monospace" }}>{o.qty} shares @ ₹{fmt(o.limitPrice)}</div>
                 </div>
-                <button onClick={() => onCancelOrder(o.id)} style={{ padding: '2px 6px', background: T.redDim, border: `1px solid rgba(255,61,90,0.3)`, borderRadius: 4, color: T.red, fontSize: 8, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>CANCEL</button>
+                <button onClick={() => onCancelOrder(o.id)} style={{ padding: '2px 6px', background: T.redDim, border: `1px solid rgba(239,68,68,0.3)`, borderRadius: 4, color: T.red, fontSize: 8, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>CANCEL</button>
               </div>
             ))}
           </div>

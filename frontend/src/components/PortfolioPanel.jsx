@@ -23,7 +23,7 @@ export default function PortfolioPanel({ prices, portfolio, cash }) {
     slices.push({ label: 'Cash', value: cash, color: T.blue, weight: cashWeight, dashOffset: C - (acc * C) });
     acc += cashWeight;
   }
-  const COLORS = ['#7b6cff', '#00e5a8', '#ff9f43', '#9b5de5', '#f5c842', '#ff3d5a', '#ff4da6'];
+  const COLORS = ['#f59e0b', '#fbbf24', '#d97706', '#ef4444', '#b45309', '#dc2626', '#92400e'];
   positions.forEach((pos, idx) => {
     if (totalValue > 0 && pos.value > 0) {
       const weight = pos.value / totalValue;

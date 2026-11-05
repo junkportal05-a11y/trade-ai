@@ -17,7 +17,7 @@ function getMarketSession(now = new Date()) {
     return { label: 'CLOSED', color: T.red, live: false };
   }
   if (minutes >= 9 * 60 && minutes < 9 * 60 + 15) {
-    return { label: 'PRE-MARKET', color: '#f5c842', live: false };
+    return { label: 'PRE-MARKET', color: '#fbbf24', live: false };
   }
   if (minutes >= 9 * 60 + 15 && minutes <= 15 * 60 + 30) {
     return { label: 'NSE OPEN', color: T.green, live: true };
@@ -258,9 +258,9 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
                 style={{
                   fontSize: 8,
                   fontWeight: 700,
-                  color: '#f5c842',
-                  background: 'rgba(245,200,66,0.12)',
-                  border: '1px solid rgba(245,200,66,0.3)',
+                  color: '#fbbf24',
+                  background: 'rgba(245,158,11,0.12)',
+                  border: '1px solid rgba(245,158,11,0.3)',
                   padding: '1px 5px',
                   borderRadius: 3,
                   fontFamily: "'IBM Plex Mono', monospace",
@@ -319,7 +319,7 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
               fontFamily: "'Inter', sans-serif",
               transition: PILL_TRANSITION,
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.45)'; e.currentTarget.style.color = T.text; }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.45)'; e.currentTarget.style.color = T.text; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textMid; }}
           >
             <Search size={13} />
@@ -392,8 +392,8 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
             padding: '4px 9px',
             borderRadius: 999,
             cursor: 'pointer',
-            border: `1px solid ${!connected ? T.redGlow : session.color === T.green ? T.greenGlow : session.color === '#f5c842' ? 'rgba(245,200,66,0.3)' : T.redGlow}`,
-            background: !connected ? T.redDim : session.color === T.green ? T.greenDim : session.color === '#f5c842' ? 'rgba(245,200,66,0.12)' : T.redDim,
+            border: `1px solid ${!connected ? T.redGlow : session.color === T.green ? T.greenGlow : session.color === '#fbbf24' ? 'rgba(245,158,11,0.3)' : T.redGlow}`,
+            background: !connected ? T.redDim : session.color === T.green ? T.greenDim : session.color === '#fbbf24' ? 'rgba(245,158,11,0.12)' : T.redDim,
           }}
         >
           <span style={{

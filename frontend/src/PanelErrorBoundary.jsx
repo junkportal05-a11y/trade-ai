@@ -27,7 +27,7 @@ export class PanelErrorBoundary extends React.Component {
           textAlign: 'center',
           margin: '1rem'
         }}>
-          <h3 style={{ color: '#FF2E55', marginBottom: '0.5rem' }}>⚠ Component Rendering Reset Required</h3>
+          <h3 style={{ color: '#ef4444', marginBottom: '0.5rem' }}>⚠ Component Rendering Reset Required</h3>
           <p style={{ fontSize: '0.9rem', color: '#90A4AE', marginBottom: '1.5rem' }}>
             {this.state.error?.message ? String(this.state.error.message) : "A visual component encountered an unexpected render state."}
           </p>
@@ -38,8 +38,8 @@ export class PanelErrorBoundary extends React.Component {
             }}
             style={{
               padding: '0.6rem 1.2rem',
-              background: '#7B6CFF',
-              color: '#FFF',
+              background: '#f59e0b',
+              color: '#050506',
               border: 'none',
               borderRadius: '8px',
               cursor: 'pointer',
