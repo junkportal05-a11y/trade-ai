@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Black, Red & Gold Only */
+  --bg-canvas: #050506;
+  --bg-surface: #0c0a09;
+  --border-gold: rgba(245, 158, 11, 0.2);
+  --gold: #f59e0b;
+  --gold-light: #fbbf24;
+  --red: #ef4444;
+  --red-dark: #dc2626;
+}
+
+body {
+  background-color: var(--bg-canvas);
+  color: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, "Plus Jakarta Sans", sans-serif;
+  overflow-x: hidden;
+}
+
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.glass-panel {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-gold);
+  box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.9);
+}
+
+.glass-input {
+  background: #000000;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  color: #ffffff;
+}
+.glass-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #000000;
+  font-weight: 800;
+  box-shadow: 0 0 22px rgba(245, 158, 11, 0.35);
+}
+.btn-gold:hover {
+  background: linear-gradient(135deg, #fde68a, #fbbf24);
+}
+
+.btn-crimson {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 0 22px rgba(239, 68, 68, 0.35);
+}
+.btn-crimson:hover {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+}
