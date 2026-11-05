@@ -116,9 +116,10 @@ export default function BacktestRunner({ onResults }) {
           </div>
         </div>
         <button type="button" onClick={handleTournament} disabled={tournamentLoading} style={{
-          padding: '8px 16px', borderRadius: 6, border: `1px solid ${'#f5c842'}`,
-          background: 'rgba(245,200,66,0.12)', color: '#f5c842', fontWeight: 700, fontSize: 10,
-          letterSpacing: '0.08em', cursor: tournamentLoading ? 'not-allowed' : 'pointer', ...mono
+          padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(245, 158, 11, 0.4)',
+          background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', fontWeight: 700, fontSize: 10,
+          letterSpacing: '0.08em', cursor: tournamentLoading ? 'not-allowed' : 'pointer', ...mono,
+          boxShadow: '0 0 12px rgba(245, 158, 11, 0.2)'
         }}>
           <Trophy size={12} style={{ marginRight: 6, verticalAlign: '-1px' }} />
           {tournamentLoading ? 'EVALUATING 30 STRATEGIES...' : 'RUN 30-STRATEGY TOURNAMENT'}
@@ -163,10 +164,12 @@ export default function BacktestRunner({ onResults }) {
         </div>
 
         <button type="submit" disabled={loading} style={{
-          padding: '12px 24px', borderRadius: 8, border: 'none',
-          background: loading ? T.accentDim : T.accent, color: '#fff',
-          fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', cursor: loading ? 'not-allowed' : 'pointer',
+          padding: '12px 24px', borderRadius: 10, border: 'none',
+          background: loading ? 'rgba(245, 158, 11, 0.4)' : 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+          color: '#000000',
+          fontWeight: 800, fontSize: 12, letterSpacing: '0.06em', cursor: loading ? 'not-allowed' : 'pointer',
           fontFamily: "'IBM Plex Mono', monospace", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          boxShadow: '0 0 20px rgba(245, 158, 11, 0.35)',
         }}>
           {loading ? '⟳ RUNNING...' : '▶ RUN BACKTEST'}
         </button>

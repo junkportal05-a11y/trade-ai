@@ -15,8 +15,8 @@ class ErrorBoundary extends React.Component {
     if (this.state.crashed) {
       return (
         <div style={{
-          color: '#ff3d5a',
-          backgroundColor: '#0a0e14',
+          color: '#ef4444',
+          backgroundColor: '#050506',
           height: '100vh',
           display: 'flex',
           flexDirection: 'column',
@@ -32,8 +32,8 @@ class ErrorBoundary extends React.Component {
             onClick={this.handleRetry}
             style={{
               padding: '10px 20px',
-              background: '#6366f1',
-              color: '#0a0e14',
+              background: '#f59e0b',
+              color: '#000000',
               border: 'none',
               borderRadius: 6,
               fontSize: 13,

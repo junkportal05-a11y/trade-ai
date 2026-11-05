@@ -31,7 +31,7 @@ export default function IntroSplash({ onWokenUp }) {
   });
   const [customInput, setCustomInput] = useState('');
   const [showConfig, setShowConfig] = useState(false);
-const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
   const [status, setStatus] = useState('connecting');
   const [healthData, setHealthData] = useState(null);
   const [latency, setLatency] = useState(null);
@@ -210,7 +210,7 @@ const [elapsed, setElapsed] = useState(0);
             fontWeight: 800,
             letterSpacing: '0.03em',
             margin: 0,
-            background: 'linear-gradient(135deg, #ffffff 40%, #a855f7 100%)',
+            background: 'linear-gradient(135deg, #ffffff 40%, #d97706 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}>
@@ -234,7 +234,7 @@ const [elapsed, setElapsed] = useState(0);
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#07090e',
+              color: '#050506',
               transition: 'all 0.4s ease',
             }}>
               {connected ? <CheckCircle2 size={21} strokeWidth={2.5} /> : failed ? <AlertTriangle size={21} strokeWidth={2.5} /> : status === 'sleeping' ? <RefreshCw size={18} strokeWidth={2.5} /> : <Activity size={20} color="#fff" strokeWidth={2.5} />}

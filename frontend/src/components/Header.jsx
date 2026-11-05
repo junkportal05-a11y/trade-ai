@@ -38,31 +38,31 @@ function NavButton({ tab, active, onClick }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 6,
-        padding: '5px 11px',
-        borderRadius: 7,
+        padding: '5px 12px',
+        borderRadius: 8,
         cursor: 'pointer',
-        border: `1px solid ${active ? 'rgba(99, 102, 241, 0.35)' : 'transparent'}`,
+        border: `1px solid ${active ? 'rgba(245, 158, 11, 0.4)' : 'transparent'}`,
         background: active
-          ? `linear-gradient(135deg, ${T.accentDim}, rgba(168, 85, 247, 0.08))`
+          ? 'rgba(245, 158, 11, 0.15)'
           : 'transparent',
-        boxShadow: active ? `0 0 18px ${T.accentGlow}, inset 0 0 12px rgba(99, 102, 241, 0.06)` : 'none',
-        color: active ? '#fff' : T.textMid,
+        boxShadow: active ? '0 0 15px rgba(245, 158, 11, 0.2)' : 'none',
+        color: active ? '#fbbf24' : '#94a3b8',
         fontSize: 12,
-        fontWeight: 600,
-        letterSpacing: '0.02em',
-        fontFamily: "'Inter', sans-serif",
+        fontWeight: active ? 700 : 500,
+        letterSpacing: '0.01em',
+        fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
         transition: PILL_TRANSITION,
         whiteSpace: 'nowrap',
       }}
       onMouseEnter={e => {
         if (!active) {
-          e.currentTarget.style.color = T.text;
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.035)';
+          e.currentTarget.style.color = '#ffffff';
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
         }
       }}
       onMouseLeave={e => {
         if (!active) {
-          e.currentTarget.style.color = T.textMid;
+          e.currentTarget.style.color = '#94a3b8';
           e.currentTarget.style.background = 'transparent';
         }
       }}
@@ -113,35 +113,58 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
       position: 'relative',
       zIndex: 40,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <div style={{
-          width: 28,
-          height: 28,
+          width: 32,
+          height: 32,
           borderRadius: 8,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: `linear-gradient(135deg, ${T.accent}, ${T.accentAlt})`,
-          boxShadow: `0 0 20px ${T.accentGlow}`,
+          background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+          border: '1px solid #fde68a',
+          color: '#000000',
+          fontWeight: 900,
+          fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace",
+          fontSize: 12,
+          boxShadow: '0 0 15px rgba(245, 158, 11, 0.35)',
         }}>
-          <Zap size={15} color="#fff" strokeWidth={2.6} />
+          AT
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 13,
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-            background: `linear-gradient(135deg, #ffffff, ${T.accentAlt})`,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
+            fontSize: 16,
+            fontWeight: 800,
+            color: '#ffffff',
+            letterSpacing: '-0.02em',
             whiteSpace: 'nowrap',
           }}>
             ApexTrade
           </span>
+          <span style={{
+            padding: '2px 6px',
+            borderRadius: 4,
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            fontSize: 10,
+            fontFamily: "'IBM Plex Mono', monospace",
+            color: '#94a3b8',
+            fontWeight: 600,
+          }}>
+            v6.1.1
+          </span>
           {!isMobile && (
-            <span style={{ fontSize: 8, color: T.textDim, letterSpacing: '0.18em', fontWeight: 700 }}>
-              QUANT WORKSTATION
+            <span style={{
+              padding: '2px 8px',
+              borderRadius: 9999,
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              fontSize: 10,
+              color: '#ef4444',
+              fontWeight: 700,
+            }}>
+              PAPER ONLY
             </span>
           )}
         </div>
