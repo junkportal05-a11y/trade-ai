@@ -223,3 +223,82 @@ button:active { transform: scale(0.97); }
 ::-webkit-scrollbar-track { background: #050506; }
 ::-webkit-scrollbar-thumb { background: rgba(245, 158, 11, 0.2); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(245, 158, 11, 0.4); }
+
+/* ─── Accessibility: Reduced Motion ─────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  body::before { animation: none !important; opacity: 0 !important; }
+  .panel-transition { animation: none !important; }
+  .smooth-button:hover { transform: none !important; }
+  .smooth-button:active { transform: none !important; }
+  .smooth-card:hover { transform: none !important; }
+}
+
+/* ─── Focus visible ring (keyboard accessibility) ───────────────── */
+:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ─── Selection highlight ───────────────────────────────────────── */
+::selection {
+  background: rgba(245, 158, 11, 0.3);
+  color: #fff;
+}
+
+/* ─── Empty state illustration ──────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  gap: 12px;
+  text-align: center;
+}
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px dashed rgba(245, 158, 11, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: rgba(245, 158, 11, 0.4);
+}
+.empty-state-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.02em;
+}
+.empty-state-desc {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+/* ─── Skeleton loading shimmer ──────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, #0e0c0a 25%, #1a1814 50%, #0e0c0a 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
