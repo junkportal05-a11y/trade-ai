@@ -44,7 +44,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
         </div>
         <div style={{
           padding: '6px 14px',
-          background: 'rgba(0, 229, 168, 0.05)',
+          background: T.greenDim,
           border: `1px solid ${T.green}30`,
           borderRadius: 6,
           color: T.green,
@@ -223,7 +223,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
                     flexDirection: 'column',
                     gap: 4,
                     padding: '10px 12px',
-                    background: isActiveClearance ? 'rgba(123, 108, 255, 0.05)' : T.panelAlt,
+                    background: isActiveClearance ? 'rgba(245, 158, 11, 0.08)' : T.panelAlt,
                     border: `1px solid ${isActiveClearance ? T.accent + '40' : T.border}`,
                     borderRadius: 8
                   }}>

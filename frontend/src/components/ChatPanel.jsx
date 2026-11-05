@@ -11,7 +11,7 @@ const SUGGESTIONS = [
   { label: 'Explain Market Regime', icon: BarChart3 },
 ];
 
-const confidenceColor = (value) => value > 0.7 ? T.green : value > 0.4 ? '#f5c842' : T.red;
+const confidenceColor = (value) => value > 0.7 ? T.green : value > 0.4 ? '#fbbf24' : T.red;
 
 function priceList(levels) {
   if (!levels?.length) return 'None';
@@ -131,8 +131,8 @@ export default function ChatPanel({ symbol, price, changePct }) {
           padding: '10px 13px',
           borderRadius: isUser ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
           background: isUser ? T.accentDim : `linear-gradient(160deg, ${T.panel}, ${T.surface})`,
-          border: `1px solid ${isUser ? 'rgba(99, 102, 241, 0.35)' : T.borderHi}`,
-          boxShadow: isUser ? 'none' : `0 6px 18px rgba(0, 0, 0, 0.25), inset 0 0 20px rgba(99, 102, 241, 0.03)`,
+          border: `1px solid ${isUser ? 'rgba(245, 158, 11, 0.35)' : T.borderHi}`,
+          boxShadow: isUser ? 'none' : `0 6px 18px rgba(0, 0, 0, 0.25), inset 0 0 20px rgba(245, 158, 11, 0.03)`,
           fontSize: 12,
           lineHeight: 1.65,
           color: T.text,
@@ -198,7 +198,7 @@ export default function ChatPanel({ symbol, price, changePct }) {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     <div>
                       <div style={{ color: T.textMid, fontSize: 9 }}>TREND</div>
-                      <div style={{ color: m.chartAnalysis.trend === 'bullish' ? T.green : m.chartAnalysis.trend === 'bearish' ? T.red : '#f5c842', fontWeight: 700 }}>
+                      <div style={{ color: m.chartAnalysis.trend === 'bullish' ? T.green : m.chartAnalysis.trend === 'bearish' ? T.red : '#fbbf24', fontWeight: 700 }}>
                         {m.chartAnalysis.trend?.toUpperCase() || 'UNKNOWN'}
                       </div>
                     </div>
@@ -245,9 +245,9 @@ export default function ChatPanel({ symbol, price, changePct }) {
             fontSize: 8,
             padding: '2px 7px',
             borderRadius: 999,
-            background: aiSource === 'gemini' ? 'rgba(56,189,248,0.12)' : T.greenDim,
+            background: aiSource === 'gemini' ? 'rgba(245, 158, 11, 0.12)' : T.greenDim,
             color: aiSource === 'gemini' ? T.blue : T.green,
-            border: `1px solid ${aiSource === 'gemini' ? 'rgba(56,189,248,0.3)' : T.greenGlow}`,
+            border: `1px solid ${aiSource === 'gemini' ? 'rgba(245, 158, 11, 0.3)' : T.greenGlow}`,
             fontFamily: "'IBM Plex Mono', monospace",
             letterSpacing: '0.06em',
           }}>
@@ -292,7 +292,7 @@ export default function ChatPanel({ symbol, price, changePct }) {
               fontFamily: "'IBM Plex Mono', monospace",
               transition: 'all 0.15s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.5)'; e.currentTarget.style.color = T.text; }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.5)'; e.currentTarget.style.color = T.text; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = T.borderHi; e.currentTarget.style.color = T.textMid; }}
           >
             <Icon size={11} />

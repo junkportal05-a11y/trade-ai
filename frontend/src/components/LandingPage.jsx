@@ -7,9 +7,9 @@ export default function LandingPage() {
     <div style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: "'Inter', system-ui, sans-serif" }}>
       {/* Hero Section */}
       <section style={{ minHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, rgba(99,102,241,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, rgba(245,158,11,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: '20%', left: '10%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(245,158,11,0.04) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none', animation: 'float 20s ease-in-out infinite' }} />
-        <div style={{ position: 'absolute', bottom: '10%', right: '10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(245,200,66,0.04) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none', animation: 'float 25s ease-in-out infinite reverse' }} />
+        <div style={{ position: 'absolute', bottom: '10%', right: '10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(245,158,11,0.04) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none', animation: 'float 25s ease-in-out infinite reverse' }} />
         
         <style jsx>{`
           @keyframes float {
@@ -19,7 +19,7 @@ export default function LandingPage() {
         `}</style>
 
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 800, textAlign: 'center', width: '100%' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 999, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', marginBottom: 24 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 999, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', marginBottom: 24 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: T.accent, letterSpacing: '0.12em' }}>APEX TRADE AI</span>
           </div>
           
@@ -50,7 +50,7 @@ export default function LandingPage() {
               <BarChart3 size={14} color={T.blue} /> 30-strategy backtesting
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Zap size={14} color={'#f5c842'} /> Simulated NSE feed
+              <Zap size={14} color={'#fbbf24'} /> Simulated NSE feed
             </div>
           </div>
         </div>
@@ -60,7 +60,7 @@ export default function LandingPage() {
       <section id="features" style={{ padding: '100px 24px', background: T.surface, borderTop: `1px solid ${T.border}` }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           <header style={{ textAlign: 'center', marginBottom: 64 }}>
-            <span style={{ display: 'inline-block', padding: '6px 14px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 999, fontSize: 12, fontWeight: 700, color: T.accent, letterSpacing: '0.1em', marginBottom: 16 }}>CORE CAPABILITIES</span>
+            <span style={{ display: 'inline-block', padding: '6px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 999, fontSize: 12, fontWeight: 700, color: T.accent, letterSpacing: '0.1em', marginBottom: 16 }}>CORE CAPABILITIES</span>
             <h2 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 800, margin: '0 0 12px', letterSpacing: '-0.02em' }}>Built for the Serious Quant</h2>
             <p style={{ color: T.textMid, fontSize: 16, maxWidth: 600, margin: '0 auto' }}>Every feature is designed for institutional-grade workflows — no toy features, no fluff.</p>
           </header>
@@ -102,8 +102,8 @@ export default function LandingPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
               <StatBox label="ENTRY" value="₹24,450" color="#fbbf24" />
-              <StatBox label="TARGET" value="₹25,200" color="#f5c842" />
-              <StatBox label="STOP" value="₹24,100" color="#ff3d5a" />
+              <StatBox label="TARGET" value="₹25,200" color="#fbbf24" />
+              <StatBox label="STOP" value="₹24,100" color="#ef4444" />
             </div>
 
             <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 16 }}>
@@ -115,7 +115,7 @@ export default function LandingPage() {
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b' }} /> Confidence: 87%
               </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(245,200,66,0.1)', border: '1px solid rgba(245,200,66,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600, color: '#f5c842' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600, color: '#fbbf24' }}>
                 R:R 1:2.5
               </span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 999, fontSize: 11, fontWeight: 600, color: '#fbbf24' }}>
@@ -194,7 +194,7 @@ export default function LandingPage() {
         }
         .feature-card:hover {
           border-color: ${T.accent};
-          box-shadow: '0 8px 32px rgba(99,102,241,0.15)';
+          box-shadow: '0 8px 32px rgba(245,158,11,0.15)';
         }
         .stat-box {
           background: ${T.bg};
