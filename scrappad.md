@@ -3,6 +3,30 @@
 # ApexTrade v6.1.1 — Black, Red & Gold Workstation Redesign
 # ==============================================================================
 
+> ### 📢 NEW HISTORICAL DATASET AVAILABLE FOR STRATEGY ENGINE & BACKTESTING
+> **7 Years of Real NSE Daily Market Data (2019 – 2026)** has been downloaded and ready to use:
+> - **Path**: `historical_data/daily_7y/`
+> - **Formats**: `.parquet` (fast) and `.csv`
+> - **Instruments**:
+>   - **Indices**: `NIFTY_50_INDEX`, `BANK_NIFTY_INDEX` (1,733 bars each)
+>   - **Core Equities**: `RELIANCE`, `TCS`, `HDFCBANK`, `ICICIBANK`, `INFY`, `SBIN`, `BHARTIARTL`, `ITC`, `KOTAKBANK`, `LT`, `AXISBANK`, `HINDUNILVR`, `BAJFINANCE`, `MARUTI`, `TATASTEEL`, `SUNPHARMA`, `TITAN`, `NTPC`, `POWERGRID` (1,735 bars each)
+> - **Manifest**: `historical_data/daily_7y/_manifest_summary.csv`
+> - **Python Usage**:
+>   ```python
+>   import pandas as pd
+>   df = pd.read_parquet(r"historical_data\daily_7y\NIFTY_50_INDEX_7y_daily.parquet")
+>   # Columns: Date, Open, High, Low, Close, Adj Close, Volume
+>   ```
+>
+> ---
+>
+> ### 🛡️ FULL AUTONOMY MANDATE FOR OPENCODE: STRATEGY & ENGINE OVERHAUL
+> **You have 100% full authorization to:**
+> 1. **Create, Refactor, or Delete Strategies**: Freely add new quantitative strategies, prune underperforming/negative-expectancy strategies, and rewrite existing logic in `backend/strategy_tournament.py`, `backend/signals.py`, `backend/trading_agent.py`, and `backend/historical_simulator.py`.
+> 2. **Calibrate on Real 7-Year Data**: Train on 2019–2023, validate on 2024–2026. Target Sharpe Ratio > 1.2, positive profit factor (> 1.5), and max drawdown < 15%.
+> 3. **Implement Real Quant Features**: Dynamic ATR volatility stops, NIFTY regime filters (bull/bear/sideways regime switching), volume exhaustion triggers, and execution slippage modeling.
+> 4. **Only Requirement**: Keep the test suite passing (`.venv\Scripts\python -m pytest backend/tests`) and preserve paper-only mode safety.
+
 **Locked in.** Zero blue, zero purple, zero green. 
 
 The workstation is now exclusively built on the **Black, Red & Gold** palette:

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "savedAt": "2026-11-02T17:07:57.130Z",
+  "savedAt": "2026-11-02T17:37:06.466Z",
   "agents": [
     {
       "id": "god",
@@ -12,15 +12,15 @@
       "tmuxTarget": "",
       "cwd": "C:\\Users\\aryan\\OneDrive\\Desktop\\app\\projects\\trade ai",
       "status": "idle",
-      "action": "idle",
+      "action": "awaiting",
       "progress": 0,
-      "currentStation": "terminal",
+      "currentStation": "desk",
       "ptyId": "pty-god",
       "command": "opencode --model claude-opus-5-5",
       "provider": "opencode",
       "model": "claude-opus-5-5",
       "isGod": true,
-      "lastPrompt": "tar 35, 36, 43 wht about this"
+      "lastPrompt": "35,43 ??"
     },
     {
       "id": "stanley-daemon",
