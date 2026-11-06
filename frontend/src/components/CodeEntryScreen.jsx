@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { T } from '../theme';
 import { Lock, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function CodeEntryScreen({ onVerified }) {
@@ -50,8 +51,8 @@ export default function CodeEntryScreen({ onVerified }) {
     <div
       style={{
         minHeight: '100vh',
-        background: '#0b0e13',
-        color: '#e2e8f0',
+        background: T.bg,
+        color: T.text,
         fontFamily: "'Inter', system-ui, sans-serif",
         display: 'flex',
         alignItems: 'center',
@@ -63,8 +64,8 @@ export default function CodeEntryScreen({ onVerified }) {
         style={{
           width: '100%',
           maxWidth: 360,
-          background: '#12161d',
-          border: '1px solid rgba(245,158,11,0.3)',
+          background: T.panel,
+          border: `1px solid ${T.borderHi}`,
           borderRadius: 12,
           padding: 32,
           boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
@@ -95,10 +96,10 @@ export default function CodeEntryScreen({ onVerified }) {
               style={{
                 width: '100%',
                 padding: '14px 48px 14px 14px',
-                background: '#0b0e13',
-                border: '1px solid #2c3652',
+                background: T.bg,
+                border: `1px solid ${T.border}`,
                 borderRadius: 8,
-                color: '#e2e8f0',
+                color: T.text,
                 fontSize: 15,
                 fontFamily: "'IBM Plex Mono', monospace",
                 letterSpacing: '0.08em',
@@ -119,7 +120,7 @@ export default function CodeEntryScreen({ onVerified }) {
                 border: 'none',
                 cursor: 'pointer',
                 padding: 4,
-                color: '#8290ad',
+                color: T.textDim,
               }}
             >
               {showCode ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -133,10 +134,10 @@ export default function CodeEntryScreen({ onVerified }) {
                 alignItems: 'center',
                 gap: 8,
                 padding: '10px 12px',
-                background: 'rgba(255, 51, 102, 0.12)',
-                border: '1px solid rgba(255, 51, 102, 0.25)',
+                background: T.redDim,
+                border: `1px solid ${T.redGlow}`,
                 borderRadius: 8,
-                color: '#ef4444',
+                color: T.red,
                 fontSize: 12,
                 fontWeight: 500,
               }}
@@ -151,7 +152,7 @@ export default function CodeEntryScreen({ onVerified }) {
             style={{
               padding: '14px',
               background: loading ? T.borderHi : T.accentAlt,
-              color: loading ? '#8290ad' : '#0b0e13',
+              color: loading ? T.textDim : T.bg,
               border: 'none',
               borderRadius: 8,
               fontSize: 14,
@@ -177,7 +178,7 @@ export default function CodeEntryScreen({ onVerified }) {
           </button>
         </form>
 
-        <p style={{ margin: '20px 0 0', fontSize: 11, color: '#475470', textAlign: 'center', lineHeight: 1.5 }}>
+        <p style={{ margin: '20px 0 0', fontSize: 11, color: T.textMuted, textAlign: 'center', lineHeight: 1.5 }}>
           No signup. No recovery. No roles. This is a personal quant workstation.
         </p>
       </div>
@@ -188,7 +189,7 @@ export default function CodeEntryScreen({ onVerified }) {
           to { transform: rotate(360deg); }
         }
         input:focus { border-color: ${T.accentAlt} !important; }
-        button:not(:disabled):hover { background: #0ea5e9; }
+        button:not(:disabled):hover { background: ${T.accentAlt}; }
       `}</style>
     </div>
   );
