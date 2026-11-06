@@ -1,5 +1,5 @@
 import { API_BASE_URL, apiFetch, verifyToken } from './api';
-import { Plus, Minus, Info, AlertTriangle, Link, Link2Off, RefreshCw, Layers, Crosshair, TrendingUp, X, Home, Bot, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck, Activity, Wifi, WifiOff, Search, Zap, Camera, Loader2, ChevronRight, Zap as ZapIcon, RotateCcw, Database, SkipForward, Terminal, ScanLine, Settings, HelpCircle, LayoutDashboard } from 'lucide-react';
+import { Plus, Minus, Info, AlertTriangle, Link, Link2Off, RefreshCw, Layers, Crosshair, TrendingUp, X, Home, Bot, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck, Activity, Wifi, WifiOff, Search, Zap, Camera, Loader2, ChevronRight, ChevronLeft, Zap as ZapIcon, RotateCcw, Database, SkipForward, Terminal, ScanLine, Settings, HelpCircle, LayoutDashboard } from 'lucide-react';
 import CodeEntryScreen from './components/CodeEntryScreen';
 import CandleChart from './components/CandleChart';
 import { calcEMA, calcBollingerBands, calcRSI, calcMACD } from './utils/indicators';
