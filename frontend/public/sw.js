@@ -7,7 +7,7 @@
  *   - Google Fonts                                 → Cache First (once loaded)
  */
 
-const CACHE_VERSION = 'apextrade-v6-ux-polish';
+const CACHE_VERSION = 'apextrade-v7-theme-tokens';
 const STATIC_CACHE  = `${CACHE_VERSION}-static`;
 const FONT_CACHE    = `${CACHE_VERSION}-fonts`;
 

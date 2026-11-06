@@ -1,5 +1,6 @@
 import { apiFetch } from './api';
 import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { T } from './theme';
 import { formatPercent, formatRatio, getConfidenceScore, normalizePerformanceStats } from './utils/performance';
 
@@ -70,11 +71,11 @@ export default function PerformancePanel({ onViewChange }) {
   return (
     <div style={{ flex: 1, background: T.bg, padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div style={{ borderBottom: `1px solid ${T.border}`, paddingBottom: 16 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: '#fff', margin: 0 }}> SYSTEM PERFORMANCE</h2>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: T.text, margin: 0 }}> SYSTEM PERFORMANCE</h2>
         <p style={{ fontSize: 11, color: T.textMid, marginTop: 4 }}>Historical analytics, risk metrics, and strategy edge calculation.</p>
         {source !== 'loading' && (
           <div style={{ marginTop: 8, fontSize: 10, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>
-            Data source: <span style={{ color: source === 'live' ? T.green : source === 'error' ? T.red : '#fbbf24' }}>{source === 'live' ? 'RESOLVED PREDICTIONS (paper / manually resolved)' : source === 'error' ? 'UNAVAILABLE' : 'SIMULATED (no resolved predictions)'}</span>
+            Data source: <span style={{ color: source === 'live' ? T.green : source === 'error' ? T.red : T.gold }}>{source === 'live' ? 'RESOLVED PREDICTIONS (paper / manually resolved)' : source === 'error' ? 'UNAVAILABLE' : 'SIMULATED (no resolved predictions)'}</span>
             {stats && (
               <> · <span style={{ color: T.textMid }}>Resolved trades: {stats.total_trades} of {stats.total_predictions} predictions</span></>
             )}
@@ -84,7 +85,7 @@ export default function PerformancePanel({ onViewChange }) {
 
       {isLocked && (
         <div style={{ background: T.redDim, border: `1px solid ${T.red}`, padding: 12, borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>⚠</span>
+          <AlertTriangle size={18} color={T.red} />
           <div>
             <div style={{ color: T.red, fontWeight: 700, fontSize: 12, letterSpacing: '0.04em' }}>DATA INTEGRITY COMPROMISED</div>
             <div style={{ color: T.text, fontSize: 11, opacity: 0.9 }}>
@@ -106,7 +107,7 @@ export default function PerformancePanel({ onViewChange }) {
         {metricCards.map((m, i) => (
           <div key={i} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: T.textMid, letterSpacing: '0.05em', marginBottom: 8 }}>{m.label}</div>
-            <div style={{ fontSize: 24, fontWeight: 300, color: m.color || '#fff', ...mono }}>{m.value}</div>
+            <div style={{ fontSize: 24, fontWeight: 300, color: m.color || T.text, ...mono }}>{m.value}</div>
             {m.action && (
               <button
                 onClick={m.action}

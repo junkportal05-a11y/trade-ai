@@ -7,17 +7,17 @@ export default function DisclaimerPage() {
     <div style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: "'Inter', system-ui, sans-serif", padding: '60px 24px' }}>
       <div style={{ maxWidth: 800, margin: '0 auto' }}>
         <header style={{ marginBottom: 48, textAlign: 'center' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, padding: '16px 24px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, marginBottom: 24 }}>
-            <AlertTriangle size={28} color="#ef4444" />
-            <span style={{ fontSize: 18, fontWeight: 700, color: '#ef4444', letterSpacing: '0.04em' }}>IMPORTANT RISK DISCLAIMER</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, padding: '16px 24px', background: T.redDim, border: `1px solid ${T.red}`, borderRadius: 12, marginBottom: 24 }}>
+            <AlertTriangle size={28} color={T.red} />
+            <span style={{ fontSize: 18, fontWeight: 700, color: T.red, letterSpacing: '0.04em' }}>IMPORTANT RISK DISCLAIMER</span>
           </div>
           <h1 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 800, margin: '0 0 12px', letterSpacing: '-0.02em' }}>Risk Disclaimer & Disclaimer</h1>
           <p style={{ color: T.textMid, fontSize: 16 }}>Read carefully before using ApexTrade AI</p>
         </header>
 
-        <section style={{ marginBottom: 32, padding: '24px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12 }}>
+        <section style={{ marginBottom: 32, padding: '24px', background: T.redDim, border: `1px solid ${T.red}`, borderRadius: 12 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <AlertCircle size={24} color="#ef4444" style={{ flexShrink: 0, marginTop: 2 }} />
+            <AlertCircle size={24} color={T.red} style={{ flexShrink: 0, marginTop: 2 }} />
             <div style={{ color: T.textMid, lineHeight: 1.8 }}>
               <p style={{ fontWeight: 700, marginBottom: 8, fontSize: 16 }}>⚠️ THIS IS A PAPER-TRADING WORKSTATION FOR EDUCATIONAL PURPOSES ONLY.</p>
               <p style={{ color: T.textMid, lineHeight: 1.7 }}>
@@ -128,9 +128,9 @@ export default function DisclaimerPage() {
           </ul>
         </section>
 
-        <section style={{ marginBottom: 32, padding: '24px', background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 12 }}>
+        <section style={{ marginBottom: 32, padding: '24px', background: T.goldDim, border: `1px solid ${T.borderHi}`, borderRadius: 12 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <ShieldCheck size={24} color="#f59e0b" style={{ flexShrink: 0, marginTop: 2 }} />
+            <ShieldCheck size={24} color={T.accentAlt} style={{ flexShrink: 0, marginTop: 2 }} />
             <div style={{ color: T.textMid, lineHeight: 1.8 }}>
               <p style={{ fontWeight: 700, marginBottom: 8, fontSize: 16 }}>✅ REMEMBER</p>
               <p style={{ color: T.textMid, lineHeight: 1.7 }}>

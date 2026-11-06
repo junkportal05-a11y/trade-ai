@@ -54,7 +54,7 @@ export default function SimulatorPanel({ isMobile }) {
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         
         <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '24px', margin: '0 0 8px 0', color: '#fff', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h1 style={{ fontSize: '24px', margin: '0 0 8px 0', color: T.text, display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '1.2em' }}>⏱</span> Historical Truth Engine
           </h1>
           <p style={{ color: T.textMuted, margin: 0, fontSize: '14px' }}>
@@ -64,7 +64,7 @@ export default function SimulatorPanel({ isMobile }) {
 
         {/* CONTROLS */}
         <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
-          <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#fff' }}>Simulation Parameters</h3>
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: T.text }}>Simulation Parameters</h3>
           
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
             <div style={{ flex: '1 1 200px' }}>
@@ -74,7 +74,7 @@ export default function SimulatorPanel({ isMobile }) {
                 value={adminKey}
                 onChange={e => setAdminKey(e.target.value)}
                 placeholder="Required for execution..."
-                style={{ width: '100%', padding: '10px 12px', background: T.bg, border: `1px solid ${T.border}`, color: '#fff', borderRadius: '6px', outline: 'none' }}
+                style={{ width: '100%', padding: '10px 12px', background: T.bg, border: `1px solid ${T.border}`, color: T.text, borderRadius: '6px', outline: 'none' }}
               />
             </div>
             <div style={{ flex: '1 1 150px' }}>
@@ -83,7 +83,7 @@ export default function SimulatorPanel({ isMobile }) {
                 type="text"
                 value={symbol}
                 onChange={e => setSymbol(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', background: T.bg, border: `1px solid ${T.border}`, color: '#fff', borderRadius: '6px', outline: 'none' }}
+                style={{ width: '100%', padding: '10px 12px', background: T.bg, border: `1px solid ${T.border}`, color: T.text, borderRadius: '6px', outline: 'none' }}
               />
             </div>
             <div style={{ flex: '1 1 150px' }}>
@@ -92,7 +92,7 @@ export default function SimulatorPanel({ isMobile }) {
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', background: T.bg, border: `1px solid ${T.border}`, color: '#fff', borderRadius: '6px', outline: 'none' }}
+                style={{ width: '100%', padding: '10px 12px', background: T.bg, border: `1px solid ${T.border}`, color: T.text, borderRadius: '6px', outline: 'none' }}
               />
             </div>
             <div style={{ flex: '1 1 150px' }}>
@@ -101,7 +101,7 @@ export default function SimulatorPanel({ isMobile }) {
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', background: T.bg, border: `1px solid ${T.border}`, color: '#fff', borderRadius: '6px', outline: 'none' }}
+                style={{ width: '100%', padding: '10px 12px', background: T.bg, border: `1px solid ${T.border}`, color: T.text, borderRadius: '6px', outline: 'none' }}
               />
             </div>
           </div>
@@ -117,7 +117,7 @@ export default function SimulatorPanel({ isMobile }) {
             disabled={isPolling || status?.is_running}
             style={{ 
               background: isPolling || status?.is_running ? T.border : T.blue, 
-              color: '#fff', 
+              color: T.text, 
               border: 'none', 
               padding: '12px 24px', 
               borderRadius: '6px', 
@@ -130,7 +130,7 @@ export default function SimulatorPanel({ isMobile }) {
             }}
           >
             {isPolling || status?.is_running ? (
-              <><div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> Processing Simulation...</>
+              <><div className="spinner" style={{ width: '16px', height: '16px', border: `2px solid ${T.text}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> Processing Simulation...</>
             ) : (
               ' LAUNCH SIMULATION'
             )}
@@ -141,12 +141,12 @@ export default function SimulatorPanel({ isMobile }) {
         {status && (
           <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: '12px', padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', color: T.text, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: status.is_running ? T.green : T.textMuted }} />
                 {status.is_running ? 'Simulation Active' : 'Simulation Complete'}
               </h3>
               {status.symbol && (
-                <span style={{ fontSize: '12px', padding: '4px 8px', background: 'rgba(245, 158, 11, 0.12)', color: T.accent, borderRadius: '4px', fontWeight: 600 }}>
+                <span style={{ fontSize: '12px', padding: '4px 8px', background: T.goldDim, color: T.accent, borderRadius: '4px', fontWeight: 600 }}>
                   Analyzing: {status.symbol}
                 </span>
               )}
@@ -155,7 +155,7 @@ export default function SimulatorPanel({ isMobile }) {
             <div style={{ marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: T.textMuted, marginBottom: '8px' }}>
                 <span>Final Capital</span>
-                <span style={{ color: '#fff', fontWeight: 600 }}>₹{Number(stats.final_capital || stats.capital || 10000).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                <span style={{ color: T.text, fontWeight: 600 }}>₹{Number(stats.final_capital || stats.capital || 10000).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
               </div>
             </div>
 
@@ -185,7 +185,7 @@ export default function SimulatorPanel({ isMobile }) {
 
               <div style={{ background: T.bg, padding: '16px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
                 <div style={{ fontSize: '12px', color: T.textMuted, marginBottom: '4px' }}>Total Trades</div>
-                <div style={{ fontSize: '24px', color: '#fff', fontWeight: 600 }}>{stats.total_trades || 0}</div>
+                <div style={{ fontSize: '24px', color: T.text, fontWeight: 600 }}>{stats.total_trades || 0}</div>
               </div>
 
             </div>

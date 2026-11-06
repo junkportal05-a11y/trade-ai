@@ -93,7 +93,7 @@ export default function BrokerSettings({ apiFetch }) {
       padding: 24,
       boxShadow: '0 8px 30px rgba(0,0,0,0.2)'
     }}>
-      <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, ...mono }}> ANGELONE BROKER INTEGRATION</h3>
+      <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: T.text, marginBottom: 16, ...mono }}> ANGELONE BROKER INTEGRATION</h3>
       
       {status.connected ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -124,7 +124,7 @@ export default function BrokerSettings({ apiFetch }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: T.panelAlt, padding: 12, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 11 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: T.textMid }}>Client Code</span>
-              <span style={{ color: '#fff', fontWeight: 600, ...mono }}>{status.client_code}</span>
+              <span style={{ color: T.text, fontWeight: 600, ...mono }}>{status.client_code}</span>
             </div>
           </div>
 
@@ -158,7 +158,7 @@ export default function BrokerSettings({ apiFetch }) {
               required
               style={{
                 width: '100%', padding: '10px 12px', background: T.panelAlt, border: `1px solid ${T.border}`,
-                borderRadius: 6, color: '#fff', outline: 'none', fontSize: 12, ...mono
+                borderRadius: 6, color: T.text, outline: 'none', fontSize: 12, ...mono
               }}
             />
           </div>
@@ -173,7 +173,7 @@ export default function BrokerSettings({ apiFetch }) {
               required
               style={{
                 width: '100%', padding: '10px 12px', background: T.panelAlt, border: `1px solid ${T.border}`,
-                borderRadius: 6, color: '#fff', outline: 'none', fontSize: 12, ...mono
+                borderRadius: 6, color: T.text, outline: 'none', fontSize: 12, ...mono
               }}
             />
           </div>
@@ -189,7 +189,7 @@ export default function BrokerSettings({ apiFetch }) {
               required
               style={{
                 width: '100%', padding: '10px 12px', background: T.panelAlt, border: `1px solid ${T.border}`,
-                borderRadius: 6, color: '#fff', outline: 'none', fontSize: 12, ...mono
+                borderRadius: 6, color: T.text, outline: 'none', fontSize: 12, ...mono
               }}
             />
           </div>
@@ -204,7 +204,7 @@ export default function BrokerSettings({ apiFetch }) {
               required
               style={{
                 width: '100%', padding: '10px 12px', background: T.panelAlt, border: `1px solid ${T.border}`,
-                borderRadius: 6, color: '#fff', outline: 'none', fontSize: 12, ...mono
+                borderRadius: 6, color: T.text, outline: 'none', fontSize: 12, ...mono
               }}
             />
             <div style={{ fontSize: 10, color: T.textMid, marginTop: 4 }}>
@@ -233,7 +233,7 @@ export default function BrokerSettings({ apiFetch }) {
               background: loading ? T.textMid : T.accent,
               border: 'none',
               borderRadius: 8,
-              color: '#fff',
+              color: T.text,
               fontSize: 12,
               fontWeight: 700,
               cursor: loading ? 'not-allowed' : 'pointer',

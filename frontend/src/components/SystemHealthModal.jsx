@@ -10,7 +10,7 @@ export default function SystemHealthModal({ isOpen, onClose, health, onRefresh }
     if (!status) return T.textDim;
     const s = status.toLowerCase();
     if (s === 'healthy' || s === 'open' || s === 'configured') return T.green;
-    if (s === 'degraded' || s === 'warning' || s === 'not_configured') return '#fbbf24';
+    if (s === 'degraded' || s === 'warning' || s === 'not_configured') return T.gold;
     if (s === 'unhealthy' || s === 'error' || s === 'closed') return T.red;
     return T.textMid;
   };
@@ -122,7 +122,7 @@ export default function SystemHealthModal({ isOpen, onClose, health, onRefresh }
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.7)',
+        background: T.glass,
         zIndex: 1000,
         display: 'flex',
         alignItems: 'center',

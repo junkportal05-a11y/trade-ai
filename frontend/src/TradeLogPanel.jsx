@@ -32,7 +32,7 @@ export default function TradeLogPanel({ maxItems = 50 }) {
           <ClipboardList size={18} color={T.accentAlt} />
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: T.accentAlt, ...mono }}>TRADE LOG</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Paper Bot Decisions (simulated prices)</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.text }}>Paper Bot Decisions (simulated prices)</div>
           </div>
         </div>
 
@@ -42,7 +42,7 @@ export default function TradeLogPanel({ maxItems = 50 }) {
             <button key={f} onClick={() => setFilter(f)} style={{
               padding: '4px 10px', borderRadius: 4, border: 'none', cursor: 'pointer',
               background: filter === f ? T.accent : 'transparent',
-              color: filter === f ? '#fff' : T.textMid,
+              color: filter === f ? T.text : T.textMid,
               fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', ...mono,
               transition: 'all 0.15s',
             }}>{f}</button>
@@ -121,14 +121,14 @@ export default function TradeLogPanel({ maxItems = 50 }) {
                       {trade.side === 'buy' ? '▲' : '▼'} {trade.side?.toUpperCase()}
                     </span>
                   </td>
-                  <td style={{ padding: '8px 4px', color: '#fff', fontWeight: 700, ...mono }}>{trade.symbol?.replace('.NS', '')}</td>
+                  <td style={{ padding: '8px 4px', color: T.text, fontWeight: 700, ...mono }}>{trade.symbol?.replace('.NS', '')}</td>
                   <td style={{ padding: '8px 4px', ...mono }}>{trade.qty}</td>
                   <td style={{ padding: '8px 4px', ...mono }}>₹{fmt(trade.price)}</td>
                   <td style={{ padding: '8px 4px' }}>
                     <span style={{
                       padding: '2px 6px', borderRadius: 3, fontSize: 8, fontWeight: 700, ...mono,
-                      background: trade.status === 'OPEN' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                      color: trade.status === 'OPEN' ? T.blue : '#fbbf24',
+                      background: trade.status === 'OPEN' ? T.goldDim : T.goldDim,
+                      color: trade.status === 'OPEN' ? T.blue : T.gold,
                     }}>{trade.status}</span>
                   </td>
                   <td style={{ padding: '8px 4px', ...mono }}>

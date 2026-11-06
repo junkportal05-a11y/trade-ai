@@ -13,7 +13,7 @@ const LOCAL_DEFAULT_URL = typeof window !== 'undefined' && window.location.hostn
 
 function StatusRow({ state, children }) {
   const Icon = state === 'ok' ? CheckCircle2 : state === 'warn' ? AlertTriangle : Loader2;
-  const color = state === 'ok' ? T.green : state === 'warn' ? '#fbbf24' : T.textDim;
+  const color = state === 'ok' ? T.green : state === 'warn' ? T.accentAlt : T.textDim;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace", color: state === 'ok' ? T.text : T.textMid }}>
       <Icon size={12} color={color} style={state === 'pending' ? { animation: 'spin 1s linear infinite' } : undefined} />
@@ -172,19 +172,19 @@ export default function IntroSplash({ onWokenUp }) {
       padding: 24,
       overflow: 'auto',
     }}>
-      <div style={{ position: 'absolute', width: '60vw', height: '60vw', background: 'radial-gradient(circle, rgba(245, 158, 11, 0.08) 0%, transparent 65%)', top: '5%', left: '20%', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', width: '45vw', height: '45vw', background: 'radial-gradient(circle, rgba(245, 158, 11, 0.05) 0%, transparent 70%)', bottom: '10%', right: '15%', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', width: '60vw', height: '60vw', background: `radial-gradient(circle, ${T.goldDim} 0%, transparent 65%)`, top: '5%', left: '20%', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', width: '45vw', height: '45vw', background: `radial-gradient(circle, ${T.accentDim} 0%, transparent 70%)`, bottom: '10%', right: '15%', pointerEvents: 'none' }} />
 
       <div style={{
         width: '100%',
         maxWidth: 520,
-        background: 'rgba(12, 10, 9, 0.88)',
+        background: T.glass,
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(245, 158, 11, 0.15)',
+        border: `1px solid ${T.border}`,
         borderRadius: 16,
         padding: '30px 28px',
-        boxShadow: '0 24px 64px -12px rgba(0, 0, 0, 0.85), 0 0 1px 1px rgba(245, 158, 11, 0.2)',
+        boxShadow: `0 24px 64px -12px rgba(0, 0, 0, 0.85), 0 0 1px 1px ${T.accentDim}`,
         display: 'flex',
         flexDirection: 'column',
         gap: 20,
@@ -198,8 +198,8 @@ export default function IntroSplash({ onWokenUp }) {
             gap: 7,
             padding: '4px 12px',
             borderRadius: 999,
-            background: 'rgba(245, 158, 11, 0.1)',
-            border: '1px solid rgba(245, 158, 11, 0.25)',
+            background: T.accentDim,
+            border: `1px solid ${T.borderHi}`,
             marginBottom: 12,
           }}>
             <Cpu size={14} color={T.accent} />
@@ -210,7 +210,7 @@ export default function IntroSplash({ onWokenUp }) {
             fontWeight: 800,
             letterSpacing: '0.03em',
             margin: 0,
-            background: 'linear-gradient(135deg, #ffffff 40%, #d97706 100%)',
+            background: `linear-gradient(135deg, ${T.text} 40%, ${T.accentAlt} 100%)`,
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}>
@@ -229,20 +229,20 @@ export default function IntroSplash({ onWokenUp }) {
               width: 38,
               height: 38,
               borderRadius: '50%',
-              background: connected ? T.green : failed ? T.red : status === 'sleeping' ? '#fbbf24' : T.accent,
-              boxShadow: `0 0 26px ${connected ? 'rgba(245,158,11,0.5)' : failed ? 'rgba(239,68,68,0.5)' : status === 'sleeping' ? 'rgba(245,158,11,0.4)' : 'rgba(245,158,11,0.5)'}`,
+              background: connected ? T.green : failed ? T.red : status === 'sleeping' ? T.accentAlt : T.accent,
+              boxShadow: `0 0 26px ${connected ? T.greenGlow : failed ? T.redGlow : T.accentGlow}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#050506',
+              color: T.bg,
               transition: 'all 0.4s ease',
             }}>
-              {connected ? <CheckCircle2 size={21} strokeWidth={2.5} /> : failed ? <AlertTriangle size={21} strokeWidth={2.5} /> : status === 'sleeping' ? <RefreshCw size={18} strokeWidth={2.5} /> : <Activity size={20} color="#fff" strokeWidth={2.5} />}
+              {connected ? <CheckCircle2 size={21} strokeWidth={2.5} /> : failed ? <AlertTriangle size={21} strokeWidth={2.5} /> : status === 'sleeping' ? <RefreshCw size={18} strokeWidth={2.5} /> : <Activity size={20} color={T.text} strokeWidth={2.5} />}
             </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: connected ? T.green : failed ? T.red : status === 'sleeping' ? '#fbbf24' : T.accent }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: connected ? T.green : failed ? T.red : status === 'sleeping' ? T.accentAlt : T.accent }}>
               {connected ? 'QUANT SERVER CONNECTED' : failed ? 'CONNECTION FAILED' : status === 'sleeping' ? 'WAKING UP SERVER' : 'HANDSHAKE IN PROGRESS'}
               <span style={{ fontSize: 10, color: T.textDim, marginLeft: 6 }}>({elapsed}s)</span>
             </div>
@@ -252,7 +252,7 @@ export default function IntroSplash({ onWokenUp }) {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', background: 'rgba(7, 9, 14, 0.5)', borderRadius: 10, border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', background: T.panel, borderRadius: 10, border: `1px solid ${T.border}` }}>
           <StatusRow state={connected ? 'ok' : failed ? 'error' : status === 'sleeping' ? 'warn' : 'pending'}>
             {connected ? `Quant Server Engine: CONNECTED (${latency ?? healthData?.total_latency_ms ?? 0}ms)` : failed ? 'Quant Server Engine: UNREACHABLE' : 'Quant Server Engine: CONNECTING...'}
           </StatusRow>
@@ -269,9 +269,9 @@ export default function IntroSplash({ onWokenUp }) {
 
         <div style={{
           height: 108,
-          background: 'rgba(7, 9, 14, 0.85)',
+          background: T.glass,
           borderRadius: 8,
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          border: `1px solid ${T.border}`,
           padding: '10px 14px',
           display: 'flex',
           flexDirection: 'column',
@@ -300,7 +300,7 @@ export default function IntroSplash({ onWokenUp }) {
               borderRadius: 8,
               background: currentUrl === LOCAL_DEFAULT_URL ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.04)',
               border: `1px solid ${currentUrl === LOCAL_DEFAULT_URL ? T.accent : 'rgba(255, 255, 255, 0.08)'}`,
-              color: currentUrl === LOCAL_DEFAULT_URL ? '#fbbf24' : T.textMid,
+              color: currentUrl === LOCAL_DEFAULT_URL ? T.accentAlt : T.textMid,
               fontSize: 11,
               fontWeight: 600,
               cursor: 'pointer',
@@ -315,9 +315,9 @@ export default function IntroSplash({ onWokenUp }) {
               flex: 1,
               padding: '8px 10px',
               borderRadius: 8,
-              background: currentUrl === HF_DEFAULT_URL ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-              border: `1px solid ${currentUrl === HF_DEFAULT_URL ? T.accent : 'rgba(255, 255, 255, 0.08)'}`,
-              color: currentUrl === HF_DEFAULT_URL ? '#fbbf24' : T.textMid,
+              background: currentUrl === HF_DEFAULT_URL ? T.accentDim : T.panel,
+              border: `1px solid ${currentUrl === HF_DEFAULT_URL ? T.accent : T.border}`,
+              color: currentUrl === HF_DEFAULT_URL ? T.accentAlt : T.textMid,
               fontSize: 11,
               fontWeight: 600,
               cursor: 'pointer',
@@ -331,8 +331,8 @@ export default function IntroSplash({ onWokenUp }) {
             <button onClick={() => setShowConfig(value => !value)} style={{
               padding: '8px 12px',
               borderRadius: 8,
-              background: showConfig ? 'rgba(245, 158, 11, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              background: showConfig ? T.borderHi : T.panel,
+              border: `1px solid ${T.border}`,
               color: T.textMid,
               fontSize: 11,
               fontWeight: 600,
@@ -347,7 +347,7 @@ export default function IntroSplash({ onWokenUp }) {
           </div>
 
           {status === 'sleeping' && !showConfig && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: '#fbbf24', lineHeight: 1.5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: T.accentAlt, lineHeight: 1.5 }}>
               <AlertTriangle size={13} />
               Free-tier containers sleep when idle. Cold start usually takes 30-50s.
             </div>
@@ -380,14 +380,14 @@ export default function IntroSplash({ onWokenUp }) {
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     borderRadius: 6,
                     padding: '7px 10px',
-                    color: '#fff',
+                    color: T.text,
                     fontSize: 11,
                     outline: 'none',
                   }}
                 />
                 <button
                   onClick={() => customInput && switchTarget(customInput)}
-                  style={{ padding: '7px 14px', borderRadius: 6, background: T.accent, color: '#fff', border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                  style={{ padding: '7px 14px', borderRadius: 6, background: T.accent, color: T.text, border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
                 >
                   Connect
                 </button>
@@ -414,7 +414,7 @@ export default function IntroSplash({ onWokenUp }) {
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, borderTop: `1px solid ${T.border}` }}>
           <span style={{ fontSize: 10.5, color: T.textDim, display: 'flex', alignItems: 'center', gap: 4 }}>
             <ShieldCheck size={13} color={T.green} /> Enterprise Guard Active
           </span>
@@ -422,7 +422,7 @@ export default function IntroSplash({ onWokenUp }) {
             onClick={finish}
             style={{
               background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.12)',
+              border: `1px solid ${T.border}`,
               borderRadius: 6,
               color: T.text,
               padding: '7px 14px',
@@ -435,7 +435,7 @@ export default function IntroSplash({ onWokenUp }) {
               transition: 'all 0.2s',
             }}
             onMouseEnter={event => { event.currentTarget.style.borderColor = T.accent; }}
-            onMouseLeave={event => { event.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+            onMouseLeave={event => { event.currentTarget.style.borderColor = T.border; }}
           >
             {connected ? <Sparkles size={12} /> : failed ? <AlertTriangle size={12} /> : <ArrowRight size={12} />}
             {connected ? 'Enter Terminal' : failed ? 'Enter Terminal (Offline Demo Mode)' : 'Enter Terminal (Offline Demo Mode)'}

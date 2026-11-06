@@ -2,17 +2,18 @@ import { API_BASE_URL, apiFetch } from './api';
 import { describeHttpError } from './utils/apiErrors';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { T, mono } from './theme';
+import { ChevronUp, ChevronDown, ChevronRight, ChevronLeft, Circle, Check, X, HelpCircle, AlertTriangle, ChevronDown as ChevronDownIcon } from 'lucide-react';
 
 /* ─── Base URL ──────────────────────────────────────────────────────────────── */
 const BASE = API_BASE_URL;
 
 /* ─── Signal Config ─────────────────────────────────────────────────────────── */
 const SIGNAL_CFG = {
-  'BUY':       { color: T.green,   bg: T.greenDim,                          glow: T.greenGlow,                      icon: '▲', label: 'BUY'       },
-  'WEAK BUY':  { color: '#fbbf24', bg: 'rgba(245,158,11,0.08)',            glow: 'rgba(245,158,11,0.2)',           icon: '△', label: 'WEAK BUY'  },
-  'HOLD':      { color: '#d97706', bg: 'rgba(217,119,6,0.12)',             glow: 'rgba(217,119,6,0.2)',            icon: '◆', label: 'HOLD'      },
-  'WEAK SELL': { color: '#f87171', bg: 'rgba(239,68,68,0.08)',             glow: 'rgba(239,68,68,0.2)',            icon: '▽', label: 'WEAK SELL' },
-  'SELL':      { color: T.red,     bg: T.redDim,                            glow: T.redGlow,                         icon: '▼', label: 'SELL'      },
+  'BUY':       { color: T.green,   bg: T.greenDim,                    glow: T.greenGlow,     icon: ChevronUp,    label: 'BUY'       },
+  'WEAK BUY':  { color: T.orange,  bg: T.goldDim,                     glow: T.goldDim,        icon: ChevronUp,   label: 'WEAK BUY'  },
+  'HOLD':      { color: T.accentAlt, bg: T.goldDim,                   glow: T.goldDim,       icon: Circle,       label: 'HOLD'      },
+  'WEAK SELL': { color: T.red,     bg: T.redDim,                      glow: T.redGlow,        icon: ChevronDown,  label: 'WEAK SELL' },
+  'SELL':      { color: T.red,     bg: T.redDim,                      glow: T.redGlow,        icon: ChevronDown,  label: 'SELL'      },
 };
 
 /* ─── Formatters ────────────────────────────────────────────────────────────── */
@@ -84,7 +85,7 @@ function Countdown({ target, onFire }) {
   }, [target, onFire]);
   const m = Math.floor(secs / 60), s = secs % 60;
   return (
-    <span style={{ ...mono, fontSize: 10, color: secs < 60 ? '#fbbf24' : T.textDim }}>
+    <span style={{ ...mono, fontSize: 10, color: secs < 60 ? T.orange : T.textDim }}>
       {String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
     </span>
   );
@@ -175,7 +176,7 @@ function ScanProgress({ elapsed }) {
               fontSize: 9, ...mono,
               color: done ? T.green : T.textDim, transition: 'color 0.5s',
             }}>
-              <span style={{ fontSize: 10 }}>{done ? '✓' : '·'}</span>
+              <span style={{ fontSize: 10 }}>{done ? <Check /> : <span style={{ color: T.textMuted }}>·</span>}</span>
               {ind}
             </div>
           );
@@ -284,7 +285,7 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
         {[
           { label: 'ENTRY',   value: `₹${fmt(sig.entry)}`,     color: T.text },
           { label: 'CURRENT', value: `₹${fmt(currentPrice)}`,  color: T.blue, isLive: true },
-          { label: 'TARGET',  value: `₹${fmt(sig.target)}`,    color: isBull ? T.green : isBear ? T.red : '#fbbf24' },
+          { label: 'TARGET',  value: `₹${fmt(sig.target)}`,    color: isBull ? T.green : isBear ? T.red : T.gold },
           { label: 'STOP',    value: `₹${fmt(sig.stop_loss)}`, color: isBull ? T.red : isBear ? T.green : T.textMid },
           { label: 'LIVE P&L', value: pnlValue,                color: pnlColor },
         ].map(({ label, value, color, isLive }) => (
@@ -308,7 +309,7 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
 
       {/* Target % badge */}
       <div style={{ marginBottom: 8 }}>
-        <span style={{ fontSize: 9, color: isBull ? T.green : isBear ? T.red : '#fbbf24', ...mono }}>
+        <span style={{ fontSize: 9, color: isBull ? T.green : isBear ? T.red : T.gold, ...mono }}>
           {fmtPct(sig.target_pct)} target move
         </span>
         <span style={{ fontSize: 9, color: T.textDim, marginLeft: 8 }}>
@@ -321,11 +322,11 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
 
       {/* Indicator badges */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
-        <Badge label="RSI"  value={sig.rsi}  color={sig.rsi > 70 ? T.red : sig.rsi < 30 ? T.green : sig.rsi > 55 ? '#7bdb9e' : T.textMid} />
-        <Badge label="VWAP" value={currentPrice > sig.vwap ? '↑ Above' : '↓ Below'} color={currentPrice > sig.vwap ? T.green : T.red} />
+        <Badge label="RSI"  value={sig.rsi}  color={sig.rsi > 70 ? T.red : sig.rsi < 30 ? T.green : sig.rsi > 55 ? T.green : T.textMid} />
+        <Badge label="VWAP" value={currentPrice > sig.vwap ? 'Above' : 'Below'} color={currentPrice > sig.vwap ? T.green : T.red} />
         <Badge label="EMA"  value={sig.ema9 > sig.ema21 ? '9>21 Bull' : '9<21 Bear'} color={sig.ema9 > sig.ema21 ? T.green : T.red} />
         <Badge label="VOL"  value={`${sig.vol_ratio}x`} color={sig.vol_ratio >= 1.5 ? T.blue : sig.vol_ratio < 0.7 ? T.textDim : T.textMid} />
-        <Badge label="MACD" value={sig.macd_hist > 0 ? '▲ Bull' : '▼ Bear'} color={sig.macd_hist > 0 ? T.green : T.red} />
+        <Badge label="MACD" value={sig.macd_hist > 0 ? 'Bull' : 'Bear'} color={sig.macd_hist > 0 ? T.green : T.red} />
       </div>
 
       {/* Reasoning */}
@@ -385,7 +386,7 @@ function SignalCard({ sig, onSelect, isSelected, livePriceData, allocation }) {
               </div>
               {pos.reasons.map((r, i) => (
                 <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 4, alignItems: 'flex-start' }}>
-                  <span style={{ color: T.green, fontSize: 10, flexShrink: 0 }}>✓</span>
+                  <span style={{ color: T.green, fontSize: 10, flexShrink: 0 }}><Check /></span>
                   <span style={{ fontSize: 10, color: T.textMid, lineHeight: 1.5 }}>{r}</span>
                 </div>
               ))}
@@ -563,7 +564,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
   const sells = signals.filter(s => s.signal === 'SELL' || s.signal === 'WEAK SELL').length;
   const holds = signals.filter(s => s.signal === 'HOLD').length;
   const marketBias = buys > sells + 2 ? 'BULLISH' : sells > buys + 2 ? 'BEARISH' : 'NEUTRAL';
-  const biasColor  = marketBias === 'BULLISH' ? T.green : marketBias === 'BEARISH' ? T.red : '#fbbf24';
+  const biasColor  = marketBias === 'BULLISH' ? T.green : marketBias === 'BEARISH' ? T.red : T.gold;
 
   const showProfitBanner = capitalNum > 0 && allocPlan && allocPlan.positions?.length > 0 && !allocLoading;
 
@@ -645,7 +646,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
           {[
             { label: 'BUY SIGNALS',  count: buys,  color: T.green },
             { label: 'SELL SIGNALS', count: sells, color: T.red },
-            { label: 'HOLD',         count: holds, color: '#fbbf24' },
+            { label: 'HOLD',         count: holds, color: T.gold },
           ].map(({ label, count, color }) => (
             <div key={label} style={{
               flex: 1, background: T.panel, borderRadius: 5, padding: '6px 10px',
@@ -704,7 +705,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
         <button onClick={handleCapitalSubmit} disabled={capitalNum < 500 || allocLoading || !!allocError} style={{
           padding: '5px 12px', borderRadius: 5, border: 'none',
           background: (capitalNum < 500 || allocLoading || !!allocError) ? T.border : T.accent,
-          color: '#fff', fontSize: 9, fontWeight: 700, cursor: (capitalNum < 500 || allocLoading || !!allocError) ? 'not-allowed' : 'pointer',
+          color: T.text, fontSize: 9, fontWeight: 700, cursor: (capitalNum < 500 || allocLoading || !!allocError) ? 'not-allowed' : 'pointer',
           ...mono, transition: 'all 0.2s', whiteSpace: 'nowrap',
           opacity: (capitalNum < 500 || allocLoading || !!allocError) ? 0.5 : 1,
         }}>
@@ -716,8 +717,8 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
       {showProfitBanner && (
         <div style={{
           margin: '10px 14px 0', padding: '14px 18px', borderRadius: 8,
-          background: `linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.04))`,
-          border: `1px solid rgba(245,158,11,0.35)`,
+          background: `linear-gradient(135deg, ${T.goldDim}, ${T.gold}04)`,
+          border: `1px solid ${T.gold}50`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           flexWrap: 'wrap', gap: 12, flexShrink: 0,
         }}>
@@ -739,7 +740,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
             {[
               { label: 'DEPLOYED',     value: `${allocPlan.deployment_pct}%`, color: T.blue },
               { label: 'MAX LOSS',     value: `-${fmtINR(allocPlan.total_potential_loss)}`, color: T.red },
-              { label: 'PORTFOLIO R:R', value: `1:${allocPlan.portfolio_rr}`, color: allocPlan.portfolio_rr >= 2 ? T.green : '#fbbf24' },
+              { label: 'PORTFOLIO R:R', value: `1:${allocPlan.portfolio_rr}`, color: allocPlan.portfolio_rr >= 2 ? T.green : T.gold },
             ].map(({ label, value, color }) => (
               <div key={label} style={{
                 background: T.panel, borderRadius: 6, padding: '8px 12px',
@@ -792,16 +793,16 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
         {error && !loading && (
           <div style={{
             padding: '10px 14px', borderRadius: 6,
-            background: errorKind === 'server' ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.06)',
-            border: `1px solid ${errorKind === 'server' ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.15)'}`,
+            background: errorKind === 'server' ? T.redDim : T.goldDim,
+            border: `1px solid ${errorKind === 'server' ? T.redGlow : `${T.gold}25`}`,
             fontSize: 10,
-            color: errorKind === 'server' ? T.red : '#fbbf24',
+            color: errorKind === 'server' ? T.red : T.gold,
             ...mono, lineHeight: 1.4,
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <span style={{
               display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-              background: errorKind === 'server' ? T.red : '#fbbf24', animation: 'sp_pulse 1.5s infinite',
+              background: errorKind === 'server' ? T.red : T.gold, animation: 'sp_pulse 1.5s infinite',
             }} />
             <span>{error}</span>
           </div>
@@ -810,7 +811,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
         {/* Empty filter result */}
         {!loading && !error && filtered.length === 0 && signals.length > 0 && (
           <div className="empty-state">
-            <div className="empty-state-icon">⦿</div>
+            <div className="empty-state-icon"><Circle /></div>
             <div className="empty-state-title">No {filter} signals at this time</div>
             <div className="empty-state-desc">Try selecting a different signal filter above, or run a fresh scan to check for new setups.</div>
           </div>
@@ -833,7 +834,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
                   <div style={{ display: 'inline-block', textAlign: 'left', fontSize: 10, ...mono, lineHeight: 1.9, color: T.textDim }}>
                     {Object.keys(GATE_LABELS).filter(k => (gateInfo[k] || 0) > 0).map(k => (
                       <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ color: T.red, fontSize: 8 }}>×</span>
+                        <span style={{ color: T.red, fontSize: 8 }}><X /></span>
                         <span>{GATE_LABELS[k]} — {gateInfo[k]} symbol{gateInfo[k] === 1 ? '' : 's'} filtered</span>
                       </div>
                     ))}

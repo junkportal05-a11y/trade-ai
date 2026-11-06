@@ -2,6 +2,7 @@ import { apiFetch, deletePrediction } from './api';
 import { formatError } from './utils/formatError';
 import { getConfidenceScore } from './utils/performance';
 import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle, X, CircleCheck } from 'lucide-react';
 import { T, mono } from './theme';
 
 const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -268,7 +269,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
       {/* Title */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 16 }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff', marginBottom: 4 }}> PREDICTION TRACKING CENTER</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: T.text, marginBottom: 4 }}> PREDICTION TRACKING CENTER</h2>
           <p style={{ fontSize: 11, color: T.textMid }}>Validate trading thesis, compute win rate stats, and track indicator models.</p>
         </div>
         <button
@@ -284,7 +285,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
             cursor: 'pointer',
             transition: 'all 0.2s'
           }}
-          onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+          onMouseEnter={e => e.currentTarget.style.color = T.text}
           onMouseLeave={e => e.currentTarget.style.color = T.textMid}
         >
           ← BACK TO CHARTS
@@ -293,7 +294,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
 
       {globalConfidence?.locked && (
         <div style={{ background: T.redDim, border: `1px solid ${T.red}`, padding: 12, borderRadius: 8, marginTop: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>⚠</span>
+          <AlertTriangle size={18} color={T.red} />
           <div>
             <div style={{ color: T.red, fontWeight: 700, fontSize: 12, letterSpacing: '0.04em' }}>DATA INTEGRITY COMPROMISED</div>
             <div style={{ color: T.text, fontSize: 11, opacity: 0.9 }}>Database Data Confidence Score is {(globalConfidence.confidence_score ?? 0).toFixed(1)}% (Below 90% threshold). Analytics have been locked to prevent decision making on corrupted historical data.</div>
@@ -321,7 +322,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>PROFIT FACTOR</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: stats.profit_factor >= 1.5 ? T.green : stats.profit_factor >= 1.0 ? '#fbbf24' : T.red, letterSpacing: '-0.02em', ...mono }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: stats.profit_factor >= 1.5 ? T.green : stats.profit_factor >= 1.0 ? T.gold : T.red, letterSpacing: '-0.02em', ...mono }}>
               {(stats.profit_factor ?? 0).toFixed(2)}x
             </div>
           </div>
@@ -360,7 +361,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>REALIZED R-MULTIPLE</div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: stats.empirical_rr_ratio >= 1.5 ? T.green : '#fbbf24', letterSpacing: '-0.02em', ...mono }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: stats.empirical_rr_ratio >= 1.5 ? T.green : T.gold, letterSpacing: '-0.02em', ...mono }}>
               {(stats.empirical_rr_ratio ?? 0).toFixed(2)}R
             </div>
           </div>
@@ -395,7 +396,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
           </div>
           <div style={{ fontSize: 10, color: T.textDim, borderTop: `1px solid ${T.border}`, paddingTop: 10, marginTop: 6, display: 'flex', justifyContent: 'space-between' }}>
             <span>Avg Confidence:</span>
-            <span style={{ color: '#fff', fontWeight: 600 }}>{(stats.avg_confidence ?? 0).toFixed(0)}%</span>
+            <span style={{ color: T.text, fontWeight: 600 }}>{(stats.avg_confidence ?? 0).toFixed(0)}%</span>
           </div>
         </div>
 
@@ -404,7 +405,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
       {/* STRATEGY LEADERBOARD */}
       <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20, filter: globalConfidence?.locked ? 'blur(4px)' : 'none', pointerEvents: globalConfidence?.locked ? 'none' : 'auto', transition: 'all 0.3s ease' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
-          <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', margin: 0 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: T.text, margin: 0 }}>
              SETUP LEADERBOARD (LIVE PERFORMANCE)
           </h3>
           {dataConfidence !== null && (
@@ -432,7 +433,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                   <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', padding: '12px 12px', borderBottom: `1px solid ${T.border}`, fontSize: 11, ...mono, alignItems: 'center' }}>
                     <span style={{ color: T.text, fontWeight: 700 }}>{item.setup_type}</span>
                     <span style={{ color: (item.win_rate ?? 0) >= 50 ? T.green : T.textMid }}>{(item.win_rate ?? 0).toFixed(1)}% ({item.wins}/{item.trades})</span>
-                    <span style={{ color: (item.profit_factor ?? 0) >= 1.5 ? T.green : (item.profit_factor ?? 0) >= 1.0 ? '#fbbf24' : T.red, fontWeight: 700 }}>{(item.profit_factor ?? 0).toFixed(2)}x</span>
+                    <span style={{ color: (item.profit_factor ?? 0) >= 1.5 ? T.green : (item.profit_factor ?? 0) >= 1.0 ? T.gold : T.red, fontWeight: 700 }}>{(item.profit_factor ?? 0).toFixed(2)}x</span>
                     <span style={{ color: (item.ev_pct ?? 0) > 0 ? T.green : T.red }}>{(item.ev_pct ?? 0) > 0 ? '+' : ''}{(item.ev_pct ?? 0).toFixed(2)}%</span>
                     <span>
                       {isActive ? (
@@ -456,7 +457,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
         
         {/* Card: Log Prediction Form */}
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20 }}>
-          <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: T.text, marginBottom: 16, borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
              RECORD NEW SYSTEM PREDICTION
           </h3>
 
@@ -474,7 +475,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                     background: T.panel,
                     border: `1px solid ${T.border}`,
                     borderRadius: 6,
-                    color: '#fff',
+                    color: T.text,
                     fontSize: 11,
                     outline: 'none'
                   }}
@@ -545,7 +546,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                     background: T.panel,
                     border: `1px solid ${T.border}`,
                     borderRadius: 6,
-                    color: '#fff',
+                    color: T.text,
                     fontSize: 11,
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -568,7 +569,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                     background: T.panel,
                     border: `1px solid ${T.border}`,
                     borderRadius: 6,
-                    color: '#fff',
+                    color: T.text,
                     fontSize: 11,
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -591,7 +592,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                     background: T.panel,
                     border: `1px solid ${T.border}`,
                     borderRadius: 6,
-                    color: '#fff',
+                    color: T.text,
                     fontSize: 11,
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -605,7 +606,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: T.textMid, marginBottom: 6 }}>
                 <span>CONFIDENCE SCORE</span>
-                <span style={{ color: '#fbbf24', ...mono }}>{confidence}%</span>
+                <span style={{ color: T.gold, ...mono }}>{confidence}%</span>
               </div>
               <input
                 type="range"
@@ -634,7 +635,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                     background: T.panel,
                     border: `1px solid ${T.border}`,
                     borderRadius: 5,
-                    color: '#fff',
+                    color: T.text,
                     fontSize: 10,
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -657,7 +658,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                     background: T.panel,
                     border: `1px solid ${T.border}`,
                     borderRadius: 5,
-                    color: '#fff',
+                    color: T.text,
                     fontSize: 10,
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -680,7 +681,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                     background: T.panel,
                     border: `1px solid ${T.border}`,
                     borderRadius: 5,
-                    color: '#fff',
+                    color: T.text,
                     fontSize: 10,
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -704,7 +705,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                   background: T.panel,
                   border: `1px solid ${T.border}`,
                   borderRadius: 6,
-                  color: '#fff',
+                  color: T.text,
                   fontSize: 11,
                   fontFamily: "'Inter', sans-serif",
                   outline: 'none',
@@ -726,7 +727,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                 background: T.accent,
                 border: 'none',
                 borderRadius: 6,
-                color: '#fff',
+                color: T.text,
                 fontSize: 11,
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -734,7 +735,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                 transition: 'all 0.2s',
                 opacity: loading ? 0.7 : 1
               }}
-              onMouseEnter={e => { if(!loading) e.currentTarget.style.background = '#d97706'; }}
+              onMouseEnter={e => { if(!loading) e.currentTarget.style.background = T.accentAlt; }}
               onMouseLeave={e => { if(!loading) e.currentTarget.style.background = T.accent; }}
             >
               {loading ? "RECORDING..." : " SAVE SYSTEM PREDICTION"}
@@ -747,7 +748,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
           
           {/* Header & Filter switchers */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff' }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: T.text }}>
                PREDICTIONS LOG
             </h3>
             
@@ -762,7 +763,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                     border: 'none',
                     cursor: 'pointer',
                     background: filter === f ? T.borderHi : 'transparent',
-                    color: filter === f ? '#fff' : T.textMid,
+                    color: filter === f ? T.text : T.textMid,
                     fontSize: 9,
                     fontWeight: 700
                   }}
@@ -813,7 +814,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                             if (onSelectSymbol) onSelectSymbol(pred.symbol);
                             if (onViewChange) onViewChange('CHART');
                           }}
-                          style={{ fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', textDecoration: 'underline' }}
+                          style={{ fontSize: 12, fontWeight: 700, color: T.text, cursor: 'pointer', textDecoration: 'underline' }}
                         >
                           {pred.symbol.replace('.NS', '')}
                         </span>
@@ -827,7 +828,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                             fontWeight: 700,
                             padding: '2px 6px',
                             borderRadius: 4,
-                            background: isPending ? T.border : isCorrect ? T.greenDim : pred.status === 'FLAT' ? 'rgba(245, 158, 11, 0.12)' : T.redDim,
+                            background: isPending ? T.border : isCorrect ? T.greenDim : pred.status === 'FLAT' ? T.borderHi : T.redDim,
                             color: isPending ? T.textMid : isCorrect ? T.green : pred.status === 'FLAT' ? T.blue : T.red,
                             border: `1px solid ${isPending ? T.borderHi : isCorrect ? T.green : pred.status === 'FLAT' ? T.blue : T.red}30`
                           }}
@@ -884,12 +885,12 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                           {pred.rsi && <span>RSI: <strong style={{ color: T.text }}>{pred.rsi}</strong></span>}
                           {pred.macd && <span>MACD Hist: <strong style={{ color: T.text }}>{pred.macd}</strong></span>}
                           {pred.adx && <span>ADX: <strong style={{ color: T.text }}>{pred.adx}</strong></span>}
-                          <span>Confidence: <strong style={{ color: '#fbbf24' }}>{pred.confidence_score}%</strong></span>
+                          <span>Confidence: <strong style={{ color: T.gold }}>{pred.confidence_score}%</strong></span>
                         </div>
                         
                         {/* Phase Omega: Trade Quality Engine */}
                         {pred.trade_quality_score > 0 && (
-                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '6px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', border: `1px solid ${T.borderHi}` }}>
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '6px', background: T.bg, borderRadius: '4px', border: `1px solid ${T.borderHi}` }}>
                             <span style={{ color: T.accent, fontWeight: 'bold' }}>TQS: {pred.trade_quality_score}</span>
                             <span>| Regime: {pred.regime_score}</span>
                             <span>| Sector: {pred.sector_score}</span>
@@ -925,7 +926,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                                 background: T.panel,
                                 border: `1px solid ${T.border}`,
                                 borderRadius: 4,
-                                color: '#fff',
+                                color: T.text,
                                 fontSize: 10,
                                 outline: 'none',
                                 boxSizing: 'border-box',
@@ -976,7 +977,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                             style={{
                               width: '100%',
                               padding: '6px 0',
-                              background: 'rgba(245, 158, 11, 0.08)',
+                              background: T.panel,
                               border: `1px solid ${T.accent}30`,
                               borderRadius: 5,
                               color: T.accent,
@@ -986,8 +987,8 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                               transition: 'all 0.2s',
                               letterSpacing: '0.04em'
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)'}
+                            onMouseEnter={e => e.currentTarget.style.background = T.borderHi}
+                            onMouseLeave={e => e.currentTarget.style.background = T.panel}
                           >
                              MANUALLY RESOLVE PREDICTION
                           </button>
