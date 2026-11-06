@@ -17,7 +17,7 @@ function getMarketSession(now = new Date()) {
     return { label: 'CLOSED', color: T.red, live: false };
   }
   if (minutes >= 9 * 60 && minutes < 9 * 60 + 15) {
-    return { label: 'PRE-MARKET', color: '#fbbf24', live: false };
+    return { label: 'PRE-MARKET', color: T.gold, live: false };
   }
   if (minutes >= 9 * 60 + 15 && minutes <= 15 * 60 + 30) {
     return { label: 'NSE OPEN', color: T.green, live: true };
@@ -41,12 +41,12 @@ function NavButton({ tab, active, onClick }) {
         padding: '5px 12px',
         borderRadius: 8,
         cursor: 'pointer',
-        border: `1px solid ${active ? 'rgba(245, 158, 11, 0.4)' : 'transparent'}`,
+        border: `1px solid ${active ? T.borderHi : 'transparent'}`,
         background: active
-          ? 'rgba(245, 158, 11, 0.15)'
+          ? T.goldDim
           : 'transparent',
-        boxShadow: active ? '0 0 15px rgba(245, 158, 11, 0.2)' : 'none',
-        color: active ? '#fbbf24' : '#94a3b8',
+        boxShadow: active ? `0 0 15px ${T.accentGlow}` : 'none',
+        color: active ? T.gold : T.textMid,
         fontSize: 12,
         fontWeight: active ? 700 : 500,
         letterSpacing: '0.01em',
@@ -56,13 +56,13 @@ function NavButton({ tab, active, onClick }) {
       }}
       onMouseEnter={e => {
         if (!active) {
-          e.currentTarget.style.color = '#ffffff';
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+          e.currentTarget.style.color = T.text;
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
         }
       }}
       onMouseLeave={e => {
         if (!active) {
-          e.currentTarget.style.color = '#94a3b8';
+          e.currentTarget.style.color = T.textMid;
           e.currentTarget.style.background = 'transparent';
         }
       }}
@@ -121,13 +121,13 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
-          border: '1px solid #fde68a',
-          color: '#000000',
+          background: `linear-gradient(135deg, ${T.gold}, ${T.accentAlt})`,
+          border: `1px solid ${T.borderHi}`,
+          color: T.bg,
           fontWeight: 900,
           fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace",
           fontSize: 12,
-          boxShadow: '0 0 15px rgba(245, 158, 11, 0.35)',
+          boxShadow: `0 0 15px ${T.accentGlow}`,
         }}>
           AT
         </div>
@@ -136,7 +136,7 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
             fontFamily: "'Plus Jakarta Sans', sans-serif",
             fontSize: 16,
             fontWeight: 800,
-            color: '#ffffff',
+            color: T.text,
             letterSpacing: '-0.02em',
             whiteSpace: 'nowrap',
           }}>
@@ -145,11 +145,11 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
           <span style={{
             padding: '2px 6px',
             borderRadius: 4,
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: `1px solid ${T.border}`,
             fontSize: 10,
             fontFamily: "'IBM Plex Mono', monospace",
-            color: '#94a3b8',
+            color: T.textMid,
             fontWeight: 600,
           }}>
             v6.1.1
@@ -258,9 +258,9 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
                 style={{
                   fontSize: 8,
                   fontWeight: 700,
-                  color: '#fbbf24',
-                  background: 'rgba(245,158,11,0.12)',
-                  border: '1px solid rgba(245,158,11,0.3)',
+                  color: T.gold,
+                  background: T.goldDim,
+                  border: `1px solid ${T.borderHi}`,
                   padding: '1px 5px',
                   borderRadius: 3,
                   fontFamily: "'IBM Plex Mono', monospace",
@@ -278,7 +278,7 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>PORTFOLIO</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(netWorth)}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(netWorth)}</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>P&amp;L</span>
@@ -319,7 +319,7 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
               fontFamily: "'Inter', sans-serif",
               transition: PILL_TRANSITION,
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.45)'; e.currentTarget.style.color = T.text; }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderHi; e.currentTarget.style.color = T.text; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textMid; }}
           >
             <Search size={13} />
@@ -392,8 +392,8 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
             padding: '4px 9px',
             borderRadius: 999,
             cursor: 'pointer',
-            border: `1px solid ${!connected ? T.redGlow : session.color === T.green ? T.greenGlow : session.color === '#fbbf24' ? 'rgba(245,158,11,0.3)' : T.redGlow}`,
-            background: !connected ? T.redDim : session.color === T.green ? T.greenDim : session.color === '#fbbf24' ? 'rgba(245,158,11,0.12)' : T.redDim,
+            border: `1px solid ${!connected ? T.redGlow : session.color === T.green ? T.greenGlow : session.color === T.gold ? T.borderHi : T.redGlow}`,
+            background: !connected ? T.redDim : session.color === T.green ? T.greenDim : session.color === T.gold ? T.goldDim : T.redDim,
           }}
         >
           <span style={{

@@ -95,7 +95,7 @@ export default function JournalPanel() {
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          style={{ background: T.accent, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 4, cursor: 'pointer', ...mono, fontSize: 12, fontWeight: 'bold' }}
+          style={{ background: T.accent, color: T.text, border: 'none', padding: '8px 16px', borderRadius: 4, cursor: 'pointer', ...mono, fontSize: 12, fontWeight: 'bold' }}
         >
           + NEW ENTRY
         </button>
@@ -142,7 +142,7 @@ export default function JournalPanel() {
             </thead>
             <tbody>
               {entries.map((e, idx) => (
-                <tr key={e.id} style={{ borderBottom: idx === entries.length - 1 ? 'none' : `1px solid ${T.border}`, transition: 'background 0.2s' }} onMouseEnter={ev => ev.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
+                <tr key={e.id} style={{ borderBottom: idx === entries.length - 1 ? 'none' : `1px solid ${T.border}`, transition: 'background 0.2s' }} onMouseEnter={ev => ev.currentTarget.style.background = T.panel} onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
                   <td style={{ padding: '14px 16px', color: T.textMid }}>{new Date(e.entry_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                   <td style={{ padding: '14px 16px', color: T.text, fontWeight: 'bold' }}>{e.symbol}</td>
                   <td style={{ padding: '14px 16px' }}>
@@ -160,7 +160,7 @@ export default function JournalPanel() {
                   <td style={{ padding: '14px 16px', color: T.textMid }}>{e.emotion || '—'}</td>
                   <td style={{ padding: '14px 16px', color: T.textMid }}>{e.reason || '—'}</td>
                   <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                    <button onClick={() => handleDelete(e.id)} style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', ...mono, fontSize: 14, transition: 'color 0.2s' }} onMouseEnter={ev => ev.target.style.color = T.red} onMouseLeave={ev => ev.target.style.color = T.textDim}>
+                    <button onClick={() => handleDelete(e.id)} style={{ background: 'none', border: 'none', color: T.text, cursor: 'pointer', ...mono, fontSize: 14, transition: 'color 0.2s' }} onMouseEnter={ev => ev.target.style.color = T.red} onMouseLeave={ev => ev.target.style.color = T.textDim}>
                       &times;
                     </button>
                   </td>
@@ -196,8 +196,8 @@ export default function JournalPanel() {
             <input placeholder="Reason (e.g. Breakout retest)" value={newEntry.reason} onChange={e => setNewEntry({...newEntry, reason: e.target.value})} style={{ padding: 12, background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 6, color: T.text, ...mono }} />
             
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 12 }}>
-              <button type="button" onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: T.textMid, cursor: 'pointer', ...mono, fontWeight: 'bold' }}>CANCEL</button>
-              <button type="submit" style={{ background: T.accent, color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 6, cursor: 'pointer', ...mono, fontWeight: 'bold' }}>SAVE LOG</button>
+              <button type="button" onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: T.text, cursor: 'pointer', ...mono, fontWeight: 'bold' }}>CANCEL</button>
+              <button type="submit" style={{ background: T.accent, color: T.text, border: 'none', padding: '10px 20px', borderRadius: 6, cursor: 'pointer', ...mono, fontWeight: 'bold' }}>SAVE LOG</button>
             </div>
           </form>
         </div>

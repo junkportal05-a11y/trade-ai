@@ -23,7 +23,7 @@ export default function PortfolioPanel({ prices, portfolio, cash }) {
     slices.push({ label: 'Cash', value: cash, color: T.blue, weight: cashWeight, dashOffset: C - (acc * C) });
     acc += cashWeight;
   }
-  const COLORS = ['#f59e0b', '#fbbf24', '#d97706', '#ef4444', '#b45309', '#dc2626', '#92400e'];
+  const COLORS = [T.accentAlt, T.gold, T.accentAlt, T.red, T.redDim, T.accent, T.redDim];
   positions.forEach((pos, idx) => {
     if (totalValue > 0 && pos.value > 0) {
       const weight = pos.value / totalValue;
@@ -37,7 +37,7 @@ export default function PortfolioPanel({ prices, portfolio, cash }) {
       <div style={{ padding: '14px 16px 10px', borderBottom: `1px solid ${T.border}` }}>
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>PORTFOLIO</span>
       </div>
-      <div style={{ padding: '14px 16px', borderBottom: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.015)' }}>
+      <div style={{ padding: '14px 16px', borderBottom: `1px solid ${T.border}`, background: T.surface }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <div>
             <div style={{ fontSize: 9, color: T.textDim, marginBottom: 4, fontFamily: "'IBM Plex Mono', monospace" }}>NET WORTH</div>

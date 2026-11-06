@@ -1,5 +1,6 @@
 import { API_BASE_URL, apiFetch } from './api';
 import React, { useState, useEffect } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import BrokerSettings from './BrokerSettings';
 import { T, mono } from './theme';
 
@@ -39,7 +40,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
       {/* Title */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 16 }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff', marginBottom: 4 }}> SECURITY SYSTEM & PROFILE</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: T.text, marginBottom: 4 }}> SECURITY SYSTEM & PROFILE</h2>
           <p style={{ fontSize: 11, color: T.textMid }}>Manage active terminal authorization tokens and security access levels.</p>
         </div>
         <div style={{
@@ -81,17 +82,18 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
                 width: 48,
                 height: 48,
                 borderRadius: 10,
-                background: `linear-gradient(135deg, ${T.accent}, ${T.accentAlt})`,
+                background: T.accentDim,
+                border: `1px solid ${T.borderHi}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: 22,
-                boxShadow: `0 0 16px ${T.accentGlow}`
+                color: T.accent
               }}>
                 
               </div>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 2 }}>{currentUser}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 2 }}>{currentUser}</div>
                 <div style={{ fontSize: 10, color: T.accentAlt, fontWeight: 700, letterSpacing: '0.04em', ...mono }}>{curUserObj.role}</div>
               </div>
             </div>
@@ -127,7 +129,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
             borderRadius: 12,
             padding: 24
           }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, ...mono }}> PLATFORM HARDENING SETTINGS</h3>
+            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: T.text, marginBottom: 16, ...mono }}> PLATFORM HARDENING SETTINGS</h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -174,8 +176,8 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
                   style={{
                     width: '100%',
                     padding: '10px 14px',
-                    background: 'rgba(255, 61, 90, 0.06)',
-                    border: `1px solid rgba(255, 61, 90, 0.25)`,
+                    background: T.redDim,
+                    border: `1px solid ${T.red}`,
                     borderRadius: 8,
                     color: T.red,
                     fontSize: 11,
@@ -183,18 +185,21 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     letterSpacing: '0.04em',
-                    ...mono
+                    ...mono,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(255, 61, 90, 0.12)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 61, 90, 0.4)';
+                    e.currentTarget.style.background = T.redGlow;
+                    e.currentTarget.style.borderColor = T.red;
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(255, 61, 90, 0.06)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 61, 90, 0.25)';
+                    e.currentTarget.style.background = T.redDim;
+                    e.currentTarget.style.borderColor = T.red;
                   }}
                 >
-                  ⚠ FORCE DESTROY CACHED SESSION KEYS
+                  <AlertTriangle size={10} color={T.red} /> FORCE DESTROY CACHED SESSION KEYS
                 </button>
               </div>
             </div>
@@ -210,7 +215,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
             borderRadius: 12,
             padding: 24
           }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, ...mono }}> TERMINAL CLEARANCE POLICIES</h3>
+            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: T.text, marginBottom: 16, ...mono }}> TERMINAL CLEARANCE POLICIES</h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
@@ -223,7 +228,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
                     flexDirection: 'column',
                     gap: 4,
                     padding: '10px 12px',
-                    background: isActiveClearance ? 'rgba(245, 158, 11, 0.08)' : T.panelAlt,
+                    background: isActiveClearance ? T.goldDim : T.panelAlt,
                     border: `1px solid ${isActiveClearance ? T.accent + '40' : T.border}`,
                     borderRadius: 8
                   }}>
@@ -257,7 +262,7 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
             flex: 1,
             minHeight: '260px'
           }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#fff', marginBottom: 16, ...mono }}> REAL-TIME SECURITY AUDIT FEED</h3>
+            <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: T.text, marginBottom: 16, ...mono }}> REAL-TIME SECURITY AUDIT FEED</h3>
             
             <div style={{
               flex: 1,

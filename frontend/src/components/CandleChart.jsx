@@ -100,12 +100,12 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
     mainChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     if (indicators.ema9) {
       const ema9Data = calcEMA(bars, 9);
-      const ema9Series = mainChart.addSeries(LineSeries, { color: '#fbbf24', lineWidth: 1.5, title: 'EMA 9' });
+      const ema9Series = mainChart.addSeries(LineSeries, { color: T.gold, lineWidth: 1.5, title: 'EMA 9' });
       ema9Series.setData(ema9Data);
     }
     if (indicators.ema21) {
       const ema21Data = calcEMA(bars, 21);
-      const ema21Series = mainChart.addSeries(LineSeries, { color: '#d97706', lineWidth: 1.5, title: 'EMA 21' });
+      const ema21Series = mainChart.addSeries(LineSeries, { color: T.accentAlt, lineWidth: 1.5, title: 'EMA 21' });
       ema21Series.setData(ema21Data);
     }
     if (indicators.bb) {
@@ -129,7 +129,7 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
       });
       rsiChartRef.current = rsiChart;
       targets.push(rsiChart);
-      const rsiSeries = rsiChart.addSeries(LineSeries, { color: '#f59e0b', lineWidth: 1.5 });
+      const rsiSeries = rsiChart.addSeries(LineSeries, { color: T.accentAlt, lineWidth: 1.5 });
       rsiSeries.setData(calcRSI(bars, 14));
       rsiSeries.createPriceLine({ price: 70, color: 'rgba(239,68,68,0.4)', lineWidth: 1, lineStyle: 3, axisLabelVisible: true });
       rsiSeries.createPriceLine({ price: 30, color: 'rgba(245,158,11,0.4)', lineWidth: 1, lineStyle: 3, axisLabelVisible: true });
@@ -149,7 +149,7 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
       const macdData = calcMACD(bars);
       const macdHistSeries = macdChart.addSeries(HistogramSeries, { priceScaleId: 'right' });
       macdHistSeries.setData(macdData.histogram.map(h => ({ time: h.time, value: h.value, color: h.value >= 0 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)' })));
-      macdChart.addSeries(LineSeries, { color: '#fbbf24', lineWidth: 1.2 }).setData(macdData.macdLine.map(m => ({ time: m.time, value: m.value })));
+      macdChart.addSeries(LineSeries, { color: T.gold, lineWidth: 1.2 }).setData(macdData.macdLine.map(m => ({ time: m.time, value: m.value })));
       macdChart.addSeries(LineSeries, { color: '#ef4444', lineWidth: 1.2 }).setData(macdData.signalLine.map(s => ({ time: s.time, value: s.value })));
     }
     if (targets.length > 0) {
@@ -253,8 +253,8 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
       </div>}
       <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
         <div ref={legendRef} style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, fontFamily: "'IBM Plex Mono', monospace", pointerEvents: 'none', background: 'rgba(13,16,24,0.65)', backdropFilter: 'blur(4px)', padding: '8px 12px', borderRadius: 6, display: 'none', border: `1px solid ${T.borderHi}` }} />
-        {botPaperMode === true && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, pointerEvents: 'none', color: 'rgba(255,255,255,0.05)', fontSize: '8vw', fontWeight: 900, whiteSpace: 'nowrap', userSelect: 'none' }}>SIMULATION MODE</div>}
-        {dataSource === PRICE_FEED_SOURCE && <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 9, color: '#fbbf24', fontSize: 9, background: 'rgba(245,158,11,0.12)', padding: '2px 6px', borderRadius: 3, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, letterSpacing: '0.05em' }}>SIMULATED FEED</div>}
+        {botPaperMode === true && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, pointerEvents: 'none', color: T.text, fontSize: '8vw', fontWeight: 900, whiteSpace: 'nowrap', userSelect: 'none' }}>SIMULATION MODE</div>}
+        {dataSource === PRICE_FEED_SOURCE && <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 9, color: T.gold, fontSize: 9, background: T.goldDim, padding: '2px 6px', borderRadius: 3, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, letterSpacing: '0.05em' }}>SIMULATED FEED</div>}
 
         <div style={{
           position: 'absolute', top: 12, right: 12, zIndex: 11,

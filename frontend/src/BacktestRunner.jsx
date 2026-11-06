@@ -97,11 +97,11 @@ export default function BacktestRunner({ onResults }) {
 
   const metricCards = results ? [
     { label: 'TOTAL RETURN', value: fmt(retPct), color: retPct >= 0 ? T.green : T.red },
-    { label: 'WIN RATE', value: `${winRateVal.toFixed(1)}%`, color: winRateVal >= 50 ? T.green : winRateVal >= 40 ? '#fbbf24' : T.red },
+    { label: 'WIN RATE', value: `${winRateVal.toFixed(1)}%`, color: winRateVal >= 50 ? T.green : winRateVal >= 40 ? T.gold : T.red },
     { label: 'MAX DRAWDOWN', value: `${maxDd.toFixed(2)}%`, color: T.red },
-    { label: 'SHARPE RATIO', value: sharpeVal.toFixed(2), color: sharpeVal >= 1.5 ? T.green : sharpeVal >= 1 ? '#fbbf24' : T.red },
+    { label: 'SHARPE RATIO', value: sharpeVal.toFixed(2), color: sharpeVal >= 1.5 ? T.green : sharpeVal >= 1 ? T.gold : T.red },
     { label: 'TOTAL TRADES', value: (results.total_trades ?? 0).toString(), color: T.accent },
-    { label: 'PROFIT FACTOR', value: profitFactorVal.toFixed(2), color: profitFactorVal >= 1.5 ? T.green : profitFactorVal >= 1 ? '#fbbf24' : T.red },
+    { label: 'PROFIT FACTOR', value: profitFactorVal.toFixed(2), color: profitFactorVal >= 1.5 ? T.green : profitFactorVal >= 1 ? T.gold : T.red },
   ] : [];
 
   return (
@@ -112,14 +112,14 @@ export default function BacktestRunner({ onResults }) {
           <Timer size={18} color={T.accentAlt} />
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: T.accentAlt, ...mono }}>BACKTEST ENGINE</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Historical Truth & 30-Strategy Tournament</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.text }}>Historical Truth & 30-Strategy Tournament</div>
           </div>
         </div>
         <button type="button" onClick={handleTournament} disabled={tournamentLoading} style={{
-          padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(245, 158, 11, 0.4)',
-          background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', fontWeight: 700, fontSize: 10,
+          padding: '8px 16px', borderRadius: 8, border: `1px solid ${T.borderHi}`,
+          background: T.goldDim, color: T.gold, fontWeight: 700, fontSize: 10,
           letterSpacing: '0.08em', cursor: tournamentLoading ? 'not-allowed' : 'pointer', ...mono,
-          boxShadow: '0 0 12px rgba(245, 158, 11, 0.2)'
+          display: 'inline-flex', alignItems: 'center', gap: 6
         }}>
           <Trophy size={12} style={{ marginRight: 6, verticalAlign: '-1px' }} />
           {tournamentLoading ? 'EVALUATING 30 STRATEGIES...' : 'RUN 30-STRATEGY TOURNAMENT'}
@@ -165,13 +165,12 @@ export default function BacktestRunner({ onResults }) {
 
         <button type="submit" disabled={loading} style={{
           padding: '12px 24px', borderRadius: 10, border: 'none',
-          background: loading ? 'rgba(245, 158, 11, 0.4)' : 'linear-gradient(135deg, #fbbf24, #f59e0b)',
-          color: '#000000',
+          background: loading ? T.goldDim : T.goldDim,
+          color: T.gold,
           fontWeight: 800, fontSize: 12, letterSpacing: '0.06em', cursor: loading ? 'not-allowed' : 'pointer',
           fontFamily: "'IBM Plex Mono', monospace", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          boxShadow: '0 0 20px rgba(245, 158, 11, 0.35)',
         }}>
-          {loading ? '⟳ RUNNING...' : '▶ RUN BACKTEST'}
+          {loading ? 'RUNNING...' : 'RUN BACKTEST'}
         </button>
 
         {error && (
@@ -183,9 +182,9 @@ export default function BacktestRunner({ onResults }) {
 
       {/* Tournament Leaderboard */}
       {tournamentResults && tournamentResults.leaderboard?.length && (
-        <div style={{ background: T.panel, border: `1px solid ${'#fbbf24'}40`, borderRadius: 8, padding: 14, marginBottom: 12 }}>
+        <div style={{ background: T.panel, border: `1px solid ${T.gold}40`, borderRadius: 8, padding: 14, marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', ...mono }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.gold, ...mono }}>
               30-STRATEGY LEADERBOARD — BEST: {tournamentResults.best_strategy} (SCORE: {tournamentResults.best_strategy_score})
             </div>
             <div style={{ fontSize: 9, color: T.textDim, ...mono }}>
@@ -207,11 +206,11 @@ export default function BacktestRunner({ onResults }) {
               </thead>
               <tbody>
                 {(tournamentResults.leaderboard || []).map((r, i) => (
-                  <tr key={i} style={{ borderBottom: `1px solid ${T.border}30`, background: i === 0 ? 'rgba(245, 158, 11, 0.12)' : 'transparent' }}>
-                    <td style={{ padding: '6px 8px', fontWeight: 700, color: i === 0 ? '#fbbf24' : T.textMid, ...mono }}>#{r.rank}</td>
-                    <td style={{ padding: '6px 8px', fontWeight: 600, color: '#fff' }}>{r.strategy}</td>
+                  <tr key={i} style={{ borderBottom: `1px solid ${T.border}30`, background: i === 0 ? T.goldDim : 'transparent' }}>
+                    <td style={{ padding: '6px 8px', fontWeight: 700, color: i === 0 ? T.gold : T.textMid, ...mono }}>#{r.rank}</td>
+                    <td style={{ padding: '6px 8px', fontWeight: 600, color: T.text }}>{r.strategy}</td>
                     <td style={{ padding: '6px 8px', color: T.accentAlt, ...mono }}>{r.bucket}</td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: '#fbbf24', ...mono }}>{r.score}</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: T.gold, ...mono }}>{r.score}</td>
                     <td style={{ padding: '6px 8px', textAlign: 'right', color: T.green, ...mono }}>{r.win_rate}%</td>
                     <td style={{ padding: '6px 8px', textAlign: 'right', color: T.blue, ...mono }}>{r.sharpe_ratio}</td>
                     <td style={{ padding: '6px 8px', textAlign: 'right', color: r.total_return_pct >= 0 ? T.green : T.red, ...mono }}>
@@ -283,8 +282,8 @@ export default function BacktestRunner({ onResults }) {
                         <td style={{ padding: '8px 10px' }}>
                           <span style={{
                             padding: '2px 6px', borderRadius: 3, fontSize: 8, fontWeight: 700, ...mono,
-                            background: t.status === 'WIN' ? T.greenDim : t.status === 'LOSS' ? T.redDim : 'rgba(245, 158, 11, 0.12)',
-                            color: t.status === 'WIN' ? T.green : t.status === 'LOSS' ? T.red : '#fbbf24',
+                            background: t.status === 'WIN' ? T.greenDim : t.status === 'LOSS' ? T.redDim : T.goldDim,
+                            color: t.status === 'WIN' ? T.green : t.status === 'LOSS' ? T.red : T.gold,
                           }}>{t.status}</span>
                         </td>
                       </tr>

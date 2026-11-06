@@ -23,7 +23,7 @@ export default function BottomConsole({ prices, portfolio, cash, openOrders, onC
           ))}
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 16, fontSize: 10, fontFamily: "'IBM Plex Mono', monospace" }}>
-          <div><span style={{ color: T.textDim }}>NET WORTH:</span> <strong style={{ color: '#fff' }}>₹{fmt(netWorth)}</strong></div>
+          <div><span style={{ color: T.textDim }}>NET WORTH:</span> <strong style={{ color: T.text }}>₹{fmt(netWorth)}</strong></div>
           <div><span style={{ color: T.textDim }}>CASH:</span> <strong style={{ color: T.blue }}>₹{fmt(cash)}</strong></div>
         </div>
       </div>
@@ -50,7 +50,7 @@ export default function BottomConsole({ prices, portfolio, cash, openOrders, onC
                       const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
                       return (
                         <tr key={pos.symbol} style={{ borderBottom: `1px solid ${T.border}` }}>
-                          <td style={{ padding: '8px 0', fontWeight: 700, color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{pos.symbol.replace('.NS', '')}</td>
+                          <td style={{ padding: '8px 0', fontWeight: 700, color: T.text, fontFamily: "'IBM Plex Mono', monospace" }}>{pos.symbol.replace('.NS', '')}</td>
                           <td style={{ padding: '8px 0', fontFamily: "'IBM Plex Mono', monospace" }}>{pos.shares}</td>
                           <td style={{ padding: '8px 0', fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(pos.avgCost)}</td>
                           <td style={{ padding: '8px 0', fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(price)}</td>
@@ -84,7 +84,7 @@ export default function BottomConsole({ prices, portfolio, cash, openOrders, onC
                     {openOrders.map(o => (
                       <tr key={o.id} style={{ borderBottom: `1px solid ${T.border}` }}>
                         <td style={{ padding: '8px 0', fontWeight: 700, color: o.side === 'buy' ? T.green : T.red, fontFamily: "'IBM Plex Mono', monospace" }}>{o.side.toUpperCase()}</td>
-                        <td style={{ padding: '8px 0', fontWeight: 700, color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{o.symbol.replace('.NS', '')}</td>
+                        <td style={{ padding: '8px 0', fontWeight: 700, color: T.text, fontFamily: "'IBM Plex Mono', monospace" }}>{o.symbol.replace('.NS', '')}</td>
                         <td style={{ padding: '8px 0', fontFamily: "'IBM Plex Mono', monospace" }}>{o.qty}</td>
                         <td style={{ padding: '8px 0', fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(o.limitPrice)}</td>
                         <td style={{ padding: '8px 0', color: T.textMid }}>LIMIT (PAPER)</td>
@@ -116,7 +116,7 @@ export default function BottomConsole({ prices, portfolio, cash, openOrders, onC
                       const price = prices[a.symbol]?.price ?? SEED_PRICES[a.symbol] ?? 0;
                       return (
                         <tr key={a.id} style={{ borderBottom: `1px solid ${T.border}` }}>
-                          <td style={{ padding: '8px 0', fontWeight: 700, color: '#fff', fontFamily: "'IBM Plex Mono', monospace" }}>{a.symbol.replace('.NS', '')}</td>
+                          <td style={{ padding: '8px 0', fontWeight: 700, color: T.text, fontFamily: "'IBM Plex Mono', monospace" }}>{a.symbol.replace('.NS', '')}</td>
                           <td style={{ padding: '8px 0', color: a.condition === 'above' ? T.green : T.red }}>
                             {a.condition === 'above' ? 'Crosses Above (≥)' : 'Drops Below (≤)'}</td>
                           <td style={{ padding: '8px 0', fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(a.targetPrice, 1)}</td>
@@ -156,9 +156,9 @@ export default function BottomConsole({ prices, portfolio, cash, openOrders, onC
             </div>
             {!aiRecommendationLoading && aiRecommendation && (
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                <button onClick={() => onViewChange('PREDICTIONS')} style={{ padding: '3px 8px', background: 'rgba(245, 158, 11, 0.08)', border: `1px solid rgba(245, 158, 11, 0.25)`, borderRadius: 5, color: '#fbbf24', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Sparkles size={10} /> LOG SYSTEM PREDICTION</button>
+                <button onClick={() => onViewChange('PREDICTIONS')} style={{ padding: '3px 8px', background: T.goldDim, border: `1px solid ${T.borderHi}`, borderRadius: 5, color: T.gold, fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Sparkles size={10} /> LOG SYSTEM PREDICTION</button>
                 {onRefreshAnalyst && (
-                  <button onClick={onRefreshAnalyst} style={{ padding: '3px 8px', background: 'rgba(245, 158, 11, 0.08)', border: `1px solid rgba(245, 158, 11, 0.25)`, borderRadius: 5, color: T.blue, fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 4 }}><RefreshCw size={10} /> REFRESH</button>
+                  <button onClick={onRefreshAnalyst} style={{ padding: '3px 8px', background: T.goldDim, border: `1px solid ${T.borderHi}`, borderRadius: 5, color: T.blue, fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 4 }}><RefreshCw size={10} /> REFRESH</button>
                 )}
               </div>
             )}

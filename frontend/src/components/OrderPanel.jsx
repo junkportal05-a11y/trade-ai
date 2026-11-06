@@ -47,7 +47,7 @@ export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteO
       <div style={{ display: 'flex', gap: 6 }}>
         {['market', 'limit'].map(t => (
           <button key={t} onClick={() => setType(t)} style={{ flex: 1, padding: '6px 0', border: `1px solid ${type === t ? T.accent : T.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10,
-            background: type === t ? 'rgba(245, 158, 11, 0.12)' : 'transparent', color: type === t ? T.accent : T.textDim, fontFamily: "'Inter', sans-serif" }}>{t.toUpperCase()}</button>
+            background: type === t ? T.goldDim : 'transparent', color: type === t ? T.accent : T.textDim, fontFamily: "'Inter', sans-serif" }}>{t.toUpperCase()}</button>
         ))}
       </div>
       <Label text="QUANTITY"><Input value={qty} onChange={e => setQty(e.target.value)} placeholder="0.00" suffix="SHARES" /></Label>
@@ -62,7 +62,7 @@ export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteO
       {status === 'filled' && <div style={{ padding: '8px 10px', background: T.greenDim, border: `1px solid ${T.green}`, borderRadius: 6, fontSize: 10, color: T.green, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>✓ ORDER FILLED (PAPER)</div>}
       {status === 'placed' && <div style={{ padding: '8px 10px', background: 'rgba(245,158,11,0.12)', border: `1px solid ${T.blue}`, borderRadius: 6, fontSize: 10, color: T.blue, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>✓ LIMIT ORDER PLACED (PAPER)</div>}
       {marketBlocked && (
-        <div style={{ padding: '6px 10px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6, fontSize: 10, color: '#fbbf24', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>
+        <div style={{ padding: '6px 10px', background: T.goldDim, border: `1px solid ${T.borderHi}`, borderRadius: 6, fontSize: 10, color: T.gold, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>
           MARKET ORDERS LOCKED — waiting for the first feed tick for this symbol (seeded prices are not orderable)
         </div>
       )}
@@ -102,7 +102,7 @@ export default function OrderPanel({ symbol, price, cash, openOrders, onExecuteO
               style={{ width: '100%', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 4, color: T.text, fontSize: 10, padding: '4px 4px 4px 14px', height: 28, outline: 'none', fontFamily: "'IBM Plex Mono', monospace" }} />
           </div>
           <button onClick={() => { if (!alertPrice || isNaN(parseFloat(alertPrice)) || parseFloat(alertPrice) <= 0) { alert('Please enter a valid target price!'); return; } onAddAlert(symbol, alertCondition, parseFloat(alertPrice)); setAlertPrice(''); }}
-            style={{ padding: '0 10px', height: 28, background: T.accent, border: 'none', borderRadius: 4, color: '#fff', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>SET</button>
+            style={{ padding: '0 10px', height: 28, background: T.accent, border: 'none', borderRadius: 4, color: T.text, fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>SET</button>
         </div>
         {priceAlerts.filter(a => a.symbol === symbol).length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>

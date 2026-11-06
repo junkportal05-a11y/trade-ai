@@ -51,27 +51,27 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
   };
 
   const metricCards = [
-    { key: 'total_return', label: 'TOTAL RETURN', value: `${perf.total_return >= 0 ? '+' : ''}${perf.total_return.toFixed(2)}%`, color: '#fbbf24' },
-    { key: 'win_rate', label: 'WIN RATE', value: `${perf.win_rate.toFixed(1)}%`, color: '#fbbf24' },
-    { key: 'max_drawdown', label: 'MAX DRAWDOWN', value: `${perf.max_drawdown.toFixed(2)}%`, color: '#ef4444' },
-    { key: 'sharpe_ratio', label: 'SHARPE RATIO', value: perf.sharpe_ratio.toFixed(2), color: '#f59e0b' },
-    { key: 'total_trades', label: 'TOTAL TRADES', value: perf.total_trades.toString(), color: '#f8fafc' },
-    { key: 'profit_factor', label: 'PROFIT FACTOR', value: perf.profit_factor.toFixed(2), color: '#fbbf24' },
+    { key: 'total_return', label: 'TOTAL RETURN', value: `${perf.total_return >= 0 ? '+' : ''}${perf.total_return.toFixed(2)}%`, color: T.gold },
+    { key: 'win_rate', label: 'WIN RATE', value: `${perf.win_rate.toFixed(1)}%`, color: T.gold },
+    { key: 'max_drawdown', label: 'MAX DRAWDOWN', value: `${perf.max_drawdown.toFixed(2)}%`, color: T.red },
+    { key: 'sharpe_ratio', label: 'SHARPE RATIO', value: perf.sharpe_ratio.toFixed(2), color: T.accentAlt },
+    { key: 'total_trades', label: 'TOTAL TRADES', value: perf.total_trades.toString(), color: T.text },
+    { key: 'profit_factor', label: 'PROFIT FACTOR', value: perf.profit_factor.toFixed(2), color: T.gold },
   ];
 
   return (
     <div className="glass-panel" style={{ borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {/* Tab Header Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', background: '#000000' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: `1px solid ${T.border}`, background: T.bg }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             onClick={() => setActiveTab('selector')}
             style={{
               padding: '6px 14px',
               borderRadius: 8,
-              border: activeTab === 'selector' ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid transparent',
-              background: activeTab === 'selector' ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
-              color: activeTab === 'selector' ? '#fbbf24' : '#94a3b8',
+              border: activeTab === 'selector' ? `1px solid ${T.borderHi}` : '1px solid transparent',
+              background: activeTab === 'selector' ? `${T.border}` : 'transparent',
+              color: activeTab === 'selector' ? T.gold : T.textDim,
               fontSize: 12,
               fontWeight: 700,
               cursor: 'pointer',
@@ -88,9 +88,9 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
             style={{
               padding: '6px 14px',
               borderRadius: 8,
-              border: activeTab === 'performance' ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid transparent',
-              background: activeTab === 'performance' ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
-              color: activeTab === 'performance' ? '#fbbf24' : '#94a3b8',
+              border: activeTab === 'performance' ? `1px solid ${T.borderHi}` : '1px solid transparent',
+              background: activeTab === 'performance' ? `${T.border}` : 'transparent',
+              color: activeTab === 'performance' ? T.gold : T.textDim,
               fontSize: 12,
               fontWeight: 700,
               cursor: 'pointer',
@@ -103,7 +103,7 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
             <BarChart3 size={13} /> Performance Attribution
           </button>
         </div>
-        <span style={{ fontSize: 11, color: '#f59e0b', fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
+        <span style={{ fontSize: 11, color: T.accentAlt, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
           CORE: #ENG-611
         </span>
       </div>
@@ -111,11 +111,7 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
       {/* Strategy Cards Grid View */}
       {activeTab === 'selector' && (
         <div style={{ padding: 20 }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 14,
-          }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
             {strategies.map((strat) => {
               const isSelected = selectedStrategy === strat.id;
               const isHighRisk = strat.risk === 'High Risk' || strat.risk === 'High';
@@ -126,38 +122,37 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
                   style={{
                     padding: 16,
                     borderRadius: 12,
-                    background: isSelected ? 'rgba(245, 158, 11, 0.08)' : '#000000',
-                    border: `1px solid ${isSelected ? '#f59e0b' : isHighRisk ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.08)'}`,
+                    background: isSelected ? `${T.goldDim}` : T.surface,
+                    border: `1px solid ${isSelected ? T.accentAlt : isHighRisk ? T.red : T.border}`,
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
                     gap: 12,
-                    boxShadow: isSelected ? '0 0 15px rgba(245, 158, 11, 0.2)' : 'none',
                     transition: 'all 0.2s ease',
                   }}
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                       <div>
-                        <h4 style={{ fontSize: 13, fontWeight: 800, color: '#ffffff', margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                        <h4 style={{ fontSize: 13, fontWeight: 800, color: T.text, margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                           {strat.name}
                         </h4>
-                        <span style={{ fontSize: 11, color: '#64748b' }}>{strat.type || 'Intraday Quant'}</span>
+                        <span style={{ fontSize: 11, color: T.textDim }}>{strat.type || 'Intraday Quant'}</span>
                       </div>
                       <span style={{
                         padding: '2px 7px',
                         borderRadius: 9999,
                         fontSize: 9,
                         fontWeight: 700,
-                        background: isHighRisk ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                        border: `1px solid ${isHighRisk ? 'rgba(239, 68, 68, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
-                        color: isHighRisk ? '#ef4444' : '#fbbf24',
+                        background: isHighRisk ? T.redDim : T.accentDim,
+                        border: `1px solid ${isHighRisk ? T.red : T.accentAlt}`,
+                        color: isHighRisk ? T.red : T.accentAlt,
                       }}>
                         {strat.risk}
                       </span>
                     </div>
-                    <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, lineHeight: 1.45 }}>
+                    <p style={{ fontSize: 11, color: T.textMid, margin: 0, lineHeight: 1.45 }}>
                       {strat.description}
                     </p>
                   </div>
@@ -169,8 +164,8 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
                     alignItems: 'center',
                     justifyContent: 'space-between'
                   }}>
-                    <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: "'IBM Plex Mono', monospace" }}>
-                      Win: <strong style={{ color: '#ffffff' }}>{strat.winRate || '52.0%'}</strong>
+                    <span style={{ fontSize: 11, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>
+                      Win: <strong style={{ color: T.text }}>{strat.winRate || '52.0%'}</strong>
                     </span>
                     <span style={{
                       padding: '2px 6px',
@@ -178,9 +173,9 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
                       fontSize: 9,
                       fontWeight: 800,
                       fontFamily: "'IBM Plex Mono', monospace",
-                      background: strat.enabled ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                      border: `1px solid ${strat.enabled ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`,
-                      color: strat.enabled ? '#fbbf24' : '#64748b',
+                      background: strat.enabled ? T.accentDim : T.panel,
+                      border: `1px solid ${strat.enabled ? T.accentAlt : T.border}`,
+                      color: strat.enabled ? T.accentAlt : T.textDim,
                     }}>
                       {strat.enabled ? 'ENABLED' : 'DISABLED'}
                     </span>
@@ -197,8 +192,8 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
             {metricCards.map(m => (
-              <div key={m.key} style={{ background: '#000000', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.08em', ...mono, marginBottom: 6 }}>{m.label}</div>
+              <div key={m.key} style={{ background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 10, padding: 14, textAlign: 'center' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: T.text, letterSpacing: '0.08em', ...mono, marginBottom: 6 }}>{m.label}</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: m.color, ...mono }}>{m.value}</div>
               </div>
             ))}

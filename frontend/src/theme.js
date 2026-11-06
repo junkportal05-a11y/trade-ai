@@ -4,25 +4,22 @@ export const T = {
   panel: '#0e0c0a',
   panelAlt: '#141210',
   glass: 'rgba(12, 10, 9, 0.85)',
-  border: 'rgba(245, 158, 11, 0.15)',
+  border: 'rgba(245, 158, 11, 0.12)',
   borderHi: 'rgba(245, 158, 11, 0.35)',
   text: '#f8fafc',
   textMid: '#94a3b8',
   textDim: '#64748b',
   textMuted: '#475569',
-  green: '#f59e0b',
-  greenDim: 'rgba(245, 158, 11, 0.12)',
-  greenGlow: 'rgba(245, 158, 11, 0.3)',
+  green: '#65a30d',
+  greenDim: 'rgba(101, 163, 13, 0.12)',
+  greenGlow: 'rgba(101, 163, 13, 0.2)',
   red: '#ef4444',
   redDim: 'rgba(239, 68, 68, 0.12)',
-  redGlow: 'rgba(239, 68, 68, 0.3)',
-  blue: '#f59e0b',
-  orange: '#f59e0b',
-  orangeDim: 'rgba(245, 158, 11, 0.1)',
-  accent: '#f59e0b',
+  redGlow: 'rgba(239, 68, 68, 0.25)',
+  accent: '#fbbf24',
   accentAlt: '#d97706',
   accentDim: 'rgba(245, 158, 11, 0.15)',
-  accentGlow: 'rgba(245, 158, 11, 0.35)',
+  accentGlow: 'rgba(245, 158, 11, 0.25)',
   gold: '#fbbf24',
   goldDim: 'rgba(245, 158, 11, 0.12)',
 };
@@ -32,7 +29,7 @@ export const fmtINR = (n, d = 2) => n == null ? '—' : `₹${Number(n).toLocale
 export const fmtPct = (n, d = 2) => n == null ? '—' : `${n >= 0 ? '+' : ''}${Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })}%`;
 export const clr = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
 export const sign = (v) => v > 0 ? '+' : '';
-export const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, c => ({ '&': '&', '<': '<', '>': '>', "'": "'", '"': '"' }[c] || c));
+export const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, c => ({ '&': '&', '<': '<', '>': '>', "'": '&apos;', '"': '"' }[c] || c));
 
 export const fmtIST = (date = new Date()) => date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 export const fmtISTDate = (date = new Date()) => date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });

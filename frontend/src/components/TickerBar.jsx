@@ -14,7 +14,7 @@ export default function TickerBar({ prices = {}, dataSource = {} }) {
       alignItems: 'center',
       justifyContent: 'space-between',
       fontSize: 11,
-      color: '#94a3b8',
+      color: T.textMid,
       overflowX: 'auto',
       whiteSpace: 'nowrap',
       zIndex: 45,
@@ -29,7 +29,7 @@ export default function TickerBar({ prices = {}, dataSource = {} }) {
               width: '100%',
               height: '100%',
               borderRadius: '50%',
-              background: '#f59e0b',
+              background: T.accentAlt,
               opacity: 0.75,
               animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite'
             }} />
@@ -39,20 +39,20 @@ export default function TickerBar({ prices = {}, dataSource = {} }) {
               borderRadius: '50%',
               width: 8,
               height: 8,
-              background: '#f59e0b'
+              background: T.accentAlt
             }} />
           </span>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: '#f59e0b', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: T.accentAlt, textTransform: 'uppercase' }}>
             NSE TICK FEED
           </span>
           <span style={{
             padding: '1px 5px',
             borderRadius: 3,
-            background: 'rgba(245, 158, 11, 0.1)',
-            border: '1px solid rgba(245, 158, 11, 0.3)',
+            background: T.goldDim,
+            border: `1px solid ${T.borderHi}`,
             fontSize: 9,
             fontWeight: 700,
-            color: '#fbbf24',
+            color: T.gold,
             fontFamily: "'IBM Plex Mono', monospace"
           }}>
             SIMULATED
@@ -70,13 +70,13 @@ export default function TickerBar({ prices = {}, dataSource = {} }) {
             const cleanSym = sym.replace('.NS', '');
             return (
               <span key={sym} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: '#94a3b8' }}>{cleanSym}:</span>
+                <span style={{ color: T.textMid }}>{cleanSym}:</span>
                 {hasTick ? (
-                  <strong style={{ color: isUp ? '#f59e0b' : '#ef4444', fontWeight: 600 }}>
+                  <strong style={{ color: isUp ? T.accentAlt : T.red, fontWeight: 600 }}>
                     ₹{fmt(p.price)} ({sign(p.changePct)}{fmt(p.changePct, 2)}%)
                   </strong>
                 ) : (
-                  <span style={{ color: '#64748b' }}>₹0.00</span>
+                  <span style={{ color: T.textDim }}>₹0.00</span>
                 )}
               </span>
             );
@@ -84,8 +84,8 @@ export default function TickerBar({ prices = {}, dataSource = {} }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 10, color: '#64748b' }}>
-        <span>FEED: <strong style={{ color: '#f59e0b', fontFamily: "'IBM Plex Mono', monospace" }}>SYNCHRONIZED</strong></span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 10, color: T.textDim }}>
+        <span>FEED: <strong style={{ color: T.accentAlt, fontFamily: "'IBM Plex Mono', monospace" }}>SYNCHRONIZED</strong></span>
         <span>LATENCY: <strong style={{ color: '#cbd5e1', fontFamily: "'IBM Plex Mono', monospace" }}>11ms</strong></span>
       </div>
 

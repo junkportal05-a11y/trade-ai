@@ -170,11 +170,11 @@ export default function CommandPalette({ isOpen, onClose, onViewChange, onAction
                   width: '100%',
                   padding: '9px 10px',
                   borderRadius: 8,
-                  border: `1px solid ${isSelected ? 'rgba(245, 158, 11, 0.35)' : 'transparent'}`,
+                  border: `1px solid ${isSelected ? T.borderHi : 'transparent'}`,
                   background: isSelected
-                    ? `linear-gradient(135deg, ${T.accentDim}, rgba(217, 119, 6, 0.08))`
+                    ? `linear-gradient(135deg, ${T.accentDim}, ${T.goldDim})`
                     : 'transparent',
-                  boxShadow: isSelected ? `0 0 18px rgba(245, 158, 11, 0.15)` : 'none',
+                  boxShadow: isSelected ? `0 0 18px ${T.accentGlow}` : 'none',
                   color: isSelected ? T.text : T.text,
                   textAlign: 'left',
                   cursor: 'pointer',
@@ -241,7 +241,7 @@ export default function CommandPalette({ isOpen, onClose, onViewChange, onAction
           flexDirection: 'column',
           borderRadius: 16,
           overflow: 'hidden',
-          boxShadow: '0 28px 60px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(245, 158, 11, 0.22), 0 0 40px rgba(245, 158, 11, 0.08)',
+          boxShadow: '0 28px 60px rgba(0, 0, 0, 0.75), 0 0 0 1px ${T.borderHi}, 0 0 40px ${T.goldDim}',
           animation: 'slideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           fontFamily: "'IBM Plex Mono', monospace",
         }}

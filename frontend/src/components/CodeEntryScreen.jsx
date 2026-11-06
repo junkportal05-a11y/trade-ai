@@ -71,7 +71,7 @@ export default function CodeEntryScreen({ onVerified }) {
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <Lock size={40} color="#f59e0b" style={{ marginBottom: 12 }} />
+          <Lock size={40} color={T.accentAlt} style={{ marginBottom: 12 }} />
           <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, letterSpacing: '0.02em' }}>
             ApexTrade Workstation
           </h1>
@@ -150,7 +150,7 @@ export default function CodeEntryScreen({ onVerified }) {
             disabled={loading || !code.trim()}
             style={{
               padding: '14px',
-              background: loading ? 'rgba(245,158,11,0.3)' : '#f59e0b',
+              background: loading ? T.borderHi : T.accentAlt,
               color: loading ? '#8290ad' : '#0b0e13',
               border: 'none',
               borderRadius: 8,
@@ -187,7 +187,7 @@ export default function CodeEntryScreen({ onVerified }) {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        input:focus { border-color: #f59e0b !important; }
+        input:focus { border-color: ${T.accentAlt} !important; }
         button:not(:disabled):hover { background: #0ea5e9; }
       `}</style>
     </div>

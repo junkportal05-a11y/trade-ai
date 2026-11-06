@@ -938,9 +938,9 @@ export default function App() {
         {/* Reconnecting banner if backend offline */}
         {!connected && (
           <div style={{
-            background: 'rgba(245, 158, 11, 0.08)',
-            borderBottom: `1px solid rgba(245, 158, 11, 0.2)`,
-            color: '#fbbf24',
+            background: T.accentDim,
+            borderBottom: `1px solid ${T.accentGlow}`,
+            color: T.gold,
             padding: '6px 16px',
             fontSize: 10,
             display: 'flex',
@@ -952,7 +952,7 @@ export default function App() {
             letterSpacing: '0.04em',
             flexShrink: 0
           }}>
-            <span style={{ display: 'inline-block', width: 12, height: 12, border: `2px solid rgba(245, 158, 11, 0.3)`, borderTopColor: '#fbbf24', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <span style={{ display: 'inline-block', width: 12, height: 12, border: `2px solid ${T.accentGlow}`, borderTopColor: T.gold, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
             CONNECTING TO QUANT SERVER...
           </div>
         )}
@@ -1125,10 +1125,10 @@ export default function App() {
                             {INTERVALS.map((intv, i) => (
                               <button key={intv.label} onClick={() => setIvIdx(i)} style={{
                                 padding: '4px 9px', borderRadius: 6, cursor: 'pointer', fontSize: 10.5, fontWeight: 600,
-                                border: `1px solid ${ivIdx === i ? 'rgba(245, 158, 11, 0.35)' : 'transparent'}`,
-                                background: ivIdx === i ? `linear-gradient(135deg, ${T.accentDim}, rgba(217, 119, 6, 0.08))` : 'transparent',
+                                border: `1px solid ${ivIdx === i ? T.borderHi : 'transparent'}`,
+                                background: ivIdx === i ? T.accentDim : 'transparent',
                                 boxShadow: ivIdx === i ? `0 0 12px ${T.accentGlow}` : 'none',
-                                color: ivIdx === i ? '#fff' : T.textMid,
+                                color: ivIdx === i ? T.text : T.textMid,
                                 fontFamily: "'Inter', sans-serif",
                                 transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)', flexShrink: 0
                               }}>{intv.label}</button>
@@ -1225,8 +1225,8 @@ export default function App() {
                               onClick={() => setView('PREDICTIONS')}
                               style={{
                                 padding: '3px 8px',
-                                background: 'rgba(245, 158, 11, 0.08)',
-                                border: `1px solid ${T.accent}30`,
+                                background: T.accentDim,
+                                border: `1px solid ${T.accentGlow}`,
                                 borderRadius: 5,
                                 color: T.accent,
                                 fontSize: 9,
@@ -1236,8 +1236,8 @@ export default function App() {
                                 letterSpacing: '0.04em',
                                 transition: 'all 0.2s'
                               }}
-                              onMouseEnter={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)'}
-                              onMouseLeave={e => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)'}
+                              onMouseEnter={e => e.currentTarget.style.background = T.accentGlow}
+                              onMouseLeave={e => e.currentTarget.style.background = T.accentDim}
                             >
                               LOG PREDICTION
                             </button>
@@ -1326,7 +1326,7 @@ export default function App() {
                       transform: showWatchlist ? 'rotate(180deg)' : 'rotate(0deg)',
                       transition: 'transform 0.3s ease, color 0.2s'
                     }}>
-                      ◀
+                      <ChevronLeft size={14} />
                     </span>
                   </button>
 
@@ -1338,10 +1338,10 @@ export default function App() {
                         {INTERVALS.map((intv, i) => (
                           <button key={intv.label} onClick={() => setIvIdx(i)} style={{
                             padding: '4px 11px', borderRadius: 6, cursor: 'pointer', fontSize: 10.5, fontWeight: 600,
-                            border: `1px solid ${ivIdx === i ? 'rgba(245, 158, 11, 0.35)' : 'transparent'}`,
-                            background: ivIdx === i ? `linear-gradient(135deg, ${T.accentDim}, rgba(217, 119, 6, 0.08))` : 'transparent',
+                            border: `1px solid ${ivIdx === i ? T.borderHi : 'transparent'}`,
+                            background: ivIdx === i ? `linear-gradient(135deg, ${T.accentDim}, ${T.goldDim})` : 'transparent',
                             boxShadow: ivIdx === i ? `0 0 12px ${T.accentGlow}` : 'none',
-                            color: ivIdx === i ? '#fff' : T.textMid,
+                            color: ivIdx === i ? T.text : T.textMid,
                             fontFamily: "'Inter', sans-serif", letterSpacing: '0.02em',
                             transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                           }}>{intv.label}</button>
@@ -1497,7 +1497,7 @@ export default function App() {
                 ))}
               </div>
               
-              <button onClick={() => setShowBriefModal(false)} style={{ background: T.accent, color: '#fff', border: 'none', padding: '12px', borderRadius: 6, fontWeight: 'bold', cursor: 'pointer', fontFamily: "'IBM Plex Mono', monospace", marginTop: 10 }}>ACKNOWLEDGE</button>
+              <button onClick={() => setShowBriefModal(false)} style={{ background: T.accent, color: T.text, border: 'none', padding: '12px', borderRadius: 6, fontWeight: 'bold', cursor: 'pointer', fontFamily: "'IBM Plex Mono', monospace", marginTop: 10 }}>ACKNOWLEDGE</button>
             </div>
           </div>
         )}
