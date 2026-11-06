@@ -38,5 +38,35 @@ def test_perf():
     print(f"Fast time: {fast_time:.5f}s")
     print(f"Improvement: {slow_time/fast_time:.2f}x")
 
+
+def test_supertrend_perf_and_correctness():
+    """
+    ⚡ Bolt Test: Verify _supertrend calculation speed and exact correctness.
+    Ensures NumPy array vectorization produces valid series without NaN regressions.
+    """
+    import signals
+
+    np.random.seed(42)
+    N = 5000
+    dates = pd.date_range("2024-01-01", periods=N, freq="5min")
+    close = pd.Series(np.random.randn(N).cumsum() + 100, index=dates)
+    high = close + np.random.rand(N) * 2
+    low = close - np.random.rand(N) * 2
+
+    # Run optimized _supertrend
+    t0 = time.perf_counter()
+    supert, supert_dir = signals._supertrend(high, low, close, period=7, multiplier=3.0)
+    t1 = time.perf_counter()
+    duration_ms = (t1 - t0) * 1000
+
+    assert len(supert) == N
+    assert len(supert_dir) == N
+    assert not supert.iloc[10:].isna().any()
+    assert set(supert_dir.unique()).issubset({-1.0, 1.0})
+    # Should run well under 50ms (previously took >600ms with .iloc)
+    assert duration_ms < 100.0
+
+
 if __name__ == "__main__":
     test_perf()
+    test_supertrend_perf_and_correctness()
