@@ -2,7 +2,7 @@
 name: Feature Request
 about: Suggest an idea, enhancement, or new feature for ApexTrade
 title: '[FEAT] '
-labels: 'enhancement'
+labels: ['enhancement', 'good first issue']
 assignees: ''
 ---
 
