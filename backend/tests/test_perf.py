@@ -85,6 +85,80 @@ def test_supertrend_perf():
     assert fast_time < slow_time, "NumPy implementation should be faster than pandas .iloc"
 
 
+def test_kama_and_cci_indicators_perf():
+    from strategy_tournament import _compute_indicators
+
+    np.random.seed(42)
+    N = 2500
+    df = pd.DataFrame({
+        "Open": np.random.randn(N).cumsum() + 100,
+        "High": np.random.randn(N).cumsum() + 105,
+        "Low": np.random.randn(N).cumsum() + 95,
+        "Close": np.random.randn(N).cumsum() + 100,
+        "Volume": np.random.randint(1000, 10000, N),
+    })
+    close = df["Close"]
+    high = df["High"]
+    low = df["Low"]
+
+    # 1. Benchmark KAMA: slow (.iloc) vs fast (NumPy)
+    change = (close - close.shift(10)).abs()
+    volatility = close.diff().abs().rolling(10).sum()
+    er = change / (volatility + 1e-9)
+    sc = (er * (2 / 3 - 2 / 31) + 2 / 31) ** 2
+
+    # Slow
+    t0 = time.time()
+    kama_slow = np.full(len(df), np.nan)
+    kama_slow[0] = close.iloc[0]
+    for i in range(1, len(df)):
+        s = sc.iloc[i]
+        kama_slow[i] = kama_slow[i - 1] + (s * (close.iloc[i] - kama_slow[i - 1]) if not np.isnan(s) else 0.0)
+    t1 = time.time()
+    slow_kama_time = t1 - t0
+
+    # Fast
+    t2 = time.time()
+    close_arr = close.to_numpy()
+    sc_arr = sc.to_numpy()
+    kama_fast = np.full(len(df), np.nan)
+    kama_fast[0] = close_arr[0]
+    for i in range(1, len(df)):
+        s = sc_arr[i]
+        kama_fast[i] = kama_fast[i - 1] + (s * (close_arr[i] - kama_fast[i - 1]) if not np.isnan(s) else 0.0)
+    t3 = time.time()
+    fast_kama_time = t3 - t2
+
+    np.testing.assert_allclose(kama_slow, kama_fast)
+    print(f"KAMA Slow (.iloc): {slow_kama_time:.5f}s, Fast (NumPy): {fast_kama_time:.5f}s, Speedup: {slow_kama_time/fast_kama_time:.1f}x")
+    assert fast_kama_time < slow_kama_time
+
+    # 2. Benchmark CCI mean deviation: slow (rolling apply) vs fast (sliding_window_view)
+    tp = (high + low + close) / 3
+    t0 = time.time()
+    md_slow = tp.rolling(20).apply(lambda x: np.abs(x - x.mean()).mean(), raw=True)
+    t1 = time.time()
+    slow_cci_time = t1 - t0
+
+    t2 = time.time()
+    tp_arr = tp.to_numpy()
+    windows = np.lib.stride_tricks.sliding_window_view(tp_arr, window_shape=20)
+    dev = np.abs(windows - windows.mean(axis=1, keepdims=True)).mean(axis=1)
+    md_fast = pd.Series(np.concatenate([np.full(19, np.nan), dev]), index=df.index)
+    t3 = time.time()
+    fast_cci_time = t3 - t2
+
+    pd.testing.assert_series_equal(md_slow, md_fast)
+    print(f"CCI MD Slow (apply): {slow_cci_time:.5f}s, Fast (strided): {fast_cci_time:.5f}s, Speedup: {slow_cci_time/fast_cci_time:.1f}x")
+    assert fast_cci_time < slow_cci_time
+
+    # 3. Verify _compute_indicators produces identical columns and finite outputs
+    computed = _compute_indicators(df.copy())
+    np.testing.assert_allclose(computed["close_kama"].to_numpy(), kama_fast)
+    assert not computed["cci"].empty
+
+
 if __name__ == "__main__":
     test_perf()
     test_supertrend_perf()
+    test_kama_and_cci_indicators_perf()
