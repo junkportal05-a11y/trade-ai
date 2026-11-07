@@ -116,3 +116,6 @@ apextrade-file-feedback-fix-list.md
 # ── Roster & Orchestration Scripts ──────────────────────────────────────────
 scripts/*.cjs
 roster-backups/
+
+stitch_apextrade_redesign*
+

@@ -5,8 +5,8 @@ import App from './App.jsx'
 
 class ErrorBoundary extends React.Component {
   state = { crashed: false, error: null };
-  componentDidCatch(error) { 
-    this.setState({ crashed: true, error }); 
+  componentDidCatch(error) {
+    this.setState({ crashed: true, error });
   }
   handleRetry = () => {
     this.setState({ crashed: false, error: null });

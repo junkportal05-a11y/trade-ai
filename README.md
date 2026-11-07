@@ -31,12 +31,65 @@ This repository powers the backend infrastructure hosted on **Hugging Face Space
 
 ---
 
-## 🚀 Live Hugging Face Space & Interactive API Documentation
+## 🚀 Live Demo
 
-- **Live Space Base URL**: `https://apextrade-core-trade-ai-backend.hf.space` *(Paper Phase 1)*
-- **Interactive Swagger UI**: [https://apextrade-core-trade-ai-backend.hf.space/docs](https://apextrade-core-trade-ai-backend.hf.space/docs)
-- **ReDoc Open API**: [https://apextrade-core-trade-ai-backend.hf.space/redoc](https://apextrade-core-trade-ai-backend.hf.space/redoc)
-- **Health Check Status**: `GET /health` | `GET /api/keepalive`
+- **Live Space**: [https://apextrade-core-trade-ai-backend.hf.space](https://apextrade-core-trade-ai-backend.hf.space)
+- **Interactive API Docs**: [https://apextrade-core-trade-ai-backend.hf.space/docs](https://apextrade-core-trade-ai-backend.hf.space/docs)
+- **ReDoc**: [https://apextrade-core-trade-ai-backend.hf.space/redoc](https://apextrade-core-trade-ai-backend.hf.space/redoc)
+
+<!-- Demo GIF -->
+<p align="center">
+  <img src="https://raw.githubusercontent.com/junkportal05-a11y/trade-ai/main/docs/demo/demo.gif" alt="ApexTrade Demo" width="400">
+</p>
+
+<!-- One-command install -->
+<p align="center">
+  <kbd>
+    <kbd>python</kbd>
+    <kbd>-m</kbd>
+    <kbd>venv</kbd>
+    <kbd>.venv</kbd>
+    <kbd>&&</kbd>
+    <kbd>.venv\Scripts\activate</kbd>
+    <kbd>&&</kbd>
+    <kbd>pip</kbd>
+    <kbd>install</kbd>
+    <kbd>-r</kbd>
+    <kbd>requirements.txt</kbd>
+  </kbd>
+</p>
+
+<!-- CI badge -->
+<p align="center">
+  <a href="https://github.com/junkportal05-a11y/trade-ai/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/junkportal05-a11y/trade-ai/ci.yml?style=for-the-badge" />
+  </a>
+</p>
+
+<!-- Good first issue label -->
+<p align="center">
+  <a href="https://github.com/junkportal05-a11y/trade-ai/labels/good%20first%20issue">
+    <img alt="Good first issue" src="https://img.shields.io/badge/good%20first%20issue-welcome-success?style=for-the-badge" />
+  </a>
+</p>
+
+<!-- Social preview meta -->
+<meta property="og:image" content="https://raw.githubusercontent.com/junkportal05-a11y/trade-ai/main/docs/demo/og-image.png" />
+<meta property="og:title" content="ApexTrade AI Quant Engine - Real-time trading server" />
+<meta property="og:description" content="Enterprise-grade quantitative trading engine with algorithmic trading, technical analysis, and backtesting." />
+</p>
+
+<!-- Plan to answer issues within a day -->
+<p align="center">
+  <img src="https://img.shields.io/badge/response-time-within%2024%20hrs-brightgreen?style=for-the-badge" />
+</p>
+
+<!-- Discussions enabled -->
+<p align="center">
+  <a href="https://github.com/junkportal05-a11y/trade-ai/discussions">
+    <img alt="GitHub Discussions" src="https://img.shields.io/badge/discussions-enabled-success?style=for-the-badge" />
+  </a>
+</p>
 
 ---
 
