@@ -85,6 +85,60 @@ def test_supertrend_perf():
     assert fast_time < slow_time, "NumPy implementation should be faster than pandas .iloc"
 
 
+def test_kama_perf():
+    from strategy_tournament import _compute_indicators
+
+    np.random.seed(42)
+    N = 2000
+    close = pd.Series(np.random.randn(N).cumsum() + 100)
+    change = (close - close.shift(10)).abs()
+    volatility = close.diff().abs().rolling(10).sum()
+    er = change / (volatility + 1e-9)
+    sc = (er * (2 / 3 - 2 / 31) + 2 / 31) ** 2
+
+    # Slow implementation using .iloc on pandas Series
+    t0 = time.time()
+    kama_slow = np.full(len(close), np.nan)
+    kama_slow[0] = close.iloc[0]
+    for i in range(1, len(close)):
+        s = sc.iloc[i]
+        kama_slow[i] = kama_slow[i - 1] + (s * (close.iloc[i] - kama_slow[i - 1]) if not np.isnan(s) else 0.0)
+    t1 = time.time()
+    slow_time = t1 - t0
+
+    # Fast implementation using extracted NumPy 1D arrays
+    t2 = time.time()
+    c_arr = close.to_numpy()
+    sc_arr = sc.to_numpy()
+    n_len = len(c_arr)
+    kama_fast = np.full(n_len, np.nan, dtype=np.float64)
+    if n_len > 0:
+        kama_fast[0] = c_arr[0]
+    for i in range(1, n_len):
+        s = sc_arr[i]
+        kama_fast[i] = kama_fast[i - 1] + (s * (c_arr[i] - kama_fast[i - 1]) if not np.isnan(s) else 0.0)
+    t3 = time.time()
+    fast_time = t3 - t2
+
+    # Verify identical output
+    assert np.allclose(kama_slow, kama_fast, equal_nan=True)
+
+    # Verify integration with _compute_indicators
+    dummy_df = pd.DataFrame({
+        "Open": close,
+        "High": close + 1.0,
+        "Low": close - 1.0,
+        "Close": close,
+        "Volume": np.random.randint(100, 1000, N),
+    })
+    computed = _compute_indicators(dummy_df)
+    assert np.allclose(computed["close_kama"].to_numpy(), kama_fast, equal_nan=True)
+
+    print(f"KAMA Slow (.iloc): {slow_time:.5f}s, Fast (NumPy): {fast_time:.5f}s, Speedup: {slow_time/fast_time:.1f}x")
+    assert fast_time < slow_time, "NumPy implementation should be faster than pandas .iloc"
+
+
 if __name__ == "__main__":
     test_perf()
     test_supertrend_perf()
+    test_kama_perf()
