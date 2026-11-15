@@ -53,3 +53,9 @@
 - `sebi-compliance-guard`: paper-only isolation, live-trading arming, broker custody,
   and SEBI algo-trading disclosure invariants.
 - Record findings in `ApexTrade/06-Audits-Fixes/SECURITY_AUDIT_REPORT.md`.
+
+## 5. Agent Brain & Knowledge Graph (Obsidian)
+- The workspace vault at `c:\Users\aryan\OneDrive\Desktop\app` acts as the shared persistent brain for OpenCode and Claude agents.
+- **Master Brain Hub**: [[Agent-Brains]] (`Agent-Brains.md`) maps all agent instructions, hive rosters, and skills.
+- **Project Brain Rules**: Read `ApexTrade/01-Overview/ApexTrade.md` and `Agent-Brain-Rules.md`.
+- **Memory & Continuity**: Read `07-Decisions/Decisions.md` and `06-Audits-Fixes/Open-Tasks.md` before starting, and log completions to `06-Audits-Fixes/Agent-Log.md`.

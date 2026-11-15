@@ -3,6 +3,12 @@
 # ApexTrade v6.1.1 — Black, Red & Gold Workstation Redesign
 # ==============================================================================
 
+> ### 🧠 OBSIDIAN AGENT BRAIN LINKED
+> - **Central Brain Hub**: [[Agent-Brains]] (`Agent-Brains.md`) at workspace root
+> - **Project Vault**: `ApexTrade/01-Overview/ApexTrade.md`
+> - Check `07-Decisions/Decisions.md` & `06-Audits-Fixes/Open-Tasks.md` for memory continuity.
+
+
 > ### 📢 NEW HISTORICAL DATASET AVAILABLE FOR STRATEGY ENGINE & BACKTESTING
 > **7 Years of Real NSE Daily Market Data (2019 – 2026)** has been downloaded and ready to use:
 > - **Path**: `historical_data/daily_7y/`

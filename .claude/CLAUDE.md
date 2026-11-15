@@ -16,3 +16,7 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   - `google-agents-cli-deploy`: Deployment to Cloud Run & Google Cloud
   - `google-agents-cli-observability`: Cloud Trace & monitoring
 
+# Agent Brain & Memory (Obsidian)
+- The global workspace vault at `c:\Users\aryan\OneDrive\Desktop\app` is the shared persistent brain.
+- See `Agent-Brains.md` (`[[Agent-Brains]]`) and `ApexTrade/01-Overview/ApexTrade.md` for project architecture, decisions, and task tracking.
+
