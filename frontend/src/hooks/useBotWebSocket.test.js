@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { buildBotWsUrl, getReconnectDelay, shouldReconnect } from './useBotWebSocket';
 
 describe('useBotWebSocket helpers', () => {
-  it('puts the JWT in the token query parameter', () => {
-    expect(buildBotWsUrl('', 'jwt-token')).toBe('/ws/bot?token=jwt-token');
-    expect(buildBotWsUrl('wss://api.example.com', 'jwt-token'))
-      .toBe('wss://api.example.com/ws/bot?token=jwt-token');
+  it('relies on the session cookie instead of a token query parameter', () => {
+    expect(buildBotWsUrl('')).toBe('/ws/bot');
+    expect(buildBotWsUrl('wss://api.example.com'))
+      .toBe('wss://api.example.com/ws/bot');
   });
 
   it('does not reconnect after auth close codes', () => {

@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import os
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -86,19 +87,93 @@ def is_bcrypt_hash(value: str) -> bool:
 # ── JWT tokens ────────────────────────────────────────────────────────────────
 def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (
-        expires_delta or timedelta(seconds=settings.session_ttl)
-    )
-    to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
+    now = datetime.now(timezone.utc)
+    expire = now + (expires_delta or timedelta(seconds=settings.session_ttl))
+    to_encode.update({
+        "exp": expire,
+        "iat": now,
+        "iss": settings.jwt_issuer,
+        "aud": settings.jwt_audience,
+        "jti": uuid.uuid4().hex,
+    })
     return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.algorithm)
+
+
+def _is_token_revoked(jti: str | None) -> bool:
+    """Return True when the token's jti is revoked. Fail closed on DB errors."""
+    if not jti:
+        return True
+    try:
+        from app.core.database import SessionLocal
+        from app.db.models import RevokedToken
+
+        db = SessionLocal()
+        try:
+            return db.query(RevokedToken).filter(RevokedToken.jti == jti).first() is not None
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"[SECURITY] Revocation check failed for jti={jti}: {e}", exc_info=True)
+        return True
+
+
+def revoke_access_token(token: str) -> bool:
+    """Persist the token's jti until its natural expiry. Returns True when stored."""
+    payload = decode_access_token(token)
+    if not payload:
+        return False
+
+    jti = payload.get("jti")
+    exp = payload.get("exp")
+    if not jti or not exp:
+        return False
+
+    try:
+        from app.core.database import SessionLocal
+        from app.db.models import RevokedToken
+
+        expires_at = datetime.fromtimestamp(exp, tz=timezone.utc).replace(tzinfo=None)
+        db = SessionLocal()
+        try:
+            db.merge(RevokedToken(jti=jti, expires_at=expires_at))
+            db.commit()
+            return True
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"[SECURITY] Failed to revoke token jti={jti}: {e}", exc_info=True)
+        return False
 
 
 def decode_access_token(token: str) -> dict[str, Any] | None:
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.algorithm])
-        return payload
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret,
+            algorithms=[settings.algorithm],
+            audience=settings.jwt_audience,
+            issuer=settings.jwt_issuer,
+            options={
+                "require_exp": True,
+                "require_iat": True,
+                "require_sub": True,
+                "require_jti": True,
+                "require_aud": True,
+                "require_iss": True,
+            },
+        )
     except JWTError:
         return None
+    if _is_token_revoked(payload.get("jti")):
+        return None
+    return payload
+
+
+def generate_csrf_token() -> str:
+    return secrets.token_urlsafe(32)
 
 
 # ── User registry (loaded from env, hashed at runtime) ────────────────────────
@@ -247,13 +322,25 @@ def require_clearance(min_level: str):
 
 
 async def csrf_protect(request: Request):
-    """CSRF check that enforces X-Requested-With header on mutating routes.
-    
-    - When X-Requested-With header is missing on mutating routes: returns 403.
-    - GET routes are CSRF-free; exemptions: /api/login (session lifecycle).
+    """CSRF check for mutating routes.
+
+    Cookie-authenticated requests (the browser frontend) must present an
+    X-CSRF-Token that matches the non-HttpOnly apt_csrf cookie (double-submit).
+    Requests without the session cookie are header/bearer clients, which a
+    cross-site page cannot authenticate, so the X-Requested-With gate applies.
+    GET/HEAD/OPTIONS are CSRF-free; /api/login is exempt (session lifecycle).
     """
-    x_requested_with = request.headers.get("X-Requested-With")
-    if not x_requested_with:
+    if request.method in ("GET", "HEAD", "OPTIONS", "TRACE"):
+        return True
+
+    if request.cookies.get("apt_token"):
+        csrf_cookie = request.cookies.get("apt_csrf")
+        csrf_header = request.headers.get("X-CSRF-Token")
+        if not csrf_cookie or not csrf_header or not secrets.compare_digest(csrf_cookie, csrf_header):
+            raise HTTPException(status_code=403, detail="CSRF token required")
+        return True
+
+    if not request.headers.get("X-Requested-With"):
         raise HTTPException(status_code=403, detail="CSRF token required")
     return True
 

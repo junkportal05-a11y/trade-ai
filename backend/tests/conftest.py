@@ -48,15 +48,19 @@ def _clear_degraded_workers():
 def auth_client():
     """TestClient with a valid apt_token cookie for authenticated requests.
 
-    CSRF is enforced unconditionally on mutating routes (TAR-21), so send the
-    same X-Requested-With header the real frontend's apiFetch always sends.
+    CSRF is enforced unconditionally on mutating routes (TAR-21); cookie
+    sessions must also present the apt_csrf double-submit pair.
     Tests asserting the missing-header 403 build their own bare clients.
     """
     from fastapi.testclient import TestClient
     from app.main import app
     from app.core.security import create_access_token
 
-    client = TestClient(app, headers={"X-Requested-With": "XMLHttpRequest"})
+    client = TestClient(
+        app,
+        headers={"X-Requested-With": "XMLHttpRequest", "X-CSRF-Token": "test-csrf"},
+    )
     token = create_access_token({"sub": "apex_head_quant"})
     client.cookies.set("apt_token", token)
+    client.cookies.set("apt_csrf", "test-csrf")
     return client

@@ -1,6 +1,7 @@
 """FastAPI dependencies — DB session, auth, rate limiting."""
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 from fastapi import Depends, Request
@@ -31,7 +32,7 @@ from app.core.limiter import get_real_client_ip
 def get_user_or_ip(request: Request) -> str:
     token = request.headers.get("x-session-token")
     if token:
-        return f"user:{token}"
+        return f"user:{hashlib.sha256(token.encode()).hexdigest()}"
     return get_real_client_ip(request)
 
 

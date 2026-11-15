@@ -43,3 +43,13 @@
 - **TARGET REMOTES**:
   - Code changes: `origin` (`https://github.com/junkportal05-a11y/trade-ai.git`)
   - Live backend deployment: `huggingface` (`https://huggingface.co/spaces/apextrade-core/trade-ai-backend`)
+
+## 4. Security Audit Skills (`.opencode/skills/`)
+- **Use these before shipping auth, broker, API, or deployment changes.**
+- `implementing-api-key-security-controls`: API key entropy, hashing, scoping, rotation.
+- `performing-csrf-attack-simulation`: CSRF token and origin validation checks.
+- `testing-jwt-token-security`: JWT algorithm, lifetime, revocation, and claim checks.
+- `detecting-aws-credential-exposure-with-trufflehog`: secret scanning across repo and CI.
+- `sebi-compliance-guard`: paper-only isolation, live-trading arming, broker custody,
+  and SEBI algo-trading disclosure invariants.
+- Record findings in `ApexTrade/06-Audits-Fixes/SECURITY_AUDIT_REPORT.md`.

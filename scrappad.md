@@ -62,7 +62,7 @@ The workstation is now exclusively built on the **Black, Red & Gold** palette:
 
 ## 2. Interactive Standalone Preview (`preview.html`)
 
-Save this code into a file named **`preview.html`** in your project folder (`C:\Users\aryan\OneDrive\Desktop\app\projects\trade ai\preview.html`) and double-click it. It runs locally with the exact Black, Red, and Gold styling:
+Save this code into a file named **`preview.html`** in your project folder (`C:\Users\aryan\OneDrive\Desktop\app\projects\trade.ai\preview.html`) and double-click it. It runs locally with the exact Black, Red, and Gold styling:
 
 ```html
 <!DOCTYPE html>
@@ -671,7 +671,7 @@ Save this code into a file named **`preview.html`** in your project folder (`C:\
 
 ## 3. Updated Code for Your Local App Files
 
-Apply these changes to `C:\Users\aryan\OneDrive\Desktop\app\projects\trade ai`:
+Apply these changes to `C:\Users\aryan\OneDrive\Desktop\app\projects\trade.ai`:
 
 ### File 1: `src/index.css`
 ```css

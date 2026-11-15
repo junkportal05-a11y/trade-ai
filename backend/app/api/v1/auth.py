@@ -12,6 +12,8 @@ from app.core.security import (
     user_registry,
     create_access_token,
     get_token_from_request,
+    generate_csrf_token,
+    revoke_access_token,
     CsrfDep,
 )
 from app.models.schemas import LoginRequest, LoginResponse, StatusResponse
@@ -60,6 +62,7 @@ async def login(
         raise HTTPException(status_code=401, detail="Invalid access code")
 
     token = create_access_token({"sub": username})
+    csrf_token = generate_csrf_token()
     response.set_cookie(
         key="apt_token",
         value=token,
@@ -68,8 +71,16 @@ async def login(
         samesite="none",
         max_age=settings.session_ttl,
     )
+    response.set_cookie(
+        key="apt_csrf",
+        value=csrf_token,
+        httponly=False,
+        secure=True,
+        samesite="none",
+        max_age=settings.session_ttl,
+    )
     return {
-        "token": token,
+        "csrf_token": csrf_token,
         "username": username,
         "role": user_obj.get("role", "Quant Trader"),
         "clearance": user_obj.get("clearance", "LEVEL_2_SECURE"),
@@ -82,11 +93,16 @@ async def login(
 async def logout(request: Request, response: Response) -> dict:
     token = get_token_from_request(request)
     if token:
-        # No server-side session store needed with JWT; just delete cookie
-        pass
+        revoke_access_token(token)
     response.delete_cookie(
         key="apt_token",
         httponly=True,
+        secure=True,
+        samesite="none",
+    )
+    response.delete_cookie(
+        key="apt_csrf",
+        httponly=False,
         secure=True,
         samesite="none",
     )
@@ -95,11 +111,21 @@ async def logout(request: Request, response: Response) -> dict:
 
 @router.get("/auth/verify")
 @limiter.limit(os.getenv("RATE_LIMIT_AUTH", "5/minute"))
-async def verify(request: Request) -> dict:
+async def verify(request: Request, response: Response) -> dict:
     from fastapi import HTTPException
     from app.core.security import decode_access_token, get_token_from_request
 
     token = get_token_from_request(request)
     if not token or not decode_access_token(token):
         raise HTTPException(status_code=401, detail="Invalid token")
-    return {"status": "valid", "message": "Token is valid"}
+
+    csrf_token = request.cookies.get("apt_csrf") or generate_csrf_token()
+    response.set_cookie(
+        key="apt_csrf",
+        value=csrf_token,
+        httponly=False,
+        secure=True,
+        samesite="none",
+        max_age=settings.session_ttl,
+    )
+    return {"status": "valid", "message": "Token is valid", "csrf_token": csrf_token}

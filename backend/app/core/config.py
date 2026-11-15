@@ -43,6 +43,8 @@ class Settings(BaseSettings):
 
     # ── Security ─────────────────────────────────────────────────────
     jwt_secret: str = Field(default_factory=lambda: secrets.token_hex(32), alias="JWT_SECRET")
+    jwt_issuer: str = Field(default="apextrade", alias="JWT_ISSUER")
+    jwt_audience: str = Field(default="apextrade-api", alias="JWT_AUDIENCE")
     fernet_keys: List[str] | str = Field(
         default_factory=lambda: [secrets.token_urlsafe(32)],
         alias="FERNET_KEYS"
@@ -195,7 +197,7 @@ class Settings(BaseSettings):
     live_trading_armed: bool = Field(default=False, alias="LIVE_TRADING_ARMED")
 
     # ── Rate Limits ──────────────────────────────────────────────────
-    rate_limit_login: str = "10/minute"
+    rate_limit_login: str = "5/minute"
     rate_limit_signals: str = "15/minute"
     rate_limit_signals_burst: str = "5/10seconds"
     rate_limit_chat: str = "30/minute"

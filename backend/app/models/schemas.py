@@ -16,7 +16,7 @@ class LoginRequest(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    token: str
+    csrf_token: str
     username: str
     role: str
     clearance: str

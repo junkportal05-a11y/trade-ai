@@ -11,20 +11,19 @@ const makeStorage = (initial = {}) => {
 };
 
 describe('buildApiHeaders', () => {
-  it('omits JSON Content-Type for FormData uploads but keeps auth headers', () => {
-    const headers = buildApiHeaders({ method: 'POST', body: new FormData() }, 'jwt-token');
+  it('omits JSON Content-Type for FormData uploads but keeps CSRF headers', () => {
+    const headers = buildApiHeaders({ method: 'POST', body: new FormData() }, 'csrf-token');
 
     expect(headers['Content-Type']).toBeUndefined();
-    expect(headers.Authorization).toBe('Bearer jwt-token');
-    expect(headers['X-Session-Token']).toBe('jwt-token');
+    expect(headers['X-CSRF-Token']).toBe('csrf-token');
     expect(headers['X-Requested-With']).toBe('XMLHttpRequest');
   });
 
-  it('sets JSON Content-Type for regular bodies', () => {
+  it('sets JSON Content-Type for regular bodies without a CSRF token', () => {
     const headers = buildApiHeaders({ method: 'POST', body: JSON.stringify({ a: 1 }) }, '');
 
     expect(headers['Content-Type']).toBe('application/json');
-    expect(headers.Authorization).toBeUndefined();
+    expect(headers['X-CSRF-Token']).toBeUndefined();
   });
 });
 
@@ -33,7 +32,7 @@ describe('apiFetch', () => {
     // Resolve relative paths deterministically, even when a local .env.local
     // exports a VITE_API_URL (tests assert the path, not the base).
     vi.stubEnv('VITE_API_URL', '');
-    vi.stubGlobal('sessionStorage', makeStorage({ apt_token: 'jwt-token' }));
+    vi.stubGlobal('sessionStorage', makeStorage({ apt_csrf: 'csrf-token' }));
     vi.stubGlobal('localStorage', makeStorage());
   });
 
@@ -42,7 +41,7 @@ describe('apiFetch', () => {
     vi.unstubAllEnvs();
   });
 
-  it('keeps JSON Content-Type for JSON bodies and sends both token headers', async () => {
+  it('keeps JSON Content-Type for JSON bodies and sends the CSRF header', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -50,11 +49,11 @@ describe('apiFetch', () => {
 
     const [, options] = fetchMock.mock.calls[0];
     expect(options.headers['Content-Type']).toBe('application/json');
-    expect(options.headers['X-Session-Token']).toBe('jwt-token');
-    expect(options.headers.Authorization).toBe('Bearer jwt-token');
+    expect(options.headers['X-CSRF-Token']).toBe('csrf-token');
+    expect(options.headers.Authorization).toBeUndefined();
   });
 
-  it('sends chart uploads with credentials and token headers, letting the browser set multipart boundary', async () => {
+  it('sends chart uploads with credentials and CSRF header, letting the browser set multipart boundary', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     vi.stubGlobal('fetch', fetchMock);
     const body = new FormData();
@@ -67,14 +66,14 @@ describe('apiFetch', () => {
     expect(options.credentials).toBe('include');
     expect(options.body).toBe(body);
     expect(options.headers['Content-Type']).toBeUndefined();
-    expect(options.headers.Authorization).toBe('Bearer jwt-token');
+    expect(options.headers['X-CSRF-Token']).toBe('csrf-token');
   });
 });
 
 describe('deletePrediction', () => {
   beforeEach(() => {
     vi.stubEnv('VITE_API_URL', '');
-    vi.stubGlobal('sessionStorage', makeStorage({ apt_token: 'jwt-token' }));
+    vi.stubGlobal('sessionStorage', makeStorage({ apt_csrf: 'csrf-token' }));
     vi.stubGlobal('localStorage', makeStorage());
   });
 
@@ -83,7 +82,7 @@ describe('deletePrediction', () => {
     vi.unstubAllEnvs();
   });
 
-  it('sends DELETE /api/predictions/{id} with auth headers', async () => {
+  it('sends DELETE /api/predictions/{id} with the CSRF header', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -93,6 +92,7 @@ describe('deletePrediction', () => {
     expect(url).toBe('/api/predictions/42');
     expect(options.method).toBe('DELETE');
     expect(options.credentials).toBe('include');
-    expect(options.headers.Authorization).toBe('Bearer jwt-token');
+    expect(options.headers['X-CSRF-Token']).toBe('csrf-token');
+    expect(options.headers.Authorization).toBeUndefined();
   });
 });

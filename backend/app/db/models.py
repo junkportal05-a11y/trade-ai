@@ -336,3 +336,12 @@ class Strategy(Base):
             "description": self.description,
             "is_active": self.is_active,
         }
+
+
+class RevokedToken(Base):
+    """JWT revocation list — rows live until the token's natural expiry."""
+    __tablename__ = "revoked_tokens"
+
+    jti = Column(String(64), primary_key=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    revoked_at = Column(DateTime, nullable=False, default=datetime.utcnow)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
@@ -21,6 +22,7 @@ from app.db.models import (
     RejectedSignal,
     AngelOneSession,
     AppSettings,
+    RevokedToken,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,6 +42,7 @@ _ALL_MODELS = [
     RejectedSignal,
     AngelOneSession,
     AppSettings,
+    RevokedToken,
 ]
 
 
@@ -75,6 +78,16 @@ def run_migrations(engine: Engine) -> None:
 
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created/verified.")
+
+    # ── Migration: drop expired JWT revocations ─────────────────────────
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text("DELETE FROM revoked_tokens WHERE expires_at < :now"),
+                {"now": datetime.utcnow()},
+            )
+    except Exception:
+        logger.warning("Could not prune expired revoked_tokens", exc_info=True)
 
     # ── Migration: add missing columns ──────────────────────────────────
     _add_column_safe(engine, "trade_journal", "user_id", "TEXT")
