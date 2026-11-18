@@ -84,6 +84,7 @@ async def login(
         "role": user_obj.get("role", "Quant Trader"),
         "clearance": user_obj.get("clearance", "LEVEL_2_SECURE"),
         "expires_in": settings.session_ttl,
+        "token": token  # Also return token in JSON for WS auth
     }
 
 

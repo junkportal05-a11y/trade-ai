@@ -45,7 +45,7 @@ function NavButton({ tab, active, onClick }) {
         background: active
           ? T.goldDim
           : 'transparent',
-        boxShadow: active ? `0 0 15px ${T.accentGlow}` : 'none',
+        boxShadow: active ? '0 0 0 1px rgba(255,255,255,0.2)' : 'none',
         color: active ? T.gold : T.textMid,
         fontSize: 12,
         fontWeight: active ? 700 : 500,
@@ -127,7 +127,7 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
           fontWeight: 900,
           fontFamily: "'JetBrains Mono', 'IBM Plex Mono', monospace",
           fontSize: 12,
-          boxShadow: `0 0 15px ${T.accentGlow}`,
+          boxShadow: '0 0 0 1px rgba(255,255,255,0.2)',
         }}>
           AT
         </div>

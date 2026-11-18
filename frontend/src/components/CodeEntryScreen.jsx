@@ -37,6 +37,11 @@ export default function CodeEntryScreen({ onVerified }) {
       if (data.csrf_token) {
         sessionStorage.setItem('apt_csrf', data.csrf_token);
         localStorage.setItem('apt_csrf', data.csrf_token);
+        // Also store the auth token for WebSocket connection
+        if (data.token) {
+          sessionStorage.setItem('apt_token', data.token);
+          localStorage.setItem('apt_token', data.token);
+        }
         onVerified(data);
       } else {
         throw new Error('No CSRF token received');
@@ -135,7 +140,7 @@ export default function CodeEntryScreen({ onVerified }) {
                 gap: 8,
                 padding: '10px 12px',
                 background: T.redDim,
-                border: `1px solid ${T.redGlow}`,
+                border: `1px solid ${T.red}20`,
                 borderRadius: 8,
                 color: T.red,
                 fontSize: 12,

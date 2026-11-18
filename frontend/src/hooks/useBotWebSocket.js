@@ -28,14 +28,21 @@ export function useBotWebSocket() {
   const [connected, setConnected] = useState(false);
   const wsRef = useRef(null);
 
+  // Get auth token from sessionStorage (set by login flow) or fallback to verifyToken
+  const getAuthToken = () => {
+    return sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token');
+  };
+
   useEffect(() => {
     let reconnectTimeout = null;
     let reconnectAttempt = 0;
     let isMounted = true;
 
     function connect() {
+      const token = getAuthToken();
+      const wsUrl = token ? buildBotWsUrl(WS_URL, { token }) : buildBotWsUrl(WS_URL);
       try {
-        const ws = new WebSocket(buildBotWsUrl(WS_URL));
+        const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
         ws.onopen = () => {

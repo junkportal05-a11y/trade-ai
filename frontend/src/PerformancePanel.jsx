@@ -124,7 +124,7 @@ export default function PerformancePanel({ onViewChange }) {
                   fontFamily: "'Inter', sans-serif",
                   transition: 'all 0.15s',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = T.accentDim; e.currentTarget.style.borderColor = T.accent; }}
+                onMouseEnter={e => { e.currentTarget.style.background = T.surfaceDim; e.currentTarget.style.borderColor = T.accent; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = T.borderHi; }}
               >
                 {m.label}

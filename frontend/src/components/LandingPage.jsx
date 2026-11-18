@@ -7,7 +7,7 @@ export default function LandingPage() {
     <div style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: "'Inter', system-ui, sans-serif" }}>
       {/* Hero Section */}
       <section style={{ minHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at center, ${T.accentDim} 0%, transparent 70%)`, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at center, ${T.surfaceDim} 0%, transparent 70%)`, pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: '20%', left: '10%', width: '400px', height: '400px', background: `radial-gradient(circle, ${T.accentDim} 0%, transparent 70%)`, borderRadius: '50%', pointerEvents: 'none', animation: 'float 20s ease-in-out infinite' }} />
         <div style={{ position: 'absolute', bottom: '10%', right: '10%', width: '300px', height: '300px', background: `radial-gradient(circle, ${T.accentDim} 0%, transparent 70%)`, borderRadius: '50%', pointerEvents: 'none', animation: 'float 25s ease-in-out infinite reverse' }} />
         
@@ -115,10 +115,10 @@ export default function LandingPage() {
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: T.goldDim, border: `1px solid ${T.borderHi}`, borderRadius: 999, fontSize: 11, fontWeight: 600, color: T.accentAlt }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.accentAlt }} /> Confidence: 87%
               </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: T.accentDim, border: `1px solid ${T.accentGlow}`, borderRadius: 999, fontSize: 11, fontWeight: 600, color: T.gold }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: T.surfaceDim, border: `1px solid ${T.border}`, borderRadius: 999, fontSize: 11, fontWeight: 600, color: T.gold }}>
                 R:R 1:2.5
               </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: T.accentDim, border: `1px solid ${T.accentGlow}`, borderRadius: 999, fontSize: 11, fontWeight: 600, color: T.gold }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: T.surfaceDim, border: `1px solid ${T.border}`, borderRadius: 999, fontSize: 11, fontWeight: 600, color: T.gold }}>
                 Intraday (5m-15m)
               </span>
             </div>

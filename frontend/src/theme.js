@@ -1,7 +1,7 @@
 export const T = {
   bg: '#131313',
   surface: '#131313',
-  surfaceDim: '#131313',
+  surfaceDim: '#3a3939',
   surfaceBright: '#3a3939',
   surfaceContainerLowest: '#0e0e0e',
   surfaceContainerLow: '#1c1b1b',
@@ -14,10 +14,10 @@ export const T = {
   inverseOnSurface: '#313030',
   outline: '#ad8883',
   outlineVariant: '#5d3f3b',
-  surfaceTint: '#ffb4a9',
+  // surfaceTint removed — now derived from primary contrast
   primary: '#ffb4a9',
-  onPrimary: '#690002',
-  primaryContainer: '#d41514',
+  onPrimary: '#1a1a1f',
+  primaryContainer: '#3d0e0e',
   onPrimaryContainer: '#ffe7e4',
   inversePrimary: '#c00009',
   secondary: '#c8c6c5',
@@ -33,9 +33,9 @@ export const T = {
   errorContainer: '#93000a',
   onErrorContainer: '#ffdad6',
   primaryFixed: '#ffdad5',
-  primaryFixedDim: '#ffb4a9',
+  // primaryFixedDim removed — use primaryFixedDim from primaryFamily below
   onPrimaryFixed: '#410001',
-  onPrimaryFixedVariant: '#930005',
+  // onPrimaryFixedVariant removed — use semantic text colors instead
   secondaryFixed: '#e4e2e1',
   secondaryFixedDim: '#c8c6c5',
   onSecondaryFixed: '#1b1c1b',
@@ -48,27 +48,22 @@ export const T = {
   onBackground: '#e5e2e1',
   surfaceVariant: '#353534',
 
-  // --- Backward-compatible aliases (old property names ---
-  // these map to the new tri-chromatic DESIGN.md token system) ---
-  // Background/surface
-  bg: '#131313',
-  surface: '#131313',
-  panel: '#131313',
-  panelAlt: '#1c1b1b',
-
-  // Text colors
+  // --- Tri-chromatic DESIGN.md token system (single source of truth) ---
+  // Text hierarchy: one neutral ramp for all copy
   text: '#e5e2e1',
   textMid: '#e7bdb7',
   textDim: '#313030',
   textMuted: '#5d3f3b',
 
-  // Accent / action / risk
-  accent: '#ffb4a9',
+  // One accent, used sparingly for primary CTA/indicators
+  accent: '#c00009',
   accentAlt: '#5d3f3b',
-  accentDim: '#ffb4a9',
-  accentGlow: 'rgba(212, 21, 20, 0.15)',
+  // accentDim — subtle depth using surface dimension
+  accentDim: '#3a3939',
+  // accentGlow — subtle surface shadow for depth (not a branded color)
+  accentGlow: '0 4px 12px rgba(0, 0, 0, 0.15)',
 
-  // Action colors
+  // Action colors — distinct from accent
   green: '#c8c6c5',
   greenDim: 'rgba(205, 203, 202, 0.15)',
   greenGlow: 'transparent',
@@ -78,14 +73,14 @@ export const T = {
   redDim: 'rgba(255, 180, 171, 0.12)',
   redGlow: 'rgba(255, 180, 171, 0.25)',
 
-  // Structure / status
-  gold: '#ffb4a9',
-  goldDim: '#ffdad5',
+  // Structure / status — gold uses accent as base for consistency
+  gold: '#c00009',
+  goldDim: '#e4e2e1',
 
-  // Borders
+  // Borders — fixed opacity for consistency
   border: '#ad8883',
   borderHi: 'rgba(212, 21, 20, 0.40)',
-  // --- End backward-compatible aliases ---
+  // --- End tri-chromatic system ---
 };
 
 export const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
