@@ -1,10 +1,8 @@
 # ======================================================================
 # Trade AI / ApexTrade Quantitative Trading Platform Dependencies
 # ======================================================================
-# Pinned 2026-11-02 from the verified local venv (Python 3.12.10) that
-# passed 296 backend tests at HEAD a599798. Keep this file identical to
-# backend/requirements.txt (Dockerfile source of truth). Update pins
-# deliberately and re-run the suite + a fresh-install smoke before release.
+# Core runtime dependencies - install in CI/CD and Docker
+# Heavy ML/engine deps moved to backend/requirements-ml.txt
 
 # Web Framework & API Server
 fastapi==0.111.0
@@ -32,23 +30,8 @@ pandas==3.0.6
 numpy==2.5.4
 pyarrow==26.0.0
 yfinance==1.7.0
-scipy==1.13.0
+scipy>=1.14.0
 scikit-learn==1.5.0
-
-# Time Series Forecasting
-torch==2.4.0
-transformers==4.42.0
-accelerate==0.32.0
-einops==0.8.0
-# TimesFM - installed from GitHub
-# Kronos - local integration
-
-# Nautilus Trader (core trading engine)
-nautilus-trader[all]==1.176.0
-
-# Machine Learning & Forecasting
-prophet==1.1.5
-neuralprophet==0.5.1
 
 # Brokerage & Network Communication
 requests==2.34.2

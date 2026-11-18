@@ -11,7 +11,14 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-import torch
+
+# Import torch lazily - not in CI requirements
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    torch = None
+    TORCH_AVAILABLE = False
 
 from app.core.config import settings
 from app.core.data_adapter import convert_bars
