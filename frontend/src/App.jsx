@@ -107,6 +107,8 @@ export default function App() {
   // Handle successful verification from CodeEntryScreen
   const handleVerified = useCallback((data) => {
     setVerified(true);
+    // Token is already stored in sessionStorage by CodeEntryScreen
+    // verifyToken() will pick up the cookie on next apiFetch call
   }, []);
 
   // Personal Workstation Mode — Direct Access after code verification
