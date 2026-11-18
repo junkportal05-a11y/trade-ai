@@ -140,7 +140,8 @@ jobs:
             --cov-report=xml:coverage.xml \
             --cov-report=term-missing \
             --cov-fail-under=60 \
-            --json-report=test-report.json \
+            --json-report \
+            --json-report-file=test-report.json \
             --tb=short
 
       - name: Upload Coverage Report
