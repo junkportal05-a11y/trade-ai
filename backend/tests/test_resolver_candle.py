@@ -1,4 +1,3 @@
-import pytest
 from backtest_engine import resolve_candle_pessimistic
 
 def test_both_tp_and_sl_touched_same_candle_returns_loss():

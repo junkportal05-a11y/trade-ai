@@ -34,12 +34,12 @@ export default function CodeEntryScreen({ onVerified }) {
         throw new Error(data.detail || 'Invalid code');
       }
       const data = await res.json();
-      if (data.token) {
-        sessionStorage.setItem('apt_token', data.token);
-        localStorage.setItem('apt_token', data.token);
+      if (data.csrf_token) {
+        sessionStorage.setItem('apt_csrf', data.csrf_token);
+        localStorage.setItem('apt_csrf', data.csrf_token);
         onVerified(data);
       } else {
-        throw new Error('No token received');
+        throw new Error('No CSRF token received');
       }
     } catch (err) {
       setError(err.message || 'Authentication failed');

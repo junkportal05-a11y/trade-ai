@@ -13,7 +13,7 @@ from app.core.security import require_session, require_admin
 backtest_router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 
 class BacktestRequest(BaseModel):

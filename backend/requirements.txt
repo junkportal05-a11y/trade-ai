@@ -1,11 +1,8 @@
 # ======================================================================
 # Trade AI / ApexTrade Quantitative Trading Platform Dependencies
 # ======================================================================
-# Pinned 2026-11-02 from the verified local venv (Python 3.12.10) that
-# passed 296 backend tests at HEAD a599798. Keep this file identical to
-# the repo-root requirements.txt. This file is the Dockerfile source of
-# truth. Update pins deliberately and re-run the suite + a fresh-install
-# smoke before release.
+# Core runtime dependencies - install in CI/CD and Docker
+# Heavy ML/engine deps moved to requirements-ml.txt
 
 # Web Framework & API Server
 fastapi==0.111.0
@@ -33,6 +30,8 @@ pandas==3.0.6
 numpy==2.5.4
 pyarrow==26.0.0
 yfinance==1.7.0
+scipy>=1.14.0
+scikit-learn==1.5.0
 
 # Brokerage & Network Communication
 requests==2.34.2
@@ -57,5 +56,5 @@ tqdm==4.70.1
 # Testing Utilities
 freezegun==1.5.5
 pytest==9.1.1
-pytest-asyncio==1.4.0
+pytest-asyncio==1.5.0
 httpx==0.28.1

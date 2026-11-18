@@ -13,7 +13,6 @@ from app.db.models import (
     SignalHistory,
     TradeJournal,
     PredictionsHistory,
-    MetricsCache,
     PortfolioState,
     RiskSettings,
     RejectedSignal,
@@ -344,7 +343,6 @@ class PredictionRepository:
 class MetricsRepository:
     @staticmethod
     def set(db: Session, key: str, value_json: str) -> None:
-        from app.db.models import MetricsCache
         row = db.query(MetricsCache).filter(MetricsCache.key == key).first()
         if row:
             row.value_json = value_json
@@ -355,7 +353,6 @@ class MetricsRepository:
 
     @staticmethod
     def get(db: Session, key: str) -> dict | None:
-        from app.db.models import MetricsCache
         row = db.query(MetricsCache).filter(MetricsCache.key == key).first()
         if not row:
             return None

@@ -1,6 +1,5 @@
 import asyncio
 import json
-import time
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import List

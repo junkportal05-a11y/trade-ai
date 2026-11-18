@@ -5,7 +5,6 @@ proxy in front). X-Forwarded-For / X-Real-IP are therefore attacker-controlled h
 not trust signals. get_real_client_ip must ignore both and fall back to request.client.host,
 which is the TCP peer address assigned by the kernel.
 """
-import pytest
 from unittest.mock import MagicMock
 
 from app.core.limiter import get_real_client_ip

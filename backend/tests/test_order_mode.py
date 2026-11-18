@@ -72,7 +72,7 @@ class TestOrderModeDefault:
 
     def test_column_is_not_null(self):
         """Column has nullable=False — DB rejects NULL inserts."""
-        db = TestingSession()
+        TestingSession()
         cols = {c["name"]: c for c in inspect(TEST_ENGINE).get_columns("predictions_history")}
         assert cols["order_mode"]["nullable"] is False, "order_mode must be NOT NULL"
 

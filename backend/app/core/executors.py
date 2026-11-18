@@ -41,7 +41,7 @@ def shutdown_executors() -> None:
     ]:
         try:
             executor.shutdown(wait=True)
-        except Exception as e:
+        except Exception:
             # Best effort - log and continue
             pass
 

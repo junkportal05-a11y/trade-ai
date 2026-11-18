@@ -8,19 +8,8 @@ export const AUTH_CLOSE_CODES = [4001, 1008];
 const RECONNECT_BASE_MS = 3000;
 const RECONNECT_MAX_MS = 30000;
 
-export function getBotToken() {
-  if (typeof sessionStorage !== 'undefined') {
-    const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token');
-    if (token) return token;
-  }
-  if (typeof localStorage !== 'undefined') {
-    return localStorage.getItem('apt_token') || '';
-  }
-  return '';
-}
-
-export function buildBotWsUrl(baseUrl, token) {
-  return buildWsUrl(baseUrl, BOT_WS_PATH, { token });
+export function buildBotWsUrl(baseUrl) {
+  return buildWsUrl(baseUrl, BOT_WS_PATH);
 }
 
 export function shouldReconnect(code) {
@@ -46,7 +35,7 @@ export function useBotWebSocket() {
 
     function connect() {
       try {
-        const ws = new WebSocket(buildBotWsUrl(WS_URL, getBotToken()));
+        const ws = new WebSocket(buildBotWsUrl(WS_URL));
         wsRef.current = ws;
 
         ws.onopen = () => {

@@ -1,7 +1,6 @@
 """Regression tests for the ApexTrade bug-repair batch (2026-10-26)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient

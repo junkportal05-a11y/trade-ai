@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import base64
-import json
-import os
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -106,7 +104,7 @@ def analyze_chart_image(image_path: str, symbol: str = "") -> dict:
 
     try:
         from google import genai as _genai
-        client = _genai.Client(api_key=settings.gemini_api_key)
+        _genai.Client(api_key=settings.gemini_api_key)
 
         # Read and encode image
         with open(image_path, "rb") as img_file:
@@ -224,8 +222,72 @@ def _get_heuristic_reply(
     }
 
 
+def _get_local_llm_reply(
+    req: ChatRequest, symbol: str, price: Optional[float], chg_pct: Optional[float]
+) -> Optional[dict]:
+    """Get reply from local LLM (Ollama/LiteLLM) if configured."""
+    try:
+        import httpx
+    except ImportError:
+        return None
+
+    # Check for LiteLLM API base (Ollama/OpenAI compatible)
+    litellm_base = getattr(settings, 'LITELLM_API_BASE', None) or getattr(settings, 'OLLAMA_BASE_URL', None)
+    if not litellm_base:
+        return None
+
+    try:
+        price_note = ""
+        if isinstance(price, (int, float)) and price > 0:
+            pct = f"{chg_pct:+.2f}%" if isinstance(chg_pct, (int, float)) else "n/a"
+            price_note = f" Latest price ₹{price} with day change {pct}."
+
+        prompt = (
+            f"You are a concise technical analyst for Indian equities. Symbol: {symbol}."
+            f"{price_note} Trader asks: {req.message} "
+            "Reply in 1-2 sentences focused on RSI, key levels or triggers. "
+            "Return JSON only with: reply, source, confidence, reasoning."
+        )
+
+        turns = [h.model_dump() for h in (req.history or [])[-6:]]
+
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(
+                f"{litellm_base.rstrip('/')}/chat/completions",
+                json={
+                    "model": getattr(settings, 'LITELLM_MODEL', None) or getattr(settings, 'OLLAMA_MODEL', None) or "llama3.1:8b",
+                    "messages": turns + [{"role": "user", "content": prompt}],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0.3,
+                    "max_tokens": 200,
+                },
+                headers={"Authorization": f"Bearer {getattr(settings, 'LITELLM_API_KEY', 'dummy')}"},
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = data['choices'][0]['message']['content']
+
+        import json
+        parsed = json.loads(content)
+        parsed['source'] = 'litellm'
+        return parsed
+
+    except Exception as e:
+        from app.core.logging import logger
+        logger.warning(f"[chat] local LLM reply unavailable, falling back to heuristic: {e}")
+        return None
+
+
 def get_chat_reply(req: ChatRequest, symbol: str, price: Optional[float], chg_pct: Optional[float]) -> dict:
+    # Try Gemini first
     gemini_reply = _get_gemini_reply(req, symbol, price, chg_pct)
     if gemini_reply:
         return gemini_reply
+
+    # Try local LLM (Ollama/LiteLLM)
+    local_reply = _get_local_llm_reply(req, symbol, price, chg_pct)
+    if local_reply:
+        return local_reply
+
+    # Fallback to heuristic
     return _get_heuristic_reply(req, symbol, price, chg_pct)

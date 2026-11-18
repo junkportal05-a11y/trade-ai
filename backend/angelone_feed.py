@@ -16,7 +16,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from SmartApi import SmartConnect
 from typing import Optional, Dict, List
-from cryptography.fernet import Fernet
 
 from app.core.config import settings
 from app.core.logging import configure_json_logging, logger
@@ -179,7 +178,7 @@ class AngelOneFeed:
                 clientCode=client_code, password=pin, totp=code_to_send
             )
 
-            if not session_data or not isinstance(session_data, dict) or session_data.get("status") == False:
+            if not session_data or not isinstance(session_data, dict) or session_data.get("status") is False:
                 error_msg = (
                     session_data.get("message", "Unknown error")
                     if isinstance(session_data, dict)
@@ -259,7 +258,7 @@ class AngelOneFeed:
                 return False
             response = self.smart_api.generateToken(refresh_token)
 
-            if response and response.get("status") == True:
+            if response and response.get("status") is True:
                 data = response.get("data") or {}
                 new_jwt = data.get("jwtToken")
                 if not new_jwt:
@@ -481,7 +480,7 @@ class AngelOneFeed:
 
         try:
             profile = self.smart_api.getProfile(self.refresh_token)
-            if profile and profile.get("status") == True:
+            if profile and profile.get("status") is True:
                 return True
         except Exception as e:
             logger.warning(f"AngelOne getProfile failed: {e}. Trying refresh...")
@@ -492,7 +491,7 @@ class AngelOneFeed:
             if success:
                 try:
                     profile = self.smart_api.getProfile(self.refresh_token)
-                    if profile and profile.get("status") == True:
+                    if profile and profile.get("status") is True:
                         return True
                 except Exception as e:
                     logger.error(f"AngelOne getProfile failed after refresh: {e}")
@@ -504,7 +503,7 @@ class AngelOneFeed:
         if self.auto_login():
             try:
                 profile = self.smart_api.getProfile(self.refresh_token)
-                return profile and profile.get("status") == True
+                return profile and profile.get("status") is True
             except Exception as e:
                 logger.error(f"AngelOne getProfile failed after auto_login: {e}")
 
@@ -734,7 +733,7 @@ class AngelOneFeed:
 
             response = self.smart_api.getCandleData(historic_param)
 
-            if not response or response.get("status") == False:
+            if not response or response.get("status") is False:
                 error_code = (
                     response.get("errorCode") or response.get("errorcode")
                     if response
@@ -762,7 +761,7 @@ class AngelOneFeed:
                         else:
                             self.session_token = None
 
-            if not response or response.get("status") == False:
+            if not response or response.get("status") is False:
                 error_msg = (
                     response.get("message", "Unknown error")
                     if response
@@ -812,7 +811,7 @@ class AngelOneFeed:
         """Attempt a single getMarketData call, refresh session on auth error."""
         try:
             response = self.smart_api.getMarketData("FULL", {"NSE": batch_tokens})
-            if not response or response.get("status") == False:
+            if not response or response.get("status") is False:
                 error_code = (
                     response.get("errorCode") or response.get("errorcode")
                     if response
@@ -877,7 +876,7 @@ class AngelOneFeed:
                         responses.append(None)
 
             for response in responses:
-                if not response or response.get("status") != True or not response.get("data"):
+                if not response or response.get("status") is not True or not response.get("data"):
                     continue
 
                 fetched = response["data"].get("fetched") or []

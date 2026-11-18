@@ -8,7 +8,6 @@ This test verifies:
   • The health endpoint returns a successful response
 """
 
-import asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

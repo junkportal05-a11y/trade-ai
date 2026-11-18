@@ -6,6 +6,7 @@ import { calcEMA, calcBollingerBands, calcRSI, calcMACD } from './utils/indicato
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
 import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketData';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import SignalsPanel from './SignalsPanel';
 import IntroSplash from './IntroSplash';
 import AccountPanel from './AccountPanel';
@@ -135,16 +136,39 @@ export default function App() {
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
   const [rightTab, setRightTab] = useState('BOT');
   
-  const [drawMode, setDrawMode] = useState(null); // 'SUPPORT' | 'RESISTANCE' | null
-  const [chartLines, setChartLines] = useState({}); // { 'AAPL.NS': [{price, type, id}] }
+  const [drawMode, setDrawMode] = useState(null); // 'SUPPORT' | 'RESISTANCE' | 'TREND' | 'FIB' | null
+  const [chartLines, setChartLines] = useState(() => {
+    const saved = localStorage.getItem('apex_chart_lines');
+    return saved ? JSON.parse(saved) : {};
+  }); // { 'SYMBOL.NS': [{price, type, id, p1, p2}] }
+  
+  const [trendStart, setTrendStart] = useState(null); // { time, price } for trend line first click
+  const [fibStart, setFibStart] = useState(null); // { time, price } for fib first click
   
   const handleDrawComplete = useCallback((line) => {
-    setChartLines(prev => ({
-      ...prev,
-      [selected]: [...(prev[selected] || []), line]
-    }));
-    setDrawMode(null); // auto-turn off drawing mode after 1 click
+    setChartLines(prev => {
+      const updated = {
+        ...prev,
+        [selected]: [...(prev[selected] || []), line]
+      };
+      localStorage.setItem('apex_chart_lines', JSON.stringify(updated));
+      return updated;
+    });
+    setDrawMode(null);
+    setTrendStart(null);
+    setFibStart(null);
   }, [selected]);
+  
+  const handleRemoveLine = useCallback((symbol, lineId) => {
+    setChartLines(prev => {
+      const updated = {
+        ...prev,
+        [symbol]: (prev[symbol] || []).filter(l => l.id !== lineId)
+      };
+      localStorage.setItem('apex_chart_lines', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
   
   // Server warming/cold start splash page state
   const [serverWarming, setServerWarming] = useState(() => localStorage.getItem('apex_splash_shown') === null);
@@ -198,16 +222,12 @@ export default function App() {
       if (cmdOpen) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-      if (e.key === 'b' || e.key === 'B') {
-        setView('HOME');
-      } else if (e.key === 's' || e.key === 'S') {
-        setView('HOME');
-      } else if (e.key >= '1' && e.key <= '6') {
+      // Legacy global shortcuts (delegated to useKeyboardShortcuts hook)
+      if (e.key === 'b' || e.key === 'B') { setView('HOME'); }
+      else if (e.key === 's' || e.key === 'S') { setView('HOME'); }
+      else if (e.key >= '1' && e.key <= '6') {
         const idx = parseInt(e.key) - 1;
-        if (idx < INTERVALS.length) {
-          setIvIdx(idx);
-          setView('CHART');
-        }
+        if (idx < INTERVALS.length) { setIvIdx(idx); setView('CHART'); }
       } else if (e.key === 'Tab') {
         e.preventDefault();
         const currentIndex = DEFAULT_WATCHLIST.findIndex(w => w.symbol === selected);
@@ -218,6 +238,24 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selected, cmdOpen]);
+
+  // Global keyboard shortcuts hook
+  useKeyboardShortcuts({
+    enabled: loggedIn && !cmdOpen,
+    onBuy: () => showToast('Buy order placed (demo)', 'info'),
+    onSell: () => showToast('Sell order placed (demo)', 'info'),
+    onTimeframeChange: (tf) => { setIvIdx(INTERVALS.indexOf(tf)); setView('CHART'); },
+    onCycleSymbol: (reverse) => {
+      const currentIndex = DEFAULT_WATCHLIST.findIndex(w => w.symbol === selected);
+      const nextIndex = reverse
+        ? (currentIndex - 1 + DEFAULT_WATCHLIST.length) % DEFAULT_WATCHLIST.length
+        : (currentIndex + 1) % DEFAULT_WATCHLIST.length;
+      setSelected(DEFAULT_WATCHLIST[nextIndex].symbol);
+    },
+    onFocusSearch: () => setCmdOpen(true),
+    onToggleBot: () => setView('SIMULATOR'),
+    onToggleChart: () => setView('CHART'),
+  });
 
   // ── Morning Brief ───────────────────────────────────────────────────────────
   const [showBriefModal, setShowBriefModal] = useState(false);
@@ -1154,22 +1192,47 @@ export default function App() {
                           
                           <div style={{ width: 1, height: 16, background: T.border, margin: '0 4px', flexShrink: 0 }} />
                           
-                          <button onClick={() => setDrawMode(drawMode === 'SUPPORT' ? null : 'SUPPORT')} style={{
-                            padding: '4px 8px', border: `1px solid ${drawMode === 'SUPPORT' ? T.green : T.border}`,
-                            borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
-                            background: drawMode === 'SUPPORT' ? T.greenDim : 'transparent',
-                            color: drawMode === 'SUPPORT' ? T.green : T.textDim,
-                            fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
-                          }}>DRAW SUPPORT</button>
-                          
-                          <button onClick={() => setDrawMode(drawMode === 'RESISTANCE' ? null : 'RESISTANCE')} style={{
-                            padding: '4px 8px', border: `1px solid ${drawMode === 'RESISTANCE' ? T.red : T.border}`,
-                            borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
-                            background: drawMode === 'RESISTANCE' ? T.redDim : 'transparent',
-                            color: drawMode === 'RESISTANCE' ? T.red : T.textDim,
-                            fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
-                          }}>DRAW RESIST</button>
-                        </div>
+                          {/* Drawing Tools Group */}
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <button onClick={() => setDrawMode(drawMode === 'SUPPORT' ? null : 'SUPPORT')} title="Horizontal Support Line" style={{
+                              padding: '4px 8px', border: `1px solid ${drawMode === 'SUPPORT' ? T.green : T.border}`,
+                              borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
+                              background: drawMode === 'SUPPORT' ? T.greenDim : 'transparent',
+                              color: drawMode === 'SUPPORT' ? T.green : T.textDim,
+                              fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
+                            }}>SUPPORT</button>
+                            
+                            <button onClick={() => setDrawMode(drawMode === 'RESISTANCE' ? null : 'RESISTANCE')} title="Horizontal Resistance Line" style={{
+                              padding: '4px 8px', border: `1px solid ${drawMode === 'RESISTANCE' ? T.red : T.border}`,
+                              borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
+                              background: drawMode === 'RESISTANCE' ? T.redDim : 'transparent',
+                              color: drawMode === 'RESISTANCE' ? T.red : T.textDim,
+                              fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
+                            }}>RESIST</button>
+                            
+                            <button onClick={() => setDrawMode(drawMode === 'TREND' ? null : 'TREND')} title="Trend Line (click 2 points)" style={{
+                              padding: '4px 8px', border: `1px solid ${drawMode === 'TREND' ? T.blue : T.border}`,
+                              borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
+                              background: drawMode === 'TREND' ? 'rgba(59,130,246,0.15)' : 'transparent',
+                              color: drawMode === 'TREND' ? T.blue : T.textDim,
+                              fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
+                            }}>TREND</button>
+                            
+                            <button onClick={() => setDrawMode(drawMode === 'FIB' ? null : 'FIB')} title="Fibonacci Retracement (click swing high/low)" style={{
+                              padding: '4px 8px', border: `1px solid ${drawMode === 'FIB' ? T.purple : T.border}`,
+                              borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
+                              background: drawMode === 'FIB' ? 'rgba(168,85,247,0.15)' : 'transparent',
+                              color: drawMode === 'FIB' ? T.purple : T.textDim,
+                              fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
+                            }}>FIB</button>
+                            
+                            {(chartLines[selected] || []).length > 0 && (
+                              <button onClick={() => { setChartLines(prev => { const u={...prev}; delete u[selected]; localStorage.setItem('apex_chart_lines', JSON.stringify(u)); return u; }); }} title="Clear all drawings for this symbol" style={{
+                                padding: '4px 8px', border: `1px solid ${T.border}`, borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
+                                background: 'transparent', color: T.textDim, fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
+                              }}>CLEAR</button>
+                            )}
+                          </div>
                         {/* Chart */}
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                           <CandleChart 
@@ -1186,6 +1249,10 @@ export default function App() {
                             customLines={chartLines[selected] || EMPTY_ARRAY}
                             botPaperMode={botPaperMode}
                             dataSource={dataSource[selected]}
+                            trendStart={trendStart}
+                            setTrendStart={setTrendStart}
+                            fibStart={fibStart}
+                            setFibStart={setFibStart}
                           />
                         </div>
                         {/* Embedded AI Analyst Card */}
@@ -1265,7 +1332,8 @@ export default function App() {
                           </div>
                         </div>
                       </div>
-                    )}
+                      </div>
+                      )}
 
                     {mobileSubTab === 'ORDER' && (
                       <div style={{ flex: 1, background: T.surface, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -1290,7 +1358,9 @@ export default function App() {
                     <MobileNavButtons view={view} onChange={setView} />
                   </div>
                 </div>
-              ) : (
+              )
+
+              : (
                 /* DESKTOP VIEW — 3 Columns (Watchlist collapsible) */
                 <div className="panel-transition" style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
                   {/* LEFT — Watchlist (Collapsible) */}

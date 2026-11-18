@@ -458,7 +458,9 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
         localStorage.removeItem('is_logged_in');
         localStorage.removeItem('apex_user');
         localStorage.removeItem('apt_token');
+        localStorage.removeItem('apt_csrf');
         sessionStorage.removeItem('apt_token');
+        sessionStorage.removeItem('apt_csrf');
         window.location.reload();
         return;
       }

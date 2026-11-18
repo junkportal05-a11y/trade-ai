@@ -7,7 +7,6 @@ from fastapi import APIRouter, Request, HTTPException
 from app.api.deps import SessionDep
 from app.core.security import CsrfDep
 from app.core.limiter import limiter
-from strategy_tournament import run_full_tournament
 from bot_trainer import train_and_export_weights, WEIGHTS_FILE
 
 router = APIRouter(prefix="/api/backtest/tournament", tags=["tournament"])

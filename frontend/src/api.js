@@ -32,42 +32,51 @@ const isDev = typeof window !== "undefined" && window.location.port === "5173";
 export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 
   (API_BASE_URL ? API_BASE_URL.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:') : (isDev ? 'ws://localhost:8000/ws' : ''));
 
-// Build auth headers for apiFetch. Multipart bodies must not get a JSON
-// Content-Type or the browser boundary is lost.
-export const buildApiHeaders = (options = {}, token = '') => {
+// Build headers for apiFetch. Multipart bodies must not get a JSON
+// Content-Type or the browser boundary is lost. Mutating requests carry the
+// double-submit CSRF token alongside the session cookie.
+export const buildApiHeaders = (options = {}, csrfToken = '') => {
   const bodyIsFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const isMutating = ["POST", "PUT", "DELETE", "PATCH"].includes((options.method || "GET").toUpperCase());
 
   return {
     ...(bodyIsFormData ? {} : { "Content-Type": "application/json" }),
     ...(isMutating ? { "X-Requested-With": "XMLHttpRequest" } : {}),
-    ...(token ? { "X-Session-Token": token, "Authorization": `Bearer ${token}` } : {}),
+    ...(isMutating && csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
     ...(options.headers || {}),
   };
 };
 
-// Authenticated fetch — always sends session cookie and auth token header
+const getCsrfToken = () =>
+  sessionStorage.getItem('apt_csrf') || localStorage.getItem('apt_csrf') || '';
+
+const clearAuth = () => {
+  sessionStorage.removeItem('apt_token');
+  sessionStorage.removeItem('apt_csrf');
+  localStorage.removeItem('apt_token');
+  localStorage.removeItem('apt_csrf');
+};
+
+// Authenticated fetch — always sends the session cookie and CSRF token header
 // Returns a Response-like object with fallback data on network/API failure
 export const apiFetch = async (path, options = {}) => {
   const currentBase = getApiBaseUrl();
   const url = path.startsWith("http") ? path : `${currentBase}${path}`;
-  const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
 
   try {
     const res = await fetch(url, {
       credentials: "include",
       ...options,
-      headers: buildApiHeaders(options, token),
+      headers: buildApiHeaders(options, getCsrfToken()),
     });
 
     if (res.status === 401) {
-      sessionStorage.removeItem('apt_token');
-      localStorage.removeItem('apt_token');
+      clearAuth();
       window.dispatchEvent(new CustomEvent('apex:auth-required'));
     }
 
     return res;
-  } catch (err) {
+  } catch {
     // Network error — return a mock Response with fallback data
     const fallback = buildFallback(path, options);
     return new Response(JSON.stringify(fallback), {
@@ -144,25 +153,25 @@ function buildFallback(path, options) {
   return isPost ? { success: false, error: 'Network unavailable' } : { data: null, error: 'Network unavailable' };
 }
 
-// Verify current token with backend
+// Verify the session cookie and refresh the CSRF token when needed.
 export const verifyToken = async () => {
   const currentBase = getApiBaseUrl();
-  const token = sessionStorage.getItem('apt_token') || localStorage.getItem('apt_token') || '';
-  if (!token) return false;
 
   try {
     const res = await fetch(`${currentBase}/api/auth/verify`, {
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { 'X-Session-Token': token, 'Authorization': `Bearer ${token}` } : {}),
-      },
+      headers: { 'Content-Type': 'application/json' },
     });
-    if (res.ok) return true;
+    if (!res.ok) return false;
+    const data = await res.json().catch(() => ({}));
+    if (data.csrf_token) {
+      sessionStorage.setItem('apt_csrf', data.csrf_token);
+      localStorage.setItem('apt_csrf', data.csrf_token);
+    }
+    return true;
   } catch {
     return false;
   }
-  return false;
 };
 
 // Admin Simulation Endpoints
@@ -178,5 +187,15 @@ export const getSimulationStatus = (adminKey) => apiFetch('/api/admin/simulation
 
 // Predictions
 export const deletePrediction = (predictionId) => apiFetch(`/api/predictions/${encodeURIComponent(predictionId)}`, {
+  method: 'DELETE'
+});
+
+// Journal
+export const getJournal = () => apiFetch('/api/journal');
+export const addJournalEntry = (entry) => apiFetch('/api/journal', {
+  method: 'POST',
+  body: JSON.stringify(entry)
+});
+export const deleteJournalEntry = (entryId) => apiFetch(`/api/journal/${encodeURIComponent(entryId)}`, {
   method: 'DELETE'
 });

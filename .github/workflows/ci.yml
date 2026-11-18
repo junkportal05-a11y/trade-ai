@@ -3,92 +3,359 @@ name: CI Check Status
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'Dockerfile'
+      - '.github/workflows/ci.yml'
+      - 'requirements.txt'
+      - 'pytest.ini'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'Dockerfile'
+      - '.github/workflows/ci.yml'
+      - 'requirements.txt'
+      - 'pytest.ini'
+
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '20'
 
 jobs:
-  backend-test:
-    name: Backend Tests (Python)
+  # ──────────────────────────────────────────────────────────────
+  # Backend: Lint & Type Check (warn-only, doesn't block)
+  # ──────────────────────────────────────────────────────────────
+  backend-lint:
+    name: Backend Lint & Type Check
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
+    continue-on-error: true
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.10
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+
+      - name: Install Lint Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff==0.4.0 mypy==1.10.0
+
+      - name: Run Ruff (Report Only)
+        run: |
+          cd backend
+          ruff check . --output-format=github || true
+          ruff format --check . || echo "::warning::Format issues found"
+
+      - name: Run MyPy (Type Check)
+        run: |
+          cd backend
+          mypy app --ignore-missing-imports --no-error-summary || true
+
+  # ──────────────────────────────────────────────────────────────
+  # Backend: Security Scan (Bandit)
+  # ──────────────────────────────────────────────────────────────
+  backend-security:
+    name: Backend Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+
+      - name: Install Security Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit==1.7.8
+
+      - name: Run Bandit Security Scan
+        run: |
+          cd backend
+          bandit -r app -f json -o bandit-report.json || true
+          bandit -r app -lll
+
+      - name: Upload Bandit Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: backend/bandit-report.json
+          retention-days: 7
+
+  # ──────────────────────────────────────────────────────────────
+  # Backend: Unit & Integration Tests
+  # ──────────────────────────────────────────────────────────────
+  backend-test:
+    name: Backend Tests (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [backend-security]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
           cache-dependency-path: 'backend/requirements.txt'
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio
-          pip install -r backend/requirements.txt || pip install -r backend/requirements.txt --no-deps
+          pip install -r backend/requirements.txt
+          pip install pytest-cov==5.0.0 pytest-json-report==1.5.0
 
-      - name: Run Backend Pytest Suite
+      - name: Run Backend Pytest Suite with Coverage
         env:
           JWT_SECRET: "test_jwt_secret_for_ci_build"
           ADMIN_KEY: "test_admin_key_ci"
           TESTING: "true"
           PYTHONPATH: "backend"
+          SKIP_BACKGROUND_WORKERS: "true"
         run: |
           cd backend
-          python -m pytest tests/test_validation_and_guards.py tests/test_backtest_engine.py tests/test_bot_auth.py tests/test_capital_manager.py tests/test_market_hours.py tests/test_nse_market.py tests/test_perf.py tests/test_session_cleanup.py tests/test_vwap_veto.py tests/test_main_import.py tests/test_admin.py tests/test_angelone_login.py tests/test_search.py tests/test_csrf.py tests/test_t15_security.py tests/test_feed_fallbacks.py tests/test_repair_batch.py tests/test_tar19_p1.py tests/test_chat_reply.py tests/test_credential_encryption.py tests/test_config_security.py tests/test_health_endpoint.py tests/test_security.py tests/test_journal_ownership.py -v --disable-warnings -o asyncio_mode=auto
+          python -m pytest tests/ \
+            -v \
+            --disable-warnings \
+            -o asyncio_mode=auto \
+            --ignore=tests/test_worker_startup.py \
+            --cov=app \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=60 \
+            --json-report \
+            --json-report-file=test-report.json \
+            --tb=short
 
-  frontend-build:
-    name: Frontend Build Check (React + Vite)
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: python-coverage
+          path: backend/coverage.xml
+          retention-days: 7
+
+      - name: Upload Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: python-test-report
+          path: backend/test-report.json
+          retention-days: 7
+
+      - name: Comment PR with Test Summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('backend/test-report.json', 'utf8'));
+            const passed = report.summary.passed;
+            const failed = report.summary.failed;
+            const total = report.summary.total;
+            const duration = report.duration.toFixed(2);
+            
+            const body = `## 🧪 Backend Test Results\n` +
+              `| Status | Count |\n` +
+              `|--------|-------|\n` +
+              `| ✅ Passed | ${passed} |\n` +
+              `| ❌ Failed | ${failed} |\n` +
+              `| 📊 Total | ${total} |\n` +
+              `| ⏱ Duration | ${duration}s |\n` +
+              `\n*Coverage threshold: 60%*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # ──────────────────────────────────────────────────────────────
+  # Frontend: Lint & Type Check (warn-only, doesn't block)
+  # ──────────────────────────────────────────────────────────────
+  frontend-lint:
+    name: Frontend Lint & Type Check
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
+    continue-on-error: true
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: 'frontend/package.json'
 
       - name: Install Frontend Dependencies
         run: |
           cd frontend
-          npm install --legacy-peer-deps
+          npm ci --legacy-peer-deps
+
+      - name: Run ESLint
+        run: |
+          cd frontend
+          npx eslint . --format=github || true
+
+      - name: Run TypeScript Type Check
+        run: |
+          cd frontend
+          npx tsc --noEmit || true
+
+  # ──────────────────────────────────────────────────────────────
+  # Frontend: Security Audit (npm audit)
+  # ──────────────────────────────────────────────────────────────
+  frontend-security:
+    name: Frontend Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package.json'
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci --legacy-peer-deps
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Run npm audit
+        run: |
+          cd frontend
+          npm audit --audit-level=moderate --json > audit-report.json || true
+          cat audit-report.json | jq '.metadata.vulnerabilities' || echo "No audit data"
+
+      - name: Upload Audit Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-report
+          path: frontend/audit-report.json
+          retention-days: 7
+
+  # ──────────────────────────────────────────────────────────────
+  # Frontend: Production Build
+  # ──────────────────────────────────────────────────────────────
+  frontend-build:
+    name: Frontend Build Check (React + Vite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [frontend-security]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package.json'
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci --legacy-peer-deps
 
       - name: Verify Frontend Production Build
         env:
           VITE_API_URL: ""
           VITE_WS_URL: "wss://apextrade-core-trade-ai-backend.hf.space"
+          CI: "true"
         run: |
           cd frontend
+          echo "VITE_API_URL='$VITE_API_URL'"
+          echo "VITE_WS_URL='$VITE_WS_URL'"
           npx vite build
 
-  docker-sanity:
-    name: Docker Sanity Check
-    runs-on: ubuntu-latest
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 7
 
+  # ──────────────────────────────────────────────────────────────
+  # Docker: Backend Build (Sanity)
+  # ──────────────────────────────────────────────────────────────
+  docker-sanity:
+    name: Docker Sanity Check (Backend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Test Docker Build
-        run: |
-          docker build -t apextrade-backend:ci ./backend
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
+      - name: Build Backend Docker Image (with cache)
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          load: true
+          tags: apextrade-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify Image Runs
+        run: |
+          docker run --rm apextrade-backend:ci python -c "import app.main; print('✅ Import OK')"
+
+  # ──────────────────────────────────────────────────────────────
+  # Docker: Root Build + Smoke Test
+  # ──────────────────────────────────────────────────────────────
   docker-smoke:
     name: Root Dockerfile Build + Smoke Run
     runs-on: ubuntu-latest
-
+    timeout-minutes: 15
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Build Root Dockerfile Image
-        run: |
-          docker build -t apextrade-backend:smoke .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Root Dockerfile Image (with cache)
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true
+          tags: apextrade-backend:smoke
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Run Container
         run: |
@@ -100,17 +367,35 @@ jobs:
             -e SKIP_BACKGROUND_WORKERS="true" \
             apextrade-backend:smoke
 
+      - name: Wait for Container to Start
+        run: |
+          sleep 10
+
       - name: Smoke GET /api/health/ping
         run: |
           for i in $(seq 1 30); do
             if curl -fsS -o /dev/null -w "HTTP %{http_code}\n" --max-time 5 "http://127.0.0.1:7860/api/health/ping"; then
+              echo "Health check passed on attempt $i"
               exit 0
             fi
             echo "attempt $i/30 failed, retrying in 2s..."
             sleep 2
           done
           echo "::error::/api/health/ping never returned 200"
+          docker logs apextrade-smoke
           exit 1
+
+      - name: Smoke GET /api/health/ready
+        run: |
+          for i in $(seq 1 10); do
+            if curl -fsS -o /dev/null -w "HTTP %{http_code}\n" --max-time 5 "http://127.0.0.1:7860/api/health/ready"; then
+              echo "Ready check passed on attempt $i"
+              exit 0
+            fi
+            echo "attempt $i/10 failed, retrying in 2s..."
+            sleep 2
+          done
+          echo "::warning::/api/health/ready never returned 200 (may be expected in CI)"
 
       - name: Container Logs On Failure
         if: failure()
@@ -119,3 +404,78 @@ jobs:
       - name: Stop Container
         if: always()
         run: docker stop apextrade-smoke
+
+  # ──────────────────────────────────────────────────────────────
+  # Summary Job (runs last, aggregates results)
+  # ──────────────────────────────────────────────────────────────
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [backend-test, frontend-build, docker-sanity, docker-smoke]
+    if: always()
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Determine Overall Status
+        id: status
+        run: |
+          echo "Backend Tests: ${{ needs.backend-test.result }}"
+          echo "Frontend Build: ${{ needs.frontend-build.result }}"
+          echo "Docker Sanity: ${{ needs.docker-sanity.result }}"
+          echo "Docker Smoke: ${{ needs.docker-smoke.result }}"
+          
+          # Check if any required job failed OR was skipped (due to upstream failure)
+          if [[ "${{ needs.backend-test.result }}" == "failure" ]] || \
+             [[ "${{ needs.backend-test.result }}" == "skipped" ]] || \
+             [[ "${{ needs.frontend-build.result }}" == "failure" ]] || \
+             [[ "${{ needs.frontend-build.result }}" == "skipped" ]] || \
+             [[ "${{ needs.docker-sanity.result }}" == "failure" ]] || \
+             [[ "${{ needs.docker-sanity.result }}" == "skipped" ]] || \
+             [[ "${{ needs.docker-smoke.result }}" == "failure" ]] || \
+             [[ "${{ needs.docker-smoke.result }}" == "skipped" ]]; then
+            echo "overall=failure" >> $GITHUB_OUTPUT
+          else
+            echo "overall=success" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment PR with Summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const backend = "${{ needs.backend-test.result }}";
+            const frontend = "${{ needs.frontend-build.result }}";
+            const dockerSanity = "${{ needs.docker-sanity.result }}";
+            const dockerSmoke = "${{ needs.docker-smoke.result }}";
+            
+            const icon = (s) => {
+              if (s === 'success') return '✅';
+              if (s === 'failure') return '❌';
+              if (s === 'skipped') return '⏭️';
+              return '❓';
+            };
+            
+            const body = `## 📋 CI Check Summary\n\n` +
+              `| Check | Status |\n` +
+              `|-------|--------|\n` +
+              `| Backend Tests | ${icon(backend)} ${backend} |\n` +
+              `| Frontend Build | ${icon(frontend)} ${frontend} |\n` +
+              `| Docker Sanity | ${icon(dockerSanity)} ${dockerSanity} |\n` +
+              `| Docker Smoke | ${icon(dockerSmoke)} ${dockerSmoke} |\n` +
+              `\n---\n` +
+              `*Triggered by: ${{ github.actor }} on ${{ github.ref_name }}*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Fail if Any Required Job Failed
+        if: steps.status.outputs.overall == 'failure'
+        run: |
+          echo "::error::One or more required CI checks failed"
+          exit 1

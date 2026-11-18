@@ -1,9 +1,7 @@
 """CSRF protection tests — verify X-Requested-With header enforcement."""
 from __future__ import annotations
 
-import os
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -62,3 +60,37 @@ def test_options_requests_always_allowed():
     response = client.options("/")
     # OPTIONS may return 405 (method not allowed) but not 403 from CSRF
     assert response.status_code != 403 or "csrf" not in response.json().get("detail", "").lower()
+
+
+def _cookie_client(csrf_cookie: str | None = None, csrf_header: str | None = None) -> TestClient:
+    from app.core.security import create_access_token
+
+    headers = {"X-Requested-With": "XMLHttpRequest"}
+    if csrf_header is not None:
+        headers["X-CSRF-Token"] = csrf_header
+    c = TestClient(app, headers=headers)
+    c.cookies.set("apt_token", create_access_token({"sub": "csrf_probe"}))
+    if csrf_cookie is not None:
+        c.cookies.set("apt_csrf", csrf_cookie)
+    return c
+
+
+def test_cookie_session_without_csrf_token_rejected():
+    """A cookie session must not rely on X-Requested-With alone."""
+    c = _cookie_client()
+    response = c.post("/api/scan", json={"symbol": "RELIANCE.NS"})
+    assert response.status_code == 403
+    assert "csrf" in response.json().get("detail", "").lower()
+
+
+def test_cookie_session_with_matching_csrf_token_passes():
+    c = _cookie_client(csrf_cookie="csrf-value", csrf_header="csrf-value")
+    response = c.post("/api/scan", json={"symbol": "RELIANCE.NS"})
+    assert response.status_code != 403 or "csrf" not in response.json().get("detail", "").lower()
+
+
+def test_cookie_session_with_mismatched_csrf_token_rejected():
+    c = _cookie_client(csrf_cookie="csrf-value", csrf_header="other-value")
+    response = c.post("/api/scan", json={"symbol": "RELIANCE.NS"})
+    assert response.status_code == 403
+    assert "csrf" in response.json().get("detail", "").lower()

@@ -1,5 +1,5 @@
 """Capital allocation router for ScannerPanel."""
-from fastapi import APIRouter, Request, Depends, HTTPException, Body
+from fastapi import APIRouter, Request, HTTPException, Body
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 

@@ -1,6 +1,5 @@
 """Tests for multimodal chart analysis endpoint."""
 import base64
-import pytest
 from unittest.mock import patch
 
 # 1x1 transparent PNG base64 for testing

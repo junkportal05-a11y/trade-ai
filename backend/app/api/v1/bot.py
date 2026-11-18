@@ -9,11 +9,11 @@ GET  /api/bot/trades -> recent live trade log (PENDING/WIN/LOSS/TIMEOUT/SQUARE_O
 from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException, Request
 
-from app.api.deps import SessionDep, OptionalSessionDep, TraderDep, AdminClearanceDep
+from app.api.deps import SessionDep, TraderDep, AdminClearanceDep
 from app.core.security import CsrfDep
 import db
 import trading_agent

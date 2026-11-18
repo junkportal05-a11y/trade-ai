@@ -6,8 +6,8 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_engine_from_config, create_async_engine
-from sqlalchemy.orm import async_sessionmaker, DeclarativeBase
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import async_sessionmaker
 
 from app.core.config import settings
 

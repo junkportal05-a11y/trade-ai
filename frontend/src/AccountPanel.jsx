@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiFetch } from './api';
+import { apiFetch } from './api';
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import BrokerSettings from './BrokerSettings';
@@ -168,10 +168,18 @@ export default function AccountPanel({ currentUser, userRole, userClearance }) {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: `1px solid ${T.border}`, paddingTop: 16 }}>
                 <button
-                  onClick={() => {
-                    localStorage.removeItem('apex_auth');
-                    localStorage.removeItem('apex_user');
-                    window.location.reload();
+                  onClick={async () => {
+                    try {
+                      await apiFetch('/api/logout', { method: 'POST' });
+                    } finally {
+                      localStorage.removeItem('apt_token');
+                      localStorage.removeItem('apt_csrf');
+                      sessionStorage.removeItem('apt_token');
+                      sessionStorage.removeItem('apt_csrf');
+                      localStorage.removeItem('apex_auth');
+                      localStorage.removeItem('apex_user');
+                      window.location.reload();
+                    }
                   }}
                   style={{
                     width: '100%',

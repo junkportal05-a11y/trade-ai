@@ -8,12 +8,12 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from app.core.config import settings
-from app.core.database import engine, SessionLocal, get_pool_status
+from app.core.database import engine, get_pool_status
 from app.core.worker_state import get_degraded_workers, any_degraded
 from app.services.market_hours import is_nse_market_open
 
@@ -190,7 +190,7 @@ def check_storage() -> dict[str, Any]:
 
 def check_market_status() -> dict[str, Any]:
     """Check if NSE market is currently open."""
-    now_ist = datetime.now(timezone.utc)
+    datetime.now(timezone.utc)
     # Simple IST offset check
     is_open = is_nse_market_open()
     

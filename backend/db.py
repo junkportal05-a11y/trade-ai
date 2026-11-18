@@ -8,7 +8,6 @@ Supports local SQLite fallback and remote PostgreSQL / Supabase in production.
 import os
 import sys
 import json
-import base64
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Union
 
@@ -750,7 +749,7 @@ def update_prediction_stops(updates: list[tuple]) -> int:
         return 0
     changed = 0
     with _conn() as c:
-        now = _now_ist()
+        _now_ist()
         for pred_id, new_stop in updates:
             row = c.execute(
                 "SELECT stop_loss, status FROM predictions_history WHERE id=?", (pred_id,)

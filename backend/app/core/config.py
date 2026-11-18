@@ -6,7 +6,7 @@ import secrets
 from typing import List, Literal
 
 from cryptography.fernet import Fernet
-from pydantic import Field, PostgresDsn, field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -43,6 +43,8 @@ class Settings(BaseSettings):
 
     # ── Security ─────────────────────────────────────────────────────
     jwt_secret: str = Field(default_factory=lambda: secrets.token_hex(32), alias="JWT_SECRET")
+    jwt_issuer: str = Field(default="apextrade", alias="JWT_ISSUER")
+    jwt_audience: str = Field(default="apextrade-api", alias="JWT_AUDIENCE")
     fernet_keys: List[str] | str = Field(
         default_factory=lambda: [secrets.token_urlsafe(32)],
         alias="FERNET_KEYS"
@@ -155,9 +157,23 @@ class Settings(BaseSettings):
     angel_pin: str | None = Field(default=None, alias="ANGEL_PIN")
     angel_totp_secret: str | None = Field(default=None, alias="ANGEL_TOTP_SECRET")
 
+    # ── Telegram Bot ─────────────────────────────────────────────────
+    telegram_bot_token: str | None = Field(default=None, alias="TELEGRAM_BOT_TOKEN")
+    telegram_chat_id: str | None = Field(default=None, alias="TELEGRAM_CHAT_ID")
+    telegram_min_confidence: int = Field(default=75, alias="TELEGRAM_MIN_CONFIDENCE")
+
     # ── AI ───────────────────────────────────────────────────────────
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
     news_api_key: str | None = Field(default=None, alias="NEWS_API_KEY")
+
+    # Local LLM (Ollama / LiteLLM) - OpenAI-compatible API
+    litellm_api_base: str | None = Field(default=None, alias="LITELLM_API_BASE")
+    litellm_model: str | None = Field(default=None, alias="LITELLM_MODEL")
+    litellm_api_key: str | None = Field(default=None, alias="LITELLM_API_KEY")
+
+    # Ollama-specific (legacy aliases)
+    ollama_base_url: str | None = Field(default=None, alias="OLLAMA_BASE_URL")
+    ollama_model: str | None = Field(default=None, alias="OLLAMA_MODEL")
 
     # ── Error Tracing ──────────────────────────────────────────────────
     sentry_dsn: str | None = Field(default=None, alias="SENTRY_DSN")
@@ -195,7 +211,7 @@ class Settings(BaseSettings):
     live_trading_armed: bool = Field(default=False, alias="LIVE_TRADING_ARMED")
 
     # ── Rate Limits ──────────────────────────────────────────────────
-    rate_limit_login: str = "10/minute"
+    rate_limit_login: str = "5/minute"
     rate_limit_signals: str = "15/minute"
     rate_limit_signals_burst: str = "5/10seconds"
     rate_limit_chat: str = "30/minute"

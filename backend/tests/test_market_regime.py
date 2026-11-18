@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
-import pytest
 
-import quant.market_regime as mr
 from quant.market_regime import MarketRegimeClassifier
 
 

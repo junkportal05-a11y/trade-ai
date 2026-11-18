@@ -2,12 +2,10 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.core.constants import VALID_INTERVALS, VALID_RANGES
 
 
 class LoginRequest(BaseModel):
@@ -16,7 +14,7 @@ class LoginRequest(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    token: str
+    csrf_token: str
     username: str
     role: str
     clearance: str

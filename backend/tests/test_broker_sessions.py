@@ -5,7 +5,6 @@ Mock SmartConnect 100% and db calls to avoid real network/database.
 """
 from __future__ import annotations
 
-import json
 import os
 import pytest
 from unittest.mock import MagicMock, patch
@@ -14,7 +13,6 @@ from fastapi.testclient import TestClient
 os.environ["JWT_SECRET"] = "test-secret-for-testing"
 
 from app.main import app
-from app.api.deps import require_clearance, TraderDep
 from app.core.security import require_session
 from angelone_feed import AngelOneFeed, SYSTEM_USER_ID
 
@@ -206,7 +204,6 @@ class TestBrokerAPIEndpoints:
 
         # Override the session dependency to return a trader user
         # TraderDep = Depends(require_clearance("LEVEL_2_TRADER")) which calls require_session
-        from app.core.security import require_session
         app.dependency_overrides[require_session] = lambda: {
             "username": "trader_user",
             "role": "Trader",

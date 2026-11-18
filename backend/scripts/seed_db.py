@@ -14,7 +14,7 @@ logger = logging.getLogger("seed_db")
 
 from app.core.database import engine, init_db, SessionLocal
 from app.db.migrations import run_migrations
-from app.db.models import RiskSettings, PortfolioState, PredictionsHistory, SignalHistory
+from app.db.models import RiskSettings, PortfolioState, PredictionsHistory
 
 def seed():
     logger.info("Initializing database schema...")

@@ -276,7 +276,7 @@ def detect_inside_bar_fakeout(df: pd.DataFrame) -> Tuple[str, float]:
     h2, l2 = float(df["High"].iloc[-2]), float(df["Low"].iloc[-2])
     # Candle -1: Latest Candle (Breakout attempt and reversal)
     h1, l1 = float(df["High"].iloc[-1]), float(df["Low"].iloc[-1])
-    c1, o1 = float(df["Close"].iloc[-1]), float(df["Open"].iloc[-1])
+    c1, _o1 = float(df["Close"].iloc[-1]), float(df["Open"].iloc[-1])
 
     is_inside = h2 < h3 and l2 > l3
     if not is_inside:
@@ -345,8 +345,8 @@ def detect_structure_breaks(
         return "NONE", ""
 
     c1 = float(df["Close"].iloc[-1])
-    h1 = float(df["High"].iloc[-1])
-    l1 = float(df["Low"].iloc[-1])
+    float(df["High"].iloc[-1])
+    float(df["Low"].iloc[-1])
 
     # Sort swing levels by time (index)
     sorted_highs = sorted(swing_highs, key=lambda x: x[0])

@@ -47,12 +47,51 @@ export const T = {
   background: '#131313',
   onBackground: '#e5e2e1',
   surfaceVariant: '#353534',
+
+  // --- Backward-compatible aliases (old property names ---
+  // these map to the new tri-chromatic DESIGN.md token system) ---
+  // Background/surface
+  bg: '#131313',
+  surface: '#131313',
+  panel: '#131313',
+  panelAlt: '#1c1b1b',
+
+  // Text colors
+  text: '#e5e2e1',
+  textMid: '#e7bdb7',
+  textDim: '#313030',
+  textMuted: '#5d3f3b',
+
+  // Accent / action / risk
+  accent: '#ffb4a9',
+  accentAlt: '#5d3f3b',
+  accentDim: '#ffb4a9',
+  accentGlow: 'rgba(212, 21, 20, 0.15)',
+
+  // Action colors
+  green: '#c8c6c5',
+  greenDim: 'rgba(205, 203, 202, 0.15)',
+  greenGlow: 'transparent',
+
+  // Risk / error colors
+  red: '#ffb4ab',
+  redDim: 'rgba(255, 180, 171, 0.12)',
+  redGlow: 'rgba(255, 180, 171, 0.25)',
+
+  // Structure / status
+  gold: '#ffb4a9',
+  goldDim: '#ffdad5',
+
+  // Borders
+  border: '#ad8883',
+  borderHi: 'rgba(212, 21, 20, 0.40)',
+  // --- End backward-compatible aliases ---
 };
 
 export const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
 export const fmtINR = (n, d = 2) => n == null ? '—' : `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })}`;
 export const fmtPct = (n, d = 2) => n == null ? '—' : `${n >= 0 ? '+' : ''}${Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })}%`;
-export const clr = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
+export const clr = (v) => v > 0 ? T.secondary : v < 0 ? T.error : T.textMid;
 export const sign = (v) => v > 0 ? '+' : '';
 export const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, c => ({ '&': '&', '<': '<', '>': '>', "'": '&apos;', '"': '"' }[c] || c));
 
@@ -62,6 +101,7 @@ export const fmtISTShort = (date = new Date()) => date.toLocaleString('en-IN', {
 
 export const PRIMARY_TABS = ['HOME', 'SIMULATOR', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
 export const SECONDARY_TABS = ['STRATEGIES', 'SETTINGS', 'HELP'];
+
 export const MOBILE_TABS = ['HOME', 'SIMULATOR', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
 
 export const TAB_META = {
@@ -107,130 +147,7 @@ export const DEFAULT_WATCHLIST = [
 export const INTERVALS = [
   { interval: '15m', range: '1D' },
   { interval: '30m', range: '1D' },
-  { interval: '1h', range: '1D' },
-  { interval: '4h', range: '1W' },
-  { interval: '1d', range: '1M' },
-];
-
-export const fmtTime = (date = new Date()) => date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-export const mono = { fontFamily: "'IBM Plex Mono', monospace" };
-
-export const EMPTY_ARRAY = [];
-
-// --- Backward-compatible aliases (old property names ---
-// these map to the new tri-chromatic DESIGN.md token system) ---
-export const getOldTheme = () => ({
-  // Background/surface
-  bg: T.bg,
-  surface: T.surface,
-  panel: T.surface,
-  panelAlt: T.surfaceContainerLow,
-
-  // Text colors
-  text: T.onSurface,
-  textMid: T.onSurfaceVariant,
-  textDim: T.inverseOnSurface,
-  textMuted: T.outlineVariant,
-
-  // Accent / action / risk
-  accent: T.primary,
-  accentAlt: T.outlineVariant,
-  accentDim: T.surfaceTint,
-  accentGlow: `rgba(212, 21, 20, 0.15)`,
-
-  // Action colors
-  green: T.secondary,
-  greenDim: `rgba(205, 203, 202, 0.15)`,
-  greenGlow: 'transparent',
-
-  // Risk / error colors
-  red: T.error,
-  redDim: `rgba(255, 180, 171, 0.12)`,
-  redGlow: `rgba(255, 180, 171, 0.25)`,
-
-  // Structure / status
-  gold: T.primary,
-  goldDim: T.primaryFixedDim,
-
-  // Borders
-  border: T.outline,
-  borderHi: `rgba(212, 21, 20, 0.40)`,
-});
-// --- End backward-compatible aliases ---
-
-// Backward-compatible: old property names now map to new DESIGN.md tokens
-// so existing components work immediately without rewriting
-T.accent = T.primary;
-T.accentDim = `rgba(212, 21, 20, 0.15)`;
-T.red = T.error;
-T.green = T.onSurface;
-T.gold = T.primary;
-T.text = T.onSurface;
-T.textMid = T.onSurfaceVariant;
-T.textDim = T.inverseOnSurface;
-T.border = T.outline;
-T.panel = T.surface;
-T.panelAlt = T.surfaceContainerLow;
-
-export const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
-export const fmtINR = (n, d = 2) => n == null ? '—' : `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })}`;
-export const fmtPct = (n, d = 2) => n == null ? '—' : `${n >= 0 ? '+' : ''}${Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })}%`;
-export const clr = (v) => v > 0 ? T.secondary : v < 0 ? T.error : T.textMid;
-export const sign = (v) => v > 0 ? '+' : '';
-export const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, c => ({ '&': '&', '<': '<', '>': '>', "'": '&apos;', '"': '"' }[c] || c));
-
-export const fmtIST = (date = new Date()) => date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-export const fmtISTDate = (date = new Date()) => date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-export const fmtISTShort = (date = new Date()) => date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
-
-export const PRIMARY_TABS = ['HOME', 'SIMULATOR', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
-export const SECONDARY_TABS = ['STRATEGIES', 'SETTINGS', 'HELP'];
-
-export const TAB_META = {
-  HOME: { label: 'Home', icon: 'Home' },
-  SIMULATOR: { label: 'Bot Engine', icon: 'Bot' },
-  CHART: { label: 'Terminal', icon: 'TrendingUp' },
-  SIGNALS: { label: 'Scanner', icon: 'Radio' },
-  PREDICTIONS: { label: 'Predictions', icon: 'Sparkles' },
-  PERFORMANCE: { label: 'Analytics', icon: 'BarChart3' },
-  JOURNAL: { label: 'Journal', icon: 'BookOpen' },
-  ACCOUNT: { label: 'Security', icon: 'ShieldCheck' },
-  STRATEGIES: { label: 'Strategies', icon: 'Settings' },
-  SETTINGS: { label: 'Settings', icon: 'Settings' },
-  HELP: { label: 'Help', icon: 'HelpCircle' },
-};
-
-export const SEED_PRICES = {
-  'RELIANCE.NS': 2445.35,
-  'TCS.NS': 3128.80,
-  'INFY.NS': 1456.70,
-  'HDFCBANK.NS': 1485.60,
-  'ICICIBANK.NS': 958.20,
-  'SBIN.NS': 723.40,
-  'BHARTIARTL.NS': 826.50,
-  'ITC.NS': 412.15,
-  'KOTAKBANK.NS': 1748.75,
-  'LT.NS': 3892.60,
-};
-
-export const DEFAULT_WATCHLIST = [
-  { symbol: 'RELIANCE.NS' },
-  { symbol: 'TCS.NS' },
-  { symbol: 'INFY.NS' },
-  { symbol: 'HDFCBANK.NS' },
-  { symbol: 'ICICIBANK.NS' },
-  { symbol: 'SBIN.NS' },
-  { symbol: 'BHARTIARTL.NS' },
-  { symbol: 'ITC.NS' },
-  { symbol: 'KOTAKBANK.NS' },
-  { symbol: 'LT.NS' },
-];
-
-export const INTERVALS = [
-  { interval: '15m', range: '1D' },
-  { interval: '30m', range: '1W' },
-  { interval: '1h', range: '1D' },
+  { interval: '1h', range: '1W' },
   { interval: '4h', range: '1W' },
   { interval: '1d', range: '1M' },
 ];

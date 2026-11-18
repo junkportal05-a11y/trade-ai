@@ -43,3 +43,25 @@
 - **TARGET REMOTES**:
   - Code changes: `origin` (`https://github.com/junkportal05-a11y/trade-ai.git`)
   - Live backend deployment: `huggingface` (`https://huggingface.co/spaces/apextrade-core/trade-ai-backend`)
+
+## 4. Security Audit Skills (`.opencode/skills/`)
+- **Use these before shipping auth, broker, API, or deployment changes.**
+- `implementing-api-key-security-controls`: API key entropy, hashing, scoping, rotation.
+- `performing-csrf-attack-simulation`: CSRF token and origin validation checks.
+- `testing-jwt-token-security`: JWT algorithm, lifetime, revocation, and claim checks.
+- `detecting-aws-credential-exposure-with-trufflehog`: secret scanning across repo and CI.
+- `sebi-compliance-guard`: paper-only isolation, live-trading arming, broker custody,
+  and SEBI algo-trading disclosure invariants.
+- Record findings in `ApexTrade/06-Audits-Fixes/SECURITY_AUDIT_REPORT.md`.
+
+## 5. Agent Brain & Knowledge Graph (Obsidian)
+- The workspace vault at `c:\Users\aryan\OneDrive\Desktop\app` acts as the shared persistent brain for OpenCode and Claude agents.
+- **Master Brain Hub**: [[Agent-Brains]] (`Agent-Brains.md`) maps all agent instructions, hive rosters, and skills.
+- **Project Brain Rules**: Read `ApexTrade/01-Overview/ApexTrade.md` and `Agent-Brain-Rules.md`.
+- **Memory & Continuity**: Read `07-Decisions/Decisions.md` and `06-Audits-Fixes/Open-Tasks.md` before starting, and log completions to `06-Audits-Fixes/Agent-Log.md`.
+
+## 6. Karpathy Behavioral Guidelines (`skills/product-and-qa/karpathy-guidelines`)
+- **Think Before Coding**: Don't assume. Don't hide confusion. Surface tradeoffs. State assumptions explicitly.
+- **Simplicity First**: Minimum code that solves the problem. Nothing speculative. No single-use abstractions.
+- **Surgical Changes**: Touch only what you must. Clean up only your own mess. Every changed line traces directly to request.
+- **Goal-Driven Execution**: Define verifiable success criteria. Loop until verified. Plan with explicit checks.
