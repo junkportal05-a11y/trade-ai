@@ -8,6 +8,8 @@ on:
       - 'frontend/**'
       - 'Dockerfile'
       - '.github/workflows/ci.yml'
+      - 'requirements.txt'
+      - 'pytest.ini'
   pull_request:
     branches: [ main ]
     paths:
@@ -15,6 +17,8 @@ on:
       - 'frontend/**'
       - 'Dockerfile'
       - '.github/workflows/ci.yml'
+      - 'requirements.txt'
+      - 'pytest.ini'
 
 jobs:
   backend-test:
@@ -25,18 +29,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.10
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: 'backend/requirements.txt'
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio
-          pip install -r backend/requirements.txt || pip install -r backend/requirements.txt --no-deps
+          pip install -r backend/requirements.txt
 
       - name: Run Backend Pytest Suite
         env:
@@ -44,9 +47,10 @@ jobs:
           ADMIN_KEY: "test_admin_key_ci"
           TESTING: "true"
           PYTHONPATH: "backend"
+          SKIP_BACKGROUND_WORKERS: "true"
         run: |
           cd backend
-          python -m pytest tests/test_validation_and_guards.py tests/test_backtest_engine.py tests/test_bot_auth.py tests/test_capital_manager.py tests/test_market_hours.py tests/test_nse_market.py tests/test_perf.py tests/test_session_cleanup.py tests/test_vwap_veto.py tests/test_main_import.py tests/test_admin.py tests/test_angelone_login.py tests/test_search.py tests/test_csrf.py tests/test_t15_security.py tests/test_feed_fallbacks.py tests/test_repair_batch.py tests/test_tar19_p1.py tests/test_chat_reply.py tests/test_credential_encryption.py tests/test_config_security.py tests/test_health_endpoint.py tests/test_security.py tests/test_journal_ownership.py -v --disable-warnings -o asyncio_mode=auto
+          python -m pytest tests/ -v --disable-warnings -o asyncio_mode=auto --ignore=tests/test_worker_startup.py
 
   frontend-build:
     name: Frontend Build Check (React + Vite)
@@ -66,14 +70,17 @@ jobs:
       - name: Install Frontend Dependencies
         run: |
           cd frontend
-          npm install --legacy-peer-deps
+          npm ci --legacy-peer-deps
 
       - name: Verify Frontend Production Build
         env:
           VITE_API_URL: ""
           VITE_WS_URL: "wss://apextrade-core-trade-ai-backend.hf.space"
+          CI: "true"
         run: |
           cd frontend
+          echo "VITE_API_URL='$VITE_API_URL'"
+          echo "VITE_WS_URL='$VITE_WS_URL'"
           npx vite build
 
   docker-sanity:
@@ -84,9 +91,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Test Docker Build
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Test Docker Build (backend)
         run: |
-          docker build -t apextrade-backend:ci ./backend
+          docker build --progress=plain -t apextrade-backend:ci ./backend
 
   docker-smoke:
     name: Root Dockerfile Build + Smoke Run
@@ -96,9 +106,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build Root Dockerfile Image
         run: |
-          docker build -t apextrade-backend:smoke .
+          docker build --progress=plain -t apextrade-backend:smoke .
 
       - name: Run Container
         run: |
@@ -110,16 +123,22 @@ jobs:
             -e SKIP_BACKGROUND_WORKERS="true" \
             apextrade-backend:smoke
 
+      - name: Wait for Container to Start
+        run: |
+          sleep 10
+
       - name: Smoke GET /api/health/ping
         run: |
           for i in $(seq 1 30); do
             if curl -fsS -o /dev/null -w "HTTP %{http_code}\n" --max-time 5 "http://127.0.0.1:7860/api/health/ping"; then
+              echo "Health check passed on attempt $i"
               exit 0
             fi
             echo "attempt $i/30 failed, retrying in 2s..."
             sleep 2
           done
           echo "::error::/api/health/ping never returned 200"
+          docker logs apextrade-smoke
           exit 1
 
       - name: Container Logs On Failure
