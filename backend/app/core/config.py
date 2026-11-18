@@ -166,6 +166,15 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
     news_api_key: str | None = Field(default=None, alias="NEWS_API_KEY")
 
+    # Local LLM (Ollama / LiteLLM) - OpenAI-compatible API
+    litellm_api_base: str | None = Field(default=None, alias="LITELLM_API_BASE")
+    litellm_model: str | None = Field(default=None, alias="LITELLM_MODEL")
+    litellm_api_key: str | None = Field(default=None, alias="LITELLM_API_KEY")
+
+    # Ollama-specific (legacy aliases)
+    ollama_base_url: str | None = Field(default=None, alias="OLLAMA_BASE_URL")
+    ollama_model: str | None = Field(default=None, alias="OLLAMA_MODEL")
+
     # ── Error Tracing ──────────────────────────────────────────────────
     sentry_dsn: str | None = Field(default=None, alias="SENTRY_DSN")
 

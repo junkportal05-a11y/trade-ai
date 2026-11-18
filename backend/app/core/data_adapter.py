@@ -229,3 +229,45 @@ def get_best_engine(task: str) -> str:
             return 'nautilus'
 
     return available[0] if available else 'none'
+
+
+def get_market_data_for_backtest(
+    db: Any,
+    symbol: str,
+    interval: str,
+    start_date: datetime,
+    end_date: datetime,
+) -> Optional[Any]:
+    """Get market data formatted for backtesting."""
+    try:
+        from app.db.repositories import repo
+    except ImportError:
+        return None
+
+    history = repo.market_data.get_history(
+        db,
+        symbol=symbol,
+        interval=interval,
+        range="max",
+    )
+
+    if not history:
+        return None
+
+    import pandas as pd
+    df = pd.DataFrame(history)
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+    # Filter by date range
+    df = df[(df['timestamp'] >= start_date) & (df['timestamp'] <= end_date)]
+
+    if df.empty:
+        return None
+
+    # Ensure required columns
+    required_cols = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+    for col in required_cols:
+        if col not in df.columns:
+            return None
+
+    return df[required_cols].sort_values('timestamp').reset_index(drop=True)

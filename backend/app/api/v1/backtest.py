@@ -14,11 +14,13 @@ from app.services.nautilus_engine import (
     get_nautilus_engine,
     list_strategies,
     get_strategy,
-    BacktestResult,
+    BacktestResult as NautilusBacktestResult,
     ApexTradeStrategy,
     OpeningRangeBreakout,
     TrendFollowing,
 )
+from app.services.lean_engine import get_lean_engine, BacktestResult as LeanBacktestResult
+from app.core.data_adapter import get_market_data_for_backtest
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 
@@ -76,7 +78,106 @@ async def run_backtest(
     csrf=CsrfDep,
 ) -> dict:
     """Run backtest using Nautilus Trader or Lean."""
-    raise HTTPException(status_code=501, detail="Backtest execution not yet implemented")
+    try:
+        # Validate dates
+        try:
+            start_date = datetime.fromisoformat(request.start_date.replace('Z', '+00:00'))
+            end_date = datetime.fromisoformat(request.end_date.replace('Z', '+00:00'))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use ISO format.")
+
+        if start_date >= end_date:
+            raise HTTPException(status_code=400, detail="Start date must be before end date")
+
+        # Get historical data
+        bars_df = get_market_data_for_backtest(
+            db,
+            symbol=request.symbol,
+            interval=request.interval,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        if bars_df is None or bars_df.empty:
+            raise HTTPException(status_code=404, detail=f"No data for {request.symbol} in date range")
+
+        # Get strategy class
+        strategy_class = get_strategy(request.strategy)
+        if not strategy_class:
+            raise HTTPException(status_code=400, detail=f"Unknown strategy: {request.strategy}")
+
+        # Prepare strategy config
+        strategy_config = {
+            'symbol': request.symbol,
+            'timeframe': request.interval,
+            'start_year': start_date.year,
+            'start_month': start_date.month,
+            'start_day': start_date.day,
+            'end_year': end_date.year,
+            'end_month': end_date.month,
+            'end_day': end_date.day,
+            'initial_capital': request.initial_capital,
+            **request.strategy_params,
+        }
+
+        # Run backtest based on engine
+        if request.engine == "nautilus":
+            engine = get_nautilus_engine()
+            if not engine.initialize():
+                raise HTTPException(status_code=500, detail="Failed to initialize Nautilus engine")
+
+            result = await engine.run_backtest(
+                symbol=request.symbol,
+                bars_df=bars_df,
+                strategy_class=strategy_class,
+                strategy_config=strategy_config,
+                start_date=start_date,
+                end_date=end_date,
+                initial_capital=request.initial_capital,
+            )
+        elif request.engine == "lean":
+            lean_engine = get_lean_engine()
+            result = await lean_engine.run_backtest(
+                symbol=request.symbol,
+                bars_df=bars_df,
+                strategy_class=strategy_class,
+                strategy_config=strategy_config,
+                start_date=start_date,
+                end_date=end_date,
+                initial_capital=request.initial_capital,
+            )
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown engine: {request.engine}")
+
+        return {
+            "engine": result.engine,
+            "symbol": result.symbol,
+            "start_date": result.start_date.isoformat(),
+            "end_date": result.end_date.isoformat(),
+            "initial_capital": result.initial_capital,
+            "final_capital": result.final_capital,
+            "total_return": result.total_return,
+            "total_return_pct": result.total_return_pct,
+            "max_drawdown": result.max_drawdown,
+            "max_drawdown_pct": result.max_drawdown_pct,
+            "sharpe_ratio": result.sharpe_ratio,
+            "sortino_ratio": result.sortino_ratio,
+            "win_rate": result.win_rate,
+            "profit_factor": result.profit_factor,
+            "total_trades": result.total_trades,
+            "winning_trades": result.winning_trades,
+            "losing_trades": result.losing_trades,
+            "avg_win": result.avg_win,
+            "avg_loss": result.avg_loss,
+            "equity_curve": result.equity_curve,
+            "trades": result.trades,
+            "metadata": result.metadata,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Backtest failed: {str(e)}")
 
 
 @router.get("/results/{backtest_id}")
@@ -86,7 +187,13 @@ async def get_backtest_result(
     session: dict = SessionDep,
 ) -> Dict:
     """Get stored backtest result."""
-    raise HTTPException(status_code=501, detail="Not yet implemented")
+    from app.db.repositories import repo
+
+    result = repo.backtest.get(db, backtest_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Backtest not found")
+
+    return result.to_dict()
 
 
 @router.get("/history")
@@ -97,7 +204,10 @@ async def get_backtest_history(
     offset: int = Query(default=0, ge=0),
 ) -> Dict:
     """Get backtest history."""
-    raise HTTPException(status_code=501, detail="Not yet implemented")
+    from app.db.repositories import repo
+
+    results = repo.backtest.get_history(db, limit=limit, offset=offset)
+    return {"results": [r.to_dict() for r in results]}
 
 
 @router.delete("/{backtest_id}")
@@ -108,4 +218,10 @@ async def delete_backtest(
     csrf=CsrfDep,
 ) -> Dict:
     """Delete backtest result."""
-    raise HTTPException(status_code=501, detail="Not yet implemented")
+    from app.db.repositories import repo
+
+    deleted = repo.backtest.delete(db, backtest_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Backtest not found")
+
+    return {"status": "deleted", "id": backtest_id}
