@@ -32,6 +32,23 @@ pandas==3.0.6
 numpy==2.5.4
 pyarrow==26.0.0
 yfinance==1.7.0
+scipy==1.13.0
+scikit-learn==1.5.0
+
+# Time Series Forecasting
+torch==2.4.0
+transformers==4.42.0
+accelerate==0.32.0
+einops==0.8.0
+# TimesFM - installed from GitHub
+# Kronos - local integration
+
+# Nautilus Trader (core trading engine)
+nautilus-trader[all]==1.176.0
+
+# Machine Learning & Forecasting
+prophet==1.1.5
+neuralprophet==0.5.1
 
 # Brokerage & Network Communication
 requests==2.34.2
@@ -56,5 +73,5 @@ tqdm==4.70.1
 # Testing Utilities
 freezegun==1.5.5
 pytest==9.1.1
-pytest-asyncio==1.4.0
+pytest-asyncio==1.5.0
 httpx==0.28.1
