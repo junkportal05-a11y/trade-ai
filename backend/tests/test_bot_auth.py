@@ -1,5 +1,4 @@
 """Unit tests for bot control endpoints auth enforcement & strategies router fix."""
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app

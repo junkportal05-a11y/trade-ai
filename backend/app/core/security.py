@@ -1,7 +1,6 @@
 """Core security utilities — hashing, JWT, encryption, password management."""
 from __future__ import annotations
 
-import base64
 import os
 import secrets
 import uuid

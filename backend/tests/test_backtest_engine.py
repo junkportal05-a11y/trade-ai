@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import pytest
 
 import backend.backtest_engine as bt
 from backend.backtest_engine import (

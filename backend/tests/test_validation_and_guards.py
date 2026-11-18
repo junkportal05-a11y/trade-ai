@@ -3,7 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 from app.main import app
-from app.core.security import require_session, require_admin
+from app.core.security import require_session
 from app.core.database import get_db
 from app.models.schemas import SignalsQuery
 

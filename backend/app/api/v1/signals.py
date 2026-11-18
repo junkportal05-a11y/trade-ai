@@ -3,19 +3,17 @@ from __future__ import annotations
 
 import asyncio
 import functools
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Query, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.security import CsrfDep
-from app.api.deps import DbDep, OptionalSessionDep, SessionDep
+from app.api.deps import DbDep, SessionDep
 from app.models.schemas import ScanRequest, SignalResponse, SignalsQuery
-from app.core.config import settings
 from app.core.executors import scan_executor
 from app.core.logging import logger
+from app.services.telegram_bot import telegram_bot
 
 router = APIRouter(prefix="/api", tags=["signals"])
 
@@ -165,6 +163,16 @@ async def post_scan(
             error=f"{type(exc).__name__}: {exc}",
             message="The scan engine failed mid-run — selecting no results rather than partial data. Tap RETRY shortly.",
         )
+
+    # Send Telegram alerts for high-confidence signals
+    if results and settings.telegram_bot_token and settings.telegram_chat_id:
+        min_conf = getattr(settings, 'telegram_min_confidence', 75)
+        for sig in results:
+            if sig.get('confidence', 0) >= min_conf:
+                try:
+                    telegram_bot.send_signal_alert(sig)
+                except Exception as te:
+                    logger.warning(f"Failed to send Telegram alert: {te}")
 
     return _success_payload(results=results, gates=gates, market=req.market_segment, typ=req.interval)
 

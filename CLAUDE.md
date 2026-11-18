@@ -59,3 +59,9 @@
 - **Master Brain Hub**: [[Agent-Brains]] (`Agent-Brains.md`) maps all agent instructions, hive rosters, and skills.
 - **Project Brain Rules**: Read `ApexTrade/01-Overview/ApexTrade.md` and `Agent-Brain-Rules.md`.
 - **Memory & Continuity**: Read `07-Decisions/Decisions.md` and `06-Audits-Fixes/Open-Tasks.md` before starting, and log completions to `06-Audits-Fixes/Agent-Log.md`.
+
+## 6. Karpathy Behavioral Guidelines (`skills/product-and-qa/karpathy-guidelines`)
+- **Think Before Coding**: Don't assume. Don't hide confusion. Surface tradeoffs. State assumptions explicitly.
+- **Simplicity First**: Minimum code that solves the problem. Nothing speculative. No single-use abstractions.
+- **Surgical Changes**: Touch only what you must. Clean up only your own mess. Every changed line traces directly to request.
+- **Goal-Driven Execution**: Define verifiable success criteria. Loop until verified. Plan with explicit checks.

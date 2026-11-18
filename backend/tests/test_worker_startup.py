@@ -1,11 +1,11 @@
 """Tests for fail-loud worker startup and skip_background_workers configuration."""
 import asyncio
 from datetime import datetime, timezone, timedelta
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch, MagicMock
 import pytest
 from app.main import app, lifespan, _attach_worker_monitor
 from app.core.config import settings
-from app.core.worker_state import set_degraded_worker, clear_all_degraded_workers, get_degraded_workers
+from app.core.worker_state import set_degraded_worker, clear_all_degraded_workers
 from fastapi.testclient import TestClient
 
 
@@ -13,7 +13,6 @@ def test_lifespan_crashes_loudly_on_worker_startup_error():
     """Proves that when skip_background_workers is False, any worker startup failure raises immediately."""
     async def _run():
         original_skip = settings.skip_background_workers
-        original_enable = settings.environment  # will be checked via os.getenv
         import os
         original_env = os.getenv("ENABLE_BACKGROUND_WORKERS")
         try:
@@ -69,7 +68,6 @@ def test_worker_monitor_records_crashed_worker():
         # Wait for callback to execute
         await asyncio.sleep(0.01)
 
-        from app.core.worker_state import get_degraded_workers
         degraded = get_degraded_workers()
         assert "test_failing_worker" in degraded
         assert "worker crashed" in degraded["test_failing_worker"]
@@ -100,7 +98,6 @@ def test_worker_monitor_ignores_cancelled_task():
         await asyncio.sleep(0.01)
 
         # Cancelled tasks must not be recorded
-        from app.core.worker_state import get_degraded_workers
         degraded = get_degraded_workers()
         assert "test_cancelled_worker" not in degraded
 
@@ -345,7 +342,6 @@ def test_degraded_warning_logged_once_per_5_minutes():
         set_degraded_worker("governance_loop", "crashed")
 
         sleep_calls = 0
-        log_calls = []
 
         async def sleep_side_effect(*args, **kwargs):
             nonlocal sleep_calls
@@ -358,7 +354,7 @@ def test_degraded_warning_logged_once_per_5_minutes():
              patch("trading_agent.signals.run_scan", return_value=[BUY_SIGNAL]), \
              patch("trading_agent.TradeQualityEngine.calculate_tqs", return_value={"classification": "INTRADAY_CANDIDATE"}), \
              patch("trading_agent.CorrelationEngine") as mock_corr_engine_class, \
-             patch("trading_agent.db.add_prediction") as mock_add_prediction, \
+             patch("trading_agent.db.add_prediction"), \
              patch("trading_agent.db.add_journal_entry"), \
              patch("trading_agent.db.get_predictions", return_value=[]), \
              patch("trading_agent.schedule.run_pending"), \
@@ -867,7 +863,6 @@ def test_square_off_bad_row_does_not_break_others():
                 raise ValueError("simulated db error")
             return True
 
-        sleep_calls = 0
 
         async def mock_run_in_executor(executor, func, *args, **kwargs):
             return func(*args, **kwargs)

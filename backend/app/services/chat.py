@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import base64
-import json
-import os
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -106,7 +104,7 @@ def analyze_chart_image(image_path: str, symbol: str = "") -> dict:
 
     try:
         from google import genai as _genai
-        client = _genai.Client(api_key=settings.gemini_api_key)
+        _genai.Client(api_key=settings.gemini_api_key)
 
         # Read and encode image
         with open(image_path, "rb") as img_file:

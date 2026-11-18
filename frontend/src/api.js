@@ -189,3 +189,13 @@ export const getSimulationStatus = (adminKey) => apiFetch('/api/admin/simulation
 export const deletePrediction = (predictionId) => apiFetch(`/api/predictions/${encodeURIComponent(predictionId)}`, {
   method: 'DELETE'
 });
+
+// Journal
+export const getJournal = () => apiFetch('/api/journal');
+export const addJournalEntry = (entry) => apiFetch('/api/journal', {
+  method: 'POST',
+  body: JSON.stringify(entry)
+});
+export const deleteJournalEntry = (entryId) => apiFetch(`/api/journal/${encodeURIComponent(entryId)}`, {
+  method: 'DELETE'
+});

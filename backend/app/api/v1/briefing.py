@@ -7,7 +7,6 @@ HTTP 200 with `status: "unavailable"` — never invented values.
 from __future__ import annotations
 
 import asyncio
-import functools
 
 from fastapi import APIRouter, Request
 from app.api.deps import SessionDep

@@ -4,7 +4,6 @@ Downloads 10 years of daily OHLCV data for top Indian liquid tickers (NIFTY 50 l
 and saves CSV files to backend/historical_data/
 """
 import os
-import sys
 import logging
 import pandas as pd
 import yfinance as yf

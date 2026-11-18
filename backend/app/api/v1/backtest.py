@@ -1,7 +1,7 @@
 """Backtest router."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, SessionDep

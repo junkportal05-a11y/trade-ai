@@ -6,7 +6,7 @@ import secrets
 from typing import List, Literal
 
 from cryptography.fernet import Fernet
-from pydantic import Field, PostgresDsn, field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -156,6 +156,11 @@ class Settings(BaseSettings):
     angel_client_code: str | None = Field(default=None, alias="ANGEL_CLIENT_CODE")
     angel_pin: str | None = Field(default=None, alias="ANGEL_PIN")
     angel_totp_secret: str | None = Field(default=None, alias="ANGEL_TOTP_SECRET")
+
+    # ── Telegram Bot ─────────────────────────────────────────────────
+    telegram_bot_token: str | None = Field(default=None, alias="TELEGRAM_BOT_TOKEN")
+    telegram_chat_id: str | None = Field(default=None, alias="TELEGRAM_CHAT_ID")
+    telegram_min_confidence: int = Field(default=75, alias="TELEGRAM_MIN_CONFIDENCE")
 
     # ── AI ───────────────────────────────────────────────────────────
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")

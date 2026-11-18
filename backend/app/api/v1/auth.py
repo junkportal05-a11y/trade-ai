@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, Request, Response, Depends
+from fastapi import APIRouter, Request, Response
 from sqlalchemy.orm import Session
 
-from app.api.deps import DbDep, get_user_or_ip
+from app.api.deps import DbDep
 from app.core.config import settings
 from app.core.security import (
     user_registry,
@@ -19,7 +19,6 @@ from app.core.security import (
 from app.models.schemas import LoginRequest, LoginResponse, StatusResponse
 
 from app.core.limiter import limiter
-from fastapi import APIRouter, Request, Response, Depends, Body
 
 router = APIRouter(prefix="/api", tags=["auth"])
 

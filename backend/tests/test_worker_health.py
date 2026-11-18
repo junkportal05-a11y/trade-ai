@@ -1,6 +1,4 @@
 """Unit tests for worker health heartbeats."""
-import os
-import pytest
 from fastapi.testclient import TestClient
 
 from app.core.worker_health import beat, get_all, STALE_THRESHOLD_SECONDS

@@ -5,12 +5,9 @@ import hashlib
 from typing import Any
 
 from fastapi import Depends, Request
-from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import require_session, optional_session, require_admin, require_clearance, get_token_from_request, decode_access_token
-from app.core.config import settings
-from app.db.repositories import repo
+from app.core.security import require_session, optional_session, require_admin, require_clearance
 
 
 # ── Database dependency ─────────────────────────────────────────────────────

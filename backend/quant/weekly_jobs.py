@@ -4,8 +4,7 @@ Implements scheduled session refresh and market data maintenance.
 """
 import threading
 import time
-import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from app.core.logging import logger
 from angelone_feed import get_angelone_feed
 def refresh_angelone_session():

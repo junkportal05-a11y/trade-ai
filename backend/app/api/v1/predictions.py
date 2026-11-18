@@ -3,8 +3,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import not_
+from fastapi import APIRouter, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, SessionDep, TraderDep

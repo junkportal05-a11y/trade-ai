@@ -3,14 +3,6 @@ import schedule
 import os
 import time
 from datetime import datetime, timezone, timedelta
-from app.core.constants import (
-    NSE_OPEN_HOUR,
-    NSE_OPEN_MINUTE,
-    NSE_CLOSE_HOUR,
-    NSE_CLOSE_MINUTE,
-    IST_OFFSET_HOURS,
-    IST_OFFSET_MINUTES,
-)
 
 import db
 import signals
@@ -22,11 +14,8 @@ from quant.survivorship_validator import SurvivorshipValidator
 from trade_quality import TradeQualityEngine
 
 from app.core.executors import (
-    scan_executor,
     quote_executor,
     resolver_executor,
-    governance_executor,
-    trading_executor,
 )
 from app.core.worker_state import any_degraded, get_degraded_workers
 from app.core.logging import logger
@@ -124,9 +113,9 @@ async def trading_agent_loop():
     _last_log_time: float = 0.0
 
     # Instantiate additional quant utilities (may be used later)
-    cost_engine = CostEngine()
+    CostEngine()
     market_regime_cls = MarketRegimeClassifier()
-    survivor_validator = SurvivorshipValidator()
+    SurvivorshipValidator()
 
     while True:
         try:

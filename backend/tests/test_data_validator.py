@@ -1,4 +1,3 @@
-import pytest
 from data_validator import validate_trade, calculate_confidence_from_counts
 
 def test_validate_trade_happy_path_open():

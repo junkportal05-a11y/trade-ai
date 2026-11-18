@@ -1,8 +1,7 @@
 """AI Chat router."""
 import base64
-import json
 from typing import Any
-from fastapi import APIRouter, Request, Depends, UploadFile, File, HTTPException, Body
+from fastapi import APIRouter, Request, File, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 

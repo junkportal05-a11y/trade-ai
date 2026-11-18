@@ -1,9 +1,7 @@
-import pytest
 
 from trading_agent import (
     TRAIL_ACTIVATION_ATR,
     TRAIL_ATR_MULT,
-    _propose_trailing_stop,
     _propose_trailing_stop as _pts,
 )
 

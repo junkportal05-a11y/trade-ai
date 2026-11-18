@@ -1,4 +1,3 @@
-import pytest
 
 from trading_agent import resolve_price_decision
 

@@ -4,7 +4,6 @@ SmartConnect 100% mocked — no real network calls to AngelOne.
 """
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient

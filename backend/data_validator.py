@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 from datetime import timedelta
 
 def calculate_confidence(df: pd.DataFrame, interval: str = "5m") -> float:

@@ -1,20 +1,16 @@
 """FastAPI application entry point."""
 
 import os
-import re
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from pydantic import ValidationError
 import logging
 
 from app.core.config import settings
@@ -24,7 +20,7 @@ from app.core.logging import configure_json_logging, logger, set_correlation_id,
 from app.core.security import get_token_from_request
 from app.core.worker_state import set_degraded_worker, clear_all_degraded_workers
 
-from datetime import datetime, timezone
+from datetime import datetime
 import uuid
 
 import numpy as np

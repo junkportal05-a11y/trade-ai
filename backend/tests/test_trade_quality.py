@@ -1,4 +1,3 @@
-import pytest
 from trade_quality import TradeQualityEngine
 
 def test_trade_quality_unclear_is_neutral():

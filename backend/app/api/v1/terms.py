@@ -5,8 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, optional_session
-from app.core.config import settings
-from app.core.security import user_registry
 
 router = APIRouter(prefix="/api", tags=["compliance", "terms"])
 

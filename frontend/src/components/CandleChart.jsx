@@ -7,7 +7,7 @@ import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeri
 import { PRICE_FEED_SOURCE } from '../hooks/useMarketData';
 import { AlertTriangle, Camera, Inbox, Loader2, Sparkles, X } from 'lucide-react';
 
-export default function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [], botPaperMode, dataSource }) {
+export default function CandleChart({ symbol, interval, range, indicators, livePrice, markers, onLastBarUpdate, drawMode, onDrawComplete, customLines = [], botPaperMode, dataSource, trendStart, setTrendStart, fibStart, setFibStart }) {
   const mainContainerRef = useRef();
   const legendRef = useRef();
   const rsiContainerRef = useRef();
@@ -91,7 +91,29 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
     mainChart.subscribeClick((param) => {
       if (!param.point || !drawMode) return;
       const price = candleSeries.coordinateToPrice(param.point.y);
-      if (price !== null && onDrawComplete) onDrawComplete({ price, type: drawMode, id: Date.now() });
+      const time = param.time;
+      if (price === null || time === undefined) return;
+      
+      if (drawMode === 'TREND') {
+        if (!trendStart) {
+          setTrendStart({ time, price });
+        } else {
+          onDrawComplete({ type: 'TREND', p1: trendStart, p2: { time, price }, id: Date.now() });
+          setTrendStart(null);
+        }
+      } else if (drawMode === 'FIB') {
+        if (!fibStart) {
+          setFibStart({ time, price });
+        } else {
+          // Determine swing high/low based on price
+          const isHighFirst = fibStart.price > price;
+          onDrawComplete({ type: 'FIB', p1: fibStart, p2: { time, price }, id: Date.now(), isHighFirst });
+          setFibStart(null);
+        }
+      } else {
+        // SUPPORT / RESISTANCE (horizontal lines)
+        if (price !== null && onDrawComplete) onDrawComplete({ price, type: drawMode, id: Date.now() });
+      }
     });
     const volSeries = mainChart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'vol', color: 'rgba(245,158,11,0.25)' });
     const volData = bars.map(b => ({ time: b.time, value: b.volume || 0, color: b.close >= b.open ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)' }));
@@ -114,8 +136,53 @@ export default function CandleChart({ symbol, interval, range, indicators, liveP
       mainChart.addSeries(LineSeries, { color: 'rgba(245,158,11,0.2)', lineWidth: 1, lineStyle: 2 }).setData(bbData.middle);
       mainChart.addSeries(LineSeries, { color: 'rgba(245,158,11,0.4)', lineWidth: 1 }).setData(bbData.lower);
     }
+    // Render all custom lines (horizontal, trend, fib)
     customLines.forEach(line => {
-      candleSeries.createPriceLine({ price: line.price, color: line.type === 'SUPPORT' ? T.green : T.red, lineWidth: 2, lineStyle: 1, axisLabelVisible: true, title: line.type === 'SUPPORT' ? 'SUP' : 'RES' });
+      if (line.type === 'SUPPORT' || line.type === 'RESISTANCE') {
+        candleSeries.createPriceLine({ 
+          price: line.price, 
+          color: line.type === 'SUPPORT' ? T.green : T.red, 
+          lineWidth: 2, lineStyle: 1, 
+          axisLabelVisible: true, 
+          title: line.type === 'SUPPORT' ? 'SUP' : 'RES' 
+        });
+      } else if (line.type === 'TREND' && line.p1 && line.p2) {
+        // Trend line - create a line series
+        const trendSeries = mainChart.addSeries(LineSeries, { 
+          color: T.blue, 
+          lineWidth: 2, 
+          lineStyle: 0,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          title: 'TREND'
+        });
+        trendSeries.setData([
+          { time: line.p1.time, value: line.p1.price },
+          { time: line.p2.time, value: line.p2.price }
+        ]);
+      } else if (line.type === 'FIB' && line.p1 && line.p2) {
+        // Fibonacci retracement levels
+        const high = line.isHighFirst ? line.p1.price : line.p2.price;
+        const low = line.isHighFirst ? line.p2.price : line.p1.price;
+        const diff = high - low;
+        const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+        
+        levels.forEach((level, idx) => {
+          const price = high - (diff * level);
+          const color = idx === 0 || idx === levels.length - 1 ? T.purple : T.purpleDim;
+          const lineWidth = idx === 0 || idx === levels.length - 1 ? 2 : 1;
+          const lineStyle = idx === 0 || idx === levels.length - 1 ? 0 : 2;
+          
+          candleSeries.createPriceLine({ 
+            price, 
+            color, 
+            lineWidth, 
+            lineStyle, 
+            axisLabelVisible: true, 
+            title: `FIB ${(level * 100).toFixed(1)}%` 
+          });
+        });
+      }
     });
     const targets = [];
     if (indicators.rsi && rsiContainerRef.current) {

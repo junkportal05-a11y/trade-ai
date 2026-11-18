@@ -1,9 +1,7 @@
 """CSRF protection tests — verify X-Requested-With header enforcement."""
 from __future__ import annotations
 
-import os
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
