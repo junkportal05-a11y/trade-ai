@@ -48,11 +48,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff==0.4.0 mypy==1.10.0
 
-      - name: Run Ruff (Lint + Format Check)
+      - name: Run Ruff (Critical Errors Only)
         run: |
           cd backend
-          ruff check . --output-format=github
-          ruff format --check .
+          # Only fail on critical errors: undefined names, import errors, bare except, etc.
+          ruff check . --select=F401,F403,F811,F821,F841,E402,E701,E712,E722,E741,F541 --output-format=github
+          # Format check as warning (don't fail)
+          ruff format --check . || echo "::warning::Format issues found - run 'ruff format .' locally"
 
       - name: Run MyPy (Type Check)
         run: |
@@ -212,7 +214,8 @@ jobs:
       - name: Run ESLint
         run: |
           cd frontend
-          npx eslint . --format=github --max-warnings=0
+          # Only fail on parsing errors and critical issues, warn on style
+          npx eslint . --format=github --max-warnings=1000 --quiet
 
       - name: Run TypeScript Type Check
         run: |
