@@ -598,7 +598,7 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
               </span>
               <span style={{
                 fontSize: 9, padding: '2px 7px', borderRadius: 3,
-                background: T.accentDim, color: T.accent, ...mono,
+                background: T.surfaceDim, color: T.accent, ...mono,
                 border: `1px solid ${T.accent}30`,
               }}>
                 5-MIN SCAN

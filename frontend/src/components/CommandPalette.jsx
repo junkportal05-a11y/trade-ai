@@ -172,9 +172,9 @@ export default function CommandPalette({ isOpen, onClose, onViewChange, onAction
                   borderRadius: 8,
                   border: `1px solid ${isSelected ? T.borderHi : 'transparent'}`,
                   background: isSelected
-                    ? `linear-gradient(135deg, ${T.accentDim}, ${T.goldDim})`
+                    ? `linear-gradient(135deg, ${T.surfaceDim}, ${T.goldDim})`
                     : 'transparent',
-                  boxShadow: isSelected ? `0 0 18px ${T.accentGlow}` : 'none',
+                  boxShadow: isSelected ? `0 0 0 1px ${T.border}` : 'none',
                   color: isSelected ? T.text : T.text,
                   textAlign: 'left',
                   cursor: 'pointer',

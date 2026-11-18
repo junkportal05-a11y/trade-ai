@@ -13,7 +13,7 @@ type EmptyStateProps = {
 export function EmptyState({ title, description, icon, hasCTA = false, ctaLabel = 'Retry', ctaOnClick }: EmptyStateProps) {
   return (
     <div style={{ textAlign: 'center' }}>
-      <div style={{ width: 48, height: 48, borderRadius: 12, background: T.accentDim, border: `1px dashed ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+      <div style={{ width: 48, height: 48, borderRadius: 12, background: T.surfaceDim, border: `1px dashed ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
         {icon}
       </div>
       <h3 style={{ fontSize: 12, fontWeight: 600, color: T.text, letterSpacing: '0.02em', margin: '8px 0 4px' }}>

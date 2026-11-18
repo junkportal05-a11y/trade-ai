@@ -353,7 +353,7 @@ function FilterBar({ filter, onFilter, count, sectorFilter, onSectorFilter, minC
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 16px', borderBottom: `1px solid ${T.border}` }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         {filters.map(f => {
-          const cfg = f === 'ALL' ? { color: T.accent, bg: T.accentDim } : (SIGNAL_CFG[f] || { color: T.textMid, bg: 'transparent' });
+          const cfg = f === 'ALL' ? { color: T.accent, bg: T.surfaceDim } : (SIGNAL_CFG[f] || { color: T.textMid, bg: 'transparent' });
           const active = filter === f;
           return (
             <button key={f} className="smooth-button" onClick={() => onFilter(f)} style={{

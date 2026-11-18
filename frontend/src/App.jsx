@@ -978,8 +978,8 @@ export default function App() {
         {/* Reconnecting banner if backend offline */}
         {!connected && (
           <div style={{
-            background: T.accentDim,
-            borderBottom: `1px solid ${T.accentGlow}`,
+            background: T.surfaceDim,
+            borderBottom: `1px solid ${T.border}`,
             color: T.gold,
             padding: '6px 16px',
             fontSize: 10,
@@ -992,7 +992,7 @@ export default function App() {
             letterSpacing: '0.04em',
             flexShrink: 0
           }}>
-            <span style={{ display: 'inline-block', width: 12, height: 12, border: `2px solid ${T.accentGlow}`, borderTopColor: T.gold, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <span style={{ display: 'inline-block', width: 12, height: 12, border: `2px solid ${T.border}`, borderTopColor: T.gold, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
             CONNECTING TO QUANT SERVER...
           </div>
         )}
@@ -1166,8 +1166,8 @@ export default function App() {
                               <button key={intv.label} onClick={() => setIvIdx(i)} style={{
                                 padding: '4px 9px', borderRadius: 6, cursor: 'pointer', fontSize: 10.5, fontWeight: 600,
                                 border: `1px solid ${ivIdx === i ? T.borderHi : 'transparent'}`,
-                                background: ivIdx === i ? T.accentDim : 'transparent',
-                                boxShadow: ivIdx === i ? `0 0 12px ${T.accentGlow}` : 'none',
+                                background: ivIdx === i ? T.surfaceDim : 'transparent',
+                                boxShadow: ivIdx === i ? `0 0 0 1px ${T.border}` : 'none',
                                 color: ivIdx === i ? T.text : T.textMid,
                                 fontFamily: "'Inter', sans-serif",
                                 transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)', flexShrink: 0
@@ -1295,7 +1295,7 @@ export default function App() {
                               style={{
                                 padding: '3px 8px',
                                 background: T.accentDim,
-                                border: `1px solid ${T.accentGlow}`,
+                                border: `1px solid ${T.border}`,
                                 borderRadius: 5,
                                 color: T.accent,
                                 fontSize: 9,
@@ -1305,7 +1305,7 @@ export default function App() {
                                 letterSpacing: '0.04em',
                                 transition: 'all 0.2s'
                               }}
-                              onMouseEnter={e => e.currentTarget.style.background = T.accentGlow}
+                              onMouseEnter={e => e.currentTarget.style.background = '0 4px 12px rgba(0, 0, 0, 0.15)'}
                               onMouseLeave={e => e.currentTarget.style.background = T.accentDim}
                             >
                               LOG PREDICTION
@@ -1411,8 +1411,8 @@ export default function App() {
                           <button key={intv.label} onClick={() => setIvIdx(i)} style={{
                             padding: '4px 11px', borderRadius: 6, cursor: 'pointer', fontSize: 10.5, fontWeight: 600,
                             border: `1px solid ${ivIdx === i ? T.borderHi : 'transparent'}`,
-                            background: ivIdx === i ? `linear-gradient(135deg, ${T.accentDim}, ${T.goldDim})` : 'transparent',
-                            boxShadow: ivIdx === i ? `0 0 12px ${T.accentGlow}` : 'none',
+                            background: ivIdx === i ? `linear-gradient(135deg, ${T.surfaceDim}, ${T.goldDim})` : 'transparent',
+                            boxShadow: ivIdx === i ? `0 0 0 1px ${T.border}` : 'none',
                             color: ivIdx === i ? T.text : T.textMid,
                             fontFamily: "'Inter', sans-serif", letterSpacing: '0.02em',
                             transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',

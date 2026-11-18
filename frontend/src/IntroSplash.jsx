@@ -173,7 +173,7 @@ export default function IntroSplash({ onWokenUp }) {
       overflow: 'auto',
     }}>
       <div style={{ position: 'absolute', width: '60vw', height: '60vw', background: `radial-gradient(circle, ${T.goldDim} 0%, transparent 65%)`, top: '5%', left: '20%', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', width: '45vw', height: '45vw', background: `radial-gradient(circle, ${T.accentDim} 0%, transparent 70%)`, bottom: '10%', right: '15%', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', width: '45vw', height: '45vw', background: `radial-gradient(circle, ${T.surfaceDim} 0%, transparent 70%)`, bottom: '10%', right: '15%', pointerEvents: 'none' }} />
 
       <div style={{
         width: '100%',
@@ -230,7 +230,7 @@ export default function IntroSplash({ onWokenUp }) {
               height: 38,
               borderRadius: '50%',
               background: connected ? T.green : failed ? T.red : status === 'sleeping' ? T.accentAlt : T.accent,
-              boxShadow: `0 0 26px ${connected ? T.greenGlow : failed ? T.redGlow : T.accentGlow}`,
+              boxShadow: `0 0 26px ${connected ? T.greenGlow : failed ? T.redGlow : '0 4px 12px rgba(0, 0, 0, 0.15)'}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

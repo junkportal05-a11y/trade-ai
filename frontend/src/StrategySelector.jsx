@@ -145,7 +145,7 @@ export default function StrategySelector({ selectedStrategy, onSelectStrategy, p
                         borderRadius: 9999,
                         fontSize: 9,
                         fontWeight: 700,
-                        background: isHighRisk ? T.redDim : T.accentDim,
+                        background: isHighRisk ? T.redDim : T.surfaceDim,
                         border: `1px solid ${isHighRisk ? T.red : T.accentAlt}`,
                         color: isHighRisk ? T.red : T.accentAlt,
                       }}>

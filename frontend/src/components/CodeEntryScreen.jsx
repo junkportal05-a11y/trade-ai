@@ -140,7 +140,7 @@ export default function CodeEntryScreen({ onVerified }) {
                 gap: 8,
                 padding: '10px 12px',
                 background: T.redDim,
-                border: `1px solid ${T.redGlow}`,
+                border: `1px solid ${T.red}20`,
                 borderRadius: 8,
                 color: T.red,
                 fontSize: 12,

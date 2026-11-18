@@ -132,7 +132,7 @@ export default function ChatPanel({ symbol, price, changePct }) {
           maxWidth: '90%',
           padding: '10px 13px',
           borderRadius: isUser ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
-          background: isUser ? T.accentDim : `linear-gradient(160deg, ${T.panel}, ${T.surface})`,
+          background: isUser ? T.surfaceDim : `linear-gradient(160deg, ${T.panel}, ${T.surface})`,
           border: `1px solid ${isUser ? T.borderHi : T.borderHi}`,
           boxShadow: isUser ? 'none' : `0 6px 18px rgba(0, 0, 0, 0.25), inset 0 0 20px rgba(0, 0, 0, 0.05)`,
           fontSize: 12,
