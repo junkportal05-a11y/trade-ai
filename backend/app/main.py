@@ -70,13 +70,15 @@ async def lifespan(app: FastAPI):
     init_db()
     clear_all_degraded_workers()
 
-    # Initialize worker task references to None explicitly
+    # Initialize worker task references to None explicitly (legacy + new)
     app.state.agent_task = None
     app.state.resolver_task = None
     app.state.governance_task = None
+    app.state.prediction_task = None
+    app.state.resolver_task = None
 
     # Skip background workers if explicitly configured (e.g., in serverless/Cloud Run web instances)
-    enable_workers = os.getenv("ENABLE_BACKGROUND_WORKERS", "false").lower() == "true"
+    enable_workers = os.getenv("ENABLE_BACKGROUND_WORKERS", "true").lower() == "true"
     if not enable_workers:
         logger.info("Background workers disabled (ENABLE_BACKGROUND_WORKERS=false)")
     elif settings.skip_background_workers:
@@ -90,24 +92,20 @@ async def lifespan(app: FastAPI):
                 sys.path.insert(0, backend_dir)
 
             import trading_agent
-            from trading_agent import trading_agent_loop, prediction_resolver_worker
-            import governance_worker
+            from trading_agent import prediction_loop, prediction_resolver_worker
 
             if hasattr(trading_agent, "prediction_resolver_worker"):
                 resolver_task = asyncio.create_task(prediction_resolver_worker())
                 app.state.resolver_task = resolver_task
                 _attach_worker_monitor(app, resolver_task, "prediction_resolver_worker")
 
-            # Start the loop as a background asyncio task
-            agent_task = asyncio.create_task(trading_agent_loop())
-            app.state.agent_task = agent_task
-            _attach_worker_monitor(app, agent_task, "trading_agent_loop")
-            logger.info("trading_agent_loop task created")
+            # Start the prediction loop as a background asyncio task
+            prediction_task = asyncio.create_task(prediction_loop())
+            app.state.prediction_task = prediction_task
+            app.state.agent_task = prediction_task  # legacy alias
+            _attach_worker_monitor(app, prediction_task, "prediction_loop")
+            logger.info("prediction_loop task created")
 
-            if hasattr(governance_worker, "governance_loop"):
-                governance_task = asyncio.create_task(governance_worker.governance_loop())
-                app.state.governance_task = governance_task
-                _attach_worker_monitor(app, governance_task, "governance_loop")
         except Exception as exc:
             # In live/production, fail loud - do NOT silently continue
             logger.critical(f"Background worker startup failed: {exc}")
@@ -116,7 +114,7 @@ async def lifespan(app: FastAPI):
 
     yield
     # Shutdown — cancel background tasks on app close
-    for task_attr in ("agent_task", "resolver_task", "governance_task"):
+    for task_attr in ("prediction_task", "resolver_task", "agent_task", "governance_task"):
         if hasattr(app.state, task_attr):
             try:
                 task = getattr(app.state, task_attr)

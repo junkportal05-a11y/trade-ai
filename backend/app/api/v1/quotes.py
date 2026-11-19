@@ -214,12 +214,7 @@ def get_history(
 async def search_symbols(
     request: Request, req: SearchRequest = Depends(SearchRequest), db: Session = DbDep, _=SessionDep
 ) -> dict:
-    from app.services.broker import get_broker_feed
-
     symbol = req.q.upper().strip().replace(".NS", "")
-    key = get_broker_feed().get_instrument_token(symbol)
-    if key:
-        return {
-            "results": [{"symbol": symbol + ".NS", "name": req.q, "type": "NSE Equity"}]
-        }
+    # In paper mode search returns empty since broker feed is unavailable.
+    # Live symbol lookup can be re-enabled when broker credentials are configured.
     return {"results": []}

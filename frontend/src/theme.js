@@ -1,116 +1,106 @@
 export const T = {
-  bg: '#131313',
-  surface: '#131313',
-  surfaceDim: '#3a3939',
-  surfaceBright: '#3a3939',
-  surfaceContainerLowest: '#0e0e0e',
-  surfaceContainerLow: '#1c1b1b',
-  surfaceContainer: '#201f1f',
-  surfaceContainerHigh: '#2a2a2a',
-  surfaceContainerHighest: '#353534',
-  onSurface: '#e5e2e1',
-  onSurfaceVariant: '#e7bdb7',
-  inverseSurface: '#e5e2e1',
-  inverseOnSurface: '#313030',
-  outline: '#ad8883',
-  outlineVariant: '#5d3f3b',
-  // surfaceTint removed — now derived from primary contrast
-  primary: '#ffb4a9',
-  onPrimary: '#1a1a1f',
-  primaryContainer: '#3d0e0e',
-  onPrimaryContainer: '#ffe7e4',
-  inversePrimary: '#c00009',
-  secondary: '#c8c6c5',
-  onSecondary: '#303030',
-  secondaryContainer: '#474746',
-  onSecondaryContainer: '#b6b5b4',
-  tertiary: '#a8c8ff',
-  onTertiary: '#003062',
-  tertiaryContainer: '#006acc',
-  onTertiaryContainer: '#e5ecff',
-  error: '#ffb4ab',
-  onError: '#690005',
-  errorContainer: '#93000a',
+  // Near-black family (#080808)
+  bg: '#080808',
+  surface: '#0d0d0d',
+  surfaceDim: '#1a1a1a',
+  surfaceBright: '#222222',
+  surfaceContainerLowest: '#050505',
+  surfaceContainerLow: '#121212',
+  surfaceContainer: '#181818',
+  surfaceContainerHigh: '#1f1f1f',
+  surfaceContainerHighest: '#262626',
+  onSurface: '#cdcbc9',
+  onSurfaceVariant: '#a8a6a4',
+  inverseSurface: '#cdcbc9',
+  inverseOnSurface: '#1a1a1a',
+  outline: '#4a4948',
+  outlineVariant: '#3a3938',
+  primary: '#d41514',
+  onPrimary: '#ffffff',
+  primaryContainer: '#3a0d0d',
+  onPrimaryContainer: '#ffdad6',
+  inversePrimary: '#d41514',
+  secondary: '#787776',
+  onSecondary: '#1a1a1a',
+  secondaryContainer: '#2a2a2a',
+  onSecondaryContainer: '#d4d3d2',
+  tertiary: '#4a90d9',
+  onTertiary: '#001e3a',
+  tertiaryContainer: '#1a3a5c',
+  onTertiaryContainer: '#d6e8ff',
+  error: '#f44336',
+  onError: '#ffffff',
+  errorContainer: '#4a0d0d',
   onErrorContainer: '#ffdad6',
-  primaryFixed: '#ffdad5',
-  // primaryFixedDim removed — use primaryFixedDim from primaryFamily below
-  onPrimaryFixed: '#410001',
-  // onPrimaryFixedVariant removed — use semantic text colors instead
-  secondaryFixed: '#e4e2e1',
-  secondaryFixedDim: '#c8c6c5',
-  onSecondaryFixed: '#1b1c1b',
-  onSecondaryFixedVariant: '#474746',
-  tertiaryFixed: '#d6e3ff',
-  tertiaryFixedDim: '#a8c8ff',
-  onTertiaryFixed: '#001b3d',
-  onTertiaryFixedVariant: '#00468a',
-  background: '#131313',
-  onBackground: '#e5e2e1',
-  surfaceVariant: '#353534',
+  primaryFixed: '#ffbdbd',
+  onPrimaryFixed: '#4a0000',
+  secondaryFixed: '#c5c4c3',
+  onSecondaryFixed: '#1a1a1a',
+  tertiaryFixed: '#bdd8ff',
+  onTertiaryFixed: '#001e3a',
+  background: '#080808',
+  onBackground: '#cdcbc9',
+  surfaceVariant: '#262626',
 
   // --- Tri-chromatic DESIGN.md token system (single source of truth) ---
   // Text hierarchy: one neutral ramp for all copy
-  text: '#e5e2e1',
-  textMid: '#e7bdb7',
-  textDim: '#313030',
-  textMuted: '#5d3f3b',
+  text: '#cdcbc9',
+  textMid: '#a8a6a4',
+  textDim: '#6a6968',
+  textMuted: '#4a4948',
 
   // One accent, used sparingly for primary CTA/indicators
-  accent: '#c00009',
-  accentAlt: '#5d3f3b',
+  accent: '#d41514',
+  accentAlt: '#e84040',
   // accentDim — subtle depth using surface dimension
-  accentDim: '#3a3939',
+  accentDim: '#2a0e0e',
   // accentGlow — subtle surface shadow for depth (not a branded color)
-  accentGlow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+  accentGlow: '0 4px 12px rgba(212, 21, 20, 0.3)',
 
   // Action colors — distinct from accent
-  green: '#c8c6c5',
-  greenDim: 'rgba(205, 203, 202, 0.15)',
-  greenGlow: 'transparent',
+  green: '#00e676',
+  greenDim: 'rgba(0, 230, 118, 0.12)',
+  greenGlow: 'rgba(0, 230, 118, 0.25)',
 
   // Risk / error colors
-  red: '#ffb4ab',
-  redDim: 'rgba(255, 180, 171, 0.12)',
-  redGlow: 'rgba(255, 180, 171, 0.25)',
+  red: '#ff5252',
+  redDim: 'rgba(255, 82, 82, 0.12)',
+  redGlow: 'rgba(255, 82, 82, 0.25)',
 
   // Structure / status — gold uses accent as base for consistency
-  gold: '#c00009',
-  goldDim: '#e4e2e1',
+  gold: '#ffab00',
+  goldDim: 'rgba(255, 171, 0, 0.12)',
 
   // Borders — fixed opacity for consistency
-  border: '#ad8883',
-  borderHi: 'rgba(212, 21, 20, 0.40)',
+  border: '#3a3938',
+  borderHi: '#d41514',
   // --- End tri-chromatic system ---
 };
 
-export const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
-export const fmtINR = (n, d = 2) => n == null ? '—' : `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })}`;
-export const fmtPct = (n, d = 2) => n == null ? '—' : `${n >= 0 ? '+' : ''}${Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })}%`;
-export const clr = (v) => v > 0 ? T.secondary : v < 0 ? T.error : T.textMid;
+export const fmt = (n, d = 2) => n == null ? '\u2014' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
+export const fmtINR = (n, d = 2) => n == null ? '\u2014' : `\u20b9${Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })}`;
+export const fmtPct = (n, d = 2) => n == null ? '\u2014' : `${n >= 0 ? '+' : ''}${Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d })}%`;
+export const clr = (v) => v > 0 ? T.green : v < 0 ? T.red : T.textMid;
 export const sign = (v) => v > 0 ? '+' : '';
-export const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, c => ({ '&': '&', '<': '<', '>': '>', "'": '&apos;', '"': '"' }[c] || c));
+export const escapeHTML = (str) =>
+  String(str).replace(/[&<>'"]/g, c =>
+    ({ "&": "&", "<": "<", ">": ">", "'": "'", '"': "" }[c] || c)
+  );
 
 export const fmtIST = (date = new Date()) => date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 export const fmtISTDate = (date = new Date()) => date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 export const fmtISTShort = (date = new Date()) => date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
+export const PRIMARY_TABS = ['HOME', 'CHART', 'SIGNALS', 'PREDICTIONS', 'STRATEGIES'];
+export const SECONDARY_TABS = [];
 
-export const PRIMARY_TABS = ['HOME', 'SIMULATOR', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
-export const SECONDARY_TABS = ['STRATEGIES', 'SETTINGS', 'HELP'];
-
-export const MOBILE_TABS = ['HOME', 'SIMULATOR', 'CHART', 'SIGNALS', 'PREDICTIONS', 'PERFORMANCE', 'JOURNAL', 'ACCOUNT'];
+export const MOBILE_TABS = ['HOME', 'CHART', 'SIGNALS', 'PREDICTIONS', 'STRATEGIES'];
 
 export const TAB_META = {
   HOME: { label: 'Home', icon: 'Home' },
-  SIMULATOR: { label: 'Bot Engine', icon: 'Bot' },
-  CHART: { label: 'Terminal', icon: 'TrendingUp' },
+  CHART: { label: 'Charts', icon: 'TrendingUp' },
   SIGNALS: { label: 'Scanner', icon: 'Radio' },
   PREDICTIONS: { label: 'Predictions', icon: 'Sparkles' },
-  PERFORMANCE: { label: 'Analytics', icon: 'BarChart3' },
-  JOURNAL: { label: 'Journal', icon: 'BookOpen' },
-  ACCOUNT: { label: 'Security', icon: 'ShieldCheck' },
   STRATEGIES: { label: 'Strategies', icon: 'Settings' },
-  SETTINGS: { label: 'Settings', icon: 'Settings' },
-  HELP: { label: 'Help', icon: 'HelpCircle' },
 };
 
 export const SEED_PRICES = {

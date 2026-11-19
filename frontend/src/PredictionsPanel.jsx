@@ -2,13 +2,29 @@ import { apiFetch, deletePrediction } from './api';
 import { formatError } from './utils/formatError';
 import { getConfidenceScore } from './utils/performance';
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, X, CircleCheck } from 'lucide-react';
+import { AlertTriangle, X, CircleCheck, Zap, Brain, Target, Loader2 } from 'lucide-react';
 import { T, mono } from './theme';
 
 const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 const WATCHLIST = [
   'YESBANK.NS', 'TATASTEEL.NS', 'BANKBARODA.NS', 'TATAPOWER.NS', 'SBIN.NS'
+];
+
+const TIMEFRAMES = [
+  { value: '15m', label: '15m' },
+  { value: '30m', label: '30m' },
+  { value: '1h', label: '1h' },
+  { value: '4h', label: '4h' },
+  { value: '1d', label: '1d' },
+];
+
+const STRATEGIES = [
+  { id: 'trend_scalper', name: 'Trend Scalper' },
+  { id: 'mean_reversion', name: 'Mean Reversion' },
+  { id: 'breakout_volume', name: 'Breakout Volume' },
+  { id: 'rsi_scalper', name: 'RSI Scalper' },
+  { id: 'swing_trend_follower', name: 'Swing Trend Follower' },
 ];
 
 export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBANK.NS', onSelectSymbol, onViewChange }) {
@@ -36,9 +52,17 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
   const [resolvingId, setResolvingId] = useState(null);
   const [actualOutcomeInput, setActualOutcomeInput] = useState('');
 
-  // Form State
+  // AI Prediction Engine Form State
+  const [aiSymbol, setAiSymbol] = useState(selectedSymbol);
+  const [aiTimeframe, setAiTimeframe] = useState('15m');
+  const [aiStrategy, setAiStrategy] = useState('trend_scalper');
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [aiResult, setAiResult] = useState(null);
+  const [aiError, setAiError] = useState('');
+
+  // Manual Prediction Record Form State
   const [symbol, setSymbol] = useState(selectedSymbol);
-  const [predType, setPredType] = useState('UP'); // 'UP' or 'DOWN'
+  const [predType, setPredType] = useState('BULLISH'); // 'BULLISH' or 'BEARISH'
   const [entryPrice, setEntryPrice] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
   const [stopLoss, setStopLoss] = useState('');
@@ -99,16 +123,16 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
     fetchDataConfidence(symbol);
   }, [symbol, fetchDataConfidence]);
 
-  // Handle selectedSymbol prop change to prefill form
+  // Handle selectedSymbol prop change to prefill forms
   useEffect(() => {
     if (selectedSymbol) {
       setSymbol(selectedSymbol);
+      setAiSymbol(selectedSymbol);
       const livePrice = prices[selectedSymbol]?.price;
       if (livePrice) {
         setEntryPrice(livePrice.toString());
-        // Auto-calculate reasonable initial target (e.g. +3% for UP, -3% for DOWN) and SL
         const priceVal = parseFloat(livePrice);
-        if (predType === 'UP') {
+        if (predType === 'BULLISH') {
           setTargetPrice((priceVal * 1.03).toFixed(2));
           setStopLoss((priceVal * 0.985).toFixed(2));
         } else {
@@ -126,7 +150,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
     if (livePrice) {
       setEntryPrice(livePrice.toString());
       const priceVal = parseFloat(livePrice);
-      if (predType === 'UP') {
+      if (predType === 'BULLISH') {
         setTargetPrice((priceVal * 1.03).toFixed(2));
         setStopLoss((priceVal * 0.985).toFixed(2));
       } else {
@@ -140,7 +164,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
     setPredType(type);
     const currEntry = parseFloat(entryPrice) || (prices[symbol]?.price) || 0;
     if (currEntry > 0) {
-      if (type === 'UP') {
+      if (type === 'BULLISH') {
         setTargetPrice((currEntry * 1.03).toFixed(2));
         setStopLoss((currEntry * 0.985).toFixed(2));
       } else {
@@ -155,7 +179,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
     if (livePrice) {
       setEntryPrice(livePrice.toString());
       const priceVal = parseFloat(livePrice);
-      if (predType === 'UP') {
+      if (predType === 'BULLISH') {
         setTargetPrice((priceVal * 1.03).toFixed(2));
         setStopLoss((priceVal * 0.985).toFixed(2));
       } else {
@@ -165,7 +189,51 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
     }
   };
 
-  // Submit Prediction Record
+  // AI Prediction Engine - Analyze & Predict
+  const handleAiAnalyze = async (e) => {
+    e.preventDefault();
+    setAiAnalyzing(true);
+    setAiError('');
+    setAiResult(null);
+
+    try {
+      const res = await apiFetch('/api/predictions/analyze', {
+        method: 'POST',
+        body: JSON.stringify({
+          symbol: aiSymbol,
+          timeframe: aiTimeframe,
+          strategy: aiStrategy,
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setAiResult(data);
+        // Auto-fill manual form with AI result
+        if (data.prediction) {
+          setSymbol(aiSymbol);
+          setPredType(data.prediction.direction);
+          setEntryPrice(data.prediction.entry.toString());
+          setTargetPrice(data.prediction.target.toString());
+          setStopLoss(data.prediction.stop.toString());
+          setConfidence(data.prediction.confidence);
+          setRsi(data.prediction.rsi?.toString() || '');
+          setMacd(data.prediction.macd?.toString() || '');
+          setAdx(data.prediction.adx?.toString() || '');
+          setReason(data.prediction.reasoning || '');
+        }
+      } else {
+        const errData = await res.json();
+        setAiError(errData.detail || 'Analysis failed');
+      }
+    } catch (err) {
+      setAiError('Network error. Please try again.');
+    } finally {
+      setAiAnalyzing(false);
+    }
+  };
+
+  // Submit Manual Prediction Record
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError('');
@@ -269,8 +337,8 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
       {/* Title */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 16 }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: T.text, marginBottom: 4 }}> PREDICTION TRACKING CENTER</h2>
-          <p style={{ fontSize: 11, color: T.textMid }}>Validate trading thesis, compute win rate stats, and track indicator models.</p>
+          <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: T.text, marginBottom: 4 }}> PREDICTIONS</h2>
+          <p style={{ fontSize: 11, color: T.textMid }}>AI Prediction Engine + Tracking Center — analyse, predict, track accuracy per strategy.</p>
         </div>
         <button
           onClick={() => onViewChange('CHART')}
@@ -302,13 +370,201 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
         </div>
       )}
 
+      {/* AI PREDICTION ENGINE */}
+      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+          <Brain size={18} color={T.accent} />
+          <h3 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.02em', color: T.text, margin: 0 }}>AI PREDICTION ENGINE</h3>
+        </div>
+        <form onSubmit={handleAiAnalyze} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 9, fontWeight: 700, color: T.textMid, display: 'block', marginBottom: 4 }}>SYMBOL</label>
+              <select
+                value={aiSymbol}
+                onChange={(e) => setAiSymbol(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  background: T.panel,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 6,
+                  color: T.text,
+                  fontSize: 11,
+                  outline: 'none'
+                }}
+              >
+                {WATCHLIST.map(sym => (
+                  <option key={sym} value={sym}>{sym.replace('.NS', '')}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 9, fontWeight: 700, color: T.textMid, display: 'block', marginBottom: 4 }}>TIMEFRAME</label>
+              <select
+                value={aiTimeframe}
+                onChange={(e) => setAiTimeframe(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  background: T.panel,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 6,
+                  color: T.text,
+                  fontSize: 11,
+                  outline: 'none'
+                }}
+              >
+                {TIMEFRAMES.map(tf => (
+                  <option key={tf.value} value={tf.value}>{tf.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 9, fontWeight: 700, color: T.textMid, display: 'block', marginBottom: 4 }}>STRATEGY</label>
+              <select
+                value={aiStrategy}
+                onChange={(e) => setAiStrategy(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  background: T.panel,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 6,
+                  color: T.text,
+                  fontSize: 11,
+                  outline: 'none'
+                }}
+              >
+                {STRATEGIES.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={aiAnalyzing}
+            style={{
+              padding: '12px 0',
+              background: aiAnalyzing ? T.border : T.accent,
+              border: 'none',
+              borderRadius: 6,
+              color: aiAnalyzing ? T.textDim : T.text,
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: aiAnalyzing ? 'not-allowed' : 'pointer',
+              letterSpacing: '0.04em',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8
+            }}
+          >
+            {aiAnalyzing ? (
+              <>
+                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                <span>ANALYZING...</span>
+              </>
+            ) : (
+              <>
+                <Zap size={16} />
+                <span>ANALYZE & PREDICT</span>
+              </>
+            )}
+          </button>
+
+          {aiError && (
+            <div style={{ background: T.redDim, border: `1px solid ${T.red}`, borderRadius: 6, padding: '10px 12px', color: T.red, fontSize: 11 }}>
+              {aiError}
+            </div>
+          )}
+
+          {aiResult && (
+            <div style={{ background: T.panel, border: `1px solid ${T.borderHi}`, borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottom: `1px solid ${T.border}` }}>
+                <div style={{
+                  padding: '4px 10px',
+                  borderRadius: 4,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  background: aiResult.prediction?.direction === 'BULLISH' ? T.greenDim : T.redDim,
+                  color: aiResult.prediction?.direction === 'BULLISH' ? T.green : T.red,
+                  border: `1px solid ${aiResult.prediction?.direction === 'BULLISH' ? T.green : T.red}30`
+                }}>
+                  {aiResult.prediction?.direction}
+                </div>
+                <span style={{ fontSize: 11, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>
+                  Confidence: {aiResult.prediction?.confidence}%
+                </span>
+                <span style={{ fontSize: 11, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>
+                  Strategy: {aiResult.strategy_used}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 8, color: T.textDim, marginBottom: 2 }}>ENTRY</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: T.text, ...mono }}>₹{fmt(aiResult.prediction?.entry)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 8, color: T.textDim, marginBottom: 2 }}>TARGET</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: T.green, ...mono }}>₹{fmt(aiResult.prediction?.target)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 8, color: T.textDim, marginBottom: 2 }}>STOP LOSS</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: T.red, ...mono }}>₹{fmt(aiResult.prediction?.stop)}</div>
+                </div>
+              </div>
+              {aiResult.prediction?.reasoning && (
+                <div style={{ fontSize: 11, color: T.textMid, lineHeight: 1.5, paddingTop: 8, borderTop: `1px solid ${T.border}` }}>
+                  <strong>Reasoning:</strong> {aiResult.prediction.reasoning}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSymbol(aiSymbol);
+                    setPredType(aiResult.prediction?.direction);
+                    setEntryPrice(aiResult.prediction?.entry.toString());
+                    setTargetPrice(aiResult.prediction?.target.toString());
+                    setStopLoss(aiResult.prediction?.stop.toString());
+                    setConfidence(aiResult.prediction?.confidence);
+                    setRsi(aiResult.prediction?.rsi?.toString() || '');
+                    setMacd(aiResult.prediction?.macd?.toString() || '');
+                    setAdx(aiResult.prediction?.adx?.toString() || '');
+                    setReason(aiResult.prediction?.reasoning || '');
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    background: T.accent,
+                    border: 'none',
+                    borderRadius: 6,
+                    color: T.text,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  USE FOR RECORD
+                </button>
+              </div>
+            </div>
+          )}
+        </form>
+      </div>
+
       {/* Metrics Widgets Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, filter: globalConfidence?.locked ? 'blur(4px)' : 'none', pointerEvents: globalConfidence?.locked ? 'none' : 'auto', transition: 'all 0.3s ease' }}>
         
         {/* Metric 1: Win Rate */}
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>QUANT WIN RATE</div>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: T.textMid, marginBottom: 4 }}>PREDICTION WIN RATE</div>
             <div style={{ fontSize: 28, fontWeight: 800, color: stats.win_rate >= 50 ? T.green : T.red, letterSpacing: '-0.03em', ...mono }}>
               {(stats.win_rate ?? 0).toFixed(1)}%
             </div>
@@ -402,11 +658,11 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
 
       </div>
 
-      {/* STRATEGY LEADERBOARD */}
+      {/* STRATEGY ACCURACY COMPARISON */}
       <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20, filter: globalConfidence?.locked ? 'blur(4px)' : 'none', pointerEvents: globalConfidence?.locked ? 'none' : 'auto', transition: 'all 0.3s ease' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
           <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: T.text, margin: 0 }}>
-             SETUP LEADERBOARD (LIVE PERFORMANCE)
+            STRATEGY ACCURACY COMPARISON
           </h3>
           {dataConfidence !== null && (
             <div style={{ background: T.panel, padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.borderHi}`, fontSize: 11, ...mono, color: dataConfidence >= 72 ? T.green : T.red }}>
@@ -417,11 +673,12 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: '700px' }}>
             {/* Header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', padding: '8px 12px', borderBottom: `1px solid ${T.border}`, fontSize: 9, color: T.textMid, letterSpacing: '0.08em', ...mono }}>
-              <span>SETUP TYPE</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr 1fr', padding: '8px 12px', borderBottom: `1px solid ${T.border}`, fontSize: 9, color: T.textMid, letterSpacing: '0.08em', ...mono }}>
+              <span>STRATEGY</span>
               <span>WIN RATE</span>
               <span>PROFIT FACTOR</span>
               <span>EXPECTED VALUE</span>
+              <span>RESOLVED</span>
               <span>STATUS</span>
             </div>
             
@@ -430,35 +687,36 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
               stats.leaderboard.map((item, idx) => {
                 const isActive = item.profit_factor >= 1.0;
                 return (
-                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', padding: '12px 12px', borderBottom: `1px solid ${T.border}`, fontSize: 11, ...mono, alignItems: 'center' }}>
+                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr 1fr', padding: '12px 12px', borderBottom: `1px solid ${T.border}`, fontSize: 11, ...mono, alignItems: 'center' }}>
                     <span style={{ color: T.text, fontWeight: 700 }}>{item.setup_type}</span>
                     <span style={{ color: (item.win_rate ?? 0) >= 50 ? T.green : T.textMid }}>{(item.win_rate ?? 0).toFixed(1)}% ({item.wins}/{item.trades})</span>
                     <span style={{ color: (item.profit_factor ?? 0) >= 1.5 ? T.green : (item.profit_factor ?? 0) >= 1.0 ? T.gold : T.red, fontWeight: 700 }}>{(item.profit_factor ?? 0).toFixed(2)}x</span>
                     <span style={{ color: (item.ev_pct ?? 0) > 0 ? T.green : T.red }}>{(item.ev_pct ?? 0) > 0 ? '+' : ''}{(item.ev_pct ?? 0).toFixed(2)}%</span>
+                    <span style={{ color: T.text, fontWeight: 600 }}>{item.trades}</span>
                     <span>
                       {isActive ? (
                         <span style={{ background: T.greenDim, color: T.green, padding: '2px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700, border: `1px solid ${T.green}30` }}>ACTIVE</span>
                       ) : (
-                        <span style={{ background: T.redDim, color: T.red, padding: '2px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700, border: `1px solid ${T.red}30` }}>QUARANTINED (PF &lt; 1.0)</span>
+                        <span style={{ background: T.redDim, color: T.red, padding: '2px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700, border: `1px solid ${T.red}30` }}>LOW PF</span>
                       )}
                     </span>
                   </div>
                 );
               })
             ) : (
-              <div style={{ padding: '20px 0', textAlign: 'center', color: T.textDim, fontSize: 11, ...mono }}>No setups recorded yet. Ensure trades are tagged with setup_type.</div>
+              <div style={{ padding: '20px 0', textAlign: 'center', color: T.textDim, fontSize: 11, ...mono }}>No resolved predictions yet. Record predictions and let the resolver track outcomes.</div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Main UI Layout: Form on left/top, History on right/bottom */}
+      {/* Main UI Layout: Manual Record Form + History Log */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, alignItems: 'start' }}>
         
-        {/* Card: Log Prediction Form */}
+        {/* Card: Record Manual Prediction Form */}
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 20 }}>
           <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: T.text, marginBottom: 16, borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
-             RECORD NEW SYSTEM PREDICTION
+            RECORD NEW SYSTEM PREDICTION
           </h3>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -491,14 +749,14 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button
                     type="button"
-                    onClick={() => handleTypeChange('UP')}
+                    onClick={() => handleTypeChange('BULLISH')}
                     style={{
                       flex: 1,
                       padding: '7px 0',
                       borderRadius: 6,
-                      border: `1px solid ${predType === 'UP' ? T.green : T.border}`,
-                      background: predType === 'UP' ? T.greenDim : 'transparent',
-                      color: predType === 'UP' ? T.green : T.textDim,
+                      border: `1px solid ${predType === 'BULLISH' ? T.green : T.border}`,
+                      background: predType === 'BULLISH' ? T.greenDim : 'transparent',
+                      color: predType === 'BULLISH' ? T.green : T.textDim,
                       fontSize: 10,
                       fontWeight: 700,
                       cursor: 'pointer'
@@ -508,14 +766,14 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleTypeChange('DOWN')}
+                    onClick={() => handleTypeChange('BEARISH')}
                     style={{
                       flex: 1,
                       padding: '7px 0',
                       borderRadius: 6,
-                      border: `1px solid ${predType === 'DOWN' ? T.red : T.border}`,
-                      background: predType === 'DOWN' ? T.redDim : 'transparent',
-                      color: predType === 'DOWN' ? T.red : T.textDim,
+                      border: `1px solid ${predType === 'BEARISH' ? T.red : T.border}`,
+                      background: predType === 'BEARISH' ? T.redDim : 'transparent',
+                      color: predType === 'BEARISH' ? T.red : T.textDim,
                       fontSize: 10,
                       fontWeight: 700,
                       cursor: 'pointer'
@@ -749,7 +1007,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
           {/* Header & Filter switchers */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 10 }}>
             <h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: T.text }}>
-               PREDICTIONS LOG
+              PREDICTIONS LOG (PAPER P&L)
             </h3>
             
             <div style={{ display: 'flex', background: T.panel, borderRadius: 5, padding: 2, border: `1px solid ${T.border}` }}>
@@ -783,8 +1041,8 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
             ) : (
               filteredPredictions.map(pred => {
                 const isPending = pred.status === 'PENDING';
-                const isCorrect = pred.status === 'CORRECT';
-                const isUp = pred.prediction_type === 'UP';
+                const isCorrect = pred.status === 'CORRECT' || pred.actual_outcome === 'TARGET_HIT';
+                const isUp = pred.prediction_type === 'BULLISH';
 
                 // Status border coloring
                 let statusBorder = T.border;
@@ -888,7 +1146,7 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                           <span>Confidence: <strong style={{ color: T.gold }}>{pred.confidence_score}%</strong></span>
                         </div>
                         
-                        {/* Phase Omega: Trade Quality Engine */}
+                        {/* Trade Quality Engine */}
                         {pred.trade_quality_score > 0 && (
                           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '6px', background: T.bg, borderRadius: '4px', border: `1px solid ${T.borderHi}` }}>
                             <span style={{ color: T.accent, fontWeight: 'bold' }}>TQS: {pred.trade_quality_score}</span>
@@ -990,13 +1248,13 @@ export default function PredictionsPanel({ prices = {}, selectedSymbol = 'YESBAN
                             onMouseEnter={e => e.currentTarget.style.background = T.borderHi}
                             onMouseLeave={e => e.currentTarget.style.background = T.panel}
                           >
-                             MANUALLY RESOLVE PREDICTION
+                            MANUALLY RESOLVE PREDICTION
                           </button>
                         )}
                       </div>
                     ) : (
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, ...mono, borderTop: `1px solid ${T.border}`, paddingTop: 6, color: T.textMid }}>
-                        <span>Simulated Exit (manual):</span>
+                        <span>Paper Exit (manual):</span>
                         <span style={{ color: pred.actual_outcome == null ? T.textMid : (isCorrect ? T.green : pred.status === 'FLAT' ? T.blue : T.red), fontWeight: 700 }}>
                           {pred.actual_outcome != null ? `₹${fmt(pred.actual_outcome, 1)}` : '—'}
                         </span>

@@ -110,7 +110,7 @@ def check_ai_services() -> dict[str, Any]:
 
 def check_workers() -> dict[str, Any]:
     """Check background worker health from worker_state."""
-    worker_names = ["trading_agent_loop", "prediction_resolver_worker", "governance_loop"]
+    worker_names = ["prediction_loop", "prediction_resolver_worker"]
 
     # Workers that were never started must never report "healthy".
     enable_workers = os.getenv("ENABLE_BACKGROUND_WORKERS", "false").lower() == "true"

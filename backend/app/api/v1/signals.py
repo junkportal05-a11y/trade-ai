@@ -13,8 +13,6 @@ from app.api.deps import DbDep, SessionDep
 from app.models.schemas import ScanRequest, SignalResponse, SignalsQuery
 from app.core.executors import scan_executor
 from app.core.logging import logger
-from app.services.telegram_bot import telegram_bot
-
 router = APIRouter(prefix="/api", tags=["signals"])
 
 SIGNAL_SCAN_TIMEOUT_SECONDS = 85
@@ -163,16 +161,6 @@ async def post_scan(
             error=f"{type(exc).__name__}: {exc}",
             message="The scan engine failed mid-run — selecting no results rather than partial data. Tap RETRY shortly.",
         )
-
-    # Send Telegram alerts for high-confidence signals
-    if results and settings.telegram_bot_token and settings.telegram_chat_id:
-        min_conf = getattr(settings, 'telegram_min_confidence', 75)
-        for sig in results:
-            if sig.get('confidence', 0) >= min_conf:
-                try:
-                    telegram_bot.send_signal_alert(sig)
-                except Exception as te:
-                    logger.warning(f"Failed to send Telegram alert: {te}")
 
     return _success_payload(results=results, gates=gates, market=req.market_segment, typ=req.interval)
 

@@ -177,16 +177,20 @@ def run_migrations(engine: Engine) -> None:
             ))
             session.commit()
 
-        # Portfolio state
-        port_count = session.query(PortfolioState).count()
-        if port_count == 0:
-            session.add(PortfolioState(
-                current_equity=100_000.0,
-                peak_equity=100_000.0,
-                daily_equity=100_000.0,
-                sector_exposure="{}",
-                active_positions="[]",
-            ))
-            session.commit()
+        # ── Migration: add missing last_updated column to portfolio_state ─────
+    _add_column_safe(engine, "portfolio_state", "last_updated", "DateTime")
+
+    # Portfolio state
+    port_count = session.query(PortfolioState).count()
+    if port_count == 0:
+        session.add(PortfolioState(
+            current_equity=100_000.0,
+            peak_equity=100_000.0,
+            daily_equity=100_000.0,
+            sector_exposure="{}",
+            active_positions="[]",
+            last_updated=datetime.utcnow(),
+        ))
+        session.commit()
 
     logger.info("Migrations and seed data complete.")

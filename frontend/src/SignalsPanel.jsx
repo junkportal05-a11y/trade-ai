@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiFetch } from './api';
 import { T, mono, fmt, fmtINR, fmtPct } from './theme';
+import { isNSEMarketOpen } from './hooks/useMarketData';
 import { ChevronUp, ChevronDown, Circle, Check, X, AlertTriangle, ChevronRight, ChevronLeft } from 'lucide-react';
 
 const SIGNAL_CFG = {
@@ -403,7 +404,7 @@ function FilterBar({ filter, onFilter, count, sectorFilter, onSectorFilter, minC
 }
 
 export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, cash }) {
-  const [capital, setCapital]   = useState(cash ? String(cash) : '10000');
+  const [capital, setCapital]   = useState(cash ? String(cash) : '1840');
   const [selectedStyle, setSelectedStyle] = useState('Intraday Momentum');
   const [plan, setPlan]         = useState(null);
   const [loading, setLoading]   = useState(false);
@@ -476,16 +477,24 @@ export default function SignalsPanel({ onSelectSymbol, selectedSymbol, prices, c
         confidence: p.confidence || 78,
       }))) || [];
 
-      if (sigList.length > 0 || (data.positions && data.positions.length > 0)) {
+      // Defensive: ensure sigList is an array
+      const validSignals = Array.isArray(sigList) ? sigList : [];
+      
+      if (validSignals.length > 0 || (data.positions && data.positions.length > 0)) {
         setPlan({
           ...data,
-          all_signals: sigList,
+          all_signals: validSignals,
           capital: data.capital || amt,
         });
         setError(null);
       } else {
         setPlan({ all_signals: [], allocations: [] });
-        setError("Market is closed. No active intraday setups detected on live feed.");
+        // FIX: Gate message on real market state
+        if (!isNSEMarketOpen()) {
+          setError("Market is closed. No active intraday setups detected on live feed.");
+        } else {
+          setError("No qualifying setups — the scan ran but no signal passed the gates");
+        }
       }
       setNextScan(Date.now() + REFRESH_MS);
     } catch (e) {

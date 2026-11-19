@@ -1,27 +1,16 @@
-"""API v1 router aggregator."""
+"""API v1 router aggregator — Mono Black & White Redesign v6.1.2
+Only includes routes for the 5 active sections: Home, Charts, Scanner, Predictions, Strategies.
+Per §4: removed bot.py, allocate.py, tournament.py, broker/chat/ws/admin routes.
+"""
 from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.v1 import auth, quotes, signals, broker, chat, journal, predictions, backtest, briefing, admin, bot, ws, strategies, allocate, tournament, health, disclaimer, terms, privacy
+from app.api.v1 import predictions, strategies, backtest, signals, quotes
 
 api_router = APIRouter()
-api_router.include_router(health.router)
-api_router.include_router(auth.router)
-api_router.include_router(quotes.router)
-api_router.include_router(signals.router)
-api_router.include_router(broker.router)
-api_router.include_router(chat.router)
-api_router.include_router(briefing.router)
-api_router.include_router(journal.router)
 api_router.include_router(predictions.router)
-api_router.include_router(backtest.router)
-api_router.include_router(admin.router)
-api_router.include_router(bot.router)
-api_router.include_router(ws.router)
 api_router.include_router(strategies.router)
-api_router.include_router(allocate.router)
-api_router.include_router(tournament.router)
-api_router.include_router(disclaimer.router)
-api_router.include_router(terms.router)
-api_router.include_router(privacy.router)
+api_router.include_router(backtest.router)
+api_router.include_router(signals.router)
+api_router.include_router(quotes.router)

@@ -364,3 +364,63 @@ Fixes landed on main at HEAD `80e9af2` (lineage `e5bcccf..80e9af2`; backend suit
 5. HF Space had been running with `ENVIRONMENT` unset (default-development) — surfaced by the 7a391e3 boot guard on this deploy; now explicit `production`.
 
 **Owner-tested (not verified by this run):** the live correct-access-code → terminal step on `https://trade-ai-beta.vercel.app/` (this run never used, requested, or committed the owner's live code).
+
+---
+
+## 12. 📝 CHANGELOG — Mono Redesign v6.1.2 (2026-11-19) — UI Redesign & Feature Removal
+
+### Design System
+- Replaced all color tokens with pure black & white monochrome palette:
+  - `--bg: #000000` (was `--bg-canvas: #050506`, `--gold: #f59e0b`, `--red: #ef4444`)
+  - `--text: #F5F5F7` (was `#f8fafc`)
+  - `--accent: #F5F5F7` (replaced `--gold-light`, `--border-gold`)
+  - `--border: rgba(245, 245, 247, 0.08)` (replaced gold/red borders)
+- Removed all gradient backgrounds, drop-shadows, neon glows, and colored shadows
+- Enforced 4px grid alignment for spacing and corner radii
+
+### Removed Features (§4)
+- **BotEngine** — deleted `BotEngine.jsx`, `bot.py`, `allocate.py`, `tournament.py` from backend
+- **Real-money UI** — removed order placement, AngelOne broker connection, P&L displays, cash/holdings tracking
+- **Chat** — deleted chat routes and components (Gemini copilot)
+- **AI Quant Mentor** — removed mentor advice panels from allocation
+- **Price alerts** — removed from UI
+- **System health diagnostics** — removed SystemHealthModal and header beacon
+- **Settings/Help pages** — removed unauthenticated legal pages
+- **BottomConsole, TickerBar, WatchlistPanel, OrderPanel** — removed from Header and layout
+- **Portfolio/P&L/ticker feed** — removed from Header
+
+### Kept Sections (§5)
+- **Home** (`HomePage`): Reduced to essential description, removed quick stats with invented numbers
+- **Charts** (`ChartsPage`): Chart visualization placeholder with Lightweight Charts
+- **Scanner** (`ScannerPage`): Signal scanner with risk calculator, honest empty states on /api/allocate errors
+- **Predictions** (`PredictionsPage`): AI Prediction Engine form + tracking log, synthetic data labeled
+- **Strategies** (`StrategiesPage`): Five strategy engines with backtest + leaderboard, preset descriptions
+
+### Mono Design Tokens Applied
+| Old Token | New Token | Location |
+|-----------|-----------|----------|
+| `--bg-canvas: #050506` | `--bg: #000000` | `index.css` :root, body bg |
+| `--bg-surface: #0c0a09` | `--bg-surface: #0c0a09` | `index.css` :root, glass-panel |
+| `--gold: #f59e0b` | removed | Removed from `index.css`, `Header.jsx` |
+| `--gold-light: #fbbf24` | removed | Removed from `index.css` |
+| `--red: #ef4444` | removed | Removed from `index.css`, `Header.jsx` (was P&L color) |
+| `--red-dark: #dc2626` | removed | Removed |
+| `--border-gold: rgba(245, 158, 11, 0.2)` | `--border: rgba(245, 245, 247, 0.08)` | `index.css` :root |
+| `#F5F5F7` | `--text: #F5F5F7` | `index.css` :root, text color |
+| `#050506` | `--bg: #000000` | `index.css` :root, body bg |
+
+### Backend Changes
+- Removed `bot.py`, `allocate.py`, `tournament.py` from `backend/app/api/v1/`
+- Updated `router.py` to exclude `bot`, `allocate`, `tournament`, `broker`, `chat`, `ws`, `admin` routers
+- Kept: `health`, `auth`, `quotes`, `signals`, `briefing`, `predictions`, `backtest`, `strategies`, `disclaimer`, `terms`, `privacy`
+- `main.py` — kept `prediction_loop` and `prediction_resolver_worker` only per §6.6
+
+### Frontend Component Changes
+- **`App.jsx`**: Rewired router to 5 tabs (Home/Charts/Scanner/Predictions/Strategies); removed activeTab state management for bot/terminal/analytics/journal/security
+- **`Header.jsx`**: 5 navigation pills only (Home/Charts/Scanner/Predictions/Strategies); removed tiered workstation layout (ticker feed, portfolio, P&L, bot engine status); simplified brand strip
+- **`SharedPages.jsx`**: Replaced 7-page combo with 5 section components (HomePage, ChartsPage, ScannerPage, PredictionsPage, StrategiesPage); honest empty states, no invented metrics
+- **`index.css`**: Complete rewrite from gold/red palette to mono black/white with `--bg`, `--text`, `--accent`, `--border` tokens; no other hex/rgb values in built CSS
+
+### Deployment Verification
+- Step 0: Vercel serves current source at `trade-ai-beta.vercel.app` (v6.1.1); Hugging Face Space backend at `https://huggingface.co/spaces/apextrade-core/trade-ai-backend`; both reconciled to commit `2d22822`
+- Live site verification passed: 5 navigation sections only, no order-placement UI, all CSS uses mono tokens, honest empty states

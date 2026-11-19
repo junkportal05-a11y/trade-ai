@@ -102,3 +102,28 @@ export function calcMACD(data, fast = 12, slow = 26, signal = 9) {
   
   return { macdLine, signalLine, histogram };
 }
+
+export function calcVWAP(data) {
+  if (!data || data.length === 0) return [];
+  
+  const vwap = [];
+  let cumulativePV = 0; // Price * Volume
+  let cumulativeVolume = 0;
+  
+  for (let i = 0; i < data.length; i++) {
+    const bar = data[i];
+    const typicalPrice = (bar.high + bar.low + bar.close) / 3;
+    const volume = bar.volume || 0;
+    
+    cumulativePV += typicalPrice * volume;
+    cumulativeVolume += volume;
+    
+    if (cumulativeVolume > 0) {
+      vwap.push({ time: bar.time, value: cumulativePV / cumulativeVolume });
+    } else {
+      vwap.push({ time: bar.time, value: typicalPrice });
+    }
+  }
+  
+  return vwap;
+}

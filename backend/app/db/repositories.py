@@ -448,6 +448,38 @@ class DataQualityRepository:
         }
 
 
+class MarketDataRepository:
+    """Repository wrapper for market data fetchers (signals module).
+    Provides a repository-like interface for fetching historical OHLCV data.
+    """
+    
+    @staticmethod
+    def get_history(db: Session, symbol: str, interval: str, range: str):
+        """Fetch historical market data as a list of dicts compatible with pandas DataFrame."""
+        try:
+            from signals import download_market_data_df
+            df = download_market_data_df(symbol, range, interval)
+            if df is None or df.empty:
+                return None
+            # Convert to list of dicts
+            df_reset = df.reset_index()
+            df_reset['timestamp'] = df_reset['index']
+            df_reset = df_reset.drop(columns=['index'])
+            # Ensure column names match expected format
+            col_map = {
+                'Open': 'open',
+                'High': 'high',
+                'Low': 'low',
+                'Close': 'close',
+                'Volume': 'volume',
+            }
+            df_reset = df_reset.rename(columns=col_map)
+            return df_reset.to_dict(orient='records')
+        except Exception as e:
+            logger.warning(f"MarketDataRepository.get_history failed for {symbol}: {e}")
+            return None
+
+
 # ── Convenience aliases for compatibility ───────────────────────────────────
 class Repository:
     signals = SignalRepository()
@@ -458,6 +490,7 @@ class Repository:
     portfolio = PortfolioRepository()
     rejected = RejectedSignalRepository()
     data_quality = DataQualityRepository()
+    market_data = MarketDataRepository()
 
 
 repo = Repository()

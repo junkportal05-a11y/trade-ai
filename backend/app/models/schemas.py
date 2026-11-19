@@ -118,7 +118,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
-    source: Literal["gemini", "heuristic"]
+    source: Literal["gemini", "heuristic", "litellm"]
     confidence: float | None = None
     reasoning: str | None = None
 

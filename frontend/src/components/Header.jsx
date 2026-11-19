@@ -1,13 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck, Activity, Search, Zap, Settings, HelpCircle } from 'lucide-react';
-import SystemHealthModal from './SystemHealthModal';
-import { useHealthCheck } from '../hooks/useHealthCheck';
-import { T, fmt, clr, sign, PRIMARY_TABS, SECONDARY_TABS, TAB_META } from '../theme';
+import { Home, TrendingUp, Radio, Sparkles, Settings, Activity, Search } from 'lucide-react';
+import { T, fmt, clr, sign, PRIMARY_TABS, TAB_META } from '../theme';
 import pkg from '../../package.json';
 
 const APP_VERSION = pkg.version;
 
-const ICON_MAP = { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck, Settings, HelpCircle };
+const ICON_MAP = { Home, TrendingUp, Radio, Sparkles, Settings };
 
 function getMarketSession(now = new Date()) {
   const ist = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
@@ -73,11 +71,8 @@ function NavButton({ tab, active, onClick }) {
   );
 }
 
-export default function Header({ connected, view, onViewChange, isMobile, netWorth, cash, stockValue, totalPnl, totalPct, selectedSymbol, prices, dataSource = {}, onCommandPaletteOpen }) {
+export default function Header({ connected, view, onViewChange, isMobile, selectedSymbol, prices, dataSource = {}, onCommandPaletteOpen }) {
   const [clock, setClock] = useState(() => new Date().toLocaleTimeString('en-IN', { hour12: true }));
-  const [showMore, setShowMore] = useState(false);
-  const [showHealthModal, setShowHealthModal] = useState(false);
-  const health = useHealthCheck(20000);
   const session = useMemo(() => getMarketSession(), [clock]);
 
   useEffect(() => {
@@ -85,18 +80,10 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    const openHealth = () => setShowHealthModal(true);
-    window.addEventListener('apex:open-health', openHealth);
-    return () => window.removeEventListener('apex:open-health', openHealth);
-  }, []);
-
   const p = prices[selectedSymbol];
   const price = p?.price ?? 0;
   const pct = p?.changePct ?? 0;
   const isUp = pct >= 0;
-  const latency = health.latencyMs;
-  const latencyLabel = latency == null ? '--' : latency <= 15 ? '<15ms' : `${latency}ms`;
   const isSimulated = dataSource?.[selectedSymbol] === 'simulated';
 
   return (
@@ -187,47 +174,6 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
               <NavButton key={tab} tab={tab} active={view === tab} onClick={() => onViewChange(tab)} />
             ))}
           </nav>
-
-          {SECONDARY_TABS.length > 0 && (
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowMore(s => !s)}
-                style={{
-                  padding: '6px 10px',
-                  borderRadius: 7,
-                  border: `1px solid ${T.border}`,
-                  background: T.bg,
-                  cursor: 'pointer',
-                  color: SECONDARY_TABS.some(t => view === t) ? T.accentAlt : T.textDim,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: '0.06em',
-                  fontFamily: "'Inter', sans-serif",
-                }}
-              >
-                MORE
-              </button>
-              {showMore && (
-                <>
-                  <div onClick={() => setShowMore(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
-                  <div style={{
-                    position: 'absolute', top: '100%', right: 0, marginTop: 6,
-                    background: T.surface, border: `1px solid ${T.borderHi}`, borderRadius: 8,
-                    padding: 4, zIndex: 100, minWidth: 150, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                  }}>
-                    {SECONDARY_TABS.map(tab => (
-                      <NavButton
-                        key={tab}
-                        tab={tab}
-                        active={view === tab}
-                        onClick={() => { onViewChange(tab); setShowMore(false); }}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
         </div>
       )}
 
@@ -272,30 +218,6 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
             )}
           </div>
         </>
-      )}
-
-      {!isMobile && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>PORTFOLIO</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(netWorth)}</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>P&amp;L</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: clr(totalPnl), fontFamily: "'IBM Plex Mono', monospace" }}>
-              {sign(totalPnl)}₹{fmt(Math.abs(totalPnl))} ({sign(totalPct)}{fmt(totalPct, 2)}%)
-            </span>
-          </div>
-          <div style={{ width: 1, height: 20, background: T.border, flexShrink: 0 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>CASH</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: T.blue, fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(cash)}</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <span style={{ fontSize: 8, fontWeight: 700, color: T.textDim, letterSpacing: '0.04em' }}>HOLDINGS</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: T.textMid, fontFamily: "'IBM Plex Mono', monospace" }}>₹{fmt(stockValue)}</span>
-          </div>
-        </div>
       )}
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -350,14 +272,14 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
             borderRadius: 6,
             border: `1px solid ${T.border}`,
             background: 'rgba(255, 255, 255, 0.02)',
-            color: latency != null && latency <= 25 ? T.green : T.textMid,
+            color: T.textMid,
             fontFamily: "'IBM Plex Mono', monospace",
             fontSize: 9,
             letterSpacing: '0.04em',
           }}
         >
           <Activity size={11} />
-          {latencyLabel}
+          <span style={{ color: T.textMid }}>LATENCY</span>
         </div>
 
         {!isMobile && (
@@ -381,17 +303,14 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
           </span>
         )}
 
-        <button
-          type="button"
-          onClick={() => setShowHealthModal(true)}
-          title={connected ? `Quant server connected · ${session.label} · open diagnostics` : 'Quant server offline · open diagnostics'}
+        <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 7,
             padding: '4px 9px',
             borderRadius: 999,
-            cursor: 'pointer',
+            cursor: 'default',
             border: `1px solid ${!connected ? T.redGlow : session.color === T.green ? T.greenGlow : session.color === T.gold ? T.borderHi : T.redGlow}`,
             background: !connected ? T.redDim : session.color === T.green ? T.greenDim : session.color === T.gold ? T.goldDim : T.redDim,
           }}
@@ -414,15 +333,8 @@ export default function Header({ connected, view, onViewChange, isMobile, netWor
           }}>
             {!connected ? 'OFFLINE' : session.label}
           </span>
-        </button>
+        </div>
       </div>
-
-      <SystemHealthModal
-        isOpen={showHealthModal}
-        onClose={() => setShowHealthModal(false)}
-        health={health}
-        onRefresh={health.refresh}
-      />
     </div>
   );
 }

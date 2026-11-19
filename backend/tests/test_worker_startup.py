@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 from app.main import app, lifespan, _attach_worker_monitor
 from app.core.config import settings
-from app.core.worker_state import set_degraded_worker, clear_all_degraded_workers
+from app.core.worker_state import set_degraded_worker, clear_all_degraded_workers, get_degraded_workers
 from fastapi.testclient import TestClient
 
 
@@ -376,7 +376,7 @@ def test_degraded_warning_logged_once_per_5_minutes():
             # Warning should be logged exactly once (first iteration)
             # because the degraded workers set hasn't changed and <5 min elapsed
             assert mock_warning.call_count == 1, f"Expected exactly 1 warning, got {mock_warning.call_count}"
-            assert "Skipping new trades - degraded workers" in mock_warning.call_args[0][0]
+            assert "Skipping new predictions - degraded workers" in mock_warning.call_args[0][0]
 
     asyncio.run(_run())
 

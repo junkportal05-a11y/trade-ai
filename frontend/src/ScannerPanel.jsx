@@ -2,6 +2,7 @@ import { API_BASE_URL, apiFetch } from './api';
 import { describeHttpError } from './utils/apiErrors';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { T, mono } from './theme';
+import { isNSEMarketOpen } from './hooks/useMarketData';
 import { ChevronUp, ChevronDown, ChevronRight, ChevronLeft, Circle, Check, X, HelpCircle, AlertTriangle, ChevronDown as ChevronDownIcon } from 'lucide-react';
 
 /* ─── Base URL ──────────────────────────────────────────────────────────────── */
@@ -496,6 +497,12 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
       const res = await apiFetch('/api/signals', { signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const data = await res.json();
+      
+      // Defensive: ensure data is valid
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response from scanner');
+      }
+      
       if (data.error || data.message) {
         // Backend signalled its own problem (e.g. cold-start timeout) — show that.
         setSignals([]);
@@ -506,9 +513,9 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
         // A 200 with zero signals is a success, not an outage: genuinely empty or
         // every candidate was filtered by the quality gates (volume surge, ADX,
         // confidence, VWAP, R:R) — the gates block below explains that.
-        const list = data.signals || [];
+        const list = Array.isArray(data.signals) ? data.signals : [];
         setSignals(list);
-        setGateInfo(data.gates || {});
+        setGateInfo(data.gates && typeof data.gates === 'object' ? data.gates : {});
         if (!list.length) {
           setError(null);
           setErrorKind(null);
@@ -827,8 +834,11 @@ export default function ScannerPanel({ onSelectSymbol, selectedSymbol, prices, c
                     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
                   </svg>
                 </div>
+                {/* FIX: Gate message on real market state */}
                 <div className="empty-state-title" style={{ color: T.textMid }}>
-                  No signals scanned on current watchlist
+                  {isNSEMarketOpen() 
+                    ? 'No qualifying setups — the scan ran but no signal passed the gates' 
+                    : 'Market is closed. No active intraday setups detected on live feed.'}
                 </div>
                 {Object.keys(GATE_LABELS).filter(k => (gateInfo[k] || 0) > 0).length > 0 ? (
                   <div style={{ display: 'inline-block', textAlign: 'left', fontSize: 10, ...mono, lineHeight: 1.9, color: T.textDim }}>

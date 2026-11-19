@@ -5,13 +5,11 @@ import {
 } from 'lucide-react';
 import { T, PRIMARY_TABS, TAB_META, DEFAULT_WATCHLIST } from '../theme';
 
-const ICON_MAP = { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck };
+const ICON_MAP = { Home, TrendingUp, Radio, Sparkles, Settings };
 
+// Removed trading actions: emergency-stop, clear-logs
 const QUICK_ACTIONS = [
-  { id: 'emergency-stop', label: 'Emergency Stop Bot', description: 'Immediately halt all trading activity', icon: AlertTriangle, danger: true },
-  { id: 'health-diag', label: 'Open Health Diagnostics', description: 'View database, broker, worker, and AI status', icon: Database },
-  { id: 'clear-logs', label: 'Clear Order Logs', description: 'Reset the local order and trade history view', icon: RotateCcw },
-  { id: 'refresh-analyst', label: 'Refresh AI Analyst', description: 'Force a fresh recommendation for the active symbol', icon: Sparkles },
+  { id: 'refresh-analyst', label: 'Refresh AI Analyst', description: 'Force a fresh technical read for the active symbol', icon: Sparkles },
   { id: 'scan-breakouts', label: 'Scan Breakouts', description: 'Open the scanner and run a breakout sweep', icon: Zap },
 ];
 
@@ -39,10 +37,13 @@ export default function CommandPalette({ isOpen, onClose, onViewChange, onAction
       const quote = prices[symbol];
       const change = quote?.changePct ?? 0;
       const priceLabel = quote?.price != null ? `₹${Number(quote.price).toLocaleString('en-IN')}` : 'awaiting feed';
+      // Fix "undefined ·" label bug: ensure name and sector have fallbacks
+      const displayName = name || symbol.replace('.NS', '');
+      const displaySector = sector || 'NSE';
       return {
         id: `symbol-${symbol}`,
         label: symbol.replace('.NS', ''),
-        description: `${name} · ${priceLabel} (${change >= 0 ? '+' : ''}${change.toFixed(2)}%)`,
+        description: `${displayName} · ${priceLabel} (${change >= 0 ? '+' : ''}${change.toFixed(2)}%)`,
         icon: TrendingUp,
         kind: 'symbol',
         active: symbol === selectedSymbol,
@@ -51,7 +52,7 @@ export default function CommandPalette({ isOpen, onClose, onViewChange, onAction
           onViewChange('CHART');
           onClose();
         },
-        matchText: `${symbol.replace('.NS', '')} ${name} ${sector}`.toLowerCase(),
+        matchText: `${symbol.replace('.NS', '')} ${displayName} ${displaySector}`.toLowerCase(),
       };
     });
 
@@ -61,7 +62,6 @@ export default function CommandPalette({ isOpen, onClose, onViewChange, onAction
       description: action.description,
       icon: action.icon,
       kind: 'action',
-      danger: action.danger,
       action: () => { onAction?.(action.id); onClose(); },
       matchText: `${action.label} ${action.description}`.toLowerCase(),
     }));
@@ -141,7 +141,7 @@ export default function CommandPalette({ isOpen, onClose, onViewChange, onAction
       return (
         <div style={{ padding: 32, textAlign: 'center', color: T.textDim }}>
           <Search size={28} style={{ margin: '0 auto 10px', opacity: 0.4 }} />
-          <div style={{ fontSize: 13, color: T.text }}>No matches for “{query}”</div>
+          <div style={{ fontSize: 13, color: T.text }}>No matches for "{query}"</div>
           <div style={{ fontSize: 11, color: T.textDim, marginTop: 4 }}>Try a symbol, view name, or quick action.</div>
         </div>
       );
@@ -203,7 +203,7 @@ export default function CommandPalette({ isOpen, onClose, onViewChange, onAction
                     {item.description}
                   </div>
                 </div>
-                <ChevronRight size={14} style={{ flexShrink: 0, color: isSelected ? T.accentAlt : T.textDim, opacity: 0.6 }} />
+                <ChevronRight size={14} style={{ flexShrink: 0, color: isSelected ? T.accentAlt : T.textMid, opacity: 0.6 }} />
               </button>
             );
           })}

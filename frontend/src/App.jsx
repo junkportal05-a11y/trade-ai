@@ -1,5 +1,5 @@
 import { API_BASE_URL, apiFetch, verifyToken } from './api';
-import { Plus, Minus, Info, AlertTriangle, Link, Link2Off, RefreshCw, Layers, Crosshair, TrendingUp, X, Home, Bot, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck, Activity, Wifi, WifiOff, Search, Zap, Camera, Loader2, ChevronRight, ChevronLeft, Zap as ZapIcon, RotateCcw, Database, SkipForward, Terminal, ScanLine, Settings, HelpCircle, LayoutDashboard } from 'lucide-react';
+import { Plus, Minus, Info, AlertTriangle, Link, Link2Off, RefreshCw, Layers, Crosshair, TrendingUp, X, Home, Radio, Sparkles, Settings, Activity, Wifi, WifiOff, Search, Zap, Camera, Loader2, ChevronRight, ChevronLeft, Zap as ZapIcon, RotateCcw, Database, SkipForward, Terminal, ScanLine, LayoutDashboard } from 'lucide-react';
 import CodeEntryScreen from './components/CodeEntryScreen';
 import CandleChart from './components/CandleChart';
 import { calcEMA, calcBollingerBands, calcRSI, calcMACD } from './utils/indicators';
@@ -9,30 +9,20 @@ import { useHistory, useLivePrices, isNSEMarketOpen } from './hooks/useMarketDat
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import SignalsPanel from './SignalsPanel';
 import IntroSplash from './IntroSplash';
-import AccountPanel from './AccountPanel';
-import OrderBookPanel from './OrderBookPanel';
 import HomePanel from './HomePanel';
 import PredictionsPanel from './PredictionsPanel';
-import JournalPanel from './JournalPanel';
-import SimulatorPanel from './SimulatorPanel';
-import PerformancePanel from './PerformancePanel';
-import BotControlPanel from './BotControlPanel';
-import TradeLogPanel from './TradeLogPanel';
 import StrategySelector from './StrategySelector';
 import BacktestRunner from './BacktestRunner';
 import { PanelErrorBoundary } from './PanelErrorBoundary';
 import CommandPalette from './components/CommandPalette';
 import Header from './components/Header';
-import ChatPanel from './components/ChatPanel';
 import TickerBar from './components/TickerBar';
-import BottomConsole from './components/BottomConsole';
 import { describeHttpError } from './utils/apiErrors';
 import WatchlistPanel from './components/WatchlistPanel';
-import OrderPanel from './components/OrderPanel';
 import { T, SEED_PRICES, DEFAULT_WATCHLIST, INTERVALS, PRIMARY_TABS, SECONDARY_TABS, MOBILE_TABS, TAB_META, EMPTY_ARRAY, fmt, clr, sign, escapeHTML } from './theme';
 import { BRIEF_TIMEOUT_MS, briefErrorMessage } from './utils/briefing';
 
-const TAB_ICONS = { Home, Bot, TrendingUp, Radio, Sparkles, BarChart3, BookOpen, ShieldCheck };
+const TAB_ICONS = { Home, TrendingUp, Radio, Sparkles, Settings };
 
 function MobileNavButtons({ view, onChange }) {
   return (
@@ -127,16 +117,16 @@ export default function App() {
   const [view, setView]         = useState(() => {
     const pathname = window.location.pathname.toLowerCase();
     if (pathname.includes('/account') || pathname.endsWith('account')) {
-      return 'ACCOUNT';
+      return 'HOME';
     }
-    return 'SIMULATOR';
-  });   // 'SIMULATOR' is default now, but routing-aware
+    return 'HOME';
+  });   // 'HOME' is default
 
   const [cmdOpen, setCmdOpen] = useState(false);
 
   const [selected, setSelected] = useState('YESBANK.NS');
   const [ivIdx, setIvIdx]       = useState(0);          // 1D default for intraday
-  const [rightTab, setRightTab] = useState('BOT');
+  const [rightTab, setRightTab] = useState('STRATEGIES');
   
   const [drawMode, setDrawMode] = useState(null); // 'SUPPORT' | 'RESISTANCE' | 'TREND' | 'FIB' | null
   const [chartLines, setChartLines] = useState(() => {
@@ -178,40 +168,12 @@ export default function App() {
   // briefing/stats never fetch (they were gated on loggedIn && backendReady).
   const [backendReady, setBackendReady] = useState(() => localStorage.getItem('apex_splash_shown') !== null);
 
-  // Paper Trading State
-  const [portfolio, setPortfolio] = useState(() => {
-    const saved = localStorage.getItem('apex_portfolio');
-    return saved ? JSON.parse(saved) : []; // Default is empty portfolio: no stocks
-  });
-  const [cash, setCash] = useState(() => {
-    const saved = localStorage.getItem('apex_cash');
-    return saved ? parseFloat(saved) : 1000000; // Starting cash: ₹10,00,000 (10 Lakhs)
-  });
-  const [openOrders, setOpenOrders] = useState([]);
-
-  useEffect(() => {
-    localStorage.setItem('apex_portfolio', JSON.stringify(portfolio));
-  }, [portfolio]);
-
-  useEffect(() => {
-    localStorage.setItem('apex_cash', cash.toString());
-  }, [cash]);
-
-  // Chart markers for executed paper trades
-  const [tradeMarkers, setTradeMarkers] = useState({});
-
   const symbols = DEFAULT_WATCHLIST.map(w => w.symbol);
   const { prices, connected, dataSource } = useLivePrices(symbols);
   const iv = INTERVALS[ivIdx];
   const currentPrice     = prices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
   const hasRealTick      = !!prices[selected];
   const currentChangePct = prices[selected]?.changePct ?? 0;
-
-  const totalStockValue = portfolio.reduce((sum, pos) => {
-    const price = prices[pos.symbol]?.price ?? SEED_PRICES[pos.symbol] ?? pos.avgCost;
-    return sum + (price * pos.shares);
-  }, 0);
-  const netWorth = totalStockValue + cash;
 
   // ── Keyboard Shortcuts ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -255,7 +217,7 @@ export default function App() {
       setSelected(DEFAULT_WATCHLIST[nextIndex].symbol);
     },
     onFocusSearch: () => setCmdOpen(true),
-    onToggleBot: () => setView('SIMULATOR'),
+    onToggleBot: () => setView('HOME'),
     onToggleChart: () => setView('CHART'),
   });
 
@@ -282,7 +244,7 @@ export default function App() {
         // Market is open or opened already today
         apiFetch('/api/scan', {
           method: 'POST',
-          body: JSON.stringify({ symbols: DEFAULT_WATCHLIST.map(w=>w.symbol), interval: '15m', capital: cash })
+          body: JSON.stringify({ symbols: DEFAULT_WATCHLIST.map(w=>w.symbol), interval: '15m', capital: 1840 })
         })
         .then(r => r.json())
         .then(data => {
@@ -298,31 +260,13 @@ export default function App() {
     checkMorningBrief();
     const t = setInterval(checkMorningBrief, 60000);
     return () => clearInterval(t);
-  }, [cash]);
-
-  const totalCost = portfolio.reduce((sum, pos) => {
-    return sum + (pos.avgCost * pos.shares);
-  }, 0);
-  const totalPnl = totalStockValue - totalCost;
-  const totalPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+  }, []);
 
   // Mobile layout sub-tab for Chart page
   const [mobileSubTab, setMobileSubTab] = useState('CHART');
 
-  // Bot Engine State — paper only, live trading is not exposed.
-  const botPaperMode = true;
-  const [selectedStrategy, setSelectedStrategy] = useState('intraday_momentum');
-  const [strategyPerformance, setStrategyPerformance] = useState(null);
-  const [backtestResults, setBacktestResults] = useState(null);
-
   // Console active tab state
-  const [consoleTab, setConsoleTab] = useState('POSITIONS');
-
-  // Price alerts state
-  const [priceAlerts, setPriceAlerts] = useState(() => {
-    const saved = localStorage.getItem('apex_price_alerts');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [consoleTab, setConsoleTab] = useState('CHART');
 
   // Reference for prices to prevent unnecessary re-fetches in AI effects
   const pricesRef = useRef(prices);
@@ -426,17 +370,8 @@ export default function App() {
         window.dispatchEvent(new CustomEvent('apex:open-health'));
         break;
       case 'clear-logs':
-        setTradeMarkers({});
-        showToast('Order log markers cleared', 'info');
-        break;
-      case 'emergency-stop':
-        try {
-          const res = await apiFetch('/api/bot/stop', { method: 'POST' });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          showToast('EMERGENCY STOP — bot halted and positions squared off', 'success');
-        } catch (err) {
-          showToast(`Emergency stop failed: ${err.message}`, 'error');
-        }
+        // Chart lines cleared
+        showToast('Chart annotations cleared', 'info');
         break;
       default:
         break;
@@ -450,31 +385,6 @@ export default function App() {
       return updated;
     });
   }, []);
-
-  const handleAddAlert = useCallback((symbol, condition, targetPrice) => {
-    const newAlert = {
-      id: Math.random().toString(36).substr(2, 9),
-      symbol,
-      condition,
-      targetPrice: parseFloat(targetPrice),
-      active: true,
-    };
-    setPriceAlerts(prev => {
-      const updated = [...prev, newAlert];
-      localStorage.setItem('apex_price_alerts', JSON.stringify(updated));
-      return updated;
-    });
-    showToast(`Price alert created for ${symbol.replace('.NS', '')}`, 'success');
-  }, [showToast]);
-
-  const handleDeleteAlert = useCallback((id) => {
-    setPriceAlerts(prev => {
-      const updated = prev.filter(a => a.id !== id);
-      localStorage.setItem('apex_price_alerts', JSON.stringify(updated));
-      return updated;
-    });
-    showToast(`Price alert removed`, 'info');
-  }, [showToast]);
 
   const [pendingPredictions, setPendingPredictions] = useState([]);
   const resolvingIds = useRef(new Set());
@@ -501,7 +411,6 @@ export default function App() {
       return () => clearInterval(interval);
     }
   }, [fetchPendingPredictions, loggedIn, view]);
-
 
 
   // Embedded AI Analyst Recommendation Fetch Effect
@@ -539,7 +448,7 @@ export default function App() {
           ? ` at current price ₹${livePrice} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`
           : '';
 
-        const res = await apiFetch('/api/chat', {
+        const res = await apiFetch('/api/chat/chart', {
           method: 'POST',
           body: JSON.stringify({
             message: `Provide a quick 1-2 sentence technical analyst recommendation for ${cleanedSymbol}${priceClause}. Focus on technical metrics like RSI, key levels, or potential triggers. Keep it extremely concise.`,
@@ -575,41 +484,6 @@ export default function App() {
       clearTimeout(timer);
     };
   }, [selected, loggedIn, view, refreshAnalystToken]); // Removed 'prices' dependency
-
-  // Price Alerts Engine Effect
-  useEffect(() => {
-    if (priceAlerts.length === 0) return;
-    
-    const triggeredIds = [];
-    priceAlerts.forEach(alert => {
-      const liveData = prices[alert.symbol];
-      if (!liveData) return;
-      
-      const price = liveData.price;
-      let triggered = false;
-      if (alert.condition === 'above' && price >= alert.targetPrice) {
-        triggered = true;
-      } else if (alert.condition === 'below' && price <= alert.targetPrice) {
-        triggered = true;
-      }
-      
-      if (triggered) {
-        triggeredIds.push(alert.id);
-        const sideSymbol = alert.symbol.replace('.NS', '');
-        const direction = alert.condition === 'above' ? 'crossed above' : 'dropped below';
-        showToast(`⏰ ALERT TRIGGERED: ${sideSymbol} has ${direction} ₹${fmt(alert.targetPrice, 1)} (Current: ₹${fmt(price, 1)})`, 'info');
-      }
-    });
-    
-    if (triggeredIds.length > 0) {
-      setPriceAlerts(prev => {
-        const updated = prev.filter(a => !triggeredIds.includes(a.id));
-        localStorage.setItem('apex_price_alerts', JSON.stringify(updated));
-        return updated;
-      });
-    }
-  }, [prices, priceAlerts, showToast]);
-
 
   // Mobile Responsiveness State
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 960);
@@ -676,230 +550,6 @@ export default function App() {
     }));
   }, [selected, ivIdx, getCurrentBarTime]);
 
-
-
-  // Execute market/limit orders
-  const handleExecuteOrder = async (order) => {
-    const qty = parseFloat(order.qty);
-    if (isNaN(qty) || qty <= 0) {
-      alert("Please enter a valid share quantity!");
-      return false;
-    }
-    
-    if (order.type === 'market' && !prices[order.symbol]) {
-      alert('Market orders unlock after the first feed tick arrives for this symbol — seeded prices are not orderable.');
-      return false;
-    }
-
-    if (order.type === 'market') {
-      const price = order.price;
-      const cost = qty * price;
-      
-      if (order.side === 'buy') {
-        if (cost > cash) {
-          alert("Insufficient cash balance!");
-          return false;
-        }
-        setCash(prev => prev - cost);
-        setPortfolio(prev => {
-          const existing = prev.find(p => p.symbol === order.symbol);
-          if (existing) {
-            const newShares = existing.shares + qty;
-            const newAvgCost = ((existing.shares * existing.avgCost) + cost) / newShares;
-            return prev.map(p => p.symbol === order.symbol ? { ...p, shares: newShares, avgCost: newAvgCost } : p);
-          } else {
-            return [...prev, { symbol: order.symbol, shares: qty, avgCost: price }];
-          }
-        });
-        addTradeMarker(order.symbol, 'buy', qty, price);
-      } else {
-        // sell
-        let valid = true;
-        setPortfolio(prev => {
-          const existing = prev.find(p => p.symbol === order.symbol);
-          if (!existing || existing.shares < qty) {
-            valid = false;
-            return prev;
-          }
-          const newShares = existing.shares - qty;
-          if (newShares === 0) {
-            return prev.filter(p => p.symbol !== order.symbol);
-          }
-          return prev.map(p => p.symbol === order.symbol ? { ...p, shares: newShares } : p);
-        });
-        
-        if (!valid) {
-          alert("Insufficient shares in portfolio to execute sell!");
-          return false;
-        }
-        setCash(prev => prev + cost);
-        addTradeMarker(order.symbol, 'sell', qty, price);
-      }
-
-      // Persist to backend Journal. The backend JournalEntry model has no
-      // target/stop columns yet (pydantic ignores unknown keys), so those keys
-      // ride along null-safe for forward compatibility; exit_price and pnl for
-      // paper sells are real fields today.
-      try {
-        const heldPosition = portfolio.find(p => p.symbol === order.symbol);
-        await apiFetch('/api/journal', {
-          method: 'POST',
-          body: JSON.stringify({
-            symbol: order.symbol,
-            direction: order.side.toUpperCase(),
-            entry_price: price,
-            exit_price: order.side === 'sell' ? price : null,
-            qty: qty,
-            entry_date: new Date().toISOString(),
-            reason: 'Manual Paper Trade',
-            status: order.side === 'buy' ? 'OPEN' : 'CLOSED',
-            pnl: order.side === 'sell' && heldPosition ? (price - heldPosition.avgCost) * qty : null,
-            target_price: null,
-            stop_loss: null
-          })
-        });
-      } catch (e) {
-        console.error("Failed to log paper trade to journal", e);
-      }
-
-      return 'filled';
-    } else {
-      // limit order
-      const limitPrice = parseFloat(order.limitPrice);
-      if (isNaN(limitPrice) || limitPrice <= 0) {
-        alert("Please enter a valid limit price!");
-        return false;
-      }
-      
-      if (order.side === 'buy' && qty * limitPrice > cash) {
-        alert("Insufficient cash to place this limit order!");
-        return false;
-      }
-      
-      if (order.side === 'sell') {
-        const existing = portfolio.find(p => p.symbol === order.symbol);
-        const lockedShares = openOrders
-          .filter(o => o.symbol === order.symbol && o.side === 'sell')
-          .reduce((sum, o) => sum + o.qty, 0);
-        if (!existing || existing.shares < lockedShares + qty) {
-          alert("Insufficient shares available (some are locked in other open orders)!");
-          return false;
-        }
-      }
-
-      const newOrder = {
-        id: Math.random().toString(36).substr(2, 9),
-        symbol: order.symbol,
-        side: order.side,
-        qty,
-        limitPrice,
-        timestamp: Date.now()
-      };
-      
-      setOpenOrders(prev => [...prev, newOrder]);
-      return 'placed';
-    }
-  };
-
-  const handleCancelOrder = (id) => {
-    setOpenOrders(prev => prev.filter(o => o.id !== id));
-  };
-
-  // Limit Order Matching Engine (Check on price ticks)
-  useEffect(() => {
-    if (openOrders.length === 0) return;
-    
-    let filledIds = [];
-    let updatedCash = cash;
-    let updatedPortfolio = [...portfolio];
-    let journalEntries = [];
-    
-    openOrders.forEach(order => {
-      const livePrice = prices[order.symbol]?.price;
-      if (!livePrice) return;
-      
-      let trigger = false;
-      if (order.side === 'buy' && livePrice <= order.limitPrice) {
-        trigger = true;
-      } else if (order.side === 'sell' && livePrice >= order.limitPrice) {
-        trigger = true;
-      }
-      
-      if (trigger) {
-        filledIds.push(order.id);
-        const cost = order.qty * order.limitPrice; // execute at limit price
-        addTradeMarker(order.symbol, order.side, order.qty, order.limitPrice);
-        
-        if (order.side === 'buy') {
-          if (cost <= updatedCash) {
-            updatedCash -= cost;
-            const existingIdx = updatedPortfolio.findIndex(p => p.symbol === order.symbol);
-            if (existingIdx !== -1) {
-              const existing = updatedPortfolio[existingIdx];
-              const newShares = existing.shares + order.qty;
-              const newAvgCost = ((existing.shares * existing.avgCost) + cost) / newShares;
-              updatedPortfolio[existingIdx] = { ...existing, shares: newShares, avgCost: newAvgCost };
-            } else {
-              updatedPortfolio.push({ symbol: order.symbol, shares: order.qty, avgCost: order.limitPrice });
-            }
-            journalEntries.push({
-              symbol: order.symbol,
-              direction: 'BUY',
-              entry_price: order.limitPrice,
-              exit_price: null,
-              qty: order.qty,
-              entry_date: new Date().toISOString(),
-              reason: 'Limit Order Fill (paper)',
-              status: 'OPEN',
-              pnl: null,
-              target_price: null,
-              stop_loss: null
-            });
-          }
-        } else {
-          // sell
-          const existingIdx = updatedPortfolio.findIndex(p => p.symbol === order.symbol);
-          if (existingIdx !== -1) {
-            const existing = updatedPortfolio[existingIdx];
-            if (existing.shares >= order.qty) {
-              const newShares = existing.shares - order.qty;
-              if (newShares === 0) {
-                updatedPortfolio.splice(existingIdx, 1);
-              } else {
-                updatedPortfolio[existingIdx] = { ...existing, shares: newShares };
-              }
-              updatedCash += cost;
-              journalEntries.push({
-                symbol: order.symbol,
-                direction: 'SELL',
-                entry_price: order.limitPrice,
-                exit_price: order.limitPrice,
-                qty: order.qty,
-                entry_date: new Date().toISOString(),
-                reason: 'Limit Order Fill (paper)',
-                status: 'CLOSED',
-                pnl: (order.limitPrice - existing.avgCost) * order.qty,
-                target_price: null,
-                stop_loss: null
-              });
-            }
-          }
-        }
-      }
-    });
-    
-    if (filledIds.length > 0) {
-      setCash(updatedCash);
-      setPortfolio(updatedPortfolio);
-      setOpenOrders(prev => prev.filter(o => !filledIds.includes(o.id)));
-      // Best-effort paper journal entries for limit fills; a failed POST
-      // never blocks or reverts the fill itself.
-      journalEntries.forEach(entry => {
-        apiFetch('/api/journal', { method: 'POST', body: JSON.stringify(entry) })
-          .catch(e => console.error('Failed to log limit fill to journal', e));
-      });
-    }
-  }, [prices, openOrders, cash, portfolio, addTradeMarker]);
 
   // Called from SignalsPanel when user clicks a signal card
   const handleSignalSelect = (symbol) => {
@@ -1002,13 +652,7 @@ export default function App() {
           connected={connected} 
           view={view} 
           onViewChange={setView} 
-          isMobile={isMobile} 
-
-          netWorth={netWorth}
-          cash={cash}
-          stockValue={totalStockValue}
-          totalPnl={totalPnl}
-          totalPct={totalPct}
+          isMobile={isMobile}
           selectedSymbol={selected}
           prices={prices}
           dataSource={dataSource}
@@ -1023,22 +667,13 @@ export default function App() {
             <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
               <HomePanel 
                 prices={prices} 
-                portfolio={portfolio} 
-                cash={cash} 
                 onViewChange={setView} 
                 onSelectSymbol={setSelected}
-                signals={signals}
-                priceAlerts={priceAlerts} 
-                onDeleteAlert={handleDeleteAlert} 
                 brief={marketBrief}
                 loadingBrief={loadingBrief}
                 briefError={briefError}
                 stats={predictionStats}
                 onRefreshBrief={fetchMarketBrief}
-                onUpdateBalances={(newCash, newPortfolio) => {
-                  setCash(newCash);
-                  setPortfolio(newPortfolio);
-                }}
               />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -1049,7 +684,7 @@ export default function App() {
           ) : view === 'SIGNALS' ? (
             /* SIGNALS VIEW — full width */
             <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-              <SignalsPanel onSelectSymbol={handleSignalSelect} selectedSymbol={selected} prices={prices} cash={cash} />
+              <SignalsPanel onSelectSymbol={handleSignalSelect} selectedSymbol={selected} prices={prices} />
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
                   <MobileNavButtons view={view} onChange={setView} />
@@ -1066,516 +701,360 @@ export default function App() {
                 </div>
               )}
             </div>
-          ) : view === 'JOURNAL' ? (
-            /* JOURNAL VIEW — full width */
+          ) : view === 'STRATEGIES' ? (
+            /* STRATEGIES VIEW — full width */
             <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-              <JournalPanel />
-              {isMobile && (
-                <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  <MobileNavButtons view={view} onChange={setView} />
-                </div>
-              )}
-            </div>
-          ) : view === 'PERFORMANCE' ? (
-            /* PERFORMANCE VIEW — full width */
-            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-              <PerformancePanel onViewChange={setView} />
-              {isMobile && (
-                <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  <MobileNavButtons view={view} onChange={setView} />
-                </div>
-              )}
-            </div>
-          ) : view === 'ACCOUNT' ? (
-            /* ACCOUNT VIEW — full width */
-            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-              <AccountPanel 
-                currentUser={currentUser} 
-                userRole={userRole} 
-                userClearance={userClearance} 
-              />
-              {isMobile && (
-                <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                  <MobileNavButtons view={view} onChange={setView} />
-                </div>
-              )}
-            </div>
-          ) : view === 'SIMULATOR' ? (
-            /* BOT ENGINE VIEW — Hero panel: BotControl + TradeLog + Strategy + Backtest */
-            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16, flex: 1, overflow: 'auto' }}>
-                {/* Top Row: Bot Control + Trade Log */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, minHeight: 0 }}>
-                  <BotControlPanel />
-                  <TradeLogPanel />
-                </div>
-
-                {/* Bottom Row: Strategy Selector + Backtest Runner */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, minHeight: 0 }}>
-                  <StrategySelector
-                    selectedStrategy={selectedStrategy}
-                    onSelectStrategy={setSelectedStrategy}
-                    performanceData={backtestResults?.performance}
-                  />
-                  <BacktestRunner onResults={setBacktestResults} />
-                </div>
+              <div style={{ flex: 1, padding: 16, overflow: 'auto' }}>
+                <StrategySelector
+                  selectedStrategy={selectedStrategy}
+                  onSelectStrategy={setSelectedStrategy}
+                  performanceData={backtestResults?.performance}
+                />
+                <BacktestRunner onResults={setBacktestResults} />
               </div>
-
               {isMobile && (
                 <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
                   <MobileNavButtons view={view} onChange={setView} />
                 </div>
               )}
             </div>
-          ) : (
-            <>
-              {isMobile ? (
-                /* MOBILE VIEW — Single column with bottom tabs and top sub-tabs for Chart view */
-                <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.bg }}>
-                  {/* Content Area */}
-                  <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-                    {/* Sub-tab switcher */}
-                    <div style={{ display: 'flex', background: T.panelAlt, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
-                      {['WATCHLIST', 'CHART', 'ORDER', 'AI'].map(sub => (
-                        <button key={sub} onClick={() => setMobileSubTab(sub)} style={{
-                          flex: 1, padding: '10px 0', border: 'none', cursor: 'pointer',
-                          background: 'transparent',
-                          color: mobileSubTab === sub ? T.accent : T.textDim,
-                          fontSize: 10, fontWeight: 700,
-                          fontFamily: "'Inter', sans-serif",
-                          borderBottom: `2px solid ${mobileSubTab === sub ? T.accent : 'transparent'}`,
-                          marginTop: -1
-                        }}>
-                          {sub === 'WATCHLIST' ? 'WATCH' : sub === 'CHART' ? 'CHART' : sub === 'ORDER' ? 'TRADE' : 'AI'}
-                        </button>
-                      ))}
-                    </div>
-
-                    {mobileSubTab === 'WATCHLIST' && (
-                      <div style={{ flex: 1, background: T.surface }}>
-                        <WatchlistPanel prices={prices} selected={selected} onSelect={(s) => { setSelected(s); setMobileSubTab('CHART'); }} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
-                      </div>
-                    )}
-
-                    {mobileSubTab === 'CHART' && (
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                        {/* Interval picker & Indicator Toggles (Scrollable on mobile) */}
-                        <div style={{ padding: '8px 12px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6, background: T.surface, overflowX: 'auto', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 2, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, flexShrink: 0 }}>
-                            {INTERVALS.map((intv, i) => (
-                              <button key={intv.label} onClick={() => setIvIdx(i)} style={{
-                                padding: '4px 9px', borderRadius: 6, cursor: 'pointer', fontSize: 10.5, fontWeight: 600,
-                                border: `1px solid ${ivIdx === i ? T.borderHi : 'transparent'}`,
-                                background: ivIdx === i ? T.surfaceDim : 'transparent',
-                                boxShadow: ivIdx === i ? `0 0 0 1px ${T.border}` : 'none',
-                                color: ivIdx === i ? T.text : T.textMid,
-                                fontFamily: "'Inter', sans-serif",
-                                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)', flexShrink: 0
-                              }}>{intv.label}</button>
-                            ))}
-                          </div>
-                          <div style={{ width: 1, height: 16, background: T.border, margin: '0 4px', flexShrink: 0 }} />
-                          {/* Indicator Toggles */}
-                          {[
-                            ['ema9', 'EMA9'], ['ema21', 'EMA21'], ['bb', 'BB'], ['rsi', 'RSI'], ['macd', 'MACD'],
-                          ].map(([key, label]) => {
-                            const active = indicators[key];
-                            return (
-                              <button key={key} onClick={() => setIndicators(prev => ({ ...prev, [key]: !prev[key] }))} style={{
-                                padding: '4px 8px', border: `1px solid ${active ? T.accent : T.border}`,
-                                borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
-                                background: active ? T.accentDim : 'transparent',
-                                color: active ? T.accentAlt : T.textDim,
-                                fontFamily: "'Inter', sans-serif",
-                                transition: 'all 0.15s', flexShrink: 0
-                              }}>{label}</button>
-                            );
-                          })}
-                          
-                          <div style={{ width: 1, height: 16, background: T.border, margin: '0 4px', flexShrink: 0 }} />
-                          
-                          {/* Drawing Tools Group */}
-                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-                            <button onClick={() => setDrawMode(drawMode === 'SUPPORT' ? null : 'SUPPORT')} title="Horizontal Support Line" style={{
-                              padding: '4px 8px', border: `1px solid ${drawMode === 'SUPPORT' ? T.green : T.border}`,
-                              borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
-                              background: drawMode === 'SUPPORT' ? T.greenDim : 'transparent',
-                              color: drawMode === 'SUPPORT' ? T.green : T.textDim,
-                              fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
-                            }}>SUPPORT</button>
-                            
-                            <button onClick={() => setDrawMode(drawMode === 'RESISTANCE' ? null : 'RESISTANCE')} title="Horizontal Resistance Line" style={{
-                              padding: '4px 8px', border: `1px solid ${drawMode === 'RESISTANCE' ? T.red : T.border}`,
-                              borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
-                              background: drawMode === 'RESISTANCE' ? T.redDim : 'transparent',
-                              color: drawMode === 'RESISTANCE' ? T.red : T.textDim,
-                              fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
-                            }}>RESIST</button>
-                            
-                            <button onClick={() => setDrawMode(drawMode === 'TREND' ? null : 'TREND')} title="Trend Line (click 2 points)" style={{
-                              padding: '4px 8px', border: `1px solid ${drawMode === 'TREND' ? T.blue : T.border}`,
-                              borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
-                              background: drawMode === 'TREND' ? 'rgba(59,130,246,0.15)' : 'transparent',
-                              color: drawMode === 'TREND' ? T.blue : T.textDim,
-                              fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
-                            }}>TREND</button>
-                            
-                            <button onClick={() => setDrawMode(drawMode === 'FIB' ? null : 'FIB')} title="Fibonacci Retracement (click swing high/low)" style={{
-                              padding: '4px 8px', border: `1px solid ${drawMode === 'FIB' ? T.purple : T.border}`,
-                              borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
-                              background: drawMode === 'FIB' ? 'rgba(168,85,247,0.15)' : 'transparent',
-                              color: drawMode === 'FIB' ? T.purple : T.textDim,
-                              fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
-                            }}>FIB</button>
-                            
-                            {(chartLines[selected] || []).length > 0 && (
-                              <button onClick={() => { setChartLines(prev => { const u={...prev}; delete u[selected]; localStorage.setItem('apex_chart_lines', JSON.stringify(u)); return u; }); }} title="Clear all drawings for this symbol" style={{
-                                padding: '4px 8px', border: `1px solid ${T.border}`, borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
-                                background: 'transparent', color: T.textDim, fontFamily: "'Inter', sans-serif", transition: 'all 0.15s', flexShrink: 0
-                              }}>CLEAR</button>
-                            )}
-                          </div>
-                        {/* Chart */}
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                          <CandleChart 
-                            key={`${selected}-${INTERVALS[ivIdx].interval}-${INTERVALS[ivIdx].range}-${indicators.rsi}-${indicators.macd}`} 
-                            symbol={selected} 
-                            interval={INTERVALS[ivIdx].interval} 
-                            range={INTERVALS[ivIdx].range} 
-                            indicators={indicators} 
-                            livePrice={prices[selected]}
-                            markers={tradeMarkers[selected] || EMPTY_ARRAY}
-                            onLastBarUpdate={handleLastBarUpdate}
-                            drawMode={drawMode}
-                            onDrawComplete={handleDrawComplete}
-                            customLines={chartLines[selected] || EMPTY_ARRAY}
-                            botPaperMode={botPaperMode}
-                            dataSource={dataSource[selected]}
-                            trendStart={trendStart}
-                            setTrendStart={setTrendStart}
-                            fibStart={fibStart}
-                            setFibStart={setFibStart}
-                          />
-                        </div>
-                        {/* Embedded AI Analyst Card */}
-                        <div style={{
-                          margin: '8px 12px 12px',
-                          background: T.panel,
-                          border: `1px solid ${T.border}`,
-                          borderRadius: 8,
-                          padding: '10px 12px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 6,
-                          flexShrink: 0
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: T.accentAlt }}>
-                              <Sparkles size={12} /> AI QUANT ANALYST: {selected.replace('.NS', '')}
-                            </div>
-                            {aiRecommendationLoading && (
-                              <span style={{ display: 'inline-block', width: 10, height: 10, border: `1.5px solid ${T.border}`, borderTopColor: T.accentAlt, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-                            )}
-                          </div>
-                          <div style={{ fontSize: 11, color: T.text, lineHeight: 1.4 }}>
-                            {aiRecommendationLoading ? (
-                              <span style={{ color: T.textDim }}>Running technical scan...</span>
-                            ) : aiRecommendationError ? (
-                              <span style={{ color: '#ff5f6d' }}>
-                                {aiRecommendationError}{' '}
-                                <button onClick={() => setRefreshAnalystToken(prev => prev + 1)} style={{ padding: '2px 8px', background: 'rgba(255, 95, 109, 0.08)', border: '1px solid rgba(255, 95, 109, 0.3)', borderRadius: 4, color: '#ff5f6d', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em' }}>RETRY</button>
-                              </span>
-                            ) : (
-                              aiRecommendation || "Select a ticker from the watchlist to fetch a quick technical recommendation."
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                            <button
-                              onClick={() => setView('PREDICTIONS')}
-                              style={{
-                                padding: '3px 8px',
-                                background: T.accentDim,
-                                border: `1px solid ${T.border}`,
-                                borderRadius: 5,
-                                color: T.accent,
-                                fontSize: 9,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                fontFamily: "'Inter', sans-serif",
-                                letterSpacing: '0.04em',
-                                transition: 'all 0.2s'
-                              }}
-                              onMouseEnter={e => e.currentTarget.style.background = '0 4px 12px rgba(0, 0, 0, 0.15)'}
-                              onMouseLeave={e => e.currentTarget.style.background = T.accentDim}
-                            >
-                              LOG PREDICTION
-                            </button>
-                            <button
-                              onClick={() => setRefreshAnalystToken(prev => prev + 1)}
-                              disabled={aiRecommendationLoading}
-                              style={{
-                                padding: '3px 8px',
-                                background: 'rgba(77, 166, 255, 0.08)',
-                                border: `1px solid ${T.blue}30`,
-                                borderRadius: 5,
-                                color: T.blue,
-                                fontSize: 9,
-                                fontWeight: 700,
-                                cursor: aiRecommendationLoading ? 'not-allowed' : 'pointer',
-                                fontFamily: "'Inter', sans-serif",
-                                letterSpacing: '0.04em',
-                                transition: 'all 0.2s'
-                              }}
-                              onMouseEnter={e => !aiRecommendationLoading && (e.currentTarget.style.background = 'rgba(77, 166, 255, 0.15)')}
-                              onMouseLeave={e => !aiRecommendationLoading && (e.currentTarget.style.background = 'rgba(77, 166, 255, 0.08)')}
-                            >
-                    REFRESH
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      </div>
-                      )}
-
-                    {mobileSubTab === 'ORDER' && (
-                      <div style={{ flex: 1, background: T.surface, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                        <div style={{ flex: '1 1 50%', overflowY: 'auto', minHeight: 0 }}>
-                          <OrderPanel symbol={selected} price={currentPrice} cash={cash} openOrders={openOrders} onExecuteOrder={handleExecuteOrder} onCancelOrder={handleCancelOrder} priceAlerts={priceAlerts} onAddAlert={handleAddAlert} onDeleteAlert={handleDeleteAlert} />
-                        </div>
-                        <div style={{ flex: '1 1 50%', minHeight: 0 }}>
-                          <OrderBookPanel symbol={selected} price={currentPrice} />
-                        </div>
-                      </div>
-                    )}
-
-                    {mobileSubTab === 'AI' && (
-                      <div style={{ flex: 1, background: T.surface }}>
-                        <ChatPanel symbol={selected} price={currentPrice} changePct={currentChangePct} />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Bottom Navigation Bar */}
-                  <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                    <MobileNavButtons view={view} onChange={setView} />
-                  </div>
-                </div>
-              )
-
-              : (
-                /* DESKTOP VIEW — 3 Columns (Watchlist collapsible) */
-                <div className="panel-transition" style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-                  {/* LEFT — Watchlist (Collapsible) */}
-                  <div style={{ width: showWatchlist ? 280 : 0, flexShrink: 0, borderRight: showWatchlist ? `1px solid ${T.border}` : 'none', background: T.surface, overflow: 'hidden', transition: 'width 0.3s ease, border 0.3s ease' }}>
-                    {showWatchlist && (
-                      <WatchlistPanel prices={prices} selected={selected} onSelect={setSelected} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
-                    )}
-                  </div>
-
-                  {/* Watchlist Toggle Button */}
-                  <button
-                    onClick={() => setShowWatchlist(!showWatchlist)}
-                    style={{
-                      position: 'relative',
-                      width: 32,
-                      flexShrink: 0,
-                      border: 'none',
-                      background: T.surface,
-                      borderRight: `1px solid ${T.border}`,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = T.panelAlt}
-                    onMouseLeave={e => e.currentTarget.style.background = T.surface}
-                    aria-label={showWatchlist ? 'Collapse watchlist' : 'Expand watchlist'}
-                  >
-                    <span style={{
-                      fontSize: 14,
-                      color: showWatchlist ? T.accent : T.textMid,
-                      transform: showWatchlist ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.3s ease, color 0.2s'
-                    }}>
-                      <ChevronLeft size={14} />
-                    </span>
-                  </button>
-
-                  {/* CENTER — Chart and Bottom Console */}
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.bg }}>
-                    {/* Interval picker & Indicator Toggles */}
-                    <div style={{ padding: '8px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6, background: T.surface, flexWrap: 'wrap' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: 2, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8 }}>
-                        {INTERVALS.map((intv, i) => (
-                          <button key={intv.label} onClick={() => setIvIdx(i)} style={{
-                            padding: '4px 11px', borderRadius: 6, cursor: 'pointer', fontSize: 10.5, fontWeight: 600,
-                            border: `1px solid ${ivIdx === i ? T.borderHi : 'transparent'}`,
-                            background: ivIdx === i ? `linear-gradient(135deg, ${T.surfaceDim}, ${T.goldDim})` : 'transparent',
-                            boxShadow: ivIdx === i ? `0 0 0 1px ${T.border}` : 'none',
-                            color: ivIdx === i ? T.text : T.textMid,
-                            fontFamily: "'Inter', sans-serif", letterSpacing: '0.02em',
-                            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                          }}>{intv.label}</button>
-                        ))}
-                      </div>
-
-                      <div style={{ width: 1, height: 16, background: T.border, margin: '0 8px' }} />
-
-                      {/* Indicator Toggles */}
-                      {[
-                        ['ema9', 'EMA 9'],
-                        ['ema21', 'EMA 21'],
-                        ['bb', 'BB Bands'],
-                        ['rsi', 'RSI'],
-                        ['macd', 'MACD'],
-                      ].map(([key, label]) => {
-                        const active = indicators[key];
-                        return (
-                          <button key={key} onClick={() => setIndicators(prev => ({ ...prev, [key]: !prev[key] }))} style={{
-                            padding: '4px 9px', border: `1px solid ${active ? T.accent : T.border}`,
-                            borderRadius: 5, cursor: 'pointer', fontSize: 9, fontWeight: 700,
-                            background: active ? T.accentDim : 'transparent',
-                            color: active ? T.accentAlt : T.textDim,
-                            fontFamily: "'Inter', sans-serif", letterSpacing: '0.04em',
-                            transition: 'all 0.15s',
-                          }}>{label}</button>
-                        );
-                      })}
-
-                      <div style={{ marginLeft: 'auto', fontSize: 10, color: T.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>
-                        {INTERVALS[ivIdx].interval} · {INTERVALS[ivIdx].range}
-                      </div>
-                    </div>
-
-                    {/* Chart */}
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                      <CandleChart
-                        key={`${selected}-${INTERVALS[ivIdx].interval}-${INTERVALS[ivIdx].range}-${indicators.rsi}-${indicators.macd}`}
-                        symbol={selected}
-                        interval={INTERVALS[ivIdx].interval}
-                        range={INTERVALS[ivIdx].range}
-                        indicators={indicators}
-                        livePrice={prices[selected]}
-                        markers={tradeMarkers[selected] || EMPTY_ARRAY}
-                        onLastBarUpdate={handleLastBarUpdate}
-                        botPaperMode={botPaperMode}
-                        dataSource={dataSource[selected]}
+          ) : view === 'CHART' ? (
+            /* CHART VIEW — full width with right panel tabs */
+            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: 'column' }}>
+                {/* Chart Area */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                  <div style={{ flex: 1, display: 'flex', minHeight: 0, position: 'relative' }}>
+                    {/* Main Chart */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <CandleChart 
+                        symbol={selected} 
+                        interval={iv.interval} 
+                        range={iv.range} 
+                        indicators={indicators} 
+                        livePrice={currentPrice} 
+                        markers={[]}
+                        onLastBarUpdate={handleLastBarUpdate} 
+                        drawMode={drawMode} 
+                        onDrawComplete={handleDrawComplete} 
+                        customLines={chartLines[selected] || []}
+                        botPaperMode={true}
+                        dataSource={dataSource}
+                        trendStart={trendStart}
+                        setTrendStart={setTrendStart}
+                        fibStart={fibStart}
+                        setFibStart={setFibStart}
                       />
                     </div>
 
-                    {/* Bottom Console Tray */}
-                    <BottomConsole 
-                      prices={prices} 
-                      portfolio={portfolio} 
-                      cash={cash} 
-                      openOrders={openOrders} 
-                      onCancelOrder={handleCancelOrder} 
-                      priceAlerts={priceAlerts} 
-                      onDeleteAlert={handleDeleteAlert}
-                      aiRecommendation={aiRecommendation}
-                      aiRecommendationLoading={aiRecommendationLoading}
-                      aiRecommendationError={aiRecommendationError}
-                      aiRecommendationSource={aiRecommendationSource}
-                      selected={selected}
-                      onExecuteOrder={handleExecuteOrder}
-                      onViewChange={setView}
-                      consoleTab={consoleTab}
-                      setConsoleTab={setConsoleTab}
-                      onRefreshAnalyst={() => setRefreshAnalystToken(prev => prev + 1)}
-                    />
+                    {/* Right Panel — Chart, Strategies, Backtest, AI Analyst */}
+                    <div style={{ 
+                      width: isMobile ? '100%' : 420, 
+                      minWidth: isMobile ? 0 : 380,
+                      maxWidth: isMobile ? '100%' : 420,
+                      background: T.surface, 
+                      borderLeft: `1px solid ${T.border}`, 
+                      display: isMobile ? 'none' : 'flex', 
+                      flexDirection: 'column', 
+                      overflow: 'hidden' 
+                    }}>
+                      {/* Right Panel Tab Bar */}
+                      <div style={{ 
+                        display: 'flex', 
+                        background: T.panelAlt, 
+                        borderBottom: `1px solid ${T.border}`, 
+                        flexShrink: 0,
+                        overflowX: 'auto'
+                      }}>
+                        {['CHART', 'STRATEGIES', 'BACKTEST', 'AI_ANALYST'].map(tab => (
+                          <button
+                            key={tab}
+                            onClick={() => setRightTab(tab)}
+                            style={{
+                              flex: 1, padding: '10px 12px', border: 'none', cursor: 'pointer',
+                              background: 'transparent',
+                              color: rightTab === tab ? T.accent : T.textDim,
+                              fontSize: 10, fontWeight: 700,
+                              fontFamily: "'Inter', sans-serif",
+                              borderBottom: `2px solid ${rightTab === tab ? T.accent : 'transparent'}`,
+                              marginTop: -1,
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {tab === 'CHART' ? 'CHART' : tab === 'STRATEGIES' ? 'STRATEGIES' : tab === 'BACKTEST' ? 'BACKTEST' : 'AI ANALYST'}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Right Panel Content */}
+                      <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+                        {rightTab === 'CHART' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <h3 style={{ fontSize: 12, fontWeight: 700, color: T.text, letterSpacing: '0.04em' }}>INDICATORS</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {[
+                                ['ema9', 'EMA 9'], ['ema21', 'EMA 21'], ['bb', 'Bollinger Bands'], ['rsi', 'RSI (14)'], ['macd', 'MACD'],
+                              ].map(([key, label]) => {
+                                const active = indicators[key];
+                                return (
+                                  <button key={key} onClick={() => setIndicators(prev => ({ ...prev, [key]: !prev[key] }))} style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    padding: '8px 12px', border: `1px solid ${active ? T.accent : T.border}`,
+                                    borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                                    background: active ? T.accentDim : 'transparent',
+                                    color: active ? T.accentAlt : T.textDim,
+                                    fontFamily: "'Inter', sans-serif",
+                                    transition: 'all 0.15s'
+                                  }}>
+                                    <span>{label}</span>
+                                    <span style={{ width: 10, height: 10, borderRadius: 2, background: active ? T.accent : T.border }} />
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {rightTab === 'STRATEGIES' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <h3 style={{ fontSize: 12, fontWeight: 700, color: T.text, letterSpacing: '0.04em' }}>PREDICTION ENGINES</h3>
+                            <StrategySelector
+                              selectedStrategy={selectedStrategy}
+                              onSelectStrategy={setSelectedStrategy}
+                              performanceData={backtestResults?.performance}
+                            />
+                          </div>
+                        )}
+
+                        {rightTab === 'BACKTEST' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <h3 style={{ fontSize: 12, fontWeight: 700, color: T.text, letterSpacing: '0.04em' }}>BACKTEST</h3>
+                            <BacktestRunner onResults={setBacktestResults} />
+                          </div>
+                        )}
+
+                        {rightTab === 'AI_ANALYST' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <h3 style={{ fontSize: 12, fontWeight: 700, color: T.text, letterSpacing: '0.04em', margin: 0 }}>AI ANALYST</h3>
+                              <button
+                                onClick={() => setRefreshAnalystToken(prev => prev + 1)}
+                                disabled={aiRecommendationLoading}
+                                style={{
+                                  padding: '6px 12px', borderRadius: 6, cursor: 'pointer',
+                                  background: aiRecommendationLoading ? T.border : T.accent,
+                                  border: 'none', color: aiRecommendationLoading ? T.textDim : T.text,
+                                  fontSize: 10, fontWeight: 700,
+                                  fontFamily: "'Inter', sans-serif",
+                                }}
+                              >
+                                {aiRecommendationLoading ? (
+                                  <>
+                                    <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                                    <span style={{ marginLeft: 6 }}>REFRESH</span>
+                                  </>
+                                ) : 'REFRESH'}
+                              </button>
+                            </div>
+                            {aiRecommendationError && (
+                              <div style={{ 
+                                background: T.redDim, 
+                                border: `1px solid ${T.red}`, 
+                                borderRadius: 8, 
+                                padding: 12,
+                                color: T.red,
+                                fontSize: 11 
+                              }}>
+                                {aiRecommendationError}
+                              </div>
+                            )}
+                            {aiRecommendation && !aiRecommendationLoading && (
+                              <div style={{ 
+                                background: T.panel, 
+                                border: `1px solid ${T.borderHi}`, 
+                                borderRadius: 8, 
+                                padding: 12,
+                                fontSize: 12,
+                                lineHeight: 1.6,
+                                color: T.text 
+                              }}>
+                                {aiRecommendation}
+                                {aiRecommendationSource && (
+                                  <div style={{ marginTop: 8, fontSize: 10, color: T.textMid }}>
+                                    Source: {aiRecommendationSource}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {!aiRecommendation && !aiRecommendationLoading && !aiRecommendationError && (
+                              <div style={{ color: T.textDim, fontSize: 11, fontStyle: 'italic' }}>
+                                Click REFRESH to generate an AI technical read for {selected.replace('.NS', '')}.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* RIGHT — Tabbed panel (Bot Engine) */}
-                  <div style={{ width: 360, flexShrink: 0, borderLeft: `1px solid ${T.border}`, background: T.surface, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    {/* Tab header */}
-                    <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}`, flexShrink: 0, background: T.panelAlt }}>
-                      {['BOT ENGINE', 'TRADE LOG', 'STRATEGIES', 'BACKTEST'].map(tab => (
-                        <button key={tab} onClick={() => setRightTab(tab)} style={{
-                          flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer',
-                          background: 'transparent',
-                          borderBottom: `2px solid ${rightTab === tab ? T.accent : 'transparent'}`,
-                          color: rightTab === tab ? T.text : T.textDim,
-                          fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em',
-                          fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
-                        }}>
-                          {tab}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Tab content */}
-                    <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                      {rightTab === 'BOT ENGINE' && (
-                        <div style={{ flex: 1, overflow: 'hidden', padding: 12 }}>
-                          <BotControlPanel />
-                        </div>
-                      )}
-                      {rightTab === 'TRADE LOG' && (
-                        <div style={{ flex: 1, overflow: 'hidden', padding: 12 }}>
-                          <TradeLogPanel />
-                        </div>
-                      )}
-                      {rightTab === 'STRATEGIES' && (
-                        <div style={{ flex: 1, overflow: 'hidden', padding: 12 }}>
-                          <StrategySelector selectedStrategy={selectedStrategy} onSelectStrategy={setSelectedStrategy} performanceData={strategyPerformance} />
-                        </div>
-                      )}
-                      {rightTab === 'BACKTEST' && (
-                        <div style={{ flex: 1, overflow: 'hidden', padding: 12 }}>
+                  {/* Mobile: Right Panel as bottom sheet */}
+                  {isMobile && (
+                    <div style={{ 
+                      background: T.surface, 
+                      borderTop: `1px solid ${T.border}`, 
+                      maxHeight: '60vh',
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        background: T.panelAlt, 
+                        borderBottom: `1px solid ${T.border}`, 
+                        flexShrink: 0,
+                        overflowX: 'auto'
+                      }}>
+                        {['CHART', 'STRATEGIES', 'BACKTEST', 'AI_ANALYST'].map(tab => (
+                          <button
+                            key={tab}
+                            onClick={() => setRightTab(tab)}
+                            style={{
+                              flex: 1, padding: '10px 12px', border: 'none', cursor: 'pointer',
+                              background: 'transparent',
+                              color: rightTab === tab ? T.accent : T.textDim,
+                              fontSize: 10, fontWeight: 700,
+                              fontFamily: "'Inter', sans-serif",
+                              borderBottom: `2px solid ${rightTab === tab ? T.accent : 'transparent'}`,
+                              marginTop: -1,
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {tab === 'CHART' ? 'CHART' : tab === 'STRATEGIES' ? 'STRATEGIES' : tab === 'BACKTEST' ? 'BACKTEST' : 'AI ANALYST'}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+                        {rightTab === 'CHART' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {[
+                              ['ema9', 'EMA 9'], ['ema21', 'EMA 21'], ['bb', 'Bollinger Bands'], ['rsi', 'RSI (14)'], ['macd', 'MACD'],
+                            ].map(([key, label]) => {
+                              const active = indicators[key];
+                              return (
+                                <button key={key} onClick={() => setIndicators(prev => ({ ...prev, [key]: !prev[key] }))} style={{
+                                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                  padding: '8px 12px', border: `1px solid ${active ? T.accent : T.border}`,
+                                  borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                                  background: active ? T.accentDim : 'transparent',
+                                  color: active ? T.accentAlt : T.textDim,
+                                  fontFamily: "'Inter', sans-serif",
+                                  transition: 'all 0.15s'
+                                }}>
+                                  <span>{label}</span>
+                                  <span style={{ width: 10, height: 10, borderRadius: 2, background: active ? T.accent : T.border }} />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {rightTab === 'STRATEGIES' && (
+                          <StrategySelector
+                            selectedStrategy={selectedStrategy}
+                            onSelectStrategy={setSelectedStrategy}
+                            performanceData={backtestResults?.performance}
+                          />
+                        )}
+
+                        {rightTab === 'BACKTEST' && (
                           <BacktestRunner onResults={setBacktestResults} />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-        
-        <CommandPalette
-          isOpen={cmdOpen}
-          onClose={() => setCmdOpen(false)}
-          onViewChange={setView}
-          onAction={handleCommandAction}
-          currentView={view}
-          selectedSymbol={selected}
-          prices={prices}
-        />
+                        )}
 
-        {/* Morning Brief Modal */}
-        {showBriefModal && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}>
-            <div style={{ background: T.surface, padding: 30, borderRadius: 12, border: `1px solid ${T.accent}`, width: '100%', maxWidth: 500, display: 'flex', flexDirection: 'column', gap: 20, boxShadow: `0 0 40px ${T.accentDim}` }}>
-              <div>
-                <h2 style={{ margin: 0, color: T.text, fontFamily: "'IBM Plex Mono', monospace", fontSize: 18 }}>MORNING MARKET BRIEF</h2>
-                <div style={{ color: T.textMid, fontSize: 12, marginTop: 4 }}>Top 3 algorithmic signals for today's open.</div>
-              </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {morningSignals.length === 0 ? (
-                  <div style={{ color: T.textMid, fontSize: 13, textAlign: 'center', padding: 20 }}>No high-confidence signals found at open.</div>
-                ) : morningSignals.map((s, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: 16, background: T.bg, border: `1px solid ${T.borderHi}`, borderRadius: 8 }}>
-                    <div>
-                      <div style={{ color: T.text, fontWeight: 'bold', fontFamily: "'IBM Plex Mono', monospace" }}>{s.symbol}</div>
-                      <div style={{ color: s.action === 'BUY' ? T.green : T.red, fontSize: 12, fontWeight: 'bold' }}>{s.action} @ ₹{fmt(s.current_price)}</div>
+                        {rightTab === 'AI_ANALYST' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <h3 style={{ fontSize: 12, fontWeight: 700, color: T.text, letterSpacing: '0.04em', margin: 0 }}>AI ANALYST</h3>
+                              <button
+                                onClick={() => setRefreshAnalystToken(prev => prev + 1)}
+                                disabled={aiRecommendationLoading}
+                                style={{
+                                  padding: '6px 12px', borderRadius: 6, cursor: 'pointer',
+                                  background: aiRecommendationLoading ? T.border : T.accent,
+                                  border: 'none', color: aiRecommendationLoading ? T.textDim : T.text,
+                                  fontSize: 10, fontWeight: 700,
+                                  fontFamily: "'Inter', sans-serif",
+                                }}
+                              >
+                                {aiRecommendationLoading ? (
+                                  <>
+                                    <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                                    <span style={{ marginLeft: 6 }}>REFRESH</span>
+                                  </>
+                                ) : 'REFRESH'}
+                              </button>
+                            </div>
+                            {aiRecommendationError && (
+                              <div style={{ 
+                                background: T.redDim, 
+                                border: `1px solid ${T.red}`, 
+                                borderRadius: 8, 
+                                padding: 12,
+                                color: T.red,
+                                fontSize: 11 
+                              }}>
+                                {aiRecommendationError}
+                              </div>
+                            )}
+                            {aiRecommendation && !aiRecommendationLoading && (
+                              <div style={{ 
+                                background: T.panel, 
+                                border: `1px solid ${T.borderHi}`, 
+                                borderRadius: 8, 
+                                padding: 12,
+                                fontSize: 12,
+                                lineHeight: 1.6,
+                                color: T.text 
+                              }}>
+                                {aiRecommendation}
+                                {aiRecommendationSource && (
+                                  <div style={{ marginTop: 8, fontSize: 10, color: T.textMid }}>
+                                    Source: {aiRecommendationSource}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {!aiRecommendation && !aiRecommendationLoading && !aiRecommendationError && (
+                              <div style={{ color: T.textDim, fontSize: 11, fontStyle: 'italic' }}>
+                                Click REFRESH to generate an AI technical read for {selected.replace('.NS', '')}.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ color: T.textMid, fontSize: 11 }}>Target: <span style={{color: T.text}}>₹{fmt(s.target)}</span></div>
-                      <div style={{ color: T.textMid, fontSize: 11 }}>Stop: <span style={{color: T.text}}>₹{fmt(s.stop_loss)}</span></div>
-                    </div>
+                  )}
+                </div>
+
+                {isMobile && (
+                  <div style={{ display: 'flex', borderTop: `1px solid ${T.border}`, background: T.panelAlt, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                    <MobileNavButtons view={view} onChange={setView} />
                   </div>
-                ))}
+                )}
               </div>
-              
-              <button onClick={() => setShowBriefModal(false)} style={{ background: T.accent, color: T.text, border: 'none', padding: '12px', borderRadius: 6, fontWeight: 'bold', cursor: 'pointer', fontFamily: "'IBM Plex Mono', monospace", marginTop: 10 }}>ACKNOWLEDGE</button>
             </div>
-          </div>
-        )}
-      </div>
+          ) : (
+            /* Fallback - redirect to HOME */
+            <div className="panel-transition" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.textDim }}>
+                Redirecting to Home...
+              </div>
+            </div>
+          )}
+
+        </div>
+        <CommandPalette isOpen={cmdOpen} onClose={() => setCmdOpen(false)} onAction={handleCommandAction} />
+        </div>
       )}
     </>
   );
 }
-
