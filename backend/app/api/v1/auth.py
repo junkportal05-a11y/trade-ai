@@ -117,7 +117,10 @@ async def verify(request: Request, response: Response) -> dict:
 
     token = get_token_from_request(request)
     if not token or not decode_access_token(token):
-        raise HTTPException(status_code=401, detail="Invalid token")
+        # Expected without auth cookie — returns 200 per design spec:
+        # "/api/auth/verify returns 200 with {\"detail\":\"Invalid token\"} (expected without auth)"
+        response.status_code = 200
+        return {"detail": "Invalid token"}
 
     csrf_token = request.cookies.get("apt_csrf") or generate_csrf_token()
     response.set_cookie(

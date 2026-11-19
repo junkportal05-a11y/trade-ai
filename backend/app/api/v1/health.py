@@ -228,10 +228,16 @@ async def health_check(request: Request) -> dict[str, Any]:
     # "paper_no_broker" is informational (paper mode needs no broker) and
     # "disabled" workers are a deliberate web-instance configuration — neither degrades health.
     statuses = [c.get("status", "unknown") for c in checks.values()]
-    if any(s == "unhealthy" or s == "error" for s in statuses):
+    has_unhealthy = any(s in ("unhealthy", "error") for s in statuses)
+    has_degraded = any(s == "degraded" for s in statuses)
+    has_warning = any(s == "warning" for s in statuses)
+
+    if has_unhealthy:
         overall = "unhealthy"
-    elif any(s in ("degraded", "warning", "not_configured") for s in statuses):
+    elif has_degraded:
         overall = "degraded"
+    elif has_warning:
+        overall = "warning"
     else:
         overall = "healthy"
     
