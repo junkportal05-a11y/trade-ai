@@ -30,7 +30,7 @@ export const API_BASE_URL = getApiBaseUrl();
 
 const isDev = typeof window !== "undefined" && window.location.port === "5173";
 export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 
-  (API_BASE_URL ? API_BASE_URL.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:') : (isDev ? 'ws://localhost:8000/ws' : ''));
+  (API_BASE_URL ? API_BASE_URL.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:') : '');
 
 // Build headers for apiFetch. Multipart bodies must not get a JSON
 // Content-Type or the browser boundary is lost. Mutating requests carry the

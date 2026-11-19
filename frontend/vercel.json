@@ -11,12 +11,12 @@
   ],
   "build": {
     "env": {
-      "VITE_API_URL": "",
+      "VITE_API_URL": "https://apextrade-core-trade-ai-backend.hf.space",
       "VITE_WS_URL": "wss://apextrade-core-trade-ai-backend.hf.space"
     }
   },
   "env": {
-    "VITE_API_URL": "",
+    "VITE_API_URL": "https://apextrade-core-trade-ai-backend.hf.space",
     "VITE_WS_URL": "wss://apextrade-core-trade-ai-backend.hf.space"
   }
 }

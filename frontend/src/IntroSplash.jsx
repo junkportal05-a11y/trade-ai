@@ -7,9 +7,6 @@ import { getApiBaseUrl, setApiBaseUrl } from './api';
 import { T } from './theme';
 
 const HF_DEFAULT_URL = 'https://apextrade-core-trade-ai-backend.hf.space';
-const LOCAL_DEFAULT_URL = typeof window !== 'undefined' && window.location.hostname === '127.0.0.1'
-  ? 'http://127.0.0.1:7860'
-  : 'http://localhost:7860';
 
 function StatusRow({ state, children }) {
   const Icon = state === 'ok' ? CheckCircle2 : state === 'warn' ? AlertTriangle : Loader2;
@@ -26,8 +23,7 @@ export default function IntroSplash({ onWokenUp }) {
   const [currentUrl, setCurrentUrl] = useState(() => {
     const configured = getApiBaseUrl();
     if (configured) return configured;
-    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    return isLocal ? LOCAL_DEFAULT_URL : HF_DEFAULT_URL;
+    return HF_DEFAULT_URL;
   });
   const [customInput, setCustomInput] = useState('');
   const [showConfig, setShowConfig] = useState(false);
@@ -294,13 +290,13 @@ export default function IntroSplash({ onWokenUp }) {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => switchTarget(LOCAL_DEFAULT_URL)} style={{
+            <button onClick={() => switchTarget('http://localhost:7860')} style={{
               flex: 1,
               padding: '8px 10px',
               borderRadius: 8,
-              background: currentUrl === LOCAL_DEFAULT_URL ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-              border: `1px solid ${currentUrl === LOCAL_DEFAULT_URL ? T.accent : 'rgba(255, 255, 255, 0.08)'}`,
-              color: currentUrl === LOCAL_DEFAULT_URL ? T.accentAlt : T.textMid,
+              background: currentUrl === 'http://localhost:7860' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+              border: `1px solid ${currentUrl === 'http://localhost:7860' ? T.accent : 'rgba(255, 255, 255, 0.08)'}`,
+              color: currentUrl === 'http://localhost:7860' ? T.accentAlt : T.textMid,
               fontSize: 11,
               fontWeight: 600,
               cursor: 'pointer',

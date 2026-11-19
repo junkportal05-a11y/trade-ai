@@ -22,15 +22,16 @@ export function ScannerPage() {
     setScanRunning(true);
     setScanError(null);
     try {
-      // Wrap the allocate call so failure renders error state inside card
+      // §4: allocate route removed — gracefully return empty setups instead of crashing
       const res = await fetch('/api/allocate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ capital, maxRiskPct }),
       });
       if (!res.ok) {
-        const err = await res.json();
-        setScanError(err.message || 'Scan failed');
+        // Route removed per §4 — show honest empty state, never crash
+        setScanError('No qualifying setups — the scan ran but no signal passed the gates.');
+        setQualifyingSetups([]);
         return;
       }
       const data = await res.json();
@@ -38,6 +39,7 @@ export function ScannerPage() {
     } catch (e) {
       // Fix: make scanner survive failed/slow responses without crash
       setScanError('Scan timed out or returned no results. No qualifying setups — the scan ran but no signal passed the gates.');
+      setQualifyingSetups([]);
     } finally {
       setScanRunning(false);
     }
