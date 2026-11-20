@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
-from app.api.deps import DbDep, SessionDep, TraderDep
+from app.api.deps import DbDep, SessionDep, OptionalSessionDep, TraderDep
 from app.models.schemas import PredictionCreate, PredictionResolveRequest
 from app.core.security import CsrfDep
 from app.db.repositories import repo
@@ -44,12 +44,12 @@ def _holding_time_minutes_started(started: datetime | str | None) -> float | Non
 
 
 @router.get("/predictions", response_model=list[dict])
-def get_predictions(db: Session = DbDep, _=SessionDep) -> list[dict]:
+def get_predictions(db: Session = DbDep, _=OptionalSessionDep) -> list[dict]:
     return repo.predictions.get_all(db)
 
 
 @router.get("/predictions/pending", response_model=list[dict])
-def get_pending_predictions(db: Session = DbDep, _=SessionDep) -> list[dict]:
+def get_pending_predictions(db: Session = DbDep, _=OptionalSessionDep) -> list[dict]:
     return repo.predictions.get_pending(db)
 
 
@@ -78,7 +78,7 @@ def delete_prediction(
 
 
 @router.get("/predictions/stats", response_model=dict)
-def get_prediction_stats(db: Session = DbDep, _=SessionDep) -> dict:
+def get_prediction_stats(db: Session = DbDep, _=OptionalSessionDep) -> dict:
     all_preds = db.query(PredictionsHistory).all()
     total_count = len(all_preds)
     

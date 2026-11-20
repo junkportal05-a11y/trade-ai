@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, File, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.api.deps import DbDep, SessionDep
+from app.api.deps import DbDep, SessionDep, OptionalSessionDep
 from app.core.security import CsrfDep
 from app.models.schemas import ChatRequest, ChatResponse, ChartAnalysisRequest, ChartAnalysisResponse
 from app.core.config import settings
@@ -20,7 +20,7 @@ async def chat(
     request: Request,
     db: Session = DbDep,
     csrf=CsrfDep,
-    _=SessionDep,
+    _=OptionalSessionDep,
 ) -> dict:
     from app.services.chat import get_chat_reply
 
@@ -37,7 +37,7 @@ async def analyze_chart_json(
     req: ChartAnalysisRequest,
     request: Request,
     csrf=CsrfDep,
-    _=SessionDep,
+    _=OptionalSessionDep,
 ) -> ChartAnalysisResponse:
     """
     Analyze a candlestick chart image using Gemini 2.0 Flash multimodal.
@@ -65,7 +65,7 @@ async def analyze_chart_upload(
     request: Request,
     file: Any = File(...),
     csrf=CsrfDep,
-    _=SessionDep,
+    _=OptionalSessionDep,
 ) -> JSONResponse:
     """
     Analyze a candlestick chart image using Gemini 2.0 Flash multimodal.

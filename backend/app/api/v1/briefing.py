@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import APIRouter, Request
-from app.api.deps import SessionDep
+from app.api.deps import SessionDep, OptionalSessionDep
 from app.core.limiter import limiter
 from app.core.config import settings
 
@@ -96,7 +96,7 @@ def _compose_brief() -> dict:
 @limiter.limit(settings.rate_limit_user)
 async def get_market_brief(
     request: Request,
-    _=SessionDep,
+    _=OptionalSessionDep,
 ) -> dict:
     """
     Daily Market Briefing for the home panel.
