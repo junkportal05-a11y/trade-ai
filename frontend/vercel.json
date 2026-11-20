@@ -4,10 +4,8 @@
   "framework": "vite",
   "installCommand": "npm install",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://apextrade-core-trade-ai-backend.hf.space/api/$1" }
-  ],
-  "redirects": [
-    { "source": "/(.*)", "destination": "/index.html", "status": 200, "log": 404 }
+    { "source": "/api/(.*)", "destination": "https://apextrade-core-trade-ai-backend.hf.space/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
     {
