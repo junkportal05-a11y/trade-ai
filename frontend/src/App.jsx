@@ -134,6 +134,10 @@ export default function App() {
     return saved ? JSON.parse(saved) : {};
   }); // { 'SYMBOL.NS': [{price, type, id, p1, p2}] }
   
+  const [tradeMarkers, setTradeMarkers] = useState({});
+  const [selectedStrategy, setSelectedStrategy] = useState('intraday_momentum');
+  const [backtestResults, setBacktestResults] = useState(null);
+  
   const [trendStart, setTrendStart] = useState(null); // { time, price } for trend line first click
   const [fibStart, setFibStart] = useState(null); // { time, price } for fib first click
   

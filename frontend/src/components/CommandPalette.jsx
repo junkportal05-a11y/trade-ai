@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, BarChart3, Bot, BookOpen, ChevronRight, Database, Home, Radio,
-  RotateCcw, Search, ShieldCheck, Sparkles, TrendingUp, X, Zap,
+  RotateCcw, Search, Settings, ShieldCheck, Sparkles, TrendingUp, X, Zap,
 } from 'lucide-react';
 import { T, PRIMARY_TABS, TAB_META, DEFAULT_WATCHLIST } from '../theme';
 
