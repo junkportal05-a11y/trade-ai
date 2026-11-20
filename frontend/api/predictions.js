@@ -1,4 +1,5 @@
 const HF_BACKEND = 'https://apextrade-core-trade-ai-backend.hf.space';
+const https = require('https');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,22 +16,34 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const response = await fetch(`${HF_BACKEND}/api/predictions`, {
+    const url = new URL(`${HF_BACKEND}/api/predictions`);
+    const options = {
+      hostname: url.hostname,
+      path: url.pathname + url.search,
       method: 'GET',
       headers: {
         'Origin': 'https://trade-ai-beta.vercel.app',
       },
+    };
+
+    const response = await new Promise((resolve, reject) => {
+      const hfReq = https.request(options, (hfRes) => {
+        let data = '';
+        hfRes.on('data', (chunk) => { data += chunk; });
+        hfRes.on('end', () => resolve({ status: hfRes.statusCode, headers: hfRes.headers, data }));
+      });
+      hfReq.on('error', reject);
+      hfReq.end();
     });
 
-    response.headers.forEach((value, key) => {
+    Object.entries(response.headers).forEach(([key, value]) => {
       if (!['content-encoding', 'transfer-encoding'].includes(key.toLowerCase())) {
         res.setHeader(key, value);
       }
     });
 
     res.setHeader('Access-Control-Allow-Origin', '*');
-    const data = await response.arrayBuffer();
-    res.status(response.status).send(Buffer.from(data));
+    res.status(response.status).send(response.data);
   } catch (error) {
     console.error('Proxy error:', error);
     res.status(502).json({ error: 'Bad Gateway', message: error.message });
