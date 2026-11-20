@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.security import CsrfDep
-from app.api.deps import DbDep, SessionDep
+from app.api.deps import DbDep, SessionDep, OptionalSessionDep
 from app.models.schemas import ScanRequest, SignalResponse, SignalsQuery
 from app.core.executors import scan_executor
 from app.core.logging import logger
@@ -69,7 +69,7 @@ async def get_signals(
     request: Request,
     params: SignalsQuery = Depends(),
     db: Session = DbDep,
-    _=SessionDep,
+    _=OptionalSessionDep,
 ) -> dict:
     from app.services.signal_engine import NSE_WATCHLIST, run_scan
 
@@ -118,7 +118,7 @@ async def post_scan(
     request: Request,
     db: Session = DbDep,
     csrf=CsrfDep,
-    _=SessionDep,
+    _=OptionalSessionDep,
 ) -> dict:
     from app.services.signal_engine import NSE_WATCHLIST, run_scan
 
