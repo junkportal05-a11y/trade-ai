@@ -3,6 +3,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rootDirectory": "frontend",
+  "functions": {},
   "headers": [
     {
       "source": "/api/(.*)",
