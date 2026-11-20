@@ -19,7 +19,6 @@ integrations/
 ai/
 
 # Scripts and tools
-scripts/
 
 # Data directories
 historical_data/
