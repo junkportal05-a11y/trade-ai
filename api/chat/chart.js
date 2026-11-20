@@ -1,7 +1,7 @@
 const HF_BACKEND = 'https://apextrade-core-trade-ai-backend.hf.space';
 const https = require('https');
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With');
@@ -52,4 +52,4 @@ module.exports = async (req, res) => {
     console.error('Proxy error:', error);
     res.status(502).json({ error: 'Bad Gateway', message: error.message });
   }
-};
+}
