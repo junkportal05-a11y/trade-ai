@@ -1,4 +1,5 @@
 const HF_BACKEND = 'https://apextrade-core-trade-ai-backend.hf.space';
+const https = require('https');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,24 +16,38 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const response = await fetch(`${HF_BACKEND}/api/chat/chart`, {
+    const url = new URL(`${HF_BACKEND}/api/chat/chart`);
+    const postData = JSON.stringify(req.body);
+    const options = {
+      hostname: url.hostname,
+      path: url.pathname + url.search,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Origin': 'https://trade-ai-beta.vercel.app',
+        'Content-Length': Buffer.byteLength(postData),
       },
-      body: JSON.stringify(req.body),
+    };
+
+    const response = await new Promise((resolve, reject) => {
+      const hfReq = https.request(options, (hfRes) => {
+        let data = '';
+        hfRes.on('data', (chunk) => { data += chunk; });
+        hfRes.on('end', () => resolve({ status: hfRes.statusCode, headers: hfRes.headers, data }));
+      });
+      hfReq.on('error', reject);
+      hfReq.write(postData);
+      hfReq.end();
     });
 
-    response.headers.forEach((value, key) => {
+    Object.entries(response.headers).forEach(([key, value]) => {
       if (!['content-encoding', 'transfer-encoding'].includes(key.toLowerCase())) {
         res.setHeader(key, value);
       }
     });
 
     res.setHeader('Access-Control-Allow-Origin', '*');
-    const data = await response.arrayBuffer();
-    res.status(response.status).send(Buffer.from(data));
+    res.status(response.status).send(response.data);
   } catch (error) {
     console.error('Proxy error:', error);
     res.status(502).json({ error: 'Bad Gateway', message: error.message });

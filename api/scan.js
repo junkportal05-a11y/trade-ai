@@ -18,17 +18,36 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const response = await fetch(`${HF_BACKEND}/api/scan`, {
+    // Use native https module for compatibility
+    const https = require('https');
+    const url = new URL(`${HF_BACKEND}/api/scan`);
+    
+    const options = {
+      hostname: url.hostname,
+      path: url.pathname + url.search,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Origin': 'https://trade-ai-beta.vercel.app',
       },
-      body: JSON.stringify(req.body),
+    };
+
+    const postData = JSON.stringify(req.body);
+    options.headers['Content-Length'] = Buffer.byteLength(postData);
+
+    const response = await new Promise((resolve, reject) => {
+      const hfReq = https.request(options, (hfRes) => {
+        let data = '';
+        hfRes.on('data', (chunk) => { data += chunk; });
+        hfRes.on('end', () => resolve({ status: hfRes.statusCode, headers: hfRes.headers, data }));
+      });
+      hfReq.on('error', reject);
+      hfReq.write(postData);
+      hfReq.end();
     });
 
     // Copy response headers
-    response.headers.forEach((value, key) => {
+    Object.entries(response.headers).forEach(([key, value]) => {
       if (!['content-encoding', 'transfer-encoding'].includes(key.toLowerCase())) {
         res.setHeader(key, value);
       }
@@ -38,8 +57,7 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     
     // Send response
-    const data = await response.arrayBuffer();
-    res.status(response.status).send(Buffer.from(data));
+    res.status(response.status).send(response.data);
   } catch (error) {
     console.error('Proxy error:', error);
     res.status(502).json({ error: 'Bad Gateway', message: error.message });
