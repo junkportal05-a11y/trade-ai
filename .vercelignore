@@ -1,12 +1,14 @@
 # Ignore everything except frontend/ and vercel.json
 # Vercel should only build the frontend
 
+# Python virtual environment
+.venv/
+
 # Agent/skill directories
 hive/
 .claude/
 .gemini/
 .opencode/
-.agents/
 .agents/
 
 # Backend (deployed separately to HF)
@@ -37,7 +39,6 @@ Dockerfile
 Dockerfile.*
 .pytest_cache/
 .ruff_cache/
-.venv/
 test.db
 trading_platform.db*
 palace.lock
