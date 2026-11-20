@@ -1,0 +1,26 @@
+# ======================================================================
+# Trade AI / ApexTrade - Heavy ML & Engine Dependencies
+# ======================================================================
+# Optional dependencies for ML forecasting and Nautilus trading engine.
+# Install locally: pip install -r requirements-ml.txt
+# NOT installed in CI - tests use import guards/mocking.
+
+# Time Series Forecasting (Heavy - requires GPU for best perf)
+torch==2.4.0
+transformers==4.42.0
+accelerate==0.32.0
+einops==0.8.0
+# TimesFM - install from GitHub: pip install git+https://github.com/google-research/timesfm.git
+# Kronos - local integration (see integrations/Kronos)
+
+# Nautilus Trader (core trading engine - requires Rust/Cython)
+# nautilus-trader[all]==1.176.0  # install via: pip install nautilus-trader[all]==1.176.0
+
+# Machine Learning & Forecasting (conflicts with numpy 2.x / torch 2.4)
+# prophet==1.1.5
+# neuralprophet==0.5.1
+
+# Install heavy deps individually with proper toolchains:
+# 1. Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# 2. pip install nautilus-trader[all]==1.176.0
+# 3. pip install prophet==1.1.5 neuralprophet==0.5.1  (may need numpy<2 downgrade)

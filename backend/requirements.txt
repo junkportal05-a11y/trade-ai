@@ -1,0 +1,60 @@
+# ======================================================================
+# Trade AI / ApexTrade Quantitative Trading Platform Dependencies
+# ======================================================================
+# Core runtime dependencies - install in CI/CD and Docker
+# Heavy ML/engine deps moved to requirements-ml.txt
+
+# Web Framework & API Server
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+slowapi==0.1.9
+pydantic==2.14.1
+pydantic-settings==2.15.0
+
+# Database & ORM
+SQLAlchemy==2.1.5
+alembic==1.20.1
+psycopg2-binary==2.9.13
+psycopg[binary]==3.3.6
+
+# Security, Cryptography & Auth
+passlib[bcrypt]==1.7.4
+bcrypt==5.0.0
+python-jose[cryptography]==3.3.0
+cryptography==50.0.2
+pyotp==2.9.0
+
+# Quant Analysis, Indicators & Data Processing
+pandas==3.0.6
+numpy==2.5.4
+pyarrow==26.0.0
+yfinance==1.7.0
+scipy>=1.14.0
+scikit-learn==1.5.0
+
+# Brokerage & Network Communication
+requests==2.34.2
+websockets==16.1.1
+websocket-client==1.9.0
+smartapi-python==1.5.5
+
+# Distributed Caching & Rate Limiting
+redis==8.1.0
+
+# Error Tracing (Free Tier)
+sentry-sdk[fastapi]==2.73.0
+
+# Automation, Daemons & AI
+schedule==1.2.2
+google-genai==2.31.0
+python-dotenv==1.0.0
+python-dateutil==2.9.0.post0
+logzero==1.7.0
+tqdm==4.70.1
+
+# Testing Utilities
+freezegun==1.5.5
+pytest==9.1.1
+pytest-asyncio==1.5.0
+httpx==0.28.1

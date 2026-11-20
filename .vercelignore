@@ -49,10 +49,6 @@ quantdinger_reqs.txt
 requirements.txt
 requirements-*.txt
 pytest.ini
-postcss.config.js
-tailwind.config.js
-vite.config.js
-*.mjs
 
 # Node modules (installed during build)
 node_modules/
