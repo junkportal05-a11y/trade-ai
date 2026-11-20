@@ -1,0 +1,74 @@
+# Ignore everything except frontend/ and vercel.json
+# Vercel should only build the frontend
+
+# Agent/skill directories
+hive/
+.claude/
+.gemini/
+.opencode/
+.agents/
+.agents/
+
+# Backend (deployed separately to HF)
+backend/
+
+# AI/ML integrations
+integrations/
+ai/
+
+# Scripts and tools
+scripts/
+
+# Data directories
+historical_data/
+knowledge/
+logs/
+palace/
+stitch_apextrade_redesign/
+roster-backups/
+
+# Config files not needed for frontend
+*.md
+*.txt
+*.yml
+*.yaml
+docker-compose.yml
+Dockerfile
+Dockerfile.*
+.pytest_cache/
+.ruff_cache/
+.venv/
+test.db
+trading_platform.db*
+palace.lock
+palace.rebuilt*
+restore-gate.json
+skills-lock.json
+quantdinger_reqs.txt
+requirements.txt
+requirements-*.txt
+pytest.ini
+postcss.config.js
+tailwind.config.js
+vite.config.js
+*.mjs
+
+# Node modules (installed during build)
+node_modules/
+
+# Git
+.git/
+.gitattributes
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keep only:
+# frontend/
+# vercel.json
