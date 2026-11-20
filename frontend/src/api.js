@@ -3,7 +3,7 @@ export const getApiBaseUrl = () => {
     const custom = localStorage.getItem('apex_api_url');
     if (custom) return custom.endsWith('/') ? custom.slice(0, -1) : custom;
   }
-  let base = import.meta.env.VITE_API_URL || "";
+  let base = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
   if (base && !base.startsWith("http")) {
     base = "https://" + base;
   }
