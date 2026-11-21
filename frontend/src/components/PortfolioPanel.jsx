@@ -1,10 +1,10 @@
 import React from 'react';
 import { T, fmt, clr, sign } from '../theme';
 
-export default function PortfolioPanel({ prices, portfolio, cash }) {
+export default function PortfolioPanel({ prices = {}, portfolio = [], cash = 0 }) {
   let stockValue = 0, totalCost = 0;
   const positions = portfolio.map(pos => {
-    const price = prices[pos.symbol]?.price ?? pos.avgCost;
+    const price = prices?.[pos.symbol]?.price ?? pos.avgCost;
     const value = price * pos.shares;
     const cost = pos.avgCost * pos.shares;
     const pnl = value - cost;

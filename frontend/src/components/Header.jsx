@@ -71,7 +71,7 @@ function NavButton({ tab, active, onClick }) {
   );
 }
 
-export default function Header({ connected, view, onViewChange, isMobile, selectedSymbol, prices, dataSource = {}, onCommandPaletteOpen }) {
+export default function Header({ connected, view, onViewChange, isMobile, selectedSymbol, prices = {}, dataSource = {}, onCommandPaletteOpen }) {
   const [clock, setClock] = useState(() => new Date().toLocaleTimeString('en-IN', { hour12: true }));
   const session = useMemo(() => getMarketSession(), [clock]);
 
@@ -80,7 +80,7 @@ export default function Header({ connected, view, onViewChange, isMobile, select
     return () => clearInterval(timer);
   }, []);
 
-  const p = prices[selectedSymbol];
+  const p = prices?.[selectedSymbol];
   const price = p?.price ?? 0;
   const pct = p?.changePct ?? 0;
   const isUp = pct >= 0;

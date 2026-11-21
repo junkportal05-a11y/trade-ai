@@ -117,16 +117,16 @@ export const SEED_PRICES = {
 };
 
 export const DEFAULT_WATCHLIST = [
-  { symbol: 'RELIANCE.NS' },
-  { symbol: 'TCS.NS' },
-  { symbol: 'INFY.NS' },
-  { symbol: 'HDFCBANK.NS' },
-  { symbol: 'ICICIBANK.NS' },
-  { symbol: 'SBIN.NS' },
-  { symbol: 'BHARTIARTL.NS' },
-  { symbol: 'ITC.NS' },
-  { symbol: 'KOTAKBANK.NS' },
-  { symbol: 'LT.NS' },
+  { symbol: 'RELIANCE.NS',   name: 'Reliance Industries',         sector: 'Energy' },
+  { symbol: 'TCS.NS',        name: 'Tata Consultancy Services',   sector: 'IT' },
+  { symbol: 'INFY.NS',       name: 'Infosys',                     sector: 'IT' },
+  { symbol: 'HDFCBANK.NS',   name: 'HDFC Bank',                   sector: 'Banking' },
+  { symbol: 'ICICIBANK.NS',  name: 'ICICI Bank',                  sector: 'Banking' },
+  { symbol: 'SBIN.NS',       name: 'State Bank of India',         sector: 'Banking' },
+  { symbol: 'BHARTIARTL.NS', name: 'Bharti Airtel',               sector: 'Telecom' },
+  { symbol: 'ITC.NS',        name: 'ITC Limited',                 sector: 'FMCG' },
+  { symbol: 'KOTAKBANK.NS',  name: 'Kotak Mahindra Bank',         sector: 'Banking' },
+  { symbol: 'LT.NS',         name: 'Larsen & Toubro',             sector: 'Engineering' },
 ];
 
 export const INTERVALS = [

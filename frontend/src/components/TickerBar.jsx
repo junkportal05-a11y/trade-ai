@@ -64,7 +64,7 @@ export default function TickerBar({ prices = {}, dataSource = {} }) {
         {/* Real Live Prices */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 }}>
           {symbols.map((sym) => {
-            const p = prices[sym];
+            const p = prices?.[sym];
             const hasTick = !!p && p.price != null;
             const isUp = (p?.changePct ?? 0) >= 0;
             const cleanSym = sym.replace('.NS', '');

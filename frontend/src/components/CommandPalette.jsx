@@ -13,7 +13,7 @@ const QUICK_ACTIONS = [
   { id: 'scan-breakouts', label: 'Scan Breakouts', description: 'Open the scanner and run a breakout sweep', icon: Zap },
 ];
 
-export default function CommandPalette({ isOpen, onClose, onViewChange, onAction, selectedSymbol, prices }) {
+export default function CommandPalette({ isOpen, onClose, onViewChange, onAction, selectedSymbol, prices = {} }) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef(null);
@@ -28,13 +28,13 @@ export default function CommandPalette({ isOpen, onClose, onViewChange, onAction
         description: `Switch to ${meta.label}`,
         icon: ICON_MAP[meta.icon] || Home,
         kind: 'navigation',
-        action: () => { onViewChange(tab); onClose(); },
+        action: () => { onViewChange?.(tab); onClose(); },
         matchText: `${meta.label} ${tab}`.toLowerCase(),
       };
     });
 
     const symbols = DEFAULT_WATCHLIST.map(({ symbol, name, sector }) => {
-      const quote = prices[symbol];
+      const quote = prices?.[symbol];
       const change = quote?.changePct ?? 0;
       const priceLabel = quote?.price != null ? `₹${Number(quote.price).toLocaleString('en-IN')}` : 'awaiting feed';
       // Fix "undefined ·" label bug: ensure name and sector have fallbacks
@@ -49,7 +49,7 @@ export default function CommandPalette({ isOpen, onClose, onViewChange, onAction
         active: symbol === selectedSymbol,
         action: () => {
           onAction?.('selectSymbol', symbol);
-          onViewChange('CHART');
+          onViewChange?.('CHART');
           onClose();
         },
         matchText: `${symbol.replace('.NS', '')} ${displayName} ${displaySector}`.toLowerCase(),

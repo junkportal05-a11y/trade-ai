@@ -14,6 +14,7 @@ from slowapi.errors import RateLimitExceeded
 import logging
 
 from app.core.config import settings
+from app.core.exceptions import ApexTradeException
 from app.models.schemas import BacktestRequest
 from app.core.database import init_db
 from app.core.logging import configure_json_logging, logger, set_correlation_id, get_correlation_id
@@ -182,21 +183,93 @@ async def correlation_middleware(request: Request, call_next):
     return response
 
 
-# ── Generic fallback exception handler ───────────────────────────────────
-# Any unhandled exception returns a generic error shape (never a traceback,
-# never internal details) plus the correlation id for log-server joining.
+# ── Structured exception handlers ─────────────────────────────────────────
+# Map application exceptions to consistent API error envelopes:
+# { error: { code, message, ...details } }
+# User-facing text never contains stack traces or internal details;
+# full context is logged server-side.
+
+
+@app.exception_handler(ApexTradeException)
+async def apex_trade_exception_handler(request: Request, exc: ApexTradeException) -> JSONResponse:
+    """Handle structured ApexTradeException with error code, status code, and optional details."""
+    logger.error(
+        "apex_trade_exception",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "error_code": exc.code,
+            "error_message": exc.message,
+            "details": exc.details,
+        },
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "code": exc.code,
+                "message": exc.message,
+                **( {"details": exc.details} if exc.details else {} ),
+            }
+        },
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """Map FastAPI HTTPException to our structured error envelope."""
+    # Map common FastAPI HTTP status codes to our error codes
+    code_map = {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        422: "VALIDATION_ERROR",
+        500: "INTERNAL_ERROR",
+    }
+    error_code = code_map.get(exc.status_code, "INTERNAL_ERROR")
+
+    # Log full details server-side (never to client)
+    logger.warning(
+        "http_exception",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": exc.status_code,
+            "detail": exc.detail,
+        },
+    )
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "code": error_code,
+                "message": exc.detail,
+            }
+        },
+    )
+
+
+# Catch-all for any unexpected exception not mapped above
 @app.exception_handler(Exception)
-async def unhandled_exception_handler(request: Request, exc: Exception):
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.error(
         "unhandled_exception",
-        extra={"method": request.method, "path": request.url.path, "error": str(exc)},
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "error": str(exc),
+        },
         exc_info=True,
     )
     return JSONResponse(
         status_code=500,
         content={
-            "error": "Internal server error",
-            "correlation_id": get_correlation_id() or str(uuid.uuid4()),
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "An unexpected error occurred",
+            }
         },
     )
 

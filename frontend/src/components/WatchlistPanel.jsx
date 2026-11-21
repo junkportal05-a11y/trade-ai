@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Star } from 'lucide-react';
 import { T, DEFAULT_WATCHLIST, SEED_PRICES, fmt, clr, sign } from '../theme';
-export default function WatchlistPanel({ prices, selected, onSelect, favorites = [], onToggleFavorite }) {
+export default function WatchlistPanel({ prices = {}, selected, onSelect, favorites = [], onToggleFavorite }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const filtered = DEFAULT_WATCHLIST.filter(w => w.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || w.name.toLowerCase().includes(searchQuery.toLowerCase()) || (w.sector && w.sector.toLowerCase().includes(searchQuery.toLowerCase())));
+  const filtered = DEFAULT_WATCHLIST.filter(w => (w.symbol && w.symbol.toLowerCase().includes(searchQuery.toLowerCase())) || (w.name && w.name.toLowerCase().includes(searchQuery.toLowerCase())) || (w.sector && w.sector.toLowerCase().includes(searchQuery.toLowerCase())));
   const sorted = [...filtered].sort((a, b) => { const aF = favorites.includes(a.symbol), bF = favorites.includes(b.symbol); if (aF && !bF) return -1; if (!aF && bF) return 1; return 0; });
 
   return (
@@ -20,7 +20,7 @@ export default function WatchlistPanel({ prices, selected, onSelect, favorites =
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {sorted.length === 0 ? <div style={{ padding: '20px 14px', fontSize: 11, color: T.textDim, textAlign: 'center' }}>No matching symbols</div> :
         sorted.map(({ symbol, name, sector }) => {
-          const p = prices[symbol], price = p?.price ?? SEED_PRICES[symbol] ?? 0, pct = p?.changePct ?? 0, isUp = pct >= 0, isSel = selected === symbol, isFav = favorites.includes(symbol);
+          const p = prices?.[symbol], price = p?.price ?? SEED_PRICES[symbol] ?? 0, pct = p?.changePct ?? 0, isUp = pct >= 0, isSel = selected === symbol, isFav = favorites.includes(symbol);
           return (
             <div key={symbol} onClick={() => onSelect(symbol)} style={{ padding: '10px 14px', cursor: 'pointer', transition: 'background 0.15s', background: isSel ? T.goldDim : 'transparent', borderLeft: `2px solid ${isSel ? T.accent : 'transparent'}`, borderBottom: `1px solid ${T.border}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>

@@ -2,6 +2,10 @@ export const getApiBaseUrl = () => {
   if (typeof window !== "undefined") {
     const custom = localStorage.getItem('apex_api_url');
     if (custom) return custom.endsWith('/') ? custom.slice(0, -1) : custom;
+    // On Vercel deployments, use relative "" so requests route through vercel.json rewrite proxy without CORS preflight issues
+    if (window.location.hostname.includes("vercel.app") && !import.meta.env.VITE_API_URL) {
+      return "";
+    }
   }
   let base = import.meta.env.VITE_API_URL || "https://apextrade-core-trade-ai-backend.hf.space";
   if (base && !base.startsWith("http")) {
@@ -29,8 +33,7 @@ export const setApiBaseUrl = (url) => {
 export const API_BASE_URL = getApiBaseUrl();
 
 const isDev = typeof window !== "undefined" && window.location.port === "5173";
-export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 
-  (API_BASE_URL ? API_BASE_URL.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:') : '');
+export const WS_BASE_URL = import.meta.env.VITE_WS_URL || "wss://apextrade-core-trade-ai-backend.hf.space/ws";
 
 // Build headers for apiFetch. Multipart bodies must not get a JSON
 // Content-Type or the browser boundary is lost. Mutating requests carry the

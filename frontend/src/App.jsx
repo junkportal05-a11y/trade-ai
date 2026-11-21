@@ -173,11 +173,11 @@ export default function App() {
   const [backendReady, setBackendReady] = useState(() => localStorage.getItem('apex_splash_shown') !== null);
 
   const symbols = DEFAULT_WATCHLIST.map(w => w.symbol);
-  const { prices, connected, dataSource } = useLivePrices(symbols);
+  const { prices = {}, connected, dataSource } = useLivePrices(symbols);
   const iv = INTERVALS[ivIdx];
-  const currentPrice     = prices[selected]?.price ?? SEED_PRICES[selected] ?? 0;
-  const hasRealTick      = !!prices[selected];
-  const currentChangePct = prices[selected]?.changePct ?? 0;
+  const currentPrice     = prices?.[selected]?.price ?? SEED_PRICES[selected] ?? 0;
+  const hasRealTick      = !!prices?.[selected];
+  const currentChangePct = prices?.[selected]?.changePct ?? 0;
 
   // ── Keyboard Shortcuts ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1056,7 +1056,14 @@ export default function App() {
           )}
 
         </div>
-        <CommandPalette isOpen={cmdOpen} onClose={() => setCmdOpen(false)} onAction={handleCommandAction} />
+        <CommandPalette 
+          isOpen={cmdOpen} 
+          onClose={() => setCmdOpen(false)} 
+          onAction={handleCommandAction}
+          onViewChange={setView}
+          selectedSymbol={selected}
+          prices={prices}
+        />
         </div>
       )}
     </>
